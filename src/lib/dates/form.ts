@@ -1,3 +1,4 @@
+import { countChars, isIsoDate } from "@/lib/form";
 import type { Database } from "@/lib/supabase/database.types";
 
 // 글자 수 제한은 DB check 제약(마이그레이션)과 같아야 한다
@@ -29,15 +30,6 @@ export type DraftErrors = Partial<Record<"date" | "title" | "place" | "memo" | "
 
 export type CreateDateRecordArgs = Database["public"]["Functions"]["create_date_record"]["Args"];
 
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-
-/**
- * DB의 `char_length`처럼 글자 수를 센다(이모지 하나 = 한 글자). JS의 `length`는 이모지를 두 글자로 센다.
- *
- * @example countChars("😀") // 1
- */
-export const countChars = (text: string): number => Array.from(text).length;
-
 const tooLong = (text: string, max: number): boolean => countChars(text) > max;
 
 /**
@@ -49,7 +41,7 @@ const tooLong = (text: string, max: number): boolean => countChars(text) > max;
 export const validateDraft = (draft: DateRecordDraft, today: string): DraftErrors => {
   const errors: DraftErrors = {};
 
-  if (!ISO_DATE_PATTERN.test(draft.date)) errors.date = "날짜를 골라 주세요.";
+  if (!isIsoDate(draft.date)) errors.date = "날짜를 골라 주세요.";
   else if (draft.date > today) errors.date = "다녀온 날짜를 골라 주세요. 앞으로의 약속은 캘린더에 적어요.";
 
   if (draft.title.trim() === "") errors.title = "제목을 적어 주세요.";
@@ -66,16 +58,6 @@ export const validateDraft = (draft: DateRecordDraft, today: string): DraftError
   }
 
   return errors;
-};
-
-/**
- * 사용자가 고친 칸의 에러를 지운다. 다른 칸의 에러는 다시 저장할 때까지 그대로 둔다.
- *
- * @example clearError({ title: "제목을 적어 주세요." }, "title") // {}
- */
-export const clearError = (errors: DraftErrors, key: keyof DraftErrors): DraftErrors => {
-  if (!(key in errors)) return errors;
-  return Object.fromEntries(Object.entries(errors).filter(([name]) => name !== key));
 };
 
 /**
