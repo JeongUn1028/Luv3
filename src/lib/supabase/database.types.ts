@@ -47,14 +47,14 @@ isOneToOne: false
                   ]
                 },"photos": {
                   Row: {
-                    "created_at": string,"date_id": string,"id": string,"path": string,"sort_order": number,"thumb_path": string
+                    "caption": string | null,"created_at": string,"date_id": string,"id": string,"path": string,"sort_order": number,"thumb_path": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"date_id": string,"id"?: string,"path": string,"sort_order"?: number,"thumb_path": string
+                    "caption"?: string | null,"created_at"?: string,"date_id": string,"id"?: string,"path": string,"sort_order"?: number,"thumb_path": string
                   }
                   Update: {
-                    "created_at"?: string,"date_id"?: string,"id"?: string,"path"?: string,"sort_order"?: number,"thumb_path"?: string
+                    "caption"?: string | null,"created_at"?: string,"date_id"?: string,"id"?: string,"path"?: string,"sort_order"?: number,"thumb_path"?: string
                   }
                   Relationships: [
                     {
