@@ -17,6 +17,20 @@ export interface DateRecordDetail {
   memo: string | undefined;
   /** sort_order 순서 */
   photos: DetailPhoto[];
+  /** 기록을 지울 때 함께 지울 Storage 파일(원본·썸네일) */
+  filePaths: string[];
+}
+
+/** 수정 화면 초기값. 글은 입력칸에 바로 넣도록 빈 값을 빈 문자열로 둔다 */
+export interface EditableRecord {
+  id: string;
+  date: string;
+  title: string;
+  place: string;
+  memo: string;
+  coverPhotoId: string | undefined;
+  /** 이미 저장된 사진. 미리보기는 썸네일 서명 URL */
+  photos: { id: string; caption: string; previewUrl: string | undefined }[];
 }
 
 /** `dates` + `photos` 조회 결과 한 행 */
@@ -26,8 +40,15 @@ export interface DetailRow {
   title: string;
   place: string | null;
   memo: string | null;
-  photos: { id: string; path: string; caption: string | null; sort_order: number }[];
+  cover_photo_id: string | null;
+  photos: { id: string; path: string; thumb_path: string; caption: string | null; sort_order: number }[];
 }
+
+const toUrlByPath = (signed: SignedThumb[]): Map<string, string> =>
+  new Map(signed.flatMap(({ path, signedUrl }) => (path && signedUrl ? [[path, signedUrl] as const] : [])));
+
+const sortPhotos = (photos: DetailRow["photos"]): DetailRow["photos"] =>
+  photos.toSorted((a, b) => a.sort_order - b.sort_order);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -45,18 +66,39 @@ export const isRecordId = (id: string): boolean => UUID_PATTERN.test(id);
  * @example toDateRecordDetail(row, signedUrls)
  */
 export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedThumb[]): DateRecordDetail => {
-  const urlByPath = new Map(
-    signedPhotos.flatMap(({ path, signedUrl }) => (path && signedUrl ? [[path, signedUrl] as const] : [])),
-  );
+  const urlByPath = toUrlByPath(signedPhotos);
+  const photos = sortPhotos(row.photos);
   return {
     id: row.id,
     date: row.date,
     title: row.title,
     place: row.place ?? undefined,
     memo: row.memo ?? undefined,
-    photos: row.photos
-      .toSorted((a, b) => a.sort_order - b.sort_order)
-      .map(({ id, path, caption }) => ({ id, url: urlByPath.get(path), caption: caption ?? undefined })),
+    photos: photos.map(({ id, path, caption }) => ({ id, url: urlByPath.get(path), caption: caption ?? undefined })),
+    filePaths: photos.flatMap(({ path, thumb_path }) => [path, thumb_path]),
+  };
+};
+
+/**
+ * 조회한 행을 수정 화면 초기값으로 바꾼다. 미리보기는 썸네일 서명 URL을 쓴다.
+ *
+ * @example toEditableRecord(row, signedThumbs)
+ */
+export const toEditableRecord = (row: DetailRow, signedThumbs: SignedThumb[]): EditableRecord => {
+  const urlByPath = toUrlByPath(signedThumbs);
+  const photos = sortPhotos(row.photos);
+  return {
+    id: row.id,
+    date: row.date,
+    title: row.title,
+    place: row.place ?? "",
+    memo: row.memo ?? "",
+    coverPhotoId: row.cover_photo_id ?? photos[0]?.id,
+    photos: photos.map(({ id, caption, thumb_path }) => ({
+      id,
+      caption: caption ?? "",
+      previewUrl: urlByPath.get(thumb_path),
+    })),
   };
 };
 

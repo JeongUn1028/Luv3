@@ -4,9 +4,10 @@ import { useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { CAPTION_MAX_LENGTH, MAX_PHOTOS, type DraftErrors, type DraftPhoto } from "@/lib/dates/form";
 
 export interface PickedPhoto extends DraftPhoto {
-  file: File;
-  /** 미리보기용 object URL. 사진을 빼거나 화면을 떠날 때 해제한다 */
-  previewUrl: string;
+  /** 이번에 새로 고른 사진의 파일. 이미 저장된 사진(수정 화면)은 undefined */
+  file: File | undefined;
+  /** 새 사진은 object URL(빼거나 화면을 떠날 때 해제), 저장된 사진은 썸네일 서명 URL */
+  previewUrl: string | undefined;
 }
 
 interface PhotoPickerProps {
@@ -22,7 +23,7 @@ interface PhotoPickerProps {
 }
 
 interface PhotoPreviewProps {
-  src: string;
+  src: string | undefined;
   alt: string;
 }
 
@@ -30,7 +31,7 @@ interface PhotoPreviewProps {
 const PhotoPreview = ({ src, alt }: PhotoPreviewProps): ReactElement => {
   const [hasFailed, setHasFailed] = useState(false);
 
-  if (hasFailed) {
+  if (hasFailed || !src) {
     return (
       <div
         role="img"
