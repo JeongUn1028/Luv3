@@ -1,23 +1,43 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { AlbumGrid } from "@/components/home/AlbumGrid";
 import { DdayHeader } from "@/components/home/DdayHeader";
 import { HomePager } from "@/components/home/HomePager";
 import { SettingsIcon } from "@/components/icons";
 import { ANNIVERSARY_DATE, countDaysTogether, formatSinceLabel, toKstDate } from "@/lib/anniversary";
 import { getCurrentMember } from "@/lib/auth/member";
+import type { AlbumTile } from "@/lib/dates/album";
+import { AlbumLoadError, getAlbumTiles } from "@/lib/dates/queries";
+
+/** 그리드를 못 불러와도 D-day와 탭은 쓸 수 있게, 이 에러만 패널 안 문구로 바꾼다 */
+const loadAlbumTiles = async (): Promise<AlbumTile[] | AlbumLoadError> => {
+  try {
+    return await getAlbumTiles();
+  } catch (error) {
+    if (error instanceof AlbumLoadError) return error;
+    throw error;
+  }
+};
 
 const RecordsPanel = async () => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
   await getCurrentMember();
   const days = countDaysTogether(ANNIVERSARY_DATE, toKstDate(new Date()));
+  const tiles = await loadAlbumTiles();
 
   return (
     <div className="flex min-h-full flex-col px-4">
       <DdayHeader days={days} sinceLabel={formatSinceLabel(ANNIVERSARY_DATE)} />
-      <div className="flex flex-1 items-center justify-center py-12">
-        <p className="text-[13px] text-ink-sub">아직 남긴 기록이 없어요</p>
-      </div>
+      {tiles instanceof AlbumLoadError ? (
+        <div className="flex flex-1 items-center justify-center py-12">
+          <p role="alert" className="text-[13px] text-ink-sub">
+            {tiles.message}
+          </p>
+        </div>
+      ) : (
+        <AlbumGrid tiles={tiles} />
+      )}
     </div>
   );
 };
