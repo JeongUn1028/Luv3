@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRecordDate, isRecordId, toDateRecordDetail, type DetailRow } from "./detail";
+import { formatRecordDate, isRecordId, toDateRecordDetail, toEditableRecord, type DetailRow } from "./detail";
 
 const row: DetailRow = {
   id: "r1",
@@ -7,9 +7,10 @@ const row: DetailRow = {
   title: "산책",
   place: null,
   memo: "오래 걸었다",
+  cover_photo_id: "p2",
   photos: [
-    { id: "p2", path: "r1/p2.jpg", caption: null, sort_order: 1 },
-    { id: "p1", path: "r1/p1.jpg", caption: "카페", sort_order: 0 },
+    { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1 },
+    { id: "p1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", caption: "카페", sort_order: 0 },
   ],
 };
 
@@ -38,12 +39,35 @@ describe("toDateRecordDetail", () => {
         { id: "p1", url: "https://example.test/p1", caption: "카페" },
         { id: "p2", url: "https://example.test/p2", caption: undefined },
       ],
+      filePaths: ["r1/p1.jpg", "r1/p1_thumb.jpg", "r1/p2.jpg", "r1/p2_thumb.jpg"],
     });
   });
 
   it("서명 URL을 받지 못한 사진은 URL 없이 둔다", () => {
     const detail = toDateRecordDetail(row, [{ path: "r1/p1.jpg", signedUrl: null }]);
     expect(detail.photos.map(({ url }) => url)).toEqual([undefined, undefined]);
+  });
+});
+
+describe("toEditableRecord", () => {
+  it("수정 화면 초기값으로 바꾼다: 사진은 순서대로 썸네일 미리보기, 빈 값은 빈 문자열", () => {
+    const editable = toEditableRecord(row, [{ path: "r1/p1_thumb.jpg", signedUrl: "https://example.test/t1" }]);
+    expect(editable).toEqual({
+      id: "r1",
+      date: "2026-11-02",
+      title: "산책",
+      place: "",
+      memo: "오래 걸었다",
+      coverPhotoId: "p2",
+      photos: [
+        { id: "p1", caption: "카페", previewUrl: "https://example.test/t1" },
+        { id: "p2", caption: "", previewUrl: undefined },
+      ],
+    });
+  });
+
+  it("대표 사진이 비어 있으면 첫 사진을 대표로 둔다", () => {
+    expect(toEditableRecord({ ...row, cover_photo_id: null }, []).coverPhotoId).toBe("p1");
   });
 });
 

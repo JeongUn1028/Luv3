@@ -2,7 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { toAlbumTiles, type AlbumTile } from "./album";
-import { isRecordId, toDateRecordDetail, type DateRecordDetail } from "./detail";
+import { isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
 
 /**
  * 서명 URL 유효 시간(초). 화면은 요청마다 새로 그리고 한 번 불러온 사진은 브라우저가 들고 있으므로,
@@ -52,6 +52,27 @@ export class DateRecordLoadError extends Error {
   }
 }
 
+const DETAIL_COLUMNS =
+  "id, date, title, place, memo, cover_photo_id, photos!photos_date_id_fkey(id, path, thumb_path, caption, sort_order)";
+
+/** 기록 행 하나를 읽는다. id 형식이 틀리거나 없는 기록이면 undefined */
+const getDetailRow = async (
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  id: string,
+): Promise<DetailRow | undefined> => {
+  if (!isRecordId(id)) return undefined;
+  const { data: row, error } = await supabase.from("dates").select(DETAIL_COLUMNS).eq("id", id).maybeSingle();
+  if (error) throw new DateRecordLoadError({ cause: error });
+  return row ?? undefined;
+};
+
+const signPaths = async (supabase: Awaited<ReturnType<typeof createClient>>, paths: string[]) => {
+  if (paths.length === 0) return [];
+  const { data, error } = await supabase.storage.from(ALBUM_BUCKET).createSignedUrls(paths, SIGNED_URL_EXPIRES_IN);
+  if (error) throw new DateRecordLoadError({ cause: error });
+  return data;
+};
+
 /**
  * 기록 하나와 사진 전체를 불러오고, 원본 사진 서명 URL을 한 번에 발급한다.
  *
@@ -60,24 +81,22 @@ export class DateRecordLoadError extends Error {
  * @example const record = await getDateRecordDetail(id); if (!record) notFound()
  */
 export const getDateRecordDetail = async (id: string): Promise<DateRecordDetail | undefined> => {
-  if (!isRecordId(id)) return undefined;
-
   const supabase = await createClient();
-  const { data: row, error } = await supabase
-    .from("dates")
-    .select("id, date, title, place, memo, photos!photos_date_id_fkey(id, path, caption, sort_order)")
-    .eq("id", id)
-    .maybeSingle();
-  if (error) throw new DateRecordLoadError({ cause: error });
+  const row = await getDetailRow(supabase, id);
   if (!row) return undefined;
+  return toDateRecordDetail(row, await signPaths(supabase, row.photos.map(({ path }) => path)));
+};
 
-  const paths = row.photos.map(({ path }) => path);
-  if (paths.length === 0) return toDateRecordDetail(row, []);
-
-  const { data: signed, error: signError } = await supabase.storage
-    .from(ALBUM_BUCKET)
-    .createSignedUrls(paths, SIGNED_URL_EXPIRES_IN);
-  if (signError) throw new DateRecordLoadError({ cause: signError });
-
-  return toDateRecordDetail(row, signed);
+/**
+ * 수정 화면 초기값을 불러온다. 미리보기용으로 썸네일 서명 URL을 발급한다.
+ *
+ * @returns 없는 기록이거나 id 형식이 틀리면 undefined
+ * @throws {DateRecordLoadError} 조회나 서명 URL 발급이 실패했을 때
+ * @example const record = await getEditableRecord(id); if (!record) notFound()
+ */
+export const getEditableRecord = async (id: string): Promise<EditableRecord | undefined> => {
+  const supabase = await createClient();
+  const row = await getDetailRow(supabase, id);
+  if (!row) return undefined;
+  return toEditableRecord(row, await signPaths(supabase, row.photos.map(({ thumb_path }) => thumb_path)));
 };
