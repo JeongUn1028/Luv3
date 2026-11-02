@@ -60,6 +60,46 @@ export const validateDraft = (draft: DateRecordDraft, today: string): DraftError
   return errors;
 };
 
+/** 일정에서 기록 작성으로 넘어갈 때 작성 폼에 미리 채울 값 */
+export interface RecordPrefill {
+  date: string;
+  title: string;
+  place: string;
+}
+
+/**
+ * 지난 일정으로 기록을 남기는 작성 화면 주소. 날짜·제목·장소를 쿼리로 넘긴다.
+ *
+ * @example toNewRecordHref({ date: "2026-11-01", title: "산책", place: "" }) // "/dates/new?date=2026-11-01&title=%EC%82%B0%EC%B1%85"
+ */
+export const toNewRecordHref = ({ date, title, place }: RecordPrefill): string => {
+  const query = new URLSearchParams({ date, title });
+  if (place) query.set("place", place);
+  return `/dates/new?${query.toString()}`;
+};
+
+const takeChars = (text: string, max: number): string => Array.from(text.trim()).slice(0, max).join("");
+
+/**
+ * 작성 화면 주소 쿼리를 폼 처음 값으로 읽는다. 쿼리가 없으면 undefined.
+ * 주소는 손으로 바꿀 수 있어서, 없는 날짜·앞으로의 날짜는 비워 두고(저장 전에 날짜를 고르라고 알린다) 글자 수는 제한까지만 받는다.
+ *
+ * @example parseRecordPrefill({ date: "2026-11-01", title: "산책" }, "2026-11-02") // { date: "2026-11-01", title: "산책", place: "" }
+ */
+export const parseRecordPrefill = (
+  params: Record<string, string | string[] | undefined>,
+  today: string,
+): RecordPrefill | undefined => {
+  const { date, title, place } = params;
+  if (date === undefined && title === undefined && place === undefined) return undefined;
+  return {
+    // 날짜를 받았는데 쓸 수 없으면 오늘로 바꾸지 않고 비워 둔다: 일정과 다른 날로 저장되지 않게 직접 고르게 한다
+    date: date === undefined ? today : typeof date === "string" && isIsoDate(date) && date <= today ? date : "",
+    title: typeof title === "string" ? takeChars(title, TITLE_MAX_LENGTH) : "",
+    place: typeof place === "string" ? takeChars(place, PLACE_MAX_LENGTH) : "",
+  };
+};
+
 /**
  * 고른 사진을 뒤에 붙인다. 10장을 넘는 사진은 버리고, 대표 사진이 없으면 첫 사진을 대표로 정한다.
  *

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildMonthGrid,
+  canLeaveRecord,
   formatDayHeading,
   formatEventTime,
   formatMonthTitle,
@@ -110,5 +111,22 @@ describe("groupByDate", () => {
     expect(grouped.get("2026-11-14")?.map(({ id }) => id)).toEqual(["a", "c"]);
     expect(grouped.get("2026-11-15")?.map(({ id }) => id)).toEqual(["b"]);
     expect(grouped.get("2026-11-16")).toBeUndefined();
+  });
+});
+
+describe("canLeaveRecord", () => {
+  const today = "2026-11-02";
+
+  it("오늘까지의 일정은 기록으로 이어 쓸 수 있다", () => {
+    expect(canLeaveRecord({ date: "2026-11-01", title: "산책" }, today, [])).toBe(true);
+    expect(canLeaveRecord({ date: today, title: "산책" }, today, [])).toBe(true);
+    expect(canLeaveRecord({ date: "2026-11-03", title: "산책" }, today, [])).toBe(false);
+  });
+
+  it("그날 같은 제목의 기록이 이미 있으면 다시 권하지 않는다", () => {
+    const records = [{ date: "2026-11-01", title: "산책" }];
+    expect(canLeaveRecord({ date: "2026-11-01", title: "산책" }, today, records)).toBe(false);
+    expect(canLeaveRecord({ date: "2026-11-01", title: "전시" }, today, records)).toBe(true);
+    expect(canLeaveRecord({ date: "2026-10-31", title: "산책" }, today, records)).toBe(true);
   });
 });

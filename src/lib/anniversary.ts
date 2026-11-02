@@ -49,3 +49,22 @@ export const countDaysTogether = (anniversary: string, today: string): number =>
   if (days < 1) throw new Error(`오늘(${today})이 기념일보다 이른 날입니다: ${anniversary}`);
   return days;
 };
+
+/**
+ * 달력에 보일 기념일 이름. 사귄 날, 100일 단위(100일, 200일…), 해마다 돌아오는 날(1주년…)이며 아니면 undefined다.
+ * 둘이 겹치면 "118주년 · 43100일"처럼 함께 보여 준다.
+ *
+ * @example getAnniversaryLabel("2026-10-31", "2027-02-07") // "100일"
+ */
+export const getAnniversaryLabel = (anniversary: string, date: string): string | undefined => {
+  if (date < anniversary) return undefined;
+  if (date === anniversary) return "사귄 날";
+
+  const years = Number(date.slice(0, 4)) - Number(anniversary.slice(0, 4));
+  const days = countDaysTogether(anniversary, date);
+  const labels = [
+    date.slice(5) === anniversary.slice(5) && `${years}주년`,
+    days % 100 === 0 && `${days}일`,
+  ].filter(Boolean);
+  return labels.length > 0 ? labels.join(" · ") : undefined;
+};
