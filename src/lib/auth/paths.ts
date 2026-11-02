@@ -1,13 +1,13 @@
 export const LOGIN_PATH = "/login";
 export const HOME_PATH = "/";
 
-/** 로그인하지 않아도 열 수 있는 경로. 로그인 화면과 메일 링크 확인·로그아웃 처리만 둔다. */
+/** 로그인하지 않아도 열 수 있는 경로. 로그인 화면과 로그아웃 처리만 둔다. */
 const PUBLIC_PATH_PREFIXES = [LOGIN_PATH, "/auth"] as const;
 
 /**
  * 비로그인 상태로 접근해도 되는 경로인지 판단한다. `/login`과 `/login/...`은 허용하고 `/loginx`는 막는다.
  *
- * @example isPublicPath("/auth/confirm") // true
+ * @example isPublicPath("/auth/signout") // true
  */
 export const isPublicPath = (pathname: string): boolean =>
   PUBLIC_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
