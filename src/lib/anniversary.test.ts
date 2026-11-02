@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANNIVERSARY_DATE, countDaysTogether, formatSinceLabel, toKstDate } from "./anniversary";
+import { ANNIVERSARY_DATE, countDaysTogether, formatSinceLabel, getAnniversaryLabel, toKstDate } from "./anniversary";
 
 describe("formatSinceLabel", () => {
   it("YYYY-MM-DD를 SINCE YYMMDD로 바꾼다", () => {
@@ -48,5 +48,25 @@ describe("countDaysTogether", () => {
   it("한국 시간 자정이 지나면 하루가 늘어난다", () => {
     expect(countDaysTogether(ANNIVERSARY_DATE, toKstDate(new Date("2026-11-01T14:59:59Z")))).toBe(2);
     expect(countDaysTogether(ANNIVERSARY_DATE, toKstDate(new Date("2026-11-01T15:00:00Z")))).toBe(3);
+  });
+});
+
+describe("getAnniversaryLabel", () => {
+  it("사귄 날, 100일 단위, 해마다 돌아오는 날에 이름을 붙인다", () => {
+    expect(getAnniversaryLabel("2026-10-31", "2026-10-31")).toBe("사귄 날");
+    expect(getAnniversaryLabel("2026-10-31", "2027-02-07")).toBe("100일");
+    expect(getAnniversaryLabel("2026-10-31", "2029-07-26")).toBe("1000일");
+    expect(getAnniversaryLabel("2026-10-31", "2027-10-31")).toBe("1주년");
+  });
+
+  it("기념일이 아닌 날과 사귀기 전 날은 이름이 없다", () => {
+    expect(getAnniversaryLabel("2026-10-31", "2026-11-02")).toBeUndefined();
+    expect(getAnniversaryLabel("2026-10-31", "2027-02-08")).toBeUndefined();
+    expect(getAnniversaryLabel("2026-10-31", "2025-10-31")).toBeUndefined();
+  });
+
+  it("주년과 100일 단위가 겹치면 둘 다 보여 준다", () => {
+    // 2144-10-31은 118주년이면서 43100일째다
+    expect(getAnniversaryLabel("2026-10-31", "2144-10-31")).toBe("118주년 · 43100일");
   });
 });

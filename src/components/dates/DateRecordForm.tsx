@@ -15,6 +15,7 @@ import {
   validateDraft,
   type DateRecordDraft,
   type DraftErrors,
+  type RecordPrefill,
 } from "@/lib/dates/form";
 import { clearError, countChars } from "@/lib/form";
 import type { EditableRecord } from "@/lib/dates/detail";
@@ -41,10 +42,10 @@ const toSaveErrorMessage = (error: unknown): string => {
   return "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
 };
 
-const createEmptyDraft = (): DateRecordDraft<PickedPhoto> => ({
-  date: toKstDate(new Date()),
-  title: "",
-  place: "",
+const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto> => ({
+  date: prefill?.date ?? toKstDate(new Date()),
+  title: prefill?.title ?? "",
+  place: prefill?.place ?? "",
   memo: "",
   photos: [],
   coverPhotoId: undefined,
@@ -62,12 +63,14 @@ const toEditDraft = ({ date, title, place, memo, coverPhotoId, photos }: Editabl
 interface DateRecordFormProps {
   /** 고칠 기록. 없으면 새 기록을 쓴다 */
   record?: EditableRecord;
+  /** 새 기록에 미리 채울 값(지난 일정에서 넘어온 경우) */
+  prefill?: RecordPrefill;
 }
 
 /** 데이트 기록 작성·수정 폼. 새로 고른 사진을 줄여 올린 뒤 기록과 사진 행을 한 번에 저장한다. */
-export const DateRecordForm = ({ record }: DateRecordFormProps): ReactElement => {
+export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactElement => {
   const router = useRouter();
-  const [draft, setDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft()));
+  const [draft, setDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft(prefill)));
   const [errors, setErrors] = useState<DraftErrors>({});
   const [notice, setNotice] = useState<string>();
   const [progress, setProgress] = useState<SaveProgress>();
