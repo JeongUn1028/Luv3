@@ -53,6 +53,13 @@ export const isHeic = (file: File): boolean =>
 const isSupportedPhoto = (file: File): boolean =>
   PHOTO_TYPES.has(file.type) || (hasUnknownType(file) && PHOTO_EXTENSION.test(file.name));
 
+/**
+ * 올릴 수 있는 사진인지 확인한다(JPEG·PNG·WebP·HEIC). 사진을 고를 때 걸러 저장 단계에서 실패하지 않게 한다.
+ *
+ * @example isAcceptedPhoto(new File([], "a.gif", { type: "image/gif" })) // false
+ */
+export const isAcceptedPhoto = (file: File): boolean => isHeic(file) || isSupportedPhoto(file);
+
 // heic2any는 libheif를 품고 있어 크고(약 2.7MB), 불러올 때 window가 필요하다. HEIC를 고른 경우에만 불러온다.
 const convertHeicToJpeg = async (file: File): Promise<File> => {
   try {
@@ -84,8 +91,8 @@ const compress = async (file: File, options: Options): Promise<File> => {
  * const { original, thumb } = await resizePhoto(input.files[0])
  */
 export const resizePhoto = async (file: File): Promise<ResizedPhoto> => {
+  if (!isAcceptedPhoto(file)) throw new PhotoError("unsupported-type");
   const heic = isHeic(file);
-  if (!heic && !isSupportedPhoto(file)) throw new PhotoError("unsupported-type");
 
   const source = heic ? await convertHeicToJpeg(file) : file;
   const original = await compress(source, ORIGINAL_OPTIONS);
