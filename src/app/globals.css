@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+/* 다크 단일 테마(docs/plan.md "디자인 방향"). 순검정·순백은 쓰지 않는다. */
+@theme {
+  --color-background: #0a0a0a;
+  --color-surface: #161616;
+  --color-line: #2a2a2a;
+  --color-ink: #f2f2f2;
+  --color-ink-sub: #8a8a8a;
+  --color-accent: #e8e2d6;
+  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
