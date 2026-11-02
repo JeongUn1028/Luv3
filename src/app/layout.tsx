@@ -20,11 +20,15 @@ export const metadata: Metadata = {
   title: "Luv3",
   description: "둘이서만 보는 데이트 앨범",
   robots: { index: false, follow: false },
+  // 아이폰 홈 화면에 추가하면 주소창 없이 열고, 상태바는 배경 위에 겹쳐 그린다(각 화면이 safe-area만큼 띄운다)
+  appleWebApp: { capable: true, title: "Luv3", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
   themeColor: "#0A0A0A",
   colorScheme: "dark",
+  // 노치·홈 인디케이터 영역까지 화면을 채운다. 이 설정이 있어야 env(safe-area-inset-*) 값이 0이 아니게 된다
+  viewportFit: "cover",
 };
 
 const RootLayout = ({ children }: LayoutProps<"/">) => (
