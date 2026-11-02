@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
+import { startTransition, useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { BackIcon } from "@/components/icons";
 import { toKstDate } from "@/lib/anniversary";
 import {
@@ -129,8 +129,19 @@ export const DateRecordForm = (): ReactElement => {
         createRecord: (args) => supabase.rpc("create_date_record", args),
         onProgress: setProgress,
       });
-      router.replace("/");
-      router.refresh();
+      // cacheComponents는 다녀온 화면을 Activity로 숨겨 상태를 보존한다. 다시 + 를 눌렀을 때 빈 폼이 되도록
+      // 이동과 같은 transition에서 처음 값으로 되돌린다(이동이 끝날 때 함께 반영돼 빈 폼이 잠깐 보이지 않는다)
+      // 이미 그려진 미리보기는 URL을 해제해도 그대로 보인다
+      draft.photos.forEach(({ previewUrl }) => revokePreview(previewUrl));
+      startTransition(() => {
+        router.replace("/");
+        router.refresh();
+        setDraft(createEmptyDraft());
+        setErrors({});
+        setNotice(undefined);
+        setProgress(undefined);
+        setIsSaving(false);
+      });
     } catch (error) {
       setNotice(toSaveErrorMessage(error));
       setIsSaving(false);
