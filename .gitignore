@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# build
+build/
+dist/
+*.tsbuildinfo
+
+# env (Supabase 키·허용목록 이메일은 절대 커밋하지 않는다)
+.env
+.env.*
+!.env.example
+
+# supabase local
+supabase/.branches/
+supabase/.temp/
+
+# test
+coverage/
+playwright-report/
+test-results/
+
+# misc
+.DS_Store
+Thumbs.db
+*.log
+.vercel
