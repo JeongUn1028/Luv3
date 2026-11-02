@@ -8,10 +8,11 @@ import { getLoginErrorMessage, isValidOtp } from "./messages";
 
 type Step = "email" | "code";
 
+const labelClassName = "text-[13px] text-ink-sub";
 const inputClassName =
-  "h-12 w-full rounded border border-line bg-surface px-4 text-[15px] text-ink placeholder:text-ink-sub focus:border-accent focus:outline-none";
+  "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-[15px] text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none";
 const buttonClassName =
-  "h-12 w-full rounded bg-accent text-[15px] font-medium text-background disabled:opacity-50";
+  "mt-4 h-[52px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background disabled:opacity-50";
 
 /**
  * 로그인 화면의 쿼리(next, error)가 바뀌면 폼을 새로 마운트해 입력 단계와 안내 문구를 초기화한다.
@@ -85,33 +86,34 @@ const LoginSteps = ({ nextPath, initialMessage }: LoginStepsProps) => {
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col">
       {step === "email" ? (
-        <form onSubmit={handleSendEmail} className="flex flex-col gap-3">
-          <label htmlFor="email" className="text-[13px] text-ink-sub">
+        <form onSubmit={handleSendEmail} className="flex flex-col">
+          <label htmlFor="email" className={labelClassName}>
             이메일
           </label>
           <input
             id="email"
             type="email"
             autoComplete="email"
+            placeholder="name@example.com"
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
             className={inputClassName}
           />
           <button type="submit" disabled={isPending} className={buttonClassName}>
-            {isPending ? "보내는 중…" : "로그인 메일 받기"}
+            {isPending ? "보내는 중…" : "로그인 링크 받기"}
           </button>
         </form>
       ) : (
-        <form onSubmit={handleVerifyCode} className="flex flex-col gap-3">
-          <p className="text-[15px] leading-relaxed text-ink">
+        <form onSubmit={handleVerifyCode} className="flex flex-col">
+          <p className="mb-6 text-[15px] leading-relaxed text-ink">
             <span className="break-all">{email}</span>로 로그인 메일을 보냈습니다.
             <br />
             <span className="text-ink-sub">메일의 버튼을 누르거나 6자리 코드를 입력하세요.</span>
           </p>
-          <label htmlFor="code" className="text-[13px] text-ink-sub">
+          <label htmlFor="code" className={labelClassName}>
             6자리 코드
           </label>
           <input
@@ -134,17 +136,18 @@ const LoginSteps = ({ nextPath, initialMessage }: LoginStepsProps) => {
               setCode("");
               setMessage(undefined);
             }}
-            className="h-10 text-[13px] text-ink-sub underline underline-offset-4"
+            className="mt-2 h-10 text-[13px] text-ink-sub underline underline-offset-4"
           >
             이메일 다시 입력
           </button>
         </form>
       )}
       {message && (
-        <p role="alert" className="text-[13px] text-accent">
+        <p role="alert" className="mt-3 text-[13px] text-accent">
           {message}
         </p>
       )}
+      <p className="mt-[18px] text-center text-[12px] text-ink-sub">허용된 두 계정만 들어올 수 있어요</p>
     </div>
   );
 };
