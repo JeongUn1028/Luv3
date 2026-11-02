@@ -6,7 +6,7 @@ const matchesProxy = (pathname: string): boolean =>
   config.matcher.some((source) => new RegExp(`^${source}$`).test(pathname));
 
 describe("proxy matcher", () => {
-  it.each(["/", "/login", "/auth/confirm", "/dates/1"])("페이지 %s는 세션 확인을 거친다", (pathname) => {
+  it.each(["/", "/login", "/auth/signout", "/dates/1"])("페이지 %s는 세션 확인을 거친다", (pathname) => {
     expect(matchesProxy(pathname)).toBe(true);
   });
 
