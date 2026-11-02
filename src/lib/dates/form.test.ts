@@ -3,8 +3,10 @@ import {
   MAX_PHOTOS,
   addPhotos,
   movePhoto,
+  parseRecordPrefill,
   removePhoto,
   toCreateRecordArgs,
+  toNewRecordHref,
   validateDraft,
   type DateRecordDraft,
 } from "./form";
@@ -133,5 +135,49 @@ describe("toCreateRecordArgs", () => {
 
   it("대표 사진이 없으면 코드 실수라 에러를 낸다", () => {
     expect(() => toCreateRecordArgs("r1", draft({ coverPhotoId: undefined }))).toThrow("대표 사진");
+  });
+});
+
+describe("toNewRecordHref", () => {
+  it("일정의 날짜·제목·장소를 작성 화면 주소 쿼리로 넘긴다", () => {
+    expect(toNewRecordHref({ date: "2026-11-01", title: "전시 & 저녁", place: "국립현대미술관" })).toBe(
+      "/dates/new?date=2026-11-01&title=%EC%A0%84%EC%8B%9C+%26+%EC%A0%80%EB%85%81&place=%EA%B5%AD%EB%A6%BD%ED%98%84%EB%8C%80%EB%AF%B8%EC%88%A0%EA%B4%80",
+    );
+  });
+
+  it("장소가 없으면 장소 쿼리를 넣지 않는다", () => {
+    expect(toNewRecordHref({ date: "2026-11-01", title: "산책", place: "" })).toBe(
+      "/dates/new?date=2026-11-01&title=%EC%82%B0%EC%B1%85",
+    );
+  });
+});
+
+describe("parseRecordPrefill", () => {
+  it("쿼리가 없으면 채울 값이 없다", () => {
+    expect(parseRecordPrefill({}, TODAY)).toBeUndefined();
+  });
+
+  it("주소 쿼리의 날짜·제목·장소를 작성 폼 처음 값으로 읽는다", () => {
+    expect(parseRecordPrefill({ date: "2026-11-01", title: " 전시 보기 ", place: "미술관" }, TODAY)).toEqual({
+      date: "2026-11-01",
+      title: "전시 보기",
+      place: "미술관",
+    });
+  });
+
+  it("날짜 쿼리가 없으면 오늘로 둔다", () => {
+    expect(parseRecordPrefill({ title: "a" }, TODAY)?.date).toBe(TODAY);
+  });
+
+  it("없는 날짜·앞으로의 날짜·여러 값은 다른 날로 바꾸지 않고 비워서 직접 고르게 한다", () => {
+    expect(parseRecordPrefill({ date: "2026-02-31", title: "a" }, TODAY)?.date).toBe("");
+    expect(parseRecordPrefill({ date: "2026-11-03", title: "a" }, TODAY)?.date).toBe("");
+    expect(parseRecordPrefill({ date: ["2026-11-01", "2026-10-31"], title: "a" }, TODAY)?.date).toBe("");
+  });
+
+  it("글자 수 제한을 넘는 제목·장소는 제한까지만 채운다", () => {
+    const prefill = parseRecordPrefill({ title: "가".repeat(150), place: "😀".repeat(120) }, TODAY);
+    expect(prefill?.title).toBe("가".repeat(100));
+    expect(prefill?.place).toBe("😀".repeat(100));
   });
 });

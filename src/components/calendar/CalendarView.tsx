@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useState, type ReactElement } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/icons";
+import { ANNIVERSARY_DATE, countDaysTogether, getAnniversaryLabel } from "@/lib/anniversary";
 import {
   buildMonthGrid,
+  canLeaveRecord,
   formatDayHeading,
   formatEventTime,
   formatMonthTitle,
@@ -12,6 +14,7 @@ import {
   groupByDate,
   shiftMonth,
 } from "@/lib/calendar/month";
+import { toNewRecordHref } from "@/lib/dates/form";
 import type { CalendarEvent, CalendarRecord } from "@/lib/events/queries";
 
 interface CalendarViewProps {
@@ -40,6 +43,8 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
   const recordsByDate = groupByDate(records);
   const selectedEvents = eventsByDate.get(selectedDate) ?? [];
   const selectedRecords = recordsByDate.get(selectedDate) ?? [];
+  const selectedAnniversary = getAnniversaryLabel(ANNIVERSARY_DATE, selectedDate);
+  const isEmptyDay = !selectedAnniversary && selectedRecords.length === 0 && selectedEvents.length === 0;
 
   return (
     <div className="flex flex-col px-4 pb-6">
@@ -80,6 +85,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                 const recordCount = recordsByDate.get(date)?.length ?? 0;
                 const isSelected = date === selectedDate;
                 const isToday = date === today;
+                const anniversary = getAnniversaryLabel(ANNIVERSARY_DATE, date);
                 const summary = [
                   eventCount > 0 && `일정 ${eventCount}개`,
                   recordCount > 0 && `기록 ${recordCount}개`,
@@ -89,7 +95,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                     <button
                       type="button"
                       aria-pressed={isSelected}
-                      aria-label={[formatDayHeading(date), isToday && "오늘", ...summary].filter(Boolean).join(", ")}
+                      aria-label={[formatDayHeading(date), isToday && "오늘", anniversary, ...summary].filter(Boolean).join(", ")}
                       onClick={() => setSelectedDate(date)}
                       className={`flex h-12 w-full flex-col items-center justify-start gap-1 rounded-[10px] pt-1.5 text-[14px] ${
                         isSelected ? "bg-surface" : ""
@@ -98,7 +104,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                       <span
                         className={`flex size-7 items-center justify-center rounded-full ${
                           isToday ? "bg-accent font-bold text-background" : ""
-                        }`}
+                        } ${anniversary ? "ring-1 ring-cream" : ""} ${isToday && anniversary ? "ring-offset-2 ring-offset-background" : ""}`}
                       >
                         {day}
                       </span>
@@ -116,6 +122,10 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
       </table>
       <p className="mt-2 flex justify-end gap-3 text-[11px] text-ink-sub">
         <span className="flex items-center gap-1">
+          <span aria-hidden="true" className="size-2 rounded-full ring-1 ring-cream" />
+          기념일
+        </span>
+        <span className="flex items-center gap-1">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-label" />
           데이트 기록
         </span>
@@ -127,9 +137,14 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
 
       <section aria-labelledby="selected-day" className="mt-4 flex flex-col">
         <div className="flex items-center justify-between">
-          <h3 id="selected-day" className="text-[15px] font-bold text-ink">
-            {formatDayHeading(selectedDate)}
-          </h3>
+          <div className="flex flex-col">
+            <h3 id="selected-day" className="text-[15px] font-bold text-ink">
+              {formatDayHeading(selectedDate)}
+            </h3>
+            {selectedDate >= ANNIVERSARY_DATE && (
+              <p className="text-[12px] text-ink-sub">함께한 지 {countDaysTogether(ANNIVERSARY_DATE, selectedDate)}일째</p>
+            )}
+          </div>
           <Link
             href={`/events/new?date=${selectedDate}`}
             className="-mr-2 flex h-11 items-center gap-1 px-2 text-[14px] text-ink-sub hover:text-ink"
@@ -138,10 +153,16 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
             일정 추가
           </Link>
         </div>
-        {selectedRecords.length === 0 && selectedEvents.length === 0 ? (
+        {isEmptyDay ? (
           <p className="py-6 text-center text-[13px] text-ink-sub">이날은 아직 비어 있어요</p>
         ) : (
           <ul className="mt-2 flex flex-col gap-2">
+            {selectedAnniversary && (
+              <li className="flex min-h-[51px] items-center gap-3 rounded-[10px] border border-line px-4 py-2">
+                <span className="w-11 shrink-0 text-[12px] text-cream">기념일</span>
+                <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{selectedAnniversary}</span>
+              </li>
+            )}
             {selectedRecords.map((record) => (
               <li key={record.id}>
                 <Link
@@ -154,10 +175,10 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
               </li>
             ))}
             {selectedEvents.map((event) => (
-              <li key={event.id}>
+              <li key={event.id} className="flex gap-2">
                 <Link
                   href={`/events/${event.id}/edit`}
-                  className="flex min-h-[51px] items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
+                  className="flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
                 >
                   <span className="w-11 shrink-0 text-[12px] text-ink-sub">{formatEventTime(event.startTime)}</span>
                   <span className="flex min-w-0 flex-1 flex-col">
@@ -165,6 +186,16 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                     {event.place && <span className="truncate text-[12px] text-ink-sub">{event.place}</span>}
                   </span>
                 </Link>
+                {/* 지난 일정(오늘 포함)은 그날의 데이트 기록으로 이어 쓸 수 있다. 이미 남긴 일정은 다시 권하지 않는다 */}
+                {canLeaveRecord(event, today, selectedRecords) && (
+                  <Link
+                    href={toNewRecordHref({ date: event.date, title: event.title, place: event.place ?? "" })}
+                    aria-label={`${event.title} 기록 남기기`}
+                    className="flex shrink-0 items-center rounded-[10px] border border-line px-3 text-[12px] text-ink-sub hover:text-ink"
+                  >
+                    기록 남기기
+                  </Link>
+                )}
               </li>
             ))}
           </ul>

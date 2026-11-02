@@ -120,3 +120,15 @@ export const groupByDate = <Item extends { date: string }>(items: Item[]): Map<s
   for (const item of items) grouped.set(item.date, [...(grouped.get(item.date) ?? []), item]);
   return grouped;
 };
+
+/**
+ * 일정에 "기록 남기기"를 보여 줄지. 오늘까지의 일정이고, 그날 같은 제목의 기록이 아직 없을 때만 권한다(중복 기록 방지).
+ *
+ * @example canLeaveRecord({ date: "2026-11-01", title: "산책" }, "2026-11-02", []) // true
+ */
+export const canLeaveRecord = (
+  event: { date: string; title: string },
+  today: string,
+  records: readonly { date: string; title: string }[],
+): boolean =>
+  event.date <= today && !records.some((record) => record.date === event.date && record.title === event.title);
