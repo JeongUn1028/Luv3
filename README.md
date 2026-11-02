@@ -42,6 +42,8 @@ pnpm test       # Vitest 단위 테스트
 pnpm test:db    # pgTAP RLS 테스트 (로컬 Supabase 실행 중이어야 함)
 ```
 
+PR과 main push마다 GitHub Actions(`.github/workflows/ci.yml`)가 같은 검사와 `pnpm build`를 실행한다.
+
 스키마를 바꾸면 `supabase/migrations/`에 새 파일을 추가하고 `pnpm db:reset && pnpm db:types`로 타입을 다시 만든다.
 
 ## 운영 Supabase 설정
