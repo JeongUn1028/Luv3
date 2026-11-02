@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PhotoError } from "@/lib/photos/errors";
 import type { PhotoStorage } from "@/lib/photos/upload";
 import type { DateRecordDraft } from "./form";
-import { SaveDateRecordError, saveDateRecord, type SaveProgress } from "./save";
+import { SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "./save";
 
 const RECORD_ID = "10000000-0000-4000-8000-000000000001";
 const PHOTO_A = "20000000-0000-4000-8000-00000000000a";
@@ -101,5 +101,93 @@ describe("saveDateRecord", () => {
     await expect(
       saveDateRecord({ recordId: RECORD_ID, draft, files: new Map(), storage, resize, createRecord: vi.fn() }),
     ).rejects.toThrow("파일");
+  });
+});
+
+describe("updateDateRecord", () => {
+  // 기존 사진 A는 그대로 두고, 새로 고른 사진 C만 파일이 있다
+  const PHOTO_C = "20000000-0000-4000-8000-00000000000c";
+  const editedDraft: DateRecordDraft = {
+    ...draft,
+    photos: [
+      { id: PHOTO_C, caption: "새 사진" },
+      { id: PHOTO_A, caption: "카페" },
+    ],
+    coverPhotoId: PHOTO_C,
+  };
+  const newFiles = new Map([[PHOTO_C, new File(["c"], "c.jpg", { type: "image/jpeg" })]]);
+  const removedPaths = [`${RECORD_ID}/${PHOTO_B}.jpg`, `${RECORD_ID}/${PHOTO_B}_thumb.jpg`];
+
+  it("새로 고른 사진만 줄여 올리고, 기록을 고친 뒤 뺀 사진의 파일을 지운다", async () => {
+    const { storage, stored } = createFakeStorage();
+    removedPaths.forEach((path) => stored.add(path));
+    const updateRecord = vi.fn(async () => ({ data: removedPaths, error: null }));
+    const progress: SaveProgress[] = [];
+
+    await updateDateRecord({
+      recordId: RECORD_ID,
+      draft: editedDraft,
+      files: newFiles,
+      storage,
+      resize,
+      updateRecord,
+      onProgress: (step) => progress.push(step),
+    });
+
+    expect([...stored].sort()).toEqual([`${RECORD_ID}/${PHOTO_C}.jpg`, `${RECORD_ID}/${PHOTO_C}_thumb.jpg`]);
+    expect(updateRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        p_id: RECORD_ID,
+        p_photos: [
+          { id: PHOTO_C, caption: "새 사진" },
+          { id: PHOTO_A, caption: "카페" },
+        ],
+        p_cover_photo_id: PHOTO_C,
+      }),
+    );
+    expect(progress.at(0)).toEqual({ step: "resizing", done: 0, total: 1 });
+    expect(progress.at(-1)).toEqual({ step: "saving", done: 1, total: 1 });
+  });
+
+  it("새 사진이 없으면 올리지 않고 바로 기록을 고친다", async () => {
+    const { storage } = createFakeStorage();
+    const updateRecord = vi.fn(async () => ({ data: [], error: null }));
+    const progress: SaveProgress[] = [];
+
+    await updateDateRecord({
+      recordId: RECORD_ID,
+      draft: { ...draft, photos: [{ id: PHOTO_A, caption: "" }], coverPhotoId: PHOTO_A },
+      files: new Map(),
+      storage,
+      resize,
+      updateRecord,
+      onProgress: (step) => progress.push(step),
+    });
+
+    expect(storage.upload).not.toHaveBeenCalled();
+    expect(storage.remove).not.toHaveBeenCalled();
+    expect(progress).toEqual([{ step: "saving", done: 0, total: 0 }]);
+  });
+
+  it("기록을 고치지 못하면 새로 올린 사진만 지우고 다시 시도하라고 알린다", async () => {
+    const { storage, stored } = createFakeStorage();
+    removedPaths.forEach((path) => stored.add(path));
+    const updateRecord = vi.fn(async () => ({ data: null, error: { message: "rls" } }));
+
+    await expect(
+      updateDateRecord({ recordId: RECORD_ID, draft: editedDraft, files: newFiles, storage, resize, updateRecord }),
+    ).rejects.toThrow(SaveDateRecordError);
+    // 기존 사진 파일은 그대로 둔다(기록이 바뀌지 않았으므로)
+    expect([...stored].sort()).toEqual([...removedPaths].sort());
+  });
+
+  it("뺀 사진 파일을 지우지 못해도 수정은 성공으로 본다(남은 파일은 #31에서 정리)", async () => {
+    const { storage } = createFakeStorage();
+    vi.mocked(storage.remove).mockResolvedValueOnce({ error: { message: "network" } });
+    const updateRecord = vi.fn(async () => ({ data: removedPaths, error: null }));
+
+    await expect(
+      updateDateRecord({ recordId: RECORD_ID, draft: editedDraft, files: newFiles, storage, resize, updateRecord }),
+    ).resolves.toBeUndefined();
   });
 });

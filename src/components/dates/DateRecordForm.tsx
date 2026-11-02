@@ -18,7 +18,8 @@ import {
   type DateRecordDraft,
   type DraftErrors,
 } from "@/lib/dates/form";
-import { SaveDateRecordError, saveDateRecord, type SaveProgress } from "@/lib/dates/save";
+import type { EditableRecord } from "@/lib/dates/detail";
+import { SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
@@ -50,10 +51,24 @@ const createEmptyDraft = (): DateRecordDraft<PickedPhoto> => ({
   coverPhotoId: undefined,
 });
 
-/** 데이트 기록 작성 폼. 사진을 줄여 올린 뒤 기록과 사진 행을 한 번에 저장한다. */
-export const DateRecordForm = (): ReactElement => {
+const toEditDraft = ({ date, title, place, memo, coverPhotoId, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
+  date,
+  title,
+  place,
+  memo,
+  coverPhotoId,
+  photos: photos.map((photo) => ({ ...photo, file: undefined })),
+});
+
+interface DateRecordFormProps {
+  /** 고칠 기록. 없으면 새 기록을 쓴다 */
+  record?: EditableRecord;
+}
+
+/** 데이트 기록 작성·수정 폼. 새로 고른 사진을 줄여 올린 뒤 기록과 사진 행을 한 번에 저장한다. */
+export const DateRecordForm = ({ record }: DateRecordFormProps): ReactElement => {
   const router = useRouter();
-  const [draft, setDraft] = useState(createEmptyDraft);
+  const [draft, setDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft()));
   const [errors, setErrors] = useState<DraftErrors>({});
   const [notice, setNotice] = useState<string>();
   const [progress, setProgress] = useState<SaveProgress>();
@@ -67,7 +82,9 @@ export const DateRecordForm = (): ReactElement => {
     return () => previewUrls.forEach((url) => URL.revokeObjectURL(url));
   }, []);
 
-  const revokePreview = (url: string) => {
+  // 이미 저장된 사진의 미리보기(서명 URL)는 만든 적이 없으므로 건드리지 않는다
+  const revokePreview = (url: string | undefined) => {
+    if (!url || !previewUrlsRef.current.has(url)) return;
     URL.revokeObjectURL(url);
     previewUrlsRef.current.delete(url);
   };
@@ -120,23 +137,37 @@ export const DateRecordForm = (): ReactElement => {
     setIsSaving(true);
     try {
       const supabase = createClient();
-      await saveDateRecord({
-        recordId: crypto.randomUUID(),
-        draft,
-        files: new Map(draft.photos.map(({ id, file }) => [id, file])),
-        storage: supabase.storage.from(ALBUM_BUCKET),
-        resize: resizePhoto,
-        createRecord: (args) => supabase.rpc("create_date_record", args),
-        onProgress: setProgress,
-      });
-      // cacheComponents는 다녀온 화면을 Activity로 숨겨 상태를 보존한다. 다시 + 를 눌렀을 때 빈 폼이 되도록
-      // 이동과 같은 transition에서 처음 값으로 되돌린다(이동이 끝날 때 함께 반영돼 빈 폼이 잠깐 보이지 않는다)
-      // 이미 그려진 미리보기는 URL을 해제해도 그대로 보인다
+      const storage = supabase.storage.from(ALBUM_BUCKET);
+      const files = new Map(draft.photos.flatMap(({ id, file }) => (file ? [[id, file] as const] : [])));
+      if (record) {
+        await updateDateRecord({
+          recordId: record.id,
+          draft,
+          files,
+          storage,
+          resize: resizePhoto,
+          updateRecord: (args) => supabase.rpc("update_date_record", args),
+          onProgress: setProgress,
+        });
+      } else {
+        await saveDateRecord({
+          recordId: crypto.randomUUID(),
+          draft,
+          files,
+          storage,
+          resize: resizePhoto,
+          createRecord: (args) => supabase.rpc("create_date_record", args),
+          onProgress: setProgress,
+        });
+      }
+      // cacheComponents는 다녀온 화면을 Activity로 숨겨 상태를 보존한다. 다시 열었을 때 처음 상태가 되도록
+      // 이동과 같은 transition에서 되돌린다(이동이 끝날 때 함께 반영돼 빈 폼이 잠깐 보이지 않는다)
+      // 이미 그려진 미리보기는 URL을 해제해도 그대로 보인다. 수정 화면은 페이지가 매번 새 key로 다시 그린다
       draft.photos.forEach(({ previewUrl }) => revokePreview(previewUrl));
       startTransition(() => {
-        router.replace("/");
+        router.replace(record ? `/dates/${record.id}` : "/");
         router.refresh();
-        setDraft(createEmptyDraft());
+        setDraft(record ? toEditDraft(record) : createEmptyDraft());
         setErrors({});
         setNotice(undefined);
         setProgress(undefined);
@@ -152,10 +183,14 @@ export const DateRecordForm = (): ReactElement => {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
       <header className="-mx-2 flex shrink-0 items-center pt-[env(safe-area-inset-top)]">
-        <Link href="/" aria-label="홈으로" className="flex size-11 items-center justify-center text-ink-sub hover:text-ink">
+        <Link
+          href={record ? `/dates/${record.id}` : "/"}
+          aria-label={record ? "기록으로" : "홈으로"}
+          className="flex size-11 items-center justify-center text-ink-sub hover:text-ink"
+        >
           <BackIcon className="size-[22px]" />
         </Link>
-        <h1 className="text-[17px] text-ink">기록 남기기</h1>
+        <h1 className="text-[17px] text-ink">{record ? "기록 고치기" : "기록 남기기"}</h1>
       </header>
 
       <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-6">
