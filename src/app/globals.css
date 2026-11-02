@@ -7,8 +7,12 @@
   --color-line: #2a2a2a;
   --color-ink: #f2f2f2;
   --color-ink-sub: #8a8a8a;
+  --color-ink-placeholder: #6e6e6e;
   --color-accent: #e8e2d6;
-  --font-sans: "Pretendard", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --color-cream: #f5f0e6;
+  --color-label: #b8b2a6;
+  --font-sans: var(--font-noto-sans-kr), -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+  --font-display: var(--font-cormorant), "Times New Roman", serif;
 }
 
 :root {
