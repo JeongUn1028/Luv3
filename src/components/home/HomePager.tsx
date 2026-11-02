@@ -1,8 +1,9 @@
 "use client";
 
 import { useLayoutEffect, useRef, type KeyboardEvent, type ReactElement, type ReactNode, type UIEvent } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { CalendarIcon, GridIcon } from "@/components/icons";
+import { CalendarIcon, GridIcon, PlusIcon } from "@/components/icons";
 import {
   HOME_VIEWS,
   HOME_VIEW_PARAM,
@@ -120,8 +121,16 @@ export const HomePager = ({ records, calendar }: HomePagerProps): ReactElement =
           </section>
         ))}
       </div>
-      <div className="shrink-0 border-t border-line bg-tabbar pb-[max(8px,env(safe-area-inset-bottom))]">
-        <div role="tablist" aria-label="홈 페이지" className="flex h-[52px]">
+      <div className="relative shrink-0 border-t border-line bg-tabbar pb-[max(8px,env(safe-area-inset-bottom))]">
+        {/* 두 탭 사이 가운데 자리. 탭이 아니라 화면 이동이라 tablist 밖에 둔다 */}
+        <Link
+          href="/dates/new"
+          aria-label="기록 남기기"
+          className="absolute top-1 left-1/2 flex size-12 -translate-x-1/2 items-center justify-center rounded-full bg-accent text-background"
+        >
+          <PlusIcon className="size-6" />
+        </Link>
+        <div role="tablist" aria-label="홈 페이지" className="flex h-[52px] gap-[72px]">
           {TABS.map(({ view: tabView, label, Icon }) => {
             const isSelected = tabView === view;
             return (
