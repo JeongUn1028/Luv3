@@ -1,17 +1,23 @@
 import Link from "next/link";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { DdayHeader } from "@/components/home/DdayHeader";
 import { HomePager } from "@/components/home/HomePager";
 import { SettingsIcon } from "@/components/icons";
+import { ANNIVERSARY_DATE, countDaysTogether, formatSinceLabel, toKstDate } from "@/lib/anniversary";
 import { getCurrentMember } from "@/lib/auth/member";
 
 const RecordsPanel = async () => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
   await getCurrentMember();
+  const days = countDaysTogether(ANNIVERSARY_DATE, toKstDate(new Date()));
 
   return (
-    <div className="flex h-full items-center justify-center px-4">
-      <p className="text-[13px] text-ink-sub">아직 남긴 기록이 없어요</p>
+    <div className="flex min-h-full flex-col px-4">
+      <DdayHeader days={days} sinceLabel={formatSinceLabel(ANNIVERSARY_DATE)} />
+      <div className="flex flex-1 items-center justify-center py-12">
+        <p className="text-[13px] text-ink-sub">아직 남긴 기록이 없어요</p>
+      </div>
     </div>
   );
 };
