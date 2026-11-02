@@ -6,7 +6,18 @@ const matchesProxy = (pathname: string): boolean =>
   config.matcher.some((source) => new RegExp(`^${source}$`).test(pathname));
 
 describe("proxy matcher", () => {
-  it.each(["/", "/login", "/auth/signout", "/dates/1"])("페이지 %s는 세션 확인을 거친다", (pathname) => {
+  it.each([
+    "/",
+    "/login",
+    "/auth/signout",
+    "/dates/1",
+    // 공개 파일 이름으로 시작하거나 확장자 글자로 끝날 뿐인 주소는 공개 파일이 아니다
+    "/manifest.webmanifest/x",
+    "/manifestXwebmanifest",
+    "/favicon.icon",
+    "/robots.txt.bak",
+    "/dates/xpng",
+  ])("페이지 %s는 세션 확인을 거친다", (pathname) => {
     expect(matchesProxy(pathname)).toBe(true);
   });
 
@@ -14,6 +25,9 @@ describe("proxy matcher", () => {
   it.each([
     "/opengraph-image.png",
     "/apple-icon.png",
+    "/manifest.webmanifest",
+    "/icon-192.png",
+    "/icon-512.png",
     "/icon.svg",
     "/favicon.ico",
     "/robots.txt",
