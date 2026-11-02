@@ -23,16 +23,15 @@ cp .env.example .env.local
 pnpm dev               # http://localhost:3000
 ```
 
-- 로컬 메일함(Mailpit): http://127.0.0.1:54324 — 로그인 메일이 여기로 온다.
 - 로컬 대시보드(Studio): http://127.0.0.1:54323
-- 회원가입이 막혀 있으므로 테스트 계정은 Studio의 Authentication에서 만든 뒤, SQL Editor에서 허용목록에 넣는다.
+- 회원가입이 막혀 있으므로 테스트 계정은 Studio의 Authentication > Users > Add user > Create new user에서 이메일과 비밀번호(12자 이상)로 만든 뒤, SQL Editor에서 허용목록에 넣는다.
 
   ```sql
   insert into public.members (id, email, nickname)
   select id, email, '닉네임' from auth.users where email = 'me@example.com';
   ```
 
-- dev 서버 주소는 `localhost:3000`으로 연다. `127.0.0.1:3000`으로 열면 메일 링크(`site_url`)와 호스트가 달라 세션 쿠키가 전달되지 않는다.
+- dev 서버 주소는 `localhost:3000`으로 연다. Next dev 서버가 리다이렉트 주소를 localhost로 바꾸므로, `127.0.0.1:3000`으로 열면 세션 쿠키가 다른 호스트에 남는다.
 
 ## 검사
 
@@ -50,11 +49,22 @@ pnpm test:db    # pgTAP RLS 테스트 (로컬 Supabase 실행 중이어야 함)
 마이그레이션 외에 대시보드에서 직접 맞춰야 하는 값이다.
 
 1. 마이그레이션 적용: `pnpm exec supabase link --project-ref <ref>` 후 `pnpm exec supabase db push`
-2. Authentication > Sign In / Providers: "Allow new users to sign up" 끄기, Email 공급자는 켜 두기
+2. Authentication > Sign In / Providers: "Allow new users to sign up" 끄기, Email 공급자는 켜 두고 Minimum password length를 12로
 3. Authentication > URL Configuration: Site URL을 배포 주소로
-4. Authentication > Emails > Magic Link: `supabase/templates/magic_link.html` 내용을 붙여 넣기
-5. Authentication > Users에서 두 계정을 만들고, SQL Editor에서 `members`에 추가(위 SQL)
-6. Authentication > Emails > SMTP Settings: 기본 메일 서버는 조직 멤버에게만 보내므로 커스텀 SMTP를 연결하거나 상대 이메일을 조직 멤버로 초대
-7. Vercel 환경 변수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+4. Authentication > Users > Add user > Create new user에서 두 계정을 이메일·비밀번호(12자 이상)로 만들고("Auto Confirm User" 체크), SQL Editor에서 `members`에 추가(위 SQL)
+5. Vercel 환경 변수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+
+로그인 메일을 쓰지 않으므로 SMTP 설정은 필요 없다.
+
+### 비밀번호를 잊었을 때
+
+비밀번호 찾기 메일은 없다. 대시보드의 "Send password recovery"도 메일을 보내는 기능이라 쓰지 않고, SQL Editor에서 직접 바꾼다.
+이 방법은 최소 길이 검사를 거치지 않으므로 12자 이상인지 직접 확인하고, 실행한 뒤 SQL Editor의 쿼리 기록에서 지운다.
+
+```sql
+update auth.users
+set encrypted_password = extensions.crypt('새 비밀번호', extensions.gen_salt('bf'))
+where email = 'me@example.com';
+```
 
 허용목록 이메일과 키는 리포에 커밋하지 않는다.

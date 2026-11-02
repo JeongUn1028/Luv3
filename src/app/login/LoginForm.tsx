@@ -4,24 +4,20 @@ import { useState, type SubmitEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getSafeNextPath } from "@/lib/auth/paths";
-import { getLoginErrorMessage, isValidOtp } from "./messages";
-
-type Step = "email" | "code";
+import { getLoginErrorMessage, getSignInErrorMessage } from "./messages";
 
 const labelClassName = "text-[13px] text-ink-sub";
 const inputClassName =
   "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-[15px] text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none";
-const buttonClassName =
-  "mt-4 h-[52px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background disabled:opacity-50";
 
 /**
- * 로그인 화면의 쿼리(next, error)가 바뀌면 폼을 새로 마운트해 입력 단계와 안내 문구를 초기화한다.
- * 허용목록 밖 계정이 /login?error=not_member로 돌아올 때 이전 단계 상태가 남지 않게 하기 위해서다.
+ * 로그인 화면의 쿼리(next, error)가 바뀌면 폼을 새로 마운트해 입력값과 안내 문구를 초기화한다.
+ * 허용목록 밖 계정이 /login?error=not_member로 돌아올 때 이전 입력이 남지 않게 하기 위해서다.
  */
 export const LoginForm = () => {
   const searchParams = useSearchParams();
   return (
-    <LoginSteps
+    <PasswordLoginForm
       key={searchParams.toString()}
       nextPath={getSafeNextPath(searchParams.get("next"))}
       initialMessage={getLoginErrorMessage(searchParams.get("error"))}
@@ -29,55 +25,29 @@ export const LoginForm = () => {
   );
 };
 
-interface LoginStepsProps {
+interface PasswordLoginFormProps {
   nextPath: string;
   initialMessage: string | undefined;
 }
 
-const LoginSteps = ({ nextPath, initialMessage }: LoginStepsProps) => {
-  const [step, setStep] = useState<Step>("email");
+const PasswordLoginForm = ({ nextPath, initialMessage }: PasswordLoginFormProps) => {
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
   const [isPending, setIsPending] = useState(false);
   const [message, setMessage] = useState(initialMessage);
 
-  const handleSendEmail = async (event: SubmitEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsPending(true);
     setMessage(undefined);
 
-    const { error } = await createClient().auth.signInWithOtp({
-      email: email.trim(),
-      options: { shouldCreateUser: false },
-    });
-    setIsPending(false);
-
-    if (error?.status === 429) {
-      setMessage("요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요.");
-      return;
-    }
-    // 허용되지 않은 주소인지 알려 주지 않기 위해 다른 실패도 같은 안내로 넘어간다
-    setStep("code");
-  };
-
-  const handleVerifyCode = async (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!isValidOtp(code)) {
-      setMessage("메일로 받은 6자리 숫자를 입력해 주세요.");
-      return;
-    }
-
-    setIsPending(true);
-    setMessage(undefined);
-    const { error } = await createClient().auth.verifyOtp({
-      email: email.trim(),
-      token: code.trim(),
-      type: "email",
-    });
+    // 비밀번호는 앞뒤 공백도 그대로 보낸다(공백이 들어간 비밀번호를 바꾸지 않기 위해)
+    const { error } = await createClient().auth.signInWithPassword({ email: email.trim(), password });
 
     if (error) {
       setIsPending(false);
-      setMessage("코드가 맞지 않거나 만료됐습니다.");
+      setPassword("");
+      setMessage(getSignInErrorMessage(error));
       return;
     }
     // 전체 페이지 이동으로 브라우저 클라이언트의 메모리 세션을 버린다. SPA 이동으로 두면 허용목록 밖 계정을
@@ -87,61 +57,40 @@ const LoginSteps = ({ nextPath, initialMessage }: LoginStepsProps) => {
 
   return (
     <div className="flex flex-col">
-      {step === "email" ? (
-        <form onSubmit={handleSendEmail} className="flex flex-col">
-          <label htmlFor="email" className={labelClassName}>
-            이메일
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="name@example.com"
-            required
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className={inputClassName}
-          />
-          <button type="submit" disabled={isPending} className={buttonClassName}>
-            {isPending ? "보내는 중…" : "로그인 링크 받기"}
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={handleVerifyCode} className="flex flex-col">
-          <p className="mb-6 text-[15px] leading-relaxed text-ink">
-            <span className="break-all">{email}</span>로 로그인 메일을 보냈습니다.
-            <br />
-            <span className="text-ink-sub">메일의 버튼을 누르거나 6자리 코드를 입력하세요.</span>
-          </p>
-          <label htmlFor="code" className={labelClassName}>
-            6자리 코드
-          </label>
-          <input
-            id="code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={6}
-            required
-            value={code}
-            onChange={(event) => setCode(event.target.value)}
-            className={`${inputClassName} tracking-[0.3em]`}
-          />
-          <button type="submit" disabled={isPending} className={buttonClassName}>
-            {isPending ? "확인 중…" : "로그인"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setStep("email");
-              setCode("");
-              setMessage(undefined);
-            }}
-            className="mt-2 h-10 text-[13px] text-ink-sub underline underline-offset-4"
-          >
-            이메일 다시 입력
-          </button>
-        </form>
-      )}
+      <form onSubmit={handleSubmit} className="flex flex-col">
+        <label htmlFor="email" className={labelClassName}>
+          이메일
+        </label>
+        <input
+          id="email"
+          type="email"
+          autoComplete="username"
+          placeholder="name@example.com"
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          className={inputClassName}
+        />
+        <label htmlFor="password" className={`${labelClassName} mt-4`}>
+          비밀번호
+        </label>
+        <input
+          id="password"
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          className={inputClassName}
+        />
+        <button
+          type="submit"
+          disabled={isPending}
+          className="mt-4 h-[52px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background disabled:opacity-50"
+        >
+          {isPending ? "확인 중…" : "로그인"}
+        </button>
+      </form>
       {message && (
         <p role="alert" className="mt-3 text-[13px] text-accent">
           {message}
