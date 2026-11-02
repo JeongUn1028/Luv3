@@ -61,3 +61,17 @@ export const PlusIcon = ({ className }: IconProps): ReactElement => (
     <path d="M12 5v14M5 12h14" />
   </LineIcon>
 );
+
+/** 앞으로(왼쪽) 화살표. 사진 넘기기에 쓴다 */
+export const ChevronLeftIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M14.5 6l-6 6 6 6" />
+  </LineIcon>
+);
+
+/** 뒤로(오른쪽) 화살표. 사진 넘기기에 쓴다 */
+export const ChevronRightIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M9.5 6l6 6-6 6" />
+  </LineIcon>
+);
