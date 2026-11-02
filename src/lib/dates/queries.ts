@@ -2,9 +2,13 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { toAlbumTiles, type AlbumTile } from "./album";
+import { isRecordId, toDateRecordDetail, type DateRecordDetail } from "./detail";
 
-/** 썸네일 서명 URL 유효 시간(초). 홈은 요청마다 새로 그리므로 화면을 오래 열어 둘 만큼만 둔다 */
-const THUMB_URL_EXPIRES_IN = 60 * 60;
+/**
+ * 서명 URL 유효 시간(초). 화면은 요청마다 새로 그리고 한 번 불러온 사진은 브라우저가 들고 있으므로,
+ * 화면을 오래 열어 둘 만큼만 두고 주소가 밖으로 새어도 오래 쓰이지 않게 한다
+ */
+const SIGNED_URL_EXPIRES_IN = 60 * 60;
 
 /** 앨범 그리드를 불러오지 못했을 때 */
 export class AlbumLoadError extends Error {
@@ -34,8 +38,46 @@ export const getAlbumTiles = async (): Promise<AlbumTile[]> => {
 
   const { data: signed, error: signError } = await supabase.storage
     .from(ALBUM_BUCKET)
-    .createSignedUrls(thumbPaths, THUMB_URL_EXPIRES_IN);
+    .createSignedUrls(thumbPaths, SIGNED_URL_EXPIRES_IN);
   if (signError) throw new AlbumLoadError({ cause: signError });
 
   return toAlbumTiles(rows, signed);
+};
+
+/** 기록 상세를 불러오지 못했을 때(없는 기록은 이 에러가 아니라 undefined) */
+export class DateRecordLoadError extends Error {
+  constructor(options?: ErrorOptions) {
+    super("기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", options);
+    this.name = "DateRecordLoadError";
+  }
+}
+
+/**
+ * 기록 하나와 사진 전체를 불러오고, 원본 사진 서명 URL을 한 번에 발급한다.
+ *
+ * @returns 없는 기록이거나 id 형식이 틀리면 undefined
+ * @throws {DateRecordLoadError} 조회나 서명 URL 발급이 실패했을 때
+ * @example const record = await getDateRecordDetail(id); if (!record) notFound()
+ */
+export const getDateRecordDetail = async (id: string): Promise<DateRecordDetail | undefined> => {
+  if (!isRecordId(id)) return undefined;
+
+  const supabase = await createClient();
+  const { data: row, error } = await supabase
+    .from("dates")
+    .select("id, date, title, place, memo, photos!photos_date_id_fkey(id, path, caption, sort_order)")
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new DateRecordLoadError({ cause: error });
+  if (!row) return undefined;
+
+  const paths = row.photos.map(({ path }) => path);
+  if (paths.length === 0) return toDateRecordDetail(row, []);
+
+  const { data: signed, error: signError } = await supabase.storage
+    .from(ALBUM_BUCKET)
+    .createSignedUrls(paths, SIGNED_URL_EXPIRES_IN);
+  if (signError) throw new DateRecordLoadError({ cause: signError });
+
+  return toDateRecordDetail(row, signed);
 };
