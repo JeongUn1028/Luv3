@@ -10,14 +10,13 @@ import {
   PLACE_MAX_LENGTH,
   TITLE_MAX_LENGTH,
   addPhotos,
-  clearError,
-  countChars,
   movePhoto,
   removePhoto,
   validateDraft,
   type DateRecordDraft,
   type DraftErrors,
 } from "@/lib/dates/form";
+import { clearError, countChars } from "@/lib/form";
 import type { EditableRecord } from "@/lib/dates/detail";
 import { SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
 import { PhotoError } from "@/lib/photos/errors";

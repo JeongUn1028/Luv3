@@ -31,6 +31,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"events": {
+                  Row: {
+                    "author_id": string,"created_at": string,"date": string,"id": string,"memo": string | null,"place": string | null,"start_time": string | null,"title": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id"?: string,"created_at"?: string,"date": string,"id"?: string,"memo"?: string | null,"place"?: string | null,"start_time"?: string | null,"title": string
+                  }
+                  Update: {
+                    "author_id"?: string,"created_at"?: string,"date"?: string,"id"?: string,"memo"?: string | null,"place"?: string | null,"start_time"?: string | null,"title"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "events_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
+      referencedRelation: "members"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"members": {
                   Row: {
                     "created_at": string,"email": string,"id": string,"nickname": string

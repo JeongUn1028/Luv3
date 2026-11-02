@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_PHOTOS,
   addPhotos,
-  clearError,
-  countChars,
   movePhoto,
   removePhoto,
   toCreateRecordArgs,
@@ -21,13 +19,6 @@ const draft = (overrides: Partial<DateRecordDraft> = {}): DateRecordDraft => ({
   photos: [photo("p1")],
   coverPhotoId: "p1",
   ...overrides,
-});
-
-describe("countChars", () => {
-  it("DB(char_length)처럼 이모지 하나를 한 글자로 센다", () => {
-    expect(countChars("가나")).toBe(2);
-    expect(countChars("😀")).toBe(1);
-  });
 });
 
 describe("validateDraft", () => {
@@ -57,6 +48,7 @@ describe("validateDraft", () => {
 
   it("날짜가 없거나 오늘보다 뒤면 알려 준다", () => {
     expect(validateDraft(draft({ date: "" }), TODAY).date).toBe("날짜를 골라 주세요.");
+    expect(validateDraft(draft({ date: "2026-02-31" }), TODAY).date).toBe("날짜를 골라 주세요.");
     expect(validateDraft(draft({ date: "2026-11-03" }), TODAY).date).toBe(
       "다녀온 날짜를 골라 주세요. 앞으로의 약속은 캘린더에 적어요.",
     );
@@ -67,19 +59,6 @@ describe("validateDraft", () => {
     expect(validateDraft(draft({ photos: [], coverPhotoId: undefined }), TODAY).photos).toBe(
       "사진을 한 장 이상 골라 주세요.",
     );
-  });
-});
-
-describe("clearError", () => {
-  it("고친 칸의 에러만 지우고 나머지 에러는 남긴다", () => {
-    const errors = { title: "제목을 적어 주세요.", date: "날짜를 골라 주세요.", "caption:p1": "한마디는 100자까지 적을 수 있어요." };
-    expect(clearError(errors, "title")).toEqual({ date: "날짜를 골라 주세요.", "caption:p1": "한마디는 100자까지 적을 수 있어요." });
-    expect(clearError(errors, "caption:p1")).toEqual({ title: "제목을 적어 주세요.", date: "날짜를 골라 주세요." });
-  });
-
-  it("지울 에러가 없으면 같은 객체를 돌려준다(불필요한 다시 그리기 방지)", () => {
-    const errors = { title: "제목을 적어 주세요." };
-    expect(clearError(errors, "memo")).toBe(errors);
   });
 });
 
