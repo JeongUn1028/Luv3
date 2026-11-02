@@ -3,7 +3,7 @@ import heic2any from "heic2any";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PhotoError } from "./errors";
 import { BUCKET_FILE_SIZE_LIMIT } from "./limits";
-import { isHeic, resizePhoto } from "./resize";
+import { isAcceptedPhoto, isHeic, resizePhoto } from "./resize";
 
 // 실제 리사이즈는 브라우저 canvas가 필요해 단위 테스트에서는 라이브러리를 대신하고,
 // 어떤 옵션으로 몇 번 부르는지와 결과 처리만 확인한다. 실제 크기는 브라우저 확인에서 본다.
@@ -21,6 +21,21 @@ beforeEach(() => {
   compressMock.mockImplementation(async (file, options) =>
     jpeg(`${options.maxWidthOrHeight}-${file.name}`),
   );
+});
+
+describe("isAcceptedPhoto", () => {
+  it("JPEG·PNG·WebP·HEIC는 받는다", () => {
+    expect(isAcceptedPhoto(new File([], "a.jpg", { type: "image/jpeg" }))).toBe(true);
+    expect(isAcceptedPhoto(new File([], "a.png", { type: "image/png" }))).toBe(true);
+    expect(isAcceptedPhoto(new File([], "a.webp", { type: "image/webp" }))).toBe(true);
+    expect(isAcceptedPhoto(new File([], "IMG_0001.HEIC"))).toBe(true);
+  });
+
+  it("GIF·SVG와 사진이 아닌 파일은 받지 않는다", () => {
+    expect(isAcceptedPhoto(new File([], "a.gif", { type: "image/gif" }))).toBe(false);
+    expect(isAcceptedPhoto(new File([], "a.svg", { type: "image/svg+xml" }))).toBe(false);
+    expect(isAcceptedPhoto(new File([], "memo.txt", { type: "text/plain" }))).toBe(false);
+  });
 });
 
 describe("isHeic", () => {

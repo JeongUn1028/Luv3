@@ -54,3 +54,10 @@ export const BackIcon = ({ className }: IconProps): ReactElement => (
     <path d="M15 5l-7 7 7 7" />
   </LineIcon>
 );
+
+/** 더하기 아이콘. 기록 남기기 버튼에 쓴다 */
+export const PlusIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M12 5v14M5 12h14" />
+  </LineIcon>
+);

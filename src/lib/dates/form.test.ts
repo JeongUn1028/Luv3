@@ -1,0 +1,158 @@
+import { describe, expect, it } from "vitest";
+import {
+  MAX_PHOTOS,
+  addPhotos,
+  clearError,
+  countChars,
+  movePhoto,
+  removePhoto,
+  toCreateRecordArgs,
+  validateDraft,
+  type DateRecordDraft,
+} from "./form";
+
+const TODAY = "2026-11-02";
+const photo = (id: string, caption = "") => ({ id, caption });
+const draft = (overrides: Partial<DateRecordDraft> = {}): DateRecordDraft => ({
+  date: "2026-11-01",
+  title: "첫 데이트",
+  place: "",
+  memo: "",
+  photos: [photo("p1")],
+  coverPhotoId: "p1",
+  ...overrides,
+});
+
+describe("countChars", () => {
+  it("DB(char_length)처럼 이모지 하나를 한 글자로 센다", () => {
+    expect(countChars("가나")).toBe(2);
+    expect(countChars("😀")).toBe(1);
+  });
+});
+
+describe("validateDraft", () => {
+  it("필수 값이 모두 맞으면 에러가 없다", () => {
+    expect(validateDraft(draft(), TODAY)).toEqual({});
+  });
+
+  it("제목이 비었거나 공백뿐이면 알려 준다", () => {
+    expect(validateDraft(draft({ title: "   " }), TODAY).title).toBe("제목을 적어 주세요.");
+  });
+
+  it("글자 수 제한을 넘으면 칸마다 알려 준다", () => {
+    const errors = validateDraft(
+      draft({
+        title: "가".repeat(101),
+        place: "가".repeat(101),
+        memo: "가".repeat(10_001),
+        photos: [photo("p1", "가".repeat(101))],
+      }),
+      TODAY,
+    );
+    expect(errors.title).toBe("제목은 100자까지 적을 수 있어요.");
+    expect(errors.place).toBe("장소는 100자까지 적을 수 있어요.");
+    expect(errors.memo).toBe("정리 글은 10,000자까지 적을 수 있어요.");
+    expect(errors["caption:p1"]).toBe("한마디는 100자까지 적을 수 있어요.");
+  });
+
+  it("날짜가 없거나 오늘보다 뒤면 알려 준다", () => {
+    expect(validateDraft(draft({ date: "" }), TODAY).date).toBe("날짜를 골라 주세요.");
+    expect(validateDraft(draft({ date: "2026-11-03" }), TODAY).date).toBe(
+      "다녀온 날짜를 골라 주세요. 앞으로의 약속은 캘린더에 적어요.",
+    );
+    expect(validateDraft(draft({ date: TODAY }), TODAY).date).toBeUndefined();
+  });
+
+  it("사진이 없으면 알려 준다", () => {
+    expect(validateDraft(draft({ photos: [], coverPhotoId: undefined }), TODAY).photos).toBe(
+      "사진을 한 장 이상 골라 주세요.",
+    );
+  });
+});
+
+describe("clearError", () => {
+  it("고친 칸의 에러만 지우고 나머지 에러는 남긴다", () => {
+    const errors = { title: "제목을 적어 주세요.", date: "날짜를 골라 주세요.", "caption:p1": "한마디는 100자까지 적을 수 있어요." };
+    expect(clearError(errors, "title")).toEqual({ date: "날짜를 골라 주세요.", "caption:p1": "한마디는 100자까지 적을 수 있어요." });
+    expect(clearError(errors, "caption:p1")).toEqual({ title: "제목을 적어 주세요.", date: "날짜를 골라 주세요." });
+  });
+
+  it("지울 에러가 없으면 같은 객체를 돌려준다(불필요한 다시 그리기 방지)", () => {
+    const errors = { title: "제목을 적어 주세요." };
+    expect(clearError(errors, "memo")).toBe(errors);
+  });
+});
+
+describe("addPhotos", () => {
+  it("고른 사진을 뒤에 붙이고, 대표 사진이 없으면 첫 사진을 대표로 정한다", () => {
+    const result = addPhotos(draft({ photos: [], coverPhotoId: undefined }), [photo("a"), photo("b")]);
+    expect(result.draft.photos.map(({ id }) => id)).toEqual(["a", "b"]);
+    expect(result.draft.coverPhotoId).toBe("a");
+    expect(result.droppedCount).toBe(0);
+  });
+
+  it("10장을 넘는 사진은 버리고 몇 장을 버렸는지 알려 준다", () => {
+    const many = Array.from({ length: 12 }, (_, index) => photo(`n${index}`));
+    const result = addPhotos(draft(), many);
+    expect(result.draft.photos).toHaveLength(MAX_PHOTOS);
+    expect(result.droppedCount).toBe(3);
+    expect(result.draft.coverPhotoId).toBe("p1");
+  });
+});
+
+describe("removePhoto", () => {
+  it("대표 사진을 지우면 남은 첫 사진이 대표가 된다", () => {
+    const result = removePhoto(draft({ photos: [photo("a"), photo("b")], coverPhotoId: "a" }), "a");
+    expect(result.photos.map(({ id }) => id)).toEqual(["b"]);
+    expect(result.coverPhotoId).toBe("b");
+  });
+
+  it("마지막 사진을 지우면 대표 사진도 비운다", () => {
+    expect(removePhoto(draft(), "p1").coverPhotoId).toBeUndefined();
+  });
+});
+
+describe("movePhoto", () => {
+  it("사진 순서를 앞뒤로 바꾼다", () => {
+    const photos = [photo("a"), photo("b"), photo("c")];
+    expect(movePhoto(photos, 2, -1).map(({ id }) => id)).toEqual(["a", "c", "b"]);
+    expect(movePhoto(photos, 0, 1).map(({ id }) => id)).toEqual(["b", "a", "c"]);
+  });
+
+  it("맨 앞·맨 뒤를 넘어가면 그대로 둔다", () => {
+    const photos = [photo("a"), photo("b")];
+    expect(movePhoto(photos, 0, -1)).toEqual(photos);
+    expect(movePhoto(photos, 1, 1)).toEqual(photos);
+  });
+});
+
+describe("toCreateRecordArgs", () => {
+  it("기록 작성 함수 인자로 바꾸고 앞뒤 공백을 지운다", () => {
+    const args = toCreateRecordArgs(
+      "r1",
+      draft({
+        title: " 첫 데이트 ",
+        place: " 성수 ",
+        memo: "좋았다",
+        photos: [photo("a", " 카페 "), photo("b")],
+        coverPhotoId: "b",
+      }),
+    );
+    expect(args).toEqual({
+      p_id: "r1",
+      p_date: "2026-11-01",
+      p_title: "첫 데이트",
+      p_place: "성수",
+      p_memo: "좋았다",
+      p_photos: [
+        { id: "a", caption: "카페" },
+        { id: "b", caption: "" },
+      ],
+      p_cover_photo_id: "b",
+    });
+  });
+
+  it("대표 사진이 없으면 코드 실수라 에러를 낸다", () => {
+    expect(() => toCreateRecordArgs("r1", draft({ coverPhotoId: undefined }))).toThrow("대표 사진");
+  });
+});
