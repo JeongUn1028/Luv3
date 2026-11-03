@@ -58,7 +58,11 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
     startTransition(async () => {
       addOptimisticAction(action);
       const failure = await saveTodoAction(action);
-      if (failure) setNotice(failure);
+      if (failure) {
+        setNotice(failure);
+        // 옮기지 못했으면 "옮겼어요" 안내가 남지 않게 지운다(실패 문구는 alert로 따로 읽힌다)
+        setAnnouncement("");
+      }
       // await 뒤의 갱신은 다시 transition으로 감싸야 새 목록이 올 때까지 먼저 바꾼 화면이 유지된다
       startTransition(() => router.refresh());
     });

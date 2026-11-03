@@ -17,8 +17,8 @@ create table public.todos (
 
 alter sequence public.todos_sort_order_seq owned by public.todos.sort_order;
 
--- 목록은 완료하지 않은 항목을 순서대로 읽는다
-create index todos_sort_order_idx on public.todos (sort_order);
+-- 순서 바꾸기는 완료하지 않은 항목만 순서대로 읽는다(완료한 항목이 쌓여도 훑지 않는다)
+create index todos_open_sort_order_idx on public.todos (sort_order) where completed_at is null;
 
 alter table public.todos enable row level security;
 
@@ -27,6 +27,10 @@ revoke all on table public.todos from anon;
 revoke all on sequence public.todos_sort_order_seq from anon;
 -- 추가할 때 기본값(nextval)을 쓰려면 시퀀스 사용 권한이 필요하다
 grant usage on sequence public.todos_sort_order_seq to authenticated;
+
+-- 추가할 때는 내용(과 id)만 적는다. 순서·완료·작성자·만든 시각은 기본값으로 정해, 맨 아래에 붙고 순서 값이 겹치지 않는다
+revoke insert on table public.todos from authenticated;
+grant insert (id, content) on table public.todos to authenticated;
 
 -- 두 사람 모두 내용·완료를 고칠 수 있다. 작성자·만든 시각은 처음 값으로 고정하고,
 -- 순서 값은 move_todo로만 바꿔 값이 겹치거나 엉뚱한 자리로 가지 않게 한다

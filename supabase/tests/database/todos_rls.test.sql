@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(26);
+select plan(27);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@todos.test', 'authenticated', 'authenticated'),
@@ -64,6 +64,13 @@ select throws_ok(
   '42501',
   null,
   '다른 사람을 작성자로 적을 수 없다'
+);
+
+select throws_ok(
+  $$insert into public.todos (content, sort_order) values ('새치기', 0)$$,
+  '42501',
+  null,
+  '추가할 때 순서 값을 직접 적을 수 없다(늘 맨 아래에 붙는다)'
 );
 
 select throws_ok(
