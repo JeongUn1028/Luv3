@@ -53,7 +53,7 @@ export class DateRecordLoadError extends Error {
 }
 
 const DETAIL_COLUMNS =
-  "id, date, title, place, memo, cover_photo_id, photos!photos_date_id_fkey(id, path, thumb_path, caption, sort_order)";
+  "id, date, title, place, memo, cover_photo_id, author:members!dates_author_id_fkey(nickname), photos!photos_date_id_fkey(id, path, thumb_path, caption, sort_order)";
 
 /** 기록 행 하나를 읽는다. id 형식이 틀리거나 없는 기록이면 undefined */
 const getDetailRow = async (

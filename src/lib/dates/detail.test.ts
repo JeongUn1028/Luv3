@@ -8,6 +8,7 @@ const row: DetailRow = {
   place: null,
   memo: "오래 걸었다",
   cover_photo_id: "p2",
+  author: { nickname: "진아" },
   photos: [
     { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1 },
     { id: "p1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", caption: "카페", sort_order: 0 },
@@ -24,7 +25,7 @@ describe("isRecordId", () => {
 });
 
 describe("toDateRecordDetail", () => {
-  it("사진을 순서대로 정렬하고 원본 서명 URL을 붙이며, DB의 null은 undefined로 바꾼다", () => {
+  it("사진을 순서대로 정렬하고 원본 서명 URL과 작성자 닉네임을 붙이며, DB의 null은 undefined로 바꾼다", () => {
     const detail = toDateRecordDetail(row, [
       { path: "r1/p1.jpg", signedUrl: "https://example.test/p1" },
       { path: "r1/p2.jpg", signedUrl: "https://example.test/p2" },
@@ -35,12 +36,17 @@ describe("toDateRecordDetail", () => {
       title: "산책",
       place: undefined,
       memo: "오래 걸었다",
+      authorNickname: "진아",
       photos: [
         { id: "p1", url: "https://example.test/p1", caption: "카페" },
         { id: "p2", url: "https://example.test/p2", caption: undefined },
       ],
       filePaths: ["r1/p1.jpg", "r1/p1_thumb.jpg", "r1/p2.jpg", "r1/p2_thumb.jpg"],
     });
+  });
+
+  it("작성자를 읽지 못하면 작성자 없이 둔다", () => {
+    expect(toDateRecordDetail({ ...row, author: null }, []).authorNickname).toBeUndefined();
   });
 
   it("서명 URL을 받지 못한 사진은 URL 없이 둔다", () => {

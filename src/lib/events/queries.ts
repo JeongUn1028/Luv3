@@ -2,24 +2,8 @@ import "server-only";
 import { getGridRange } from "@/lib/calendar/month";
 import { isRecordId } from "@/lib/dates/detail";
 import { createClient } from "@/lib/supabase/server";
-import type { EventRow } from "./form";
-
-/** 달력에 그리는 일정 */
-export interface CalendarEvent {
-  id: string;
-  date: string;
-  /** HH:MM:SS. null이면 종일 */
-  startTime: string | null;
-  title: string;
-  place: string | undefined;
-}
-
-/** 달력에 표시하는 데이트 기록(누르면 기록 상세) */
-export interface CalendarRecord {
-  id: string;
-  date: string;
-  title: string;
-}
+import { toCalendarEvent, toCalendarRecord, type CalendarEvent, type CalendarRecord } from "./calendar";
+import { toEditableEvent, type EditableEvent } from "./form";
 
 /** 일정을 불러오지 못했을 때 */
 export class EventLoadError extends Error {
@@ -44,7 +28,7 @@ export const getCalendarMonth = async (
   const [eventsResult, recordsResult] = await Promise.all([
     supabase
       .from("events")
-      .select("id, date, start_time, title, place")
+      .select("id, date, start_time, title, place, author:members!events_author_id_fkey(nickname)")
       .gte("date", start)
       .lte("date", end)
       .order("date")
@@ -52,7 +36,7 @@ export const getCalendarMonth = async (
       .order("created_at"),
     supabase
       .from("dates")
-      .select("id, date, title")
+      .select("id, date, title, author:members!dates_author_id_fkey(nickname)")
       .gte("date", start)
       .lte("date", end)
       .order("date")
@@ -61,33 +45,24 @@ export const getCalendarMonth = async (
   if (eventsResult.error) throw new EventLoadError({ cause: eventsResult.error });
   if (recordsResult.error) throw new EventLoadError({ cause: recordsResult.error });
 
-  return {
-    events: eventsResult.data.map(({ id, date, start_time, title, place }) => ({
-      id,
-      date,
-      startTime: start_time,
-      title,
-      place: place ?? undefined,
-    })),
-    records: recordsResult.data,
-  };
+  return { events: eventsResult.data.map(toCalendarEvent), records: recordsResult.data.map(toCalendarRecord) };
 };
 
 /**
- * 일정 하나를 읽는다(수정 화면).
+ * 일정 하나와 작성자 닉네임을 읽는다(수정 화면).
  *
  * @returns 없는 일정이거나 id 형식이 틀리면 undefined
  * @throws {EventLoadError} 조회가 실패했을 때
  * @example const event = await getEvent(id); if (!event) notFound()
  */
-export const getEvent = async (id: string): Promise<(EventRow & { id: string }) | undefined> => {
+export const getEvent = async (id: string): Promise<EditableEvent | undefined> => {
   if (!isRecordId(id)) return undefined;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")
-    .select("id, date, start_time, title, place, memo")
+    .select("id, date, start_time, title, place, memo, author:members!events_author_id_fkey(nickname)")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new EventLoadError({ cause: error });
-  return data ?? undefined;
+  return data ? toEditableEvent(data) : undefined;
 };

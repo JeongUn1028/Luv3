@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactElement } from "react";
+import { AuthorHeart } from "@/components/AuthorHeart";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/icons";
 import { ANNIVERSARY_DATE, countDaysTogether, getAnniversaryLabel } from "@/lib/anniversary";
 import {
@@ -15,7 +16,7 @@ import {
   shiftMonth,
 } from "@/lib/calendar/month";
 import { toNewRecordHref } from "@/lib/dates/form";
-import type { CalendarEvent, CalendarRecord } from "@/lib/events/queries";
+import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
 
 interface CalendarViewProps {
   /** 보고 있는 달 YYYY-MM */
@@ -171,6 +172,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                 >
                   <span className="w-11 shrink-0 text-[12px] text-label">기록</span>
                   <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{record.title}</span>
+                  {record.authorNickname && <AuthorHeart nickname={record.authorNickname} />}
                 </Link>
               </li>
             ))}
@@ -185,6 +187,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                     <span className="truncate text-[15px] text-ink">{event.title}</span>
                     {event.place && <span className="truncate text-[12px] text-ink-sub">{event.place}</span>}
                   </span>
+                  {event.authorNickname && <AuthorHeart nickname={event.authorNickname} />}
                 </Link>
                 {/* 지난 일정(오늘 포함)은 그날의 데이트 기록으로 이어 쓸 수 있다. 이미 남긴 일정은 다시 권하지 않는다 */}
                 {canLeaveRecord(event, today, selectedRecords) && (
