@@ -85,7 +85,7 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
 };
 
 const DateRecordPage = ({ params }: PageProps<"/dates/[id]">) => (
-  <main className="mx-auto flex min-h-full w-full max-w-[430px] flex-col pb-[max(32px,env(safe-area-inset-bottom))]">
+  <main className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col pb-[max(32px,env(safe-area-inset-bottom))]">
     {/* 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents). 수정·삭제는 기록을 읽은 뒤 보인다 */}
     <Suspense
       fallback={
