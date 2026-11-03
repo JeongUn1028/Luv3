@@ -9,9 +9,9 @@
   --color-ink: #f2f2f2;
   --color-ink-sub: #8a8a8a;
   --color-ink-placeholder: #6e6e6e;
-  --color-accent: #e8e2d6;
-  --color-cream: #f5f0e6;
-  --color-label: #b8b2a6;
+  --color-accent: #f2d2da;
+  --color-highlight: #f5cfd9;
+  --color-label: #c8a2ac;
   --font-sans: var(--font-noto-sans-kr), -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
   --font-display: var(--font-cormorant), "Times New Roman", serif;
 }
