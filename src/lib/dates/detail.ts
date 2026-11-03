@@ -1,3 +1,4 @@
+import type { AuthorRow } from "@/lib/author";
 import type { SignedThumb } from "./album";
 
 export interface DetailPhoto {
@@ -15,6 +16,8 @@ export interface DateRecordDetail {
   title: string;
   place: string | undefined;
   memo: string | undefined;
+  /** 작성자 닉네임. 읽지 못했으면 작성자 표시를 그리지 않는다 */
+  authorNickname: string | undefined;
   /** sort_order 순서 */
   photos: DetailPhoto[];
   /** 기록을 지울 때 함께 지울 Storage 파일(원본·썸네일) */
@@ -41,6 +44,7 @@ export interface DetailRow {
   place: string | null;
   memo: string | null;
   cover_photo_id: string | null;
+  author: AuthorRow;
   photos: { id: string; path: string; thumb_path: string; caption: string | null; sort_order: number }[];
 }
 
@@ -74,6 +78,7 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedThumb[]):
     title: row.title,
     place: row.place ?? undefined,
     memo: row.memo ?? undefined,
+    authorNickname: row.author?.nickname,
     photos: photos.map(({ id, path, caption }) => ({ id, url: urlByPath.get(path), caption: caption ?? undefined })),
     filePaths: photos.flatMap(({ path, thumb_path }) => [path, thumb_path]),
   };

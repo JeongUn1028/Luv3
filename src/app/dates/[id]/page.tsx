@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
+import { AuthorHeart } from "@/components/AuthorHeart";
 import { DeleteRecordButton } from "@/components/dates/DeleteRecordButton";
 import { PhotoCarousel } from "@/components/dates/PhotoCarousel";
 import { BackIcon } from "@/components/icons";
@@ -66,10 +67,13 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
       <article className="flex flex-col">
         <PhotoCarousel photos={record.photos} title={record.title} />
         <div className="flex flex-col px-4 pt-6">
-          <p className="text-[13px] text-ink-sub">
-            <time dateTime={record.date}>{formatRecordDate(record.date)}</time>
-            {record.place && <span> · {record.place}</span>}
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="min-w-0 text-[13px] break-words text-ink-sub">
+              <time dateTime={record.date}>{formatRecordDate(record.date)}</time>
+              {record.place && <span> · {record.place}</span>}
+            </p>
+            {record.authorNickname && <AuthorHeart nickname={record.authorNickname} />}
+          </div>
           <h1 className="mt-1.5 text-[22px] leading-[1.4] font-bold break-words text-ink">{record.title}</h1>
           {record.memo && (
             <p className="mt-5 text-[15px] leading-[1.75] break-words whitespace-pre-wrap text-ink">{record.memo}</p>

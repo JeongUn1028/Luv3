@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
+import { AuthorHeart } from "@/components/AuthorHeart";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { BackIcon } from "@/components/icons";
 import {
@@ -30,6 +31,8 @@ interface EventFormProps {
   initialDraft: EventDraft;
   /** 고칠 일정의 id. 없으면 새 일정을 만든다 */
   eventId?: string;
+  /** 고칠 일정의 작성자 닉네임. 있으면 제목 옆에 작성자 하트를 그린다 */
+  authorNickname?: string;
 }
 
 /** 캘린더 페이지로 돌아가는 주소. 일정 날짜가 속한 달을 열고 그날을 고른다 */
@@ -49,7 +52,7 @@ const saveEvent = async (values: EventValues, eventId: string | undefined): Prom
 };
 
 /** 공유 캘린더 일정 추가·수정 폼 */
-export const EventForm = ({ initialDraft, eventId }: EventFormProps): ReactElement => {
+export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormProps): ReactElement => {
   const router = useRouter();
   const [draft, setDraft] = useState(initialDraft);
   const [errors, setErrors] = useState<EventDraftErrors>({});
@@ -110,6 +113,7 @@ export const EventForm = ({ initialDraft, eventId }: EventFormProps): ReactEleme
             <BackIcon className="size-[22px]" />
           </Link>
           <h1 className="text-[17px] text-ink">{eventId ? "일정 고치기" : "일정 추가"}</h1>
+          {authorNickname && <AuthorHeart nickname={authorNickname} className="ml-2" />}
         </div>
         {eventId && (
           <ConfirmDeleteButton

@@ -1,3 +1,4 @@
+import type { AuthorRow } from "@/lib/author";
 import { countChars, isIsoDate } from "@/lib/form";
 
 // 글자 수 제한은 DB check 제약(마이그레이션)과 같아야 한다
@@ -29,6 +30,18 @@ export interface EventValues {
 
 /** `events` 조회 결과 중 수정 화면에 쓰는 값 */
 export type EventRow = EventValues;
+
+/** 수정 화면이 읽는 `events` 행(작성자 포함) */
+export interface EditableEventRow extends EventRow {
+  id: string;
+  author: AuthorRow;
+}
+
+/** 수정 화면에 넘기는 일정. 작성자는 닉네임만 남긴다 */
+export interface EditableEvent extends EventRow {
+  id: string;
+  authorNickname: string | undefined;
+}
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -89,4 +102,14 @@ export const toEventDraft = (row: EventRow): EventDraft => ({
   title: row.title,
   place: row.place ?? "",
   memo: row.memo ?? "",
+});
+
+/**
+ * 수정 화면이 읽은 일정 행에서 작성자를 닉네임으로 바꾼다.
+ *
+ * @example const event = toEditableEvent(row); <EventForm authorNickname={event.authorNickname} />
+ */
+export const toEditableEvent = ({ author, ...row }: EditableEventRow): EditableEvent => ({
+  ...row,
+  authorNickname: author?.nickname,
 });
