@@ -4,13 +4,14 @@ import { CalendarIcon, GridIcon, HomeIcon, TodoIcon } from "@/components/icons";
 import { HOME_PATH } from "@/lib/auth/paths";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
+import { TODOS_PATH } from "@/lib/todos/list";
 
 /** 하단 탭 순서(왼쪽 → 오른쪽). 탭마다 주소가 따로 있다 */
 const MAIN_TABS = [
   { tab: "home", href: HOME_PATH, label: "홈", Icon: HomeIcon },
   { tab: "records", href: RECORDS_PATH, label: "기록", Icon: GridIcon },
   { tab: "calendar", href: CALENDAR_PATH, label: "캘린더", Icon: CalendarIcon },
-  { tab: "todos", href: "/todos", label: "Todo", Icon: TodoIcon },
+  { tab: "todos", href: TODOS_PATH, label: "Todo", Icon: TodoIcon },
 ] as const;
 
 export type MainTab = (typeof MAIN_TABS)[number]["tab"];
