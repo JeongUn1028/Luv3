@@ -21,7 +21,7 @@ const NewEventForm = async ({ searchParams }: Pick<PageProps<"/events/new">, "se
 
 const NewEventPage = ({ searchParams }: PageProps<"/events/new">) => (
   // 세션·주소 쿼리는 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <Suspense fallback={<div className="min-h-dvh" />}>
+  <Suspense fallback={<div className="min-h-full" />}>
     <NewEventForm searchParams={searchParams} />
   </Suspense>
 );
