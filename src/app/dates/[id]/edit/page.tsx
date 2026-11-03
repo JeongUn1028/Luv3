@@ -27,7 +27,7 @@ const EditForm = async ({ params }: { params: Promise<{ id: string }> }) => {
   if (!record) notFound();
   if (record instanceof DateRecordLoadError) {
     return (
-      <main className="mx-auto flex min-h-full w-full max-w-[430px] items-center justify-center px-4">
+      <main className="mx-auto flex min-h-dvh w-full max-w-[430px] items-center justify-center px-4">
         <p role="alert" className="text-[13px] text-ink-sub">
           {record.message}
         </p>
@@ -42,7 +42,7 @@ const EditForm = async ({ params }: { params: Promise<{ id: string }> }) => {
 
 const EditDateRecordPage = ({ params }: PageProps<"/dates/[id]/edit">) => (
   // 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <Suspense fallback={<div className="min-h-full" />}>
+  <Suspense fallback={<div className="min-h-dvh" />}>
     <EditForm params={params} />
   </Suspense>
 );
