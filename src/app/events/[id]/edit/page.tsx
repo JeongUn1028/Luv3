@@ -29,7 +29,7 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
 
   if (!event) {
     return (
-      <main className="mx-auto flex min-h-full w-full max-w-[430px] flex-col items-center justify-center gap-4 px-4 text-center">
+      <main className="mx-auto flex min-h-full w-full max-w-[430px] flex-col items-center justify-center gap-4 px-4 pb-[env(safe-area-inset-bottom)] text-center">
         <p className="text-[15px] text-ink">일정을 찾을 수 없어요</p>
         <p className="text-[13px] text-ink-sub">지워졌거나 주소가 잘못됐어요.</p>
         <Link
