@@ -28,7 +28,7 @@ export const getCalendarMonth = async (
   const [eventsResult, recordsResult] = await Promise.all([
     supabase
       .from("events")
-      .select("id, date, start_time, title, place, author:members!events_author_id_fkey(nickname)")
+      .select("id, date, start_time, title, place, is_together, author:members!events_author_id_fkey(nickname)")
       .gte("date", start)
       .lte("date", end)
       .order("date")
@@ -60,7 +60,7 @@ export const getEvent = async (id: string): Promise<EditableEvent | undefined> =
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")
-    .select("id, date, start_time, title, place, memo, author:members!events_author_id_fkey(nickname)")
+    .select("id, date, start_time, title, place, memo, is_together, author:members!events_author_id_fkey(nickname)")
     .eq("id", id)
     .maybeSingle();
   if (error) throw new EventLoadError({ cause: error });

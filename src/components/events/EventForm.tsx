@@ -6,6 +6,7 @@ import { AuthorHeart } from "@/components/AuthorHeart";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { EVENT_KINDS, getHighlightClassNames } from "@/lib/calendar/highlight";
 import { toCalendarHref } from "@/lib/calendar/month";
 import {
   EVENT_MEMO_MAX_LENGTH,
@@ -144,6 +145,33 @@ export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormPr
             </p>
           )}
         </div>
+
+        <fieldset className="flex flex-col">
+          <legend className={labelClassName}>함께 / 개인</legend>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {EVENT_KINDS.map(({ isTogether, highlight, label }) => (
+              <label
+                key={label}
+                className="flex h-[51px] items-center justify-center gap-2 rounded-[10px] border border-line bg-surface text-[15px] text-ink-sub has-checked:border-accent has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent has-disabled:opacity-50"
+              >
+                <input
+                  type="radio"
+                  name="event-kind"
+                  checked={draft.isTogether === isTogether}
+                  disabled={isSaving}
+                  onChange={() => setDraft((current) => ({ ...current, isTogether }))}
+                  className="sr-only"
+                />
+                {/* 캘린더 형광펜과 같은 색 띠로, 고른 종류가 캘린더에서 어떤 색으로 보일지 알려 준다 */}
+                <span
+                  aria-hidden="true"
+                  className={`h-2.5 w-4 -rotate-2 rounded-[2px] ${getHighlightClassNames({ highlight, isCurrentMonth: true }).band}`}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         <div className="flex flex-col">
           <label htmlFor="event-date" className={labelClassName}>

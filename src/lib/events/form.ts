@@ -14,6 +14,8 @@ export interface EventDraft {
   title: string;
   place: string;
   memo: string;
+  /** 둘이 함께 하는 일정이면 true, 한 사람의 개인 일정이면 false */
+  isTogether: boolean;
 }
 
 /** 칸 이름 → 화면에 보여 줄 에러 문구 */
@@ -26,6 +28,7 @@ export interface EventValues {
   title: string;
   place: string | null;
   memo: string | null;
+  is_together: boolean;
 }
 
 /** `events` 조회 결과 중 수정 화면에 쓰는 값 */
@@ -46,7 +49,7 @@ export interface EditableEvent extends EventRow {
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /**
- * 새 일정 입력값. 달력에서 고른 날을 날짜로, 처음에는 종일 일정으로 둔다.
+ * 새 일정 입력값. 달력에서 고른 날을 날짜로, 처음에는 함께 하는 종일 일정으로 둔다.
  *
  * @example createEmptyEventDraft("2026-11-14")
  */
@@ -57,6 +60,7 @@ export const createEmptyEventDraft = (date: string): EventDraft => ({
   title: "",
   place: "",
   memo: "",
+  isTogether: true,
 });
 
 /**
@@ -88,6 +92,7 @@ export const toEventValues = (draft: EventDraft): EventValues => ({
   title: draft.title.trim(),
   place: draft.place.trim() || null,
   memo: draft.memo.trim() || null,
+  is_together: draft.isTogether,
 });
 
 /**
@@ -102,6 +107,7 @@ export const toEventDraft = (row: EventRow): EventDraft => ({
   title: row.title,
   place: row.place ?? "",
   memo: row.memo ?? "",
+  isTogether: row.is_together,
 });
 
 /**

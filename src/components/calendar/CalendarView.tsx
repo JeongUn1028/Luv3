@@ -6,6 +6,13 @@ import { AuthorHeart } from "@/components/AuthorHeart";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/icons";
 import { ANNIVERSARY_DATE, countDaysTogether, getAnniversaryLabel } from "@/lib/anniversary";
 import {
+  EVENT_KINDS,
+  describeDayEvents,
+  getDayHighlight,
+  getDayNumberClassName,
+  getHighlightClassNames,
+} from "@/lib/calendar/highlight";
+import {
   buildMonthGrid,
   canLeaveRecord,
   formatDayHeading,
@@ -36,6 +43,10 @@ const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 const monthHref = (month: string): string => toCalendarHref({ month });
 
 const navButtonClassName = "flex size-11 items-center justify-center text-ink-sub hover:text-ink";
+
+// 날짜 숫자 뒤에 손으로 그은 듯한 형광펜 띠. 숫자 원(size-7, 위 여백 pt-1.5)의 가운데 높이에 맞춘다
+const highlightBandClassName =
+  "absolute top-2.5 left-1/2 h-5 w-10 -translate-x-1/2 -rotate-2 rounded-[2px_7px_3px_8px/5px_3px_6px_3px]";
 
 /** 공유 캘린더: 월 달력 + 고른 날의 데이트 기록·일정 */
 export const CalendarView = ({ month, today, requestedDate, events, records }: CalendarViewProps): ReactElement => {
@@ -83,15 +94,14 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
           {buildMonthGrid(month).map((week) => (
             <tr key={week[0]?.date}>
               {week.map(({ date, day, isCurrentMonth }) => {
-                const eventCount = eventsByDate.get(date)?.length ?? 0;
+                const dayEvents = eventsByDate.get(date) ?? [];
                 const recordCount = recordsByDate.get(date)?.length ?? 0;
                 const isSelected = date === selectedDate;
                 const isToday = date === today;
                 const anniversary = getAnniversaryLabel(ANNIVERSARY_DATE, date);
-                const summary = [
-                  eventCount > 0 && `일정 ${eventCount}개`,
-                  recordCount > 0 && `기록 ${recordCount}개`,
-                ].filter(Boolean);
+                const highlight = getDayHighlight(dayEvents);
+                const highlightClassNames = highlight && getHighlightClassNames({ highlight, isCurrentMonth });
+                const summary = [...describeDayEvents(dayEvents), recordCount > 0 && `기록 ${recordCount}개`].filter(Boolean);
                 return (
                   <td key={date} className="p-0.5">
                     <button
@@ -99,20 +109,25 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                       aria-pressed={isSelected}
                       aria-label={[formatDayHeading(date), isToday && "오늘", anniversary, ...summary].filter(Boolean).join(", ")}
                       onClick={() => setSelectedDate(date)}
-                      className={`flex h-12 w-full flex-col items-center justify-start gap-1 rounded-[10px] pt-1.5 text-[14px] ${
+                      className={`relative flex h-12 w-full flex-col items-center justify-start gap-1 rounded-[10px] pt-1.5 text-[14px] ${
                         isSelected ? "bg-surface" : ""
                       } ${isCurrentMonth ? "text-ink" : "text-ink-placeholder"}`}
                     >
+                      {highlightClassNames && (
+                        <span aria-hidden="true" className={`${highlightBandClassName} ${highlightClassNames.band}`} />
+                      )}
                       <span
-                        className={`flex size-7 items-center justify-center rounded-full ${
-                          isToday ? "bg-accent font-bold text-background" : ""
-                        } ${anniversary ? "ring-1 ring-highlight" : ""} ${isToday && anniversary ? "ring-offset-2 ring-offset-background" : ""}`}
+                        className={`relative flex size-7 items-center justify-center rounded-full ${getDayNumberClassName({
+                          isToday,
+                          isAnniversary: Boolean(anniversary),
+                          isSelected,
+                          highlightClassNames,
+                        })}`}
                       >
                         {day}
                       </span>
                       <span aria-hidden="true" className="flex h-1.5 gap-1">
                         {recordCount > 0 && <span className="size-1.5 rounded-full bg-ink-sub" />}
-                        {eventCount > 0 && <span className="size-1.5 rounded-full bg-highlight" />}
                       </span>
                     </button>
                   </td>
@@ -122,7 +137,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
           ))}
         </tbody>
       </table>
-      <p className="mt-2 flex justify-end gap-3 text-[11px] text-ink-sub">
+      <p className="mt-2 flex flex-wrap justify-end gap-x-3 gap-y-1 text-[11px] text-ink-sub">
         <span className="flex items-center gap-1">
           <span aria-hidden="true" className="size-2 rounded-full ring-1 ring-highlight" />
           기념일
@@ -131,10 +146,15 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
           <span aria-hidden="true" className="size-1.5 rounded-full bg-ink-sub" />
           데이트 기록
         </span>
-        <span className="flex items-center gap-1">
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-highlight" />
-          일정
-        </span>
+        {EVENT_KINDS.map(({ highlight, label }) => (
+          <span key={highlight} className="flex items-center gap-1">
+            <span
+              aria-hidden="true"
+              className={`h-2 w-3.5 -rotate-2 rounded-[2px] ${getHighlightClassNames({ highlight, isCurrentMonth: true }).band}`}
+            />
+            {label} 일정
+          </span>
+        ))}
       </p>
 
       <section aria-labelledby="selected-day" className="mt-4 flex flex-col">
@@ -185,7 +205,10 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                   href={`/events/${event.id}/edit`}
                   className="flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
                 >
-                  <span className="w-11 shrink-0 text-[12px] text-ink-sub">{formatEventTime(event.startTime)}</span>
+                  <span className="flex w-11 shrink-0 flex-col text-[12px] text-ink-sub">
+                    {formatEventTime(event.startTime)}
+                    {!event.isTogether && <span className="text-[11px] text-cream">개인</span>}
+                  </span>
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-[15px] text-ink">{event.title}</span>
                     {event.place && <span className="truncate text-[12px] text-ink-sub">{event.place}</span>}

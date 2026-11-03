@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(17);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@events.test', 'authenticated', 'authenticated'),
@@ -39,6 +39,18 @@ select results_eq(
   '작성자는 로그인한 사용자로 자동 기록된다'
 );
 
+select results_eq(
+  $$select bool_and(is_together) from public.events where id::text like '30000000-%'$$,
+  $$values (true)$$,
+  '함께/개인을 적지 않은 일정은 함께 일정으로 저장된다'
+);
+
+select lives_ok(
+  $$insert into public.events (id, date, title, is_together) values
+      ('30000000-0000-0000-0000-000000000003', '2026-11-15', '치과', false)$$,
+  '개인 일정으로 만들 수 있다'
+);
+
 select throws_ok(
   $$insert into public.events (date, title, author_id)
     values ('2026-11-15', '남의 이름으로', '00000000-0000-0000-0000-00000000000b')$$,
@@ -59,7 +71,7 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 
 select results_eq(
   $$select count(*)::int from public.events where id::text like '30000000-%'$$,
-  $$values (2)$$,
+  $$values (3)$$,
   '다른 멤버도 상대가 만든 일정을 본다'
 );
 
@@ -81,6 +93,14 @@ select results_eq(
   $$select title, start_time from public.events where id = '30000000-0000-0000-0000-000000000001'$$,
   $$values ('전시 보기(시간 변경)', '14:00'::time)$$,
   '고친 내용이 저장된다'
+);
+
+select results_eq(
+  $$with changed as (
+      update public.events set is_together = false where id = '30000000-0000-0000-0000-000000000001' returning is_together
+    ) select is_together from changed$$,
+  $$values (false)$$,
+  '다른 멤버도 일정을 개인 일정으로 바꾼다'
 );
 
 select lives_ok(
