@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createEmptyEventDraft, toEventDraft, toEventValues, validateEventDraft, type EventDraft } from "./form";
+import {
+  createEmptyEventDraft,
+  toEditableEvent,
+  toEventDraft,
+  toEventValues,
+  validateEventDraft,
+  type EventDraft,
+} from "./form";
 
 const draft = (overrides: Partial<EventDraft> = {}): EventDraft => ({
   ...createEmptyEventDraft("2026-11-14"),
@@ -57,5 +64,17 @@ describe("toEventDraft", () => {
     expect(toEventDraft({ date: "2026-11-14", start_time: null, title: "전시", place: "미술관", memo: "메모" })).toEqual(
       { date: "2026-11-14", isAllDay: true, startTime: "", title: "전시", place: "미술관", memo: "메모" },
     );
+  });
+});
+
+describe("toEditableEvent", () => {
+  it("일정 행에서 작성자를 닉네임으로 바꾸고 나머지 값은 그대로 둔다", () => {
+    const row = { id: "e1", date: "2026-11-14", start_time: null, title: "저녁", place: null, memo: null };
+    expect(toEditableEvent({ ...row, author: { nickname: "정운" } })).toEqual({ ...row, authorNickname: "정운" });
+  });
+
+  it("작성자를 읽지 못하면 undefined로 둔다", () => {
+    const row = { id: "e1", date: "2026-11-14", start_time: null, title: "저녁", place: null, memo: null, author: null };
+    expect(toEditableEvent(row).authorNickname).toBeUndefined();
   });
 });

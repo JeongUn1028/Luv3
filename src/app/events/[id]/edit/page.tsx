@@ -43,7 +43,14 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
   }
 
   // cacheComponents는 다녀온 화면의 상태를 보존해, 다시 열면 예전 입력값이 남는다. 요청마다 새 key로 최신 값을 채운다
-  return <EventForm key={crypto.randomUUID()} eventId={event.id} initialDraft={toEventDraft(event)} />;
+  return (
+    <EventForm
+      key={crypto.randomUUID()}
+      eventId={event.id}
+      authorNickname={event.authorNickname}
+      initialDraft={toEventDraft(event)}
+    />
+  );
 };
 
 const EditEventPage = ({ params }: PageProps<"/events/[id]/edit">) => (
