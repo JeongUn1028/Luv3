@@ -13,7 +13,7 @@ const LoginPage = () => (
     <InstallHint />
     <section className="flex flex-1 flex-col items-center justify-center py-12">
       <h1 className="sr-only">Luv3</h1>
-      <HeartLogo className="w-[120px] text-cream" />
+      <HeartLogo className="w-[120px] text-highlight" />
       <div className="mt-10 h-px w-8 bg-ink-sub" />
       {/* letter-spacing이 마지막 글자 뒤에도 붙어 가운데가 왼쪽으로 쏠리므로 같은 만큼 왼쪽을 띄운다 */}
       <p className="mt-5 pl-[6px] font-display text-[14px] font-semibold tracking-[6px] text-label">

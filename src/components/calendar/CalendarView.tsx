@@ -105,13 +105,13 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                       <span
                         className={`flex size-7 items-center justify-center rounded-full ${
                           isToday ? "bg-accent font-bold text-background" : ""
-                        } ${anniversary ? "ring-1 ring-cream" : ""} ${isToday && anniversary ? "ring-offset-2 ring-offset-background" : ""}`}
+                        } ${anniversary ? "ring-1 ring-highlight" : ""} ${isToday && anniversary ? "ring-offset-2 ring-offset-background" : ""}`}
                       >
                         {day}
                       </span>
                       <span aria-hidden="true" className="flex h-1.5 gap-1">
-                        {recordCount > 0 && <span className="size-1.5 rounded-full bg-label" />}
-                        {eventCount > 0 && <span className="size-1.5 rounded-full bg-cream" />}
+                        {recordCount > 0 && <span className="size-1.5 rounded-full bg-ink-sub" />}
+                        {eventCount > 0 && <span className="size-1.5 rounded-full bg-highlight" />}
                       </span>
                     </button>
                   </td>
@@ -123,15 +123,15 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
       </table>
       <p className="mt-2 flex justify-end gap-3 text-[11px] text-ink-sub">
         <span className="flex items-center gap-1">
-          <span aria-hidden="true" className="size-2 rounded-full ring-1 ring-cream" />
+          <span aria-hidden="true" className="size-2 rounded-full ring-1 ring-highlight" />
           기념일
         </span>
         <span className="flex items-center gap-1">
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-label" />
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-ink-sub" />
           데이트 기록
         </span>
         <span className="flex items-center gap-1">
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-cream" />
+          <span aria-hidden="true" className="size-1.5 rounded-full bg-highlight" />
           일정
         </span>
       </p>
@@ -160,7 +160,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
           <ul className="mt-2 flex flex-col gap-2">
             {selectedAnniversary && (
               <li className="flex min-h-[51px] items-center gap-3 rounded-[10px] border border-line px-4 py-2">
-                <span className="w-11 shrink-0 text-[12px] text-cream">기념일</span>
+                <span className="w-11 shrink-0 text-[12px] text-highlight">기념일</span>
                 <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{selectedAnniversary}</span>
               </li>
             )}
