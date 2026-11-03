@@ -4,6 +4,8 @@ import { toViewportRows, type ViewportSnapshot } from "./viewport";
 const SNAPSHOT: ViewportSnapshot = {
   at: 120,
   isStandalone: true,
+  isDisplayModeStandalone: true,
+  isNavigatorStandalone: true,
   screenHeight: 852,
   innerHeight: 793,
   visualViewportHeight: 793,
