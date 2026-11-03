@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { EventForm } from "@/components/events/EventForm";
 import { PageShell } from "@/components/PageShell";
 import { getCurrentMember } from "@/lib/auth/member";
+import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { toEventDraft } from "@/lib/events/form";
 import { EventLoadError, getEvent } from "@/lib/events/queries";
 
@@ -34,7 +35,7 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
         <p className="text-[15px] text-ink">일정을 찾을 수 없어요</p>
         <p className="text-[13px] text-ink-sub">지워졌거나 주소가 잘못됐어요.</p>
         <Link
-          href="/?view=calendar"
+          href={CALENDAR_PATH}
           className="mt-2 flex h-[51px] w-full items-center justify-center rounded-[10px] border border-line text-[15px] text-ink hover:bg-surface"
         >
           캘린더로

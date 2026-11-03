@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
 import { AuthorHeart } from "@/components/AuthorHeart";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
-import { BackIcon } from "@/components/icons";
 import { PageShell } from "@/components/PageShell";
+import { ScreenHeader } from "@/components/ScreenHeader";
+import { toCalendarHref } from "@/lib/calendar/month";
 import {
   EVENT_MEMO_MAX_LENGTH,
   EVENT_PLACE_MAX_LENGTH,
@@ -36,9 +36,6 @@ interface EventFormProps {
   authorNickname?: string;
 }
 
-/** 캘린더 페이지로 돌아가는 주소. 일정 날짜가 속한 달을 열고 그날을 고른다 */
-const toCalendarHref = (date: string): string => `/?view=calendar&month=${date.slice(0, 7)}&date=${date}`;
-
 /** 일정을 저장한다. 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
 const saveEvent = async (values: EventValues, eventId: string | undefined): Promise<string | undefined> => {
   const events = createClient().from("events");
@@ -59,7 +56,8 @@ export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormPr
   const [errors, setErrors] = useState<EventDraftErrors>({});
   const [notice, setNotice] = useState<string>();
   const [isSaving, setIsSaving] = useState(false);
-  const backHref = toCalendarHref(initialDraft.date);
+  // 캘린더로 돌아가면 일정 날짜가 속한 달을 열고 그날을 고른다
+  const backHref = toCalendarHref({ date: initialDraft.date });
 
   const updateField = (field: TextField, value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -68,7 +66,7 @@ export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormPr
 
   const goToCalendar = (date: string) => {
     startTransition(() => {
-      router.replace(toCalendarHref(date));
+      router.replace(toCalendarHref({ date }));
       router.refresh();
     });
   };
@@ -107,27 +105,21 @@ export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormPr
       bottomSpace="sm"
       className="px-4"
       header={
-        <header className="flex items-center justify-between px-2">
-          <div className="flex items-center">
-            <Link
-              href={backHref}
-              aria-label="캘린더로"
-              className="flex size-11 items-center justify-center text-ink-sub hover:text-ink"
-            >
-              <BackIcon className="size-[22px]" />
-            </Link>
-            <h1 className="text-[17px] text-ink">{eventId ? "일정 고치기" : "일정 추가"}</h1>
-            {authorNickname && <AuthorHeart nickname={authorNickname} className="ml-2" />}
-          </div>
-          {eventId && (
-            <ConfirmDeleteButton
-              title="이 일정을 지울까요?"
-              description={`"${initialDraft.title}" 일정이 두 사람 캘린더에서 모두 지워져요.`}
-              onConfirm={handleDelete}
-              failureMessage="일정을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
-            />
-          )}
-        </header>
+        <ScreenHeader
+          back={{ href: backHref, label: "캘린더로" }}
+          title={eventId ? "일정 고치기" : "일정 추가"}
+          titleAddon={authorNickname && <AuthorHeart nickname={authorNickname} className="ml-2" />}
+          actions={
+            eventId && (
+              <ConfirmDeleteButton
+                title="이 일정을 지울까요?"
+                description={`"${initialDraft.title}" 일정이 두 사람 캘린더에서 모두 지워져요.`}
+                onConfirm={handleDelete}
+                failureMessage="일정을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
+              />
+            )
+          }
+        />
       }
     >
       <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-6">

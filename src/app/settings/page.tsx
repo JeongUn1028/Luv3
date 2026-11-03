@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
-import { BackIcon } from "@/components/icons";
 import { PageShell } from "@/components/PageShell";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { getCurrentMember } from "@/lib/auth/member";
+import { HOME_PATH } from "@/lib/auth/paths";
 
 export const metadata: Metadata = { title: "설정 · Luv3" };
 
@@ -35,14 +35,7 @@ const SettingsPage = () => (
   <PageShell
     bottomSpace="sm"
     className="px-4"
-    header={
-      <header className="flex items-center px-2">
-        <Link href="/" aria-label="홈으로" className="flex size-11 items-center justify-center text-ink-sub hover:text-ink">
-          <BackIcon className="size-[22px]" />
-        </Link>
-        <h1 className="text-[17px] text-ink">설정</h1>
-      </header>
-    }
+    header={<ScreenHeader back={{ href: HOME_PATH, label: "홈으로" }} title="설정" />}
   >
     <div className="mt-6">
       {/* 세션을 읽는 부분만 요청 시점에 렌더링한다(cacheComponents) */}

@@ -21,6 +21,15 @@ const LineIcon = ({ className, children }: IconProps & { children: ReactNode }):
   </svg>
 );
 
+/** 홈 탭 아이콘 */
+export const HomeIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M3.5 10.5 12 4l8.5 6.5" />
+    <path d="M5.5 9v11.5h13V9" />
+    <path d="M10 20.5V15h4v5.5" />
+  </LineIcon>
+);
+
 /** 기록(사진 그리드) 탭 아이콘. home.svg의 앨범 아이콘과 같다. */
 export const GridIcon = ({ className }: IconProps): ReactElement => (
   <LineIcon className={className}>
@@ -39,12 +48,19 @@ export const CalendarIcon = ({ className }: IconProps): ReactElement => (
   </LineIcon>
 );
 
-/** 설정 아이콘. home.svg의 설정(슬라이더) 아이콘과 같다. */
+/** Todo-list 탭 아이콘(체크 표시가 붙은 목록) */
+export const TodoIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M3.5 6.5 5 8l2.5-3M3.5 12.5 5 14l2.5-3" />
+    <path d="M11 6.5h9.5M11 12.5h9.5M11 18.5h9.5M4 18.5h3" />
+  </LineIcon>
+);
+
+/** 설정(톱니바퀴) 아이콘. 홈 오른쪽 위에 둔다 */
 export const SettingsIcon = ({ className }: IconProps): ReactElement => (
   <LineIcon className={className}>
-    <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
-    <circle cx="16" cy="7" r="2" />
-    <circle cx="10" cy="17" r="2" />
+    <circle cx="12" cy="12" r="3" />
+    <path d="M10.3 3.5h3.4l.5 2.4 1.6.9 2.3-.8 1.7 2.9-1.8 1.6v1.9l1.8 1.6-1.7 2.9-2.3-.8-1.6.9-.5 2.4h-3.4l-.5-2.4-1.6-.9-2.3.8-1.7-2.9 1.8-1.6v-1.9L4.2 8.9l1.7-2.9 2.3.8 1.6-.9z" />
   </LineIcon>
 );
 
@@ -55,7 +71,7 @@ export const BackIcon = ({ className }: IconProps): ReactElement => (
   </LineIcon>
 );
 
-/** 더하기 아이콘. 기록 남기기 버튼에 쓴다 */
+/** 더하기 아이콘. 탭 오른쪽 위의 추가 버튼(기록 남기기·일정 추가)에 쓴다 */
 export const PlusIcon = ({ className }: IconProps): ReactElement => (
   <LineIcon className={className}>
     <path d="M12 5v14M5 12h14" />
