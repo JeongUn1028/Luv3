@@ -105,8 +105,9 @@ const HomeContent = async ({ searchParams }: { searchParams: SearchParams }) => 
   );
 };
 
+// 홈은 문서가 스크롤되지 않고 패널 안에서만 스크롤하므로, 틀을 화면에 고정해 높이를 화면과 맞춘다(#51)
 const HomePage = ({ searchParams }: PageProps<"/">) => (
-  <main className="mx-auto flex h-dvh w-full max-w-[430px] flex-col">
+  <main className="fixed inset-0 mx-auto flex w-full max-w-[430px] flex-col">
     <header className="flex shrink-0 items-center justify-end px-2 pt-[env(safe-area-inset-top)]">
       <Link
         href="/settings"
