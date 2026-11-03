@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { CAPTION_MAX_LENGTH, MAX_PHOTOS, type DraftErrors, type DraftPhoto } from "@/lib/dates/form";
+import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/resize";
 
 export interface PickedPhoto extends DraftPhoto {
   /** 이번에 새로 고른 사진의 파일. 이미 저장된 사진(수정 화면)은 undefined */
@@ -85,7 +86,7 @@ export const PhotoPicker = ({
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif"
+        accept={PHOTO_INPUT_ACCEPT}
         multiple
         hidden
         onChange={handleChange}

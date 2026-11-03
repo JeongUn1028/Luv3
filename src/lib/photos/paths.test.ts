@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPhotoPaths } from "./paths";
+import { buildCouplePhotoPath, buildPhotoPaths } from "./paths";
 
 const DATE_ID = "10000000-0000-4000-8000-000000000001";
 const PHOTO_ID = "20000000-0000-4000-8000-000000000002";
@@ -16,5 +16,22 @@ describe("buildPhotoPaths", () => {
   it("id가 UUID 형식이 아니면 에러를 낸다", () => {
     expect(() => buildPhotoPaths("../etc", PHOTO_ID)).toThrow("UUID");
     expect(() => buildPhotoPaths(DATE_ID, "photo-1")).toThrow("UUID");
+  });
+});
+
+describe("buildCouplePhotoPath", () => {
+  it("커플 사진은 기록 폴더와 겹치지 않는 couple 폴더에 사진 id로 둔다", () => {
+    expect(buildCouplePhotoPath(PHOTO_ID)).toBe(`couple/${PHOTO_ID}.jpg`);
+  });
+
+  // DB의 경로 검사는 소문자만 받는다
+  it("대문자 UUID도 소문자 경로로 만든다", () => {
+    const photoId = "abcdef00-0000-4000-8000-00000000000a";
+
+    expect(buildCouplePhotoPath(photoId.toUpperCase())).toBe(`couple/${photoId}.jpg`);
+  });
+
+  it("사진 id가 UUID 형식이 아니면 에러를 낸다", () => {
+    expect(() => buildCouplePhotoPath("../x")).toThrow("UUID");
   });
 });
