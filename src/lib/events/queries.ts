@@ -48,6 +48,30 @@ export const getCalendarMonth = async (
   return { events: eventsResult.data.map(toCalendarEvent), records: recordsResult.data.map(toCalendarRecord) };
 };
 
+/** 홈 일정 칸에 읽을 일정 수. 가장 가까운 날의 일정이 이보다 많으면 앞쪽만 보인다 */
+const UPCOMING_EVENTS_LIMIT = 50;
+
+/**
+ * 오늘(한국 날짜)과 그 뒤 일정을 날짜 → 종일 먼저 → 시간 → 만든 순서로 앞에서부터 읽는다(홈).
+ * 그중 오늘 또는 가장 가까운 날 하루치를 고르는 일은 `pickUpcomingDay`가 한다.
+ *
+ * @throws {EventLoadError} 조회가 실패했을 때
+ * @example const day = pickUpcomingDay(await getUpcomingEvents(today), today)
+ */
+export const getUpcomingEvents = async (today: string): Promise<CalendarEvent[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("events")
+    .select("id, date, start_time, title, place, is_together, author:members!events_author_id_fkey(nickname)")
+    .gte("date", today)
+    .order("date")
+    .order("start_time", { nullsFirst: true })
+    .order("created_at")
+    .limit(UPCOMING_EVENTS_LIMIT);
+  if (error) throw new EventLoadError({ cause: error });
+  return data.map(toCalendarEvent);
+};
+
 /**
  * 일정 하나와 작성자 닉네임을 읽는다(수정 화면).
  *

@@ -40,12 +40,21 @@ const toUtcMidnight = (isoDate: string): number => {
 };
 
 /**
+ * 두 날짜(YYYY-MM-DD) 사이가 며칠인지 돌려준다. `to`가 더 이르면 음수다.
+ *
+ * @throws {Error} 날짜 형식이 틀렸을 때
+ * @example countDaysBetween("2026-11-03", "2026-11-14") // 11
+ */
+export const countDaysBetween = (from: string, to: string): number =>
+  Math.round((toUtcMidnight(to) - toUtcMidnight(from)) / DAY_MS);
+
+/**
  * 사귄 날을 1일째로 세어 오늘이 며칠째인지 돌려준다(docs/plan.md "D-day 기준일").
  *
  * @example countDaysTogether("2026-10-31", "2026-11-02") // 3
  */
 export const countDaysTogether = (anniversary: string, today: string): number => {
-  const days = Math.round((toUtcMidnight(today) - toUtcMidnight(anniversary)) / DAY_MS) + 1;
+  const days = countDaysBetween(anniversary, today) + 1;
   if (days < 1) throw new Error(`오늘(${today})이 기념일보다 이른 날입니다: ${anniversary}`);
   return days;
 };

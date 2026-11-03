@@ -12,19 +12,15 @@ export class AlbumLoadError extends Error {
   }
 }
 
-/**
- * 앨범 그리드에 그릴 기록을 최신순(날짜 → 작성 시각)으로 불러온다. 대표 사진 썸네일 서명 URL은 한 번에 발급한다.
- *
- * @throws {AlbumLoadError} 기록 조회나 서명 URL 발급이 실패했을 때
- * @example const tiles = await getAlbumTiles()
- */
-export const getAlbumTiles = async (): Promise<AlbumTile[]> => {
+/** 최신순(날짜 → 작성 시각) 기록을 `limit`개까지(없으면 전부) 읽고 대표 사진 썸네일 서명 URL을 한 번에 발급한다 */
+const loadLatestTiles = async (limit?: number): Promise<AlbumTile[]> => {
   const supabase = await createClient();
-  const { data: rows, error } = await supabase
+  const query = supabase
     .from("dates")
     .select("id, date, title, place, cover:photos!dates_cover_photo_id_fkey(thumb_path)")
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
+  const { data: rows, error } = await (limit === undefined ? query : query.limit(limit));
   if (error) throw new AlbumLoadError({ cause: error });
 
   const thumbPaths = rows.flatMap(({ cover }) => (cover ? [cover.thumb_path] : []));
@@ -37,6 +33,23 @@ export const getAlbumTiles = async (): Promise<AlbumTile[]> => {
 
   return toAlbumTiles(rows, signed);
 };
+
+/**
+ * 앨범 그리드에 그릴 기록을 최신순(날짜 → 작성 시각)으로 불러온다. 대표 사진 썸네일 서명 URL은 한 번에 발급한다.
+ *
+ * @throws {AlbumLoadError} 기록 조회나 서명 URL 발급이 실패했을 때
+ * @example const tiles = await getAlbumTiles()
+ */
+export const getAlbumTiles = async (): Promise<AlbumTile[]> => loadLatestTiles();
+
+/**
+ * 가장 최근 데이트 기록 하나(홈). 기록 탭 그리드의 첫 칸과 같은 기록이다.
+ *
+ * @returns 기록이 없으면 undefined
+ * @throws {AlbumLoadError} 기록 조회나 서명 URL 발급이 실패했을 때
+ * @example const latest = await getLatestRecord()
+ */
+export const getLatestRecord = async (): Promise<AlbumTile | undefined> => (await loadLatestTiles(1))[0];
 
 /** 기록 상세를 불러오지 못했을 때(없는 기록은 이 에러가 아니라 undefined) */
 export class DateRecordLoadError extends Error {

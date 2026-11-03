@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactElement } from "react";
 import { AuthorHeart } from "@/components/AuthorHeart";
+import { EventTimeLabel } from "@/components/events/EventTimeLabel";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/icons";
 import { ANNIVERSARY_DATE, countDaysTogether, getAnniversaryLabel } from "@/lib/anniversary";
 import {
@@ -16,7 +17,6 @@ import {
   buildMonthGrid,
   canLeaveRecord,
   formatDayHeading,
-  formatEventTime,
   formatMonthTitle,
   getDefaultSelectedDate,
   groupByDate,
@@ -205,10 +205,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                   href={`/events/${event.id}/edit`}
                   className="flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
                 >
-                  <span className="flex w-11 shrink-0 flex-col text-[12px] text-ink-sub">
-                    {formatEventTime(event.startTime)}
-                    {!event.isTogether && <span className="text-[11px] text-cream">개인</span>}
-                  </span>
+                  <EventTimeLabel event={event} />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-[15px] text-ink">{event.title}</span>
                     {event.place && <span className="truncate text-[12px] text-ink-sub">{event.place}</span>}

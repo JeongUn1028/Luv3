@@ -1,5 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { LOGIN_PATH } from "@/lib/auth/paths";
 
@@ -15,8 +16,11 @@ export const NOT_MEMBER_SIGNOUT_PATH = "/auth/signout?reason=not_member";
  * 현재 로그인한 사용자를 허용목록(members)에서 찾는다.
  * 로그인하지 않았으면 로그인 화면으로, 허용목록에 없으면 로그아웃 처리 경로로 보낸다.
  * 쿠키를 읽으므로 cacheComponents에서는 반드시 <Suspense> 안의 컴포넌트에서 호출한다.
+ * 홈처럼 여러 칸이 저마다 불러도 한 요청 안에서는 한 번만 조회한다(React `cache`).
+ *
+ * @example const { nickname } = await getCurrentMember()
  */
-export const getCurrentMember = async (): Promise<Member> => {
+export const getCurrentMember = cache(async (): Promise<Member> => {
   const supabase = await createClient();
   const { data } = await supabase.auth.getClaims();
   const userId = data?.claims.sub;
@@ -33,4 +37,4 @@ export const getCurrentMember = async (): Promise<Member> => {
   if (!member) redirect(NOT_MEMBER_SIGNOUT_PATH);
 
   return member;
-};
+});
