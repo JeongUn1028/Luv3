@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
-import { BackIcon } from "@/components/icons";
 import { PageShell } from "@/components/PageShell";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { toKstDate } from "@/lib/anniversary";
+import { RECORDS_PATH } from "@/lib/dates/album";
 import {
   MEMO_MAX_LENGTH,
   PLACE_MAX_LENGTH,
@@ -168,7 +168,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
       // 이미 그려진 미리보기는 URL을 해제해도 그대로 보인다. 수정 화면은 페이지가 매번 새 key로 다시 그린다
       draft.photos.forEach(({ previewUrl }) => revokePreview(previewUrl));
       startTransition(() => {
-        router.replace(record ? `/dates/${record.id}` : "/");
+        router.replace(record ? `/dates/${record.id}` : RECORDS_PATH);
         router.refresh();
         setDraft(record ? toEditDraft(record) : createEmptyDraft());
         setErrors({});
@@ -188,16 +188,10 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
       bottomSpace="sm"
       className="px-4"
       header={
-        <header className="flex items-center px-2">
-          <Link
-            href={record ? `/dates/${record.id}` : "/"}
-            aria-label={record ? "기록으로" : "홈으로"}
-            className="flex size-11 items-center justify-center text-ink-sub hover:text-ink"
-          >
-            <BackIcon className="size-[22px]" />
-          </Link>
-          <h1 className="text-[17px] text-ink">{record ? "기록 고치기" : "기록 남기기"}</h1>
-        </header>
+        <ScreenHeader
+          back={record ? { href: `/dates/${record.id}`, label: "기록으로" } : { href: RECORDS_PATH, label: "기록 목록으로" }}
+          title={record ? "기록 고치기" : "기록 남기기"}
+        />
       }
     >
       {/* 폼을 화면 남은 높이까지 늘리고 정리 글 칸이 그 여유를 채운다. 칸을 고정 줄 수로 두면 기기 높이에 따라 조금씩 넘쳐 스크롤이 생긴다(#52) */}

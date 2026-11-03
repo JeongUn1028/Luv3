@@ -1,7 +1,13 @@
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getLegacyHomeRedirect } from "@/lib/home/legacy";
 import { updateSession } from "@/lib/supabase/proxy";
 
-export const proxy = (request: NextRequest) => updateSession(request);
+export const proxy = (request: NextRequest) => {
+  // 예전 홈 주소(/?view=calendar)는 세션 확인 전에 캘린더 탭으로 넘긴다. 로그인 전이면 넘어간 주소에서 로그인 화면으로 보내 로그인 뒤 캘린더로 돌아온다
+  const legacyTarget = getLegacyHomeRedirect(request.nextUrl);
+  if (legacyTarget) return NextResponse.redirect(new URL(legacyTarget, request.url));
+  return updateSession(request);
+};
 
 export const config = {
   matcher: [

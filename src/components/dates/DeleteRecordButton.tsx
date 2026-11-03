@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, type ReactElement } from "react";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { RECORDS_PATH } from "@/lib/dates/album";
 import { deleteDateRecord } from "@/lib/dates/delete";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { createClient } from "@/lib/supabase/client";
@@ -14,7 +15,7 @@ interface DeleteRecordButtonProps {
   photoCount: number;
 }
 
-/** 기록 삭제 버튼과 확인 창. 확인하면 사진 파일과 기록을 지우고 홈으로 간다 */
+/** 기록 삭제 버튼과 확인 창. 확인하면 사진 파일과 기록을 지우고 기록 탭으로 간다 */
 export const DeleteRecordButton = ({ recordId, filePaths, photoCount }: DeleteRecordButtonProps): ReactElement => {
   const router = useRouter();
 
@@ -27,7 +28,7 @@ export const DeleteRecordButton = ({ recordId, filePaths, photoCount }: DeleteRe
       deleteRecord: (id) => supabase.from("dates").delete().eq("id", id),
     });
     startTransition(() => {
-      router.replace("/");
+      router.replace(RECORDS_PATH);
       router.refresh();
     });
   };

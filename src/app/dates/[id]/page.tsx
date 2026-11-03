@@ -5,9 +5,10 @@ import { Suspense, type ReactNode } from "react";
 import { AuthorHeart } from "@/components/AuthorHeart";
 import { DeleteRecordButton } from "@/components/dates/DeleteRecordButton";
 import { PhotoCarousel } from "@/components/dates/PhotoCarousel";
-import { BackIcon } from "@/components/icons";
 import { PageShell } from "@/components/PageShell";
+import { ScreenHeader } from "@/components/ScreenHeader";
 import { getCurrentMember } from "@/lib/auth/member";
+import { RECORDS_PATH } from "@/lib/dates/album";
 import { formatRecordDate, type DateRecordDetail } from "@/lib/dates/detail";
 import { DateRecordLoadError, getDateRecordDetail } from "@/lib/dates/queries";
 
@@ -24,13 +25,9 @@ const loadRecord = async (id: string): Promise<DateRecordDetail | DateRecordLoad
 };
 
 // 수정·삭제 버튼이 기록을 읽은 뒤에야 정해져 머리글도 Suspense 안에서 그린다. 그래서 틀의 고정 머리글 대신 내용과 함께 스크롤한다
+// 제목은 사진 아래 본문의 h1이 맡는다
 const DetailHeader = ({ actions }: { actions?: ReactNode }) => (
-  <header className="flex shrink-0 items-center justify-between px-2">
-    <Link href="/" aria-label="홈으로" className="flex size-11 items-center justify-center text-ink-sub hover:text-ink">
-      <BackIcon className="size-[22px]" />
-    </Link>
-    {actions && <div className="flex items-center">{actions}</div>}
-  </header>
+  <ScreenHeader back={{ href: RECORDS_PATH, label: "기록 목록으로" }} actions={actions} />
 );
 
 const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => {

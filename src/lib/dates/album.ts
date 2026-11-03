@@ -1,3 +1,6 @@
+/** 기록 탭(앨범 그리드) 주소 */
+export const RECORDS_PATH = "/records";
+
 /** 앨범 그리드 칸 하나 = 기록 하나(대표 사진 썸네일) */
 export interface AlbumTile {
   id: string;
