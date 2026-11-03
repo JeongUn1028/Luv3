@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { DateRecordForm } from "@/components/dates/DateRecordForm";
+import { PageShell } from "@/components/PageShell";
 import { getCurrentMember } from "@/lib/auth/member";
 import type { EditableRecord } from "@/lib/dates/detail";
 import { DateRecordLoadError, getEditableRecord } from "@/lib/dates/queries";
@@ -27,11 +28,11 @@ const EditForm = async ({ params }: { params: Promise<{ id: string }> }) => {
   if (!record) notFound();
   if (record instanceof DateRecordLoadError) {
     return (
-      <main className="mx-auto flex min-h-app w-full max-w-[430px] items-center justify-center px-4">
+      <PageShell className="items-center justify-center px-4">
         <p role="alert" className="text-[13px] text-ink-sub">
           {record.message}
         </p>
-      </main>
+      </PageShell>
     );
   }
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { EventForm } from "@/components/events/EventForm";
+import { PageShell } from "@/components/PageShell";
 import { getCurrentMember } from "@/lib/auth/member";
 import { toEventDraft } from "@/lib/events/form";
 import { EventLoadError, getEvent } from "@/lib/events/queries";
@@ -19,17 +20,17 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
   } catch (error) {
     if (!(error instanceof EventLoadError)) throw error;
     return (
-      <main className="mx-auto flex min-h-app w-full max-w-[430px] items-center justify-center px-4">
+      <PageShell className="items-center justify-center px-4">
         <p role="alert" className="text-[13px] text-ink-sub">
           {error.message}
         </p>
-      </main>
+      </PageShell>
     );
   }
 
   if (!event) {
     return (
-      <main className="mx-auto flex min-h-app w-full max-w-[430px] flex-col items-center justify-center gap-4 px-4 pb-[env(safe-area-inset-bottom)] text-center">
+      <PageShell className="items-center justify-center gap-4 px-4 text-center">
         <p className="text-[15px] text-ink">일정을 찾을 수 없어요</p>
         <p className="text-[13px] text-ink-sub">지워졌거나 주소가 잘못됐어요.</p>
         <Link
@@ -38,7 +39,7 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
         >
           캘린더로
         </Link>
-      </main>
+      </PageShell>
     );
   }
 
