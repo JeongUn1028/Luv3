@@ -15,6 +15,10 @@ insert into public.members (id, email, nickname) values
   ('00000000-0000-0000-0000-00000000000a', 'a@todos.test', 'A'),
   ('00000000-0000-0000-0000-00000000000b', 'b@todos.test', 'B');
 
+-- move_todo는 목록 전체에서 바로 옆 항목을 찾으므로, 로컬 DB에 남은 항목이 끼어들지 않게 비우고 시작한다
+-- (트랜잭션 끝에 rollback하므로 실제 데이터는 그대로 남는다)
+delete from public.todos;
+
 select has_table('public', 'todos', '하고 싶은 것 테이블이 있다');
 
 -- 비로그인(anon)
