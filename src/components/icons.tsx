@@ -91,3 +91,17 @@ export const ChevronRightIcon = ({ className }: IconProps): ReactElement => (
     <path d="M9.5 6l6 6-6 6" />
   </LineIcon>
 );
+
+/** 위쪽 꺾쇠. Todo 순서를 한 칸 위로 옮기는 버튼에 쓴다 */
+export const ChevronUpIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M6 15l6-6 6 6" />
+  </LineIcon>
+);
+
+/** 아래쪽 꺾쇠. Todo 순서를 한 칸 아래로 옮기는 버튼에 쓴다 */
+export const ChevronDownIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M6 9l6 6 6-6" />
+  </LineIcon>
+);
