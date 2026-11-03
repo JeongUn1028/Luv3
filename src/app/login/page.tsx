@@ -8,7 +8,7 @@ import { LoginForm } from "./LoginForm";
 export const metadata: Metadata = { title: "로그인 · Luv3" };
 
 const LoginPage = () => (
-  <main className="mx-auto flex min-h-full w-full max-w-[430px] flex-col px-6 pt-[env(safe-area-inset-top)] pb-[max(44px,env(safe-area-inset-bottom))]">
+  <main className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col px-6 pt-[env(safe-area-inset-top)] pb-[max(44px,env(safe-area-inset-bottom))]">
     {/* 처음 주소를 받아 Safari로 연 사람은 여기서 홈 화면 추가를 알게 된다. 로그인은 세션이 있는 동안 다시 안 보므로 사실상 첫 방문에만 보인다 */}
     <InstallHint />
     <section className="flex flex-1 flex-col items-center justify-center py-12">

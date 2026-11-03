@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { BackIcon } from "@/components/icons";
+import { ViewportDebugToggle } from "@/components/ViewportDebug";
 import { getCurrentMember } from "@/lib/auth/member";
 
 export const metadata: Metadata = { title: "설정 · Luv3" };
@@ -31,7 +32,7 @@ const MemberSection = async () => {
 };
 
 const SettingsPage = () => (
-  <main className="mx-auto flex min-h-full w-full max-w-[430px] flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
+  <main className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
     <header className="-mx-2 flex shrink-0 items-center pt-[env(safe-area-inset-top)]">
       <Link href="/" aria-label="홈으로" className="flex size-11 items-center justify-center text-ink-sub hover:text-ink">
         <BackIcon className="size-[22px]" />
@@ -44,6 +45,18 @@ const SettingsPage = () => (
         <MemberSection />
       </Suspense>
     </div>
+    {/* TODO(#51): 실기기 값을 잰 뒤 지운다 */}
+    <section aria-labelledby="settings-debug" className="mt-8 flex flex-col">
+      <h2 id="settings-debug" className="text-[13px] text-ink-sub">
+        화면 진단(임시)
+      </h2>
+      <div className="mt-2">
+        <ViewportDebugToggle />
+      </div>
+      <p className="mt-2 text-[12px] leading-[1.6] text-ink-sub">
+        켜고 나서 앱을 완전히 닫았다가 다시 열면, 처음 띄운 순간의 높이 값이 기록돼요.
+      </p>
+    </section>
   </main>
 );
 

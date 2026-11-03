@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Noto_Sans_KR } from "next/font/google";
+import { ViewportDebug } from "@/components/ViewportDebug";
+import { VIEWPORT_MEASURE_SCRIPT } from "@/lib/debug/viewport";
 import "./globals.css";
 
 // next/font에 한글 subset이 없어 미리 불러오지 않는다. 브라우저가 필요한 글자 범위만 받는다.
@@ -31,11 +33,14 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-// 화면 높이는 html → body를 h-full로 이어 정한다. 홈 화면 앱(black-translucent + viewport-fit=cover)을
-// 처음 띄우면 iOS가 100dvh·100vh를 화면보다 작게 계산해 아래가 비므로 dvh·vh를 쓰지 않는다(#51)
 const RootLayout = ({ children }: LayoutProps<"/">) => (
   <html lang="ko" className={`${notoSansKr.variable} ${cormorantGaramond.variable} h-full antialiased`}>
-    <body className="h-full bg-background font-sans text-ink">{children}</body>
+    <body className="min-h-full bg-background font-sans text-ink">
+      {/* TODO(#51): 실기기 값을 잰 뒤 지운다. 앱을 띄운 순간의 높이를 하이드레이션 전에 잰다 */}
+      <script dangerouslySetInnerHTML={{ __html: VIEWPORT_MEASURE_SCRIPT }} />
+      {children}
+      <ViewportDebug />
+    </body>
   </html>
 );
 

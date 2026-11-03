@@ -19,7 +19,7 @@ const MemberOnlyForm = async ({ searchParams }: Pick<PageProps<"/dates/new">, "s
 
 const NewDateRecordPage = ({ searchParams }: PageProps<"/dates/new">) => (
   // 세션·주소 쿼리를 읽고 오늘 날짜를 기본값으로 쓰므로 요청 시점에 렌더링한다(cacheComponents)
-  <Suspense fallback={<div className="min-h-full" />}>
+  <Suspense fallback={<div className="min-h-dvh" />}>
     <MemberOnlyForm searchParams={searchParams} />
   </Suspense>
 );
