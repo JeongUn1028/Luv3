@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANNIVERSARY_DATE, countDaysTogether, formatSinceLabel, getAnniversaryLabel, toKstDate } from "./anniversary";
+import { ANNIVERSARY_DATE, countDaysBetween, countDaysTogether, formatSinceLabel, getAnniversaryLabel, toKstDate } from "./anniversary";
 
 describe("formatSinceLabel", () => {
   it("YYYY-MM-DD를 SINCE YYMMDD로 바꾼다", () => {
@@ -22,6 +22,18 @@ describe("toKstDate", () => {
   it("UTC 시각을 한국 날짜(YYYY-MM-DD)로 바꾼다", () => {
     expect(toKstDate(new Date("2026-11-01T14:59:59Z"))).toBe("2026-11-01");
     expect(toKstDate(new Date("2026-11-01T15:00:00Z"))).toBe("2026-11-02");
+  });
+});
+
+describe("countDaysBetween", () => {
+  it("두 날짜 사이 날 수를 달·해를 넘어 세고, 앞선 날이면 음수를 돌려준다", () => {
+    expect(countDaysBetween("2026-11-03", "2026-11-03")).toBe(0);
+    expect(countDaysBetween("2026-12-31", "2027-01-02")).toBe(2);
+    expect(countDaysBetween("2026-11-03", "2026-11-01")).toBe(-2);
+  });
+
+  it("날짜 형식이 틀리면 에러를 던진다", () => {
+    expect(() => countDaysBetween("2026-11-03", "2026-11-3")).toThrow("YYYY-MM-DD");
   });
 });
 
