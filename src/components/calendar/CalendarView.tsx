@@ -14,6 +14,7 @@ import {
   getDefaultSelectedDate,
   groupByDate,
   shiftMonth,
+  toCalendarHref,
 } from "@/lib/calendar/month";
 import { toNewRecordHref } from "@/lib/dates/form";
 import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
@@ -31,8 +32,8 @@ interface CalendarViewProps {
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
-// 달 이동은 화면 스와이프(기록 ↔ 캘린더)와 겹치지 않게 버튼으로만 한다
-const monthHref = (month: string): string => `/?view=calendar&month=${month}`;
+// 달 이동은 주소(`/calendar?month=`)로 한다. 캘린더 탭은 일정·기록만 불러오므로 앨범 그리드를 다시 불러오지 않는다(#41)
+const monthHref = (month: string): string => toCalendarHref({ month });
 
 const navButtonClassName = "flex size-11 items-center justify-center text-ink-sub hover:text-ink";
 
@@ -148,6 +149,8 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
           </div>
           <Link
             href={`/events/new?date=${selectedDate}`}
+            // 머리글의 + (오늘 일정 추가)와 구별되게 고른 날을 이름에 넣는다
+            aria-label={`${formatDayHeading(selectedDate)} 일정 추가`}
             className="-mr-2 flex h-11 items-center gap-1 px-2 text-[14px] text-ink-sub hover:text-ink"
           >
             <PlusIcon className="size-4" />

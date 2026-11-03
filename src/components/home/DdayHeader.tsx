@@ -8,7 +8,7 @@ interface DdayHeaderProps {
   sinceLabel: string;
 }
 
-/** 기록 페이지 맨 위의 D-day(home.svg): 작은 하트, SINCE 날짜, 큰 숫자, DAYS. */
+/** 홈 맨 위의 D-day(home.svg): 작은 하트, SINCE 날짜, 큰 숫자, DAYS. */
 export const DdayHeader = ({ days, sinceLabel }: DdayHeaderProps): ReactElement => (
   <section className="flex flex-col items-center pt-3 pb-2">
     <h2 className="sr-only">함께한 지 {days}일째</h2>

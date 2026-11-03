@@ -12,7 +12,7 @@ export const AlbumGrid = ({ tiles }: AlbumGridProps): ReactElement => {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
         <p className="text-[15px] text-ink">아직 남긴 기록이 없어요</p>
-        <p className="text-[13px] text-ink-sub">아래 + 버튼으로 첫 데이트를 남겨 보세요</p>
+        <p className="text-[13px] text-ink-sub">오른쪽 위 + 버튼으로 첫 데이트를 남겨 보세요</p>
       </div>
     );
   }

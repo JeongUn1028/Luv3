@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readSource, readSourceLines } from "@/test-utils/source";
 
 // 홈 화면 앱을 처음 띄우면 iOS가 뷰포트를 상태바만큼 작게(852 → 793) 알리고, 그동안 fixed 요소도 793 기준으로 그린다(#51).
-// 문서 스크롤 대신 화면 틀(PageShell) 안쪽에서만 스크롤하게 하고, 틀·safe-area 규칙을 한곳에 모은다(#63, #58).
+// 문서 스크롤 대신 화면 틀(PageShell) 안쪽에서만 스크롤하게 하고, 틀·하단 탭·safe-area 규칙을 한곳에 모은다(#63, #58).
 // Vitest(node)로는 레이아웃을 잴 수 없어 소스 규칙으로 고정한다.
 
 const SHELL = "components/PageShell.tsx";
@@ -25,7 +25,30 @@ describe("화면 틀", () => {
     // 화면 제목(h1)이 본문 영역 안에 남도록 머리글도 main 안에 둔다
     expect(shell).toMatch(/<main\s+className="[^"]*\bh-app\b[^"]*\bflex-col\b[^"]*">\s*\{header &&/);
     // min-h-0이 없으면 flex 자식이 내용만큼 늘어나 안쪽 스크롤이 생기지 않는다
-    expect(shell).toMatch(/"[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*",\s*isScrollable \? "[^"]*\boverflow-y-auto\b[^"]*\boverscroll-contain\b/);
+    expect(shell).toMatch(/"[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*\boverflow-y-auto\b[^"]*\boverscroll-contain\b[^"]*"/);
+  });
+
+  it("하단 탭은 스크롤 영역 아래, 화면 높이 틀 안에 둔다", () => {
+    const shell = readSource(SHELL);
+
+    // fixed 대신 main의 마지막 자식으로 두어야 첫 실행 때(793) 하단 탭이 위로 뜨지 않는다
+    expect(shell).toMatch(/\{footer\}\s*<\/main>/);
+    // 아래 safe-area는 하단 탭이 채우므로, 하단 탭이 있는 화면은 내용 아래 여백을 따로 두지 않는다
+    expect(shell).toMatch(/footer \? "" : BOTTOM_SPACE\[bottomSpace\]/);
+  });
+
+  it.each([
+    ["app/page.tsx", "home"],
+    ["app/records/page.tsx", "records"],
+    ["app/calendar/page.tsx", "calendar"],
+    ["app/todos/page.tsx", "todos"],
+  ])("탭 화면 %s는 하단 탭이 붙은 공통 틀(%s)을 쓴다", (at, tab) => {
+    expect(readSource(at)).toMatch(new RegExp(`<TabScreen\\b[^>]*\\btab="${tab}"`));
+  });
+
+  it("예전 홈 주소(?view=)를 만드는 코드가 남지 않는다", () => {
+    // 기록·캘린더를 한 화면에서 넘기던 때의 주소다. 이제 탭마다 주소가 따로 있다(#58)
+    expect(findLines(/[?&]view=/, [])).toEqual([]);
   });
 
   it("세로 스크롤 영역은 absolute 자식(sr-only 등)의 기준 상자가 된다", () => {
@@ -59,7 +82,7 @@ describe("화면 틀", () => {
   });
 
   it("safe-area 여백은 틀·하단 탭·설치 안내에서만 정한다", () => {
-    const allowed = [SHELL, "components/home/HomePager.tsx", "components/InstallHint.tsx"];
+    const allowed = [SHELL, "components/tabs/TabBar.tsx", "components/InstallHint.tsx"];
 
     expect(findLines(/safe-area-inset-(?:top|bottom)/, allowed)).toEqual([]);
   });

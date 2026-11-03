@@ -10,6 +10,7 @@ import {
   groupByDate,
   parseMonth,
   shiftMonth,
+  toCalendarHref,
 } from "./month";
 
 describe("parseMonth", () => {
@@ -128,5 +129,23 @@ describe("canLeaveRecord", () => {
     expect(canLeaveRecord({ date: "2026-11-01", title: "산책" }, today, records)).toBe(false);
     expect(canLeaveRecord({ date: "2026-11-01", title: "전시" }, today, records)).toBe(true);
     expect(canLeaveRecord({ date: "2026-10-31", title: "산책" }, today, records)).toBe(true);
+  });
+});
+
+describe("toCalendarHref", () => {
+  it("값이 없으면 캘린더 탭 주소만 돌려준다", () => {
+    expect(toCalendarHref({})).toBe("/calendar");
+  });
+
+  it("달만 주면 그 달을 연다", () => {
+    expect(toCalendarHref({ month: "2026-12" })).toBe("/calendar?month=2026-12");
+  });
+
+  it("날만 주면 그날이 속한 달을 열고 그날을 고른다", () => {
+    expect(toCalendarHref({ date: "2026-11-20" })).toBe("/calendar?month=2026-11&date=2026-11-20");
+  });
+
+  it("달과 날을 함께 주면 둘 다 그대로 쓴다", () => {
+    expect(toCalendarHref({ month: "2026-12", date: "2026-11-20" })).toBe("/calendar?month=2026-12&date=2026-11-20");
   });
 });

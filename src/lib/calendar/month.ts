@@ -132,3 +132,28 @@ export const canLeaveRecord = (
   records: readonly { date: string; title: string }[],
 ): boolean =>
   event.date <= today && !records.some((record) => record.date === event.date && record.title === event.title);
+
+/** 캘린더 탭 주소 */
+export const CALENDAR_PATH = "/calendar";
+
+/** 캘린더 탭에서 열 달·고를 날 */
+export interface CalendarHrefParams {
+  /** 열 달 YYYY-MM. 없으면 `date`가 속한 달, 둘 다 없으면 이번 달 */
+  month?: string;
+  /** 고를 날 YYYY-MM-DD(일정을 저장하고 돌아온 날) */
+  date?: string;
+}
+
+/**
+ * 캘린더 탭 주소를 만든다. 날만 주면 그날이 속한 달을 연다.
+ *
+ * @example toCalendarHref({ date: "2026-11-20" }) // "/calendar?month=2026-11&date=2026-11-20"
+ */
+export const toCalendarHref = ({ month, date }: CalendarHrefParams): string => {
+  const params = new URLSearchParams();
+  const targetMonth = month ?? date?.slice(0, 7);
+  if (targetMonth) params.set("month", targetMonth);
+  if (date) params.set("date", date);
+  const search = params.toString();
+  return search ? `${CALENDAR_PATH}?${search}` : CALENDAR_PATH;
+};
