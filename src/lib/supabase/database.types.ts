@@ -97,6 +97,9 @@ isOneToOne: false
 "is_member":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
+"keepalive":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
 "update_date_record":
 { Args: { "p_cover_photo_id": string,"p_date": string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_title": string }; Returns: (string)[]
                            }

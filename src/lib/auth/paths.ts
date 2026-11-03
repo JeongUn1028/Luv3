@@ -1,15 +1,23 @@
 export const LOGIN_PATH = "/login";
 export const HOME_PATH = "/";
 
-/** 로그인하지 않아도 열 수 있는 경로. 로그인 화면과 로그아웃 처리만 둔다. */
+/** 무료 플랜 일시정지를 막으려고 Vercel Cron이 부르는 경로. 로그인 대신 CRON_SECRET으로 확인한다 */
+export const KEEPALIVE_PATH = "/api/keepalive";
+
+/** 로그인하지 않아도 열 수 있는 경로(하위 경로 포함). 로그인 화면과 로그아웃 처리만 둔다. */
 const PUBLIC_PATH_PREFIXES = [LOGIN_PATH, "/auth"] as const;
+
+/** 하위 경로 없이 이 주소만 비로그인으로 열 수 있다. 나중에 아래에 붙는 경로가 실수로 공개되지 않게 한다. */
+const PUBLIC_EXACT_PATHS: readonly string[] = [KEEPALIVE_PATH];
 
 /**
  * 비로그인 상태로 접근해도 되는 경로인지 판단한다. `/login`과 `/login/...`은 허용하고 `/loginx`는 막는다.
+ * `/api/keepalive`는 그 주소만 허용한다.
  *
  * @example isPublicPath("/auth/signout") // true
  */
 export const isPublicPath = (pathname: string): boolean =>
+  PUBLIC_EXACT_PATHS.includes(pathname) ||
   PUBLIC_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
 const PARSE_BASE = "http://localhost";

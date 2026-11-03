@@ -1,0 +1,43 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { GET } from "./route";
+
+const SECRET = "a".repeat(32);
+const URL_PATH = "http://localhost/api/keepalive";
+
+const requestWith = (authorization?: string): Request =>
+  new Request(URL_PATH, authorization ? { headers: { authorization } } : undefined);
+
+describe("GET /api/keepalive", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("서버에 CRON_SECRET이 없으면 어떤 값을 보내도 401을 돌려준다", async () => {
+    // Arrange
+    vi.stubEnv("CRON_SECRET", "");
+
+    // Act
+    const response = await GET(requestWith(`Bearer ${SECRET}`));
+
+    // Assert
+    expect(response.status).toBe(401);
+  });
+
+  it("Authorization 헤더가 없으면 401을 돌려준다", async () => {
+    vi.stubEnv("CRON_SECRET", SECRET);
+
+    const response = await GET(requestWith());
+
+    expect(response.status).toBe(401);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("비밀 값이 틀리면 401을 돌려준다", async () => {
+    vi.stubEnv("CRON_SECRET", SECRET);
+
+    const response = await GET(requestWith(`Bearer ${"b".repeat(32)}`));
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+});

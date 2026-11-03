@@ -2,11 +2,11 @@ import { describe, expect, it } from "vitest";
 import { getSafeNextPath, isPublicPath } from "./paths";
 
 describe("isPublicPath", () => {
-  it.each(["/login", "/auth/signout"])("%s는 비로그인으로 열 수 있다", (pathname) => {
+  it.each(["/login", "/auth/signout", "/api/keepalive"])("%s는 비로그인으로 열 수 있다", (pathname) => {
     expect(isPublicPath(pathname)).toBe(true);
   });
 
-  it.each(["/", "/dates/1", "/loginx", "/authx", "/settings"])("%s는 로그인이 필요하다", (pathname) => {
+  it.each(["/", "/dates/1", "/loginx", "/authx", "/settings", "/api/keepalivex", "/api/keepalive/x", "/api"])("%s는 로그인이 필요하다", (pathname) => {
     expect(isPublicPath(pathname)).toBe(false);
   });
 });
