@@ -105,3 +105,11 @@ export const ChevronDownIcon = ({ className }: IconProps): ReactElement => (
     <path d="M6 9l6 6 6-6" />
   </LineIcon>
 );
+
+/** 카메라 아이콘. 홈 커플 사진 모서리의 바꾸기 버튼에 쓴다 */
+export const CameraIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M4.5 7.5h3l1.5-2.5h6l1.5 2.5h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1h-15a1 1 0 0 1-1-1v-10a1 1 0 0 1 1-1z" />
+    <circle cx="12" cy="13" r="3.5" />
+  </LineIcon>
+);

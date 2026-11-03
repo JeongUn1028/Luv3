@@ -5,7 +5,21 @@ export type Database = {
   
   "public": {
           Tables: {
-            "dates": {
+            "couple_photo": {
+                  Row: {
+                    "id": boolean,"path": string | null,"updated_at": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "id"?: boolean,"path"?: string | null,"updated_at"?: string
+                  }
+                  Update: {
+                    "id"?: boolean,"path"?: string | null,"updated_at"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"dates": {
                   Row: {
                     "author_id": string,"cover_photo_id": string | null,"created_at": string,"date": string,"id": string,"memo": string | null,"place": string | null,"title": string
                   }
@@ -111,7 +125,10 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "create_date_record":
+            "clear_couple_photo":
+{ Args: Record<PropertyKey, never>; Returns: string
+                           },
+"create_date_record":
 { Args: { "p_cover_photo_id": string,"p_date": string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_title": string }; Returns: string
                            },
 "is_member":
@@ -122,6 +139,12 @@ isOneToOne: false
                            },
 "move_todo":
 { Args: { "p_id": string,"p_offset": number }; Returns: undefined
+                           },
+"set_couple_photo":
+{ Args: { "p_path": string }; Returns: string
+                           },
+"swap_couple_photo_path":
+{ Args: { "p_path": string }; Returns: string
                            },
 "update_date_record":
 { Args: { "p_cover_photo_id": string,"p_date": string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_title": string }; Returns: (string)[]
