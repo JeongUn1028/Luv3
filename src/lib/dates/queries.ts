@@ -1,14 +1,8 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { ALBUM_BUCKET } from "@/lib/photos/limits";
+import { ALBUM_BUCKET, SIGNED_URL_EXPIRES_IN } from "@/lib/photos/limits";
 import { toAlbumTiles, type AlbumTile } from "./album";
 import { isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
-
-/**
- * 서명 URL 유효 시간(초). 화면은 요청마다 새로 그리고 한 번 불러온 사진은 브라우저가 들고 있으므로,
- * 화면을 오래 열어 둘 만큼만 두고 주소가 밖으로 새어도 오래 쓰이지 않게 한다
- */
-const SIGNED_URL_EXPIRES_IN = 60 * 60;
 
 /** 앨범 그리드를 불러오지 못했을 때 */
 export class AlbumLoadError extends Error {

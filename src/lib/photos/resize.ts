@@ -53,6 +53,9 @@ export const isHeic = (file: File): boolean =>
 const isSupportedPhoto = (file: File): boolean =>
   PHOTO_TYPES.has(file.type) || (hasUnknownType(file) && PHOTO_EXTENSION.test(file.name));
 
+/** 사진 고르기 `<input type="file">`의 `accept`. `isAcceptedPhoto`가 받는 형식과 같다 */
+export const PHOTO_INPUT_ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif";
+
 /**
  * 올릴 수 있는 사진인지 확인한다(JPEG·PNG·WebP·HEIC). 사진을 고를 때 걸러 저장 단계에서 실패하지 않게 한다.
  *

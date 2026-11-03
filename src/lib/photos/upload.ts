@@ -64,7 +64,14 @@ const isRetryable = (error: unknown): boolean => {
 const toPhotoError = (error: unknown): PhotoError =>
   new PhotoError(hasStatusCode(error, 413) ? "too-large" : "upload-failed", { cause: error });
 
-const uploadFile = async (storage: PhotoStorage, path: string, body: Blob): Promise<void> => {
+/**
+ * 파일 하나를 album 버킷의 `path`에 올린다(덮어쓰지 않음). 일시적인 실패면 한 번 더 시도한다.
+ * 실패해도 이 함수는 파일을 지우지 않으므로, 응답만 끊기고 저장됐을 수 있는 `path`는 호출한 쪽이 정리한다.
+ *
+ * @throws {PhotoError} `upload-failed` 또는 버킷 용량 제한에 걸리면 `too-large`
+ * @example await uploadPhotoFile(supabase.storage.from(ALBUM_BUCKET), buildCouplePhotoPath(photoId), original)
+ */
+export const uploadPhotoFile = async (storage: PhotoStorage, path: string, body: Blob): Promise<void> => {
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
@@ -113,9 +120,9 @@ export const uploadPhotos = async ({
   try {
     for (const { photoId, original, thumb, path, thumbPath } of targets) {
       attemptedPaths.push(path);
-      await uploadFile(storage, path, original);
+      await uploadPhotoFile(storage, path, original);
       attemptedPaths.push(thumbPath);
-      await uploadFile(storage, thumbPath, thumb);
+      await uploadPhotoFile(storage, thumbPath, thumb);
 
       uploaded.push({ photoId, path, thumbPath });
       onProgress?.(uploaded.length, targets.length);

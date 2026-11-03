@@ -12,3 +12,9 @@ export const ORIGINAL_MAX_EDGE = 2000;
 
 /** 앨범 그리드용 썸네일의 긴 변(px) */
 export const THUMB_MAX_EDGE = 600;
+
+/**
+ * 서명 URL 유효 시간(초). 화면은 요청마다 새로 그리고 한 번 불러온 사진은 브라우저가 들고 있으므로,
+ * 화면을 오래 열어 둘 만큼만 두고 주소가 밖으로 새어도 오래 쓰이지 않게 한다
+ */
+export const SIGNED_URL_EXPIRES_IN = 60 * 60;
