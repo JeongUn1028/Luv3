@@ -195,7 +195,8 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
         <h1 className="text-[17px] text-ink">{record ? "기록 고치기" : "기록 남기기"}</h1>
       </header>
 
-      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-6">
+      {/* 폼을 화면 남은 높이까지 늘리고 정리 글 칸이 그 여유를 채운다. 칸을 고정 줄 수로 두면 기기 높이에 따라 조금씩 넘쳐 스크롤이 생긴다(#52) */}
+      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-1 flex-col gap-6">
         <PhotoPicker
           photos={draft.photos}
           coverPhotoId={draft.coverPhotoId}
@@ -280,7 +281,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
           )}
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex grow flex-col">
           <div className="flex items-baseline justify-between">
             <label htmlFor="memo" className={labelClassName}>
               정리 글 <span className="text-ink-placeholder">(선택)</span>
@@ -292,13 +293,14 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
           <textarea
             id="memo"
             value={draft.memo}
-            rows={8}
+            // 최소 4줄. 남은 공간은 grow로 채우고, 사진·오류 문구로 내용이 길어지면 4줄을 남기고 페이지가 스크롤된다
+            rows={4}
             placeholder="오늘 하루를 길게 남겨 두세요"
             disabled={isSaving}
             aria-invalid={Boolean(errors.memo)}
             aria-describedby={errors.memo ? "memo-count memo-error" : "memo-count"}
             onChange={(event) => updateField("memo", event.target.value)}
-            className={`${inputClassName} h-auto resize-y py-3 leading-[1.6]`}
+            className={`${inputClassName} h-auto grow resize-y py-3 leading-[1.6]`}
           />
           {errors.memo && (
             <p id="memo-error" className={errorClassName}>
