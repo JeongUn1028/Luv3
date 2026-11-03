@@ -21,6 +21,15 @@
 }
 
 /*
+  화면은 PageShell 안쪽 main만 스크롤하므로 문서 끝에서 튕기며 배경이 드러나지 않게 한다.
+  overflow: hidden은 걸지 않는다: 홈 화면 앱 첫 실행 때 html·body 높이가 793으로 잡혀, 852 높이 틀의 아래(하단 탭)가 잘린다(#51).
+*/
+html,
+body {
+  overscroll-behavior: none;
+}
+
+/*
   아이폰 홈 화면 앱(black-translucent + viewport-fit=cover)을 처음 띄우면 iOS가 innerHeight·100dvh·fixed 높이를
   상태바만큼 작게(852 → 793) 알리고, 스크롤하기 전까지 바로잡지 않아 아래가 빈다. 실기기에서 100lvh만 늘 화면 높이와
   같았으므로 홈 화면 앱에서는 dvh 대신 lvh로 높이를 정한다(#51). Safari 탭은 아래 주소창 때문에 dvh를 그대로 쓴다.

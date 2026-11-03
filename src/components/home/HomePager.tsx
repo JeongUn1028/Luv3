@@ -115,7 +115,7 @@ export const HomePager = ({ records, calendar }: HomePagerProps): ReactElement =
             aria-labelledby={tabId(panelView)}
             // 옆 페이지의 링크·버튼에 초점이 가거나 스크린 리더가 읽지 않게 한다
             inert={panelView !== view}
-            className="h-full w-full shrink-0 snap-start snap-always overflow-y-auto overscroll-y-contain"
+            className="relative h-full w-full shrink-0 snap-start snap-always overflow-y-auto overscroll-y-contain"
           >
             {panels[panelView]}
           </section>

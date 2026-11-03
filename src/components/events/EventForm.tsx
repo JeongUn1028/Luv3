@@ -6,6 +6,7 @@ import { startTransition, useState, type ReactElement, type SubmitEvent } from "
 import { AuthorHeart } from "@/components/AuthorHeart";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { BackIcon } from "@/components/icons";
+import { PageShell } from "@/components/PageShell";
 import {
   EVENT_MEMO_MAX_LENGTH,
   EVENT_PLACE_MAX_LENGTH,
@@ -102,29 +103,33 @@ export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormPr
   };
 
   return (
-    <main className="mx-auto flex min-h-app w-full max-w-[430px] flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
-      <header className="-mx-2 flex shrink-0 items-center justify-between pt-[env(safe-area-inset-top)]">
-        <div className="flex items-center">
-          <Link
-            href={backHref}
-            aria-label="캘린더로"
-            className="flex size-11 items-center justify-center text-ink-sub hover:text-ink"
-          >
-            <BackIcon className="size-[22px]" />
-          </Link>
-          <h1 className="text-[17px] text-ink">{eventId ? "일정 고치기" : "일정 추가"}</h1>
-          {authorNickname && <AuthorHeart nickname={authorNickname} className="ml-2" />}
-        </div>
-        {eventId && (
-          <ConfirmDeleteButton
-            title="이 일정을 지울까요?"
-            description={`"${initialDraft.title}" 일정이 두 사람 캘린더에서 모두 지워져요.`}
-            onConfirm={handleDelete}
-            failureMessage="일정을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
-          />
-        )}
-      </header>
-
+    <PageShell
+      bottomSpace="sm"
+      className="px-4"
+      header={
+        <header className="flex items-center justify-between px-2">
+          <div className="flex items-center">
+            <Link
+              href={backHref}
+              aria-label="캘린더로"
+              className="flex size-11 items-center justify-center text-ink-sub hover:text-ink"
+            >
+              <BackIcon className="size-[22px]" />
+            </Link>
+            <h1 className="text-[17px] text-ink">{eventId ? "일정 고치기" : "일정 추가"}</h1>
+            {authorNickname && <AuthorHeart nickname={authorNickname} className="ml-2" />}
+          </div>
+          {eventId && (
+            <ConfirmDeleteButton
+              title="이 일정을 지울까요?"
+              description={`"${initialDraft.title}" 일정이 두 사람 캘린더에서 모두 지워져요.`}
+              onConfirm={handleDelete}
+              failureMessage="일정을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
+            />
+          )}
+        </header>
+      }
+    >
       <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-6">
         <div className="flex flex-col">
           <label htmlFor="event-title" className={labelClassName}>
@@ -266,6 +271,6 @@ export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormPr
           </button>
         </div>
       </form>
-    </main>
+    </PageShell>
   );
 };
