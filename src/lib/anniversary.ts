@@ -50,21 +50,24 @@ export const countDaysTogether = (anniversary: string, today: string): number =>
   return days;
 };
 
+const parseIsoDate = (isoDate: string): { year: number; monthDay: string } => {
+  const match = ISO_DATE_PATTERN.exec(isoDate);
+  if (!match) throw new Error(`날짜는 YYYY-MM-DD 형식이어야 합니다: ${isoDate}`);
+  const [, year, month, day] = match;
+  return { year: Number(year), monthDay: `${month}-${day}` };
+};
+
 /**
- * 달력에 보일 기념일 이름. 사귄 날, 100일 단위(100일, 200일…), 해마다 돌아오는 날(1주년…)이며 아니면 undefined다.
- * 둘이 겹치면 "118주년 · 43100일"처럼 함께 보여 준다.
+ * 달력에 보일 기념일 이름. 사귄 날과 해마다 돌아오는 날(1주년…)이며 아니면 undefined다.
  *
- * @example getAnniversaryLabel("2026-10-31", "2027-02-07") // "100일"
+ * @example getAnniversaryLabel("2026-10-31", "2027-10-31") // "1주년"
  */
 export const getAnniversaryLabel = (anniversary: string, date: string): string | undefined => {
+  const start = parseIsoDate(anniversary);
+  const target = parseIsoDate(date);
   if (date < anniversary) return undefined;
   if (date === anniversary) return "사귄 날";
+  if (target.monthDay !== start.monthDay) return undefined;
 
-  const years = Number(date.slice(0, 4)) - Number(anniversary.slice(0, 4));
-  const days = countDaysTogether(anniversary, date);
-  const labels = [
-    date.slice(5) === anniversary.slice(5) && `${years}주년`,
-    days % 100 === 0 && `${days}일`,
-  ].filter(Boolean);
-  return labels.length > 0 ? labels.join(" · ") : undefined;
+  return `${target.year - start.year}주년`;
 };
