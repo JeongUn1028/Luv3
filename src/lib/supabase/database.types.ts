@@ -85,6 +85,26 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"todos": {
+                  Row: {
+                    "author_id": string,"completed_at": string | null,"content": string,"created_at": string,"id": string,"sort_order": number
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id"?: string,"completed_at"?: string | null,"content": string,"created_at"?: string,"id"?: string,"sort_order"?: number
+                  }
+                  Update: {
+                    "author_id"?: string,"completed_at"?: string | null,"content"?: string,"created_at"?: string,"id"?: string,"sort_order"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "todos_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
+      referencedRelation: "members"
+      referencedColumns: ["id"]
+    }
+                  ]
                 }
           }
           Views: {
@@ -99,6 +119,9 @@ isOneToOne: false
                            },
 "keepalive":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"move_todo":
+{ Args: { "p_id": string,"p_offset": number }; Returns: undefined
                            },
 "update_date_record":
 { Args: { "p_cover_photo_id": string,"p_date": string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_title": string }; Returns: (string)[]
