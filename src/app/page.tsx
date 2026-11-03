@@ -106,7 +106,7 @@ const HomeContent = async ({ searchParams }: { searchParams: SearchParams }) => 
 };
 
 const HomePage = ({ searchParams }: PageProps<"/">) => (
-  <main className="mx-auto flex h-dvh w-full max-w-[430px] flex-col">
+  <main className="mx-auto flex h-app w-full max-w-[430px] flex-col">
     <header className="flex shrink-0 items-center justify-end px-2 pt-[env(safe-area-inset-top)]">
       <Link
         href="/settings"

@@ -1,6 +1,6 @@
 "use client";
 
-// TODO(#51): 실기기 값을 잰 뒤 높이 수정 PR에서 지운다
+// TODO(#51): 홈 화면 앱 실기기에서 높이 수정을 확인한 뒤 지운다
 
 import { useEffect, useState, useSyncExternalStore, type ReactElement } from "react";
 import {

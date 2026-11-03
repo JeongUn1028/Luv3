@@ -32,7 +32,7 @@ const MemberSection = async () => {
 };
 
 const SettingsPage = () => (
-  <main className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
+  <main className="mx-auto flex min-h-app w-full max-w-[430px] flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
     <header className="-mx-2 flex shrink-0 items-center pt-[env(safe-area-inset-top)]">
       <Link href="/" aria-label="홈으로" className="flex size-11 items-center justify-center text-ink-sub hover:text-ink">
         <BackIcon className="size-[22px]" />
@@ -45,7 +45,7 @@ const SettingsPage = () => (
         <MemberSection />
       </Suspense>
     </div>
-    {/* TODO(#51): 실기기 값을 잰 뒤 지운다 */}
+    {/* TODO(#51): 홈 화면 앱 실기기에서 높이 수정을 확인한 뒤 지운다 */}
     <section aria-labelledby="settings-debug" className="mt-8 flex flex-col">
       <h2 id="settings-debug" className="text-[13px] text-ink-sub">
         화면 진단(임시)
