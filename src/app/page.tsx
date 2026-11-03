@@ -5,6 +5,7 @@ import { CalendarView } from "@/components/calendar/CalendarView";
 import { AlbumGrid } from "@/components/home/AlbumGrid";
 import { DdayHeader } from "@/components/home/DdayHeader";
 import { HomePager } from "@/components/home/HomePager";
+import { PageShell } from "@/components/PageShell";
 import { SettingsIcon } from "@/components/icons";
 import { ANNIVERSARY_DATE, countDaysTogether, formatSinceLabel, toKstDate } from "@/lib/anniversary";
 import { getCurrentMember } from "@/lib/auth/member";
@@ -106,21 +107,27 @@ const HomeContent = async ({ searchParams }: { searchParams: SearchParams }) => 
 };
 
 const HomePage = ({ searchParams }: PageProps<"/">) => (
-  <main className="mx-auto flex h-app w-full max-w-[430px] flex-col">
-    <header className="flex shrink-0 items-center justify-end px-2 pt-[env(safe-area-inset-top)]">
-      <Link
-        href="/settings"
-        aria-label="설정"
-        className="flex size-11 items-center justify-center text-ink-sub hover:text-ink"
-      >
-        <SettingsIcon className="size-[22px]" />
-      </Link>
-    </header>
+  // 스크롤은 좌우 넘김 안의 각 페이지가, 아래 safe-area 여백은 하단 탭이 맡는다
+  <PageShell
+    isScrollable={false}
+    bottomSpace="flush"
+    header={
+      <header className="flex items-center justify-end px-2">
+        <Link
+          href="/settings"
+          aria-label="설정"
+          className="flex size-11 items-center justify-center text-ink-sub hover:text-ink"
+        >
+          <SettingsIcon className="size-[22px]" />
+        </Link>
+      </header>
+    }
+  >
     {/* 요청 때 그리는 부분은 Suspense 안에 둔다(cacheComponents) */}
     <Suspense fallback={<div className="flex-1" />}>
       <HomeContent searchParams={searchParams} />
     </Suspense>
-  </main>
+  </PageShell>
 );
 
 export default HomePage;

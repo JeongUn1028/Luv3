@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { BackIcon } from "@/components/icons";
+import { PageShell } from "@/components/PageShell";
 import { getCurrentMember } from "@/lib/auth/member";
 
 export const metadata: Metadata = { title: "설정 · Luv3" };
@@ -31,20 +32,25 @@ const MemberSection = async () => {
 };
 
 const SettingsPage = () => (
-  <main className="mx-auto flex min-h-app w-full max-w-[430px] flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
-    <header className="-mx-2 flex shrink-0 items-center pt-[env(safe-area-inset-top)]">
-      <Link href="/" aria-label="홈으로" className="flex size-11 items-center justify-center text-ink-sub hover:text-ink">
-        <BackIcon className="size-[22px]" />
-      </Link>
-      <h1 className="text-[17px] text-ink">설정</h1>
-    </header>
+  <PageShell
+    bottomSpace="sm"
+    className="px-4"
+    header={
+      <header className="flex items-center px-2">
+        <Link href="/" aria-label="홈으로" className="flex size-11 items-center justify-center text-ink-sub hover:text-ink">
+          <BackIcon className="size-[22px]" />
+        </Link>
+        <h1 className="text-[17px] text-ink">설정</h1>
+      </header>
+    }
+  >
     <div className="mt-6">
       {/* 세션을 읽는 부분만 요청 시점에 렌더링한다(cacheComponents) */}
       <Suspense fallback={<div className="h-[115px]" />}>
         <MemberSection />
       </Suspense>
     </div>
-  </main>
+  </PageShell>
 );
 
 export default SettingsPage;

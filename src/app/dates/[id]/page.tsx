@@ -6,6 +6,7 @@ import { AuthorHeart } from "@/components/AuthorHeart";
 import { DeleteRecordButton } from "@/components/dates/DeleteRecordButton";
 import { PhotoCarousel } from "@/components/dates/PhotoCarousel";
 import { BackIcon } from "@/components/icons";
+import { PageShell } from "@/components/PageShell";
 import { getCurrentMember } from "@/lib/auth/member";
 import { formatRecordDate, type DateRecordDetail } from "@/lib/dates/detail";
 import { DateRecordLoadError, getDateRecordDetail } from "@/lib/dates/queries";
@@ -22,8 +23,9 @@ const loadRecord = async (id: string): Promise<DateRecordDetail | DateRecordLoad
   }
 };
 
+// 수정·삭제 버튼이 기록을 읽은 뒤에야 정해져 머리글도 Suspense 안에서 그린다. 그래서 틀의 고정 머리글 대신 내용과 함께 스크롤한다
 const DetailHeader = ({ actions }: { actions?: ReactNode }) => (
-  <header className="flex shrink-0 items-center justify-between px-2 pt-[env(safe-area-inset-top)]">
+  <header className="flex shrink-0 items-center justify-between px-2">
     <Link href="/" aria-label="홈으로" className="flex size-11 items-center justify-center text-ink-sub hover:text-ink">
       <BackIcon className="size-[22px]" />
     </Link>
@@ -85,7 +87,7 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
 };
 
 const DateRecordPage = ({ params }: PageProps<"/dates/[id]">) => (
-  <main className="mx-auto flex min-h-app w-full max-w-[430px] flex-col pb-[max(32px,env(safe-area-inset-bottom))]">
+  <PageShell bottomSpace="md">
     {/* 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents). 수정·삭제는 기록을 읽은 뒤 보인다 */}
     <Suspense
       fallback={
@@ -97,7 +99,7 @@ const DateRecordPage = ({ params }: PageProps<"/dates/[id]">) => (
     >
       <RecordDetail params={params} />
     </Suspense>
-  </main>
+  </PageShell>
 );
 
 export default DateRecordPage;
