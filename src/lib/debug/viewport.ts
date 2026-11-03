@@ -1,4 +1,4 @@
-// TODO(#51): 실기기 값을 잰 뒤 높이 수정 PR에서 화면 진단 표시와 함께 지운다
+// TODO(#51): 홈 화면 앱 실기기에서 높이 수정을 확인한 뒤 지운다(화면 진단 표시와 함께)
 
 /** 화면 진단 표시를 켰는지 남기는 브라우저 저장소 키. 홈 화면 앱은 Safari와 저장소가 따로라 앱 안에서 켠다 */
 export const VIEWPORT_DEBUG_KEY = "luv3:debug-viewport";
@@ -14,6 +14,10 @@ export interface ViewportSnapshot {
   /** 페이지를 연 뒤 잰 시점(ms) */
   at: number;
   isStandalone: boolean;
+  /** CSS `@media (display-mode: standalone)`가 맞는지. 화면 높이 변수(--app-height)가 이 조건으로 바뀐다 */
+  isDisplayModeStandalone: boolean;
+  /** iOS 전용 `navigator.standalone` */
+  isNavigatorStandalone: boolean;
   /** 실제 화면의 세로 길이. iOS는 회전해도 screen.height를 바꾸지 않아 방향에 맞춰 고른다 */
   screenHeight: number;
   innerHeight: number;
@@ -40,7 +44,14 @@ export interface ViewportRow {
   isChanged: boolean;
 }
 
-type NumberField = Exclude<keyof ViewportSnapshot, "isStandalone">;
+type BooleanField = "isStandalone" | "isDisplayModeStandalone" | "isNavigatorStandalone";
+type NumberField = Exclude<keyof ViewportSnapshot, BooleanField>;
+
+const BOOLEAN_ROWS: readonly (readonly [string, BooleanField])[] = [
+  ["홈 화면 앱", "isStandalone"],
+  ["display-mode 미디어 쿼리", "isDisplayModeStandalone"],
+  ["navigator.standalone", "isNavigatorStandalone"],
+];
 
 const NUMBER_ROWS: readonly (readonly [string, NumberField])[] = [
   ["screen.height", "screenHeight"],
@@ -80,7 +91,7 @@ export const toViewportRows = (first: ViewportSnapshot, current: ViewportSnapsho
   });
 
   return [
-    toRow("홈 화면 앱", String(first.isStandalone), String(current.isStandalone)),
+    ...BOOLEAN_ROWS.map(([label, field]) => toRow(label, String(first[field]), String(current[field]))),
     ...NUMBER_ROWS.map(([label, field]) =>
       toRow(label, formatNumber(first[field]), formatNumber(current[field]), field !== "at"),
     ),
@@ -120,6 +131,8 @@ export const VIEWPORT_MEASURE_SCRIPT = `(function () {
     var snapshot = {
       at: Math.round(performance.now()),
       isStandalone: window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true,
+      isDisplayModeStandalone: window.matchMedia("(display-mode: standalone)").matches,
+      isNavigatorStandalone: navigator.standalone === true,
       screenHeight: isPortrait ? longSide : shortSide,
       innerHeight: window.innerHeight,
       visualViewportHeight: window.visualViewport ? window.visualViewport.height : undefined,

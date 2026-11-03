@@ -36,7 +36,7 @@ export const viewport: Viewport = {
 const RootLayout = ({ children }: LayoutProps<"/">) => (
   <html lang="ko" className={`${notoSansKr.variable} ${cormorantGaramond.variable} h-full antialiased`}>
     <body className="min-h-full bg-background font-sans text-ink">
-      {/* TODO(#51): 실기기 값을 잰 뒤 지운다. 앱을 띄운 순간의 높이를 하이드레이션 전에 잰다 */}
+      {/* TODO(#51): 홈 화면 앱 실기기에서 높이 수정을 확인한 뒤 지운다. 앱을 띄운 순간의 높이를 하이드레이션 전에 잰다 */}
       <script dangerouslySetInnerHTML={{ __html: VIEWPORT_MEASURE_SCRIPT }} />
       {children}
       <ViewportDebug />

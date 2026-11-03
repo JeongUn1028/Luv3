@@ -102,7 +102,7 @@ export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormPr
   };
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-[430px] flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
+    <main className="mx-auto flex min-h-app w-full max-w-[430px] flex-col px-4 pb-[max(24px,env(safe-area-inset-bottom))]">
       <header className="-mx-2 flex shrink-0 items-center justify-between pt-[env(safe-area-inset-top)]">
         <div className="flex items-center">
           <Link
