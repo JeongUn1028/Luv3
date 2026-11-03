@@ -147,7 +147,7 @@ export const HomePager = ({ records, calendar }: HomePagerProps): ReactElement =
                 tabIndex={isSelected ? 0 : -1}
                 onClick={() => handleSelect(tabView)}
                 onKeyDown={handleTabKeyDown}
-                className={`flex flex-1 flex-col items-center justify-center gap-1 text-[11px] ${isSelected ? "text-cream" : "text-ink-sub"}`}
+                className={`flex flex-1 flex-col items-center justify-center gap-1 text-[11px] ${isSelected ? "text-highlight" : "text-ink-sub"}`}
               >
                 <Icon className="size-[22px]" />
                 {label}
