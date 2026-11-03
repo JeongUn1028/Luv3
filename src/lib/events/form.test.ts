@@ -51,30 +51,50 @@ describe("toEventValues", () => {
       title: "전시",
       place: null,
       memo: "표 예매함",
+      is_together: true,
     });
     expect(toEventValues(draft({ isAllDay: false, startTime: "19:30" })).start_time).toBe("19:30");
+  });
+
+  it("개인 일정을 고르면 함께 일정이 아니라고 저장한다", () => {
+    expect(toEventValues(draft({ isTogether: false })).is_together).toBe(false);
+  });
+});
+
+describe("createEmptyEventDraft", () => {
+  it("새 일정은 함께 일정으로 시작한다", () => {
+    expect(createEmptyEventDraft("2026-11-14").isTogether).toBe(true);
   });
 });
 
 describe("toEventDraft", () => {
   it("저장된 일정을 수정 화면 값으로 바꾼다", () => {
     expect(
-      toEventDraft({ date: "2026-11-14", start_time: "19:30:00", title: "저녁", place: null, memo: null }),
-    ).toEqual({ date: "2026-11-14", isAllDay: false, startTime: "19:30", title: "저녁", place: "", memo: "" });
-    expect(toEventDraft({ date: "2026-11-14", start_time: null, title: "전시", place: "미술관", memo: "메모" })).toEqual(
-      { date: "2026-11-14", isAllDay: true, startTime: "", title: "전시", place: "미술관", memo: "메모" },
-    );
+      toEventDraft({ date: "2026-11-14", start_time: "19:30:00", title: "저녁", place: null, memo: null, is_together: true }),
+    ).toEqual({ date: "2026-11-14", isAllDay: false, startTime: "19:30", title: "저녁", place: "", memo: "", isTogether: true });
+    expect(
+      toEventDraft({ date: "2026-11-14", start_time: null, title: "전시", place: "미술관", memo: "메모", is_together: false }),
+    ).toEqual({ date: "2026-11-14", isAllDay: true, startTime: "", title: "전시", place: "미술관", memo: "메모", isTogether: false });
   });
 });
 
 describe("toEditableEvent", () => {
   it("일정 행에서 작성자를 닉네임으로 바꾸고 나머지 값은 그대로 둔다", () => {
-    const row = { id: "e1", date: "2026-11-14", start_time: null, title: "저녁", place: null, memo: null };
+    const row = { id: "e1", date: "2026-11-14", start_time: null, title: "저녁", place: null, memo: null, is_together: true };
     expect(toEditableEvent({ ...row, author: { nickname: "정운" } })).toEqual({ ...row, authorNickname: "정운" });
   });
 
   it("작성자를 읽지 못하면 undefined로 둔다", () => {
-    const row = { id: "e1", date: "2026-11-14", start_time: null, title: "저녁", place: null, memo: null, author: null };
+    const row = {
+      id: "e1",
+      date: "2026-11-14",
+      start_time: null,
+      title: "저녁",
+      place: null,
+      memo: null,
+      is_together: true,
+      author: null,
+    };
     expect(toEditableEvent(row).authorNickname).toBeUndefined();
   });
 });

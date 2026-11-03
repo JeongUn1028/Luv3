@@ -33,14 +33,14 @@ isOneToOne: false
                   ]
                 },"events": {
                   Row: {
-                    "author_id": string,"created_at": string,"date": string,"id": string,"memo": string | null,"place": string | null,"start_time": string | null,"title": string
+                    "author_id": string,"created_at": string,"date": string,"id": string,"is_together": boolean,"memo": string | null,"place": string | null,"start_time": string | null,"title": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string,"created_at"?: string,"date": string,"id"?: string,"memo"?: string | null,"place"?: string | null,"start_time"?: string | null,"title": string
+                    "author_id"?: string,"created_at"?: string,"date": string,"id"?: string,"is_together"?: boolean,"memo"?: string | null,"place"?: string | null,"start_time"?: string | null,"title": string
                   }
                   Update: {
-                    "author_id"?: string,"created_at"?: string,"date"?: string,"id"?: string,"memo"?: string | null,"place"?: string | null,"start_time"?: string | null,"title"?: string
+                    "author_id"?: string,"created_at"?: string,"date"?: string,"id"?: string,"is_together"?: boolean,"memo"?: string | null,"place"?: string | null,"start_time"?: string | null,"title"?: string
                   }
                   Relationships: [
                     {

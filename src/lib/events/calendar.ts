@@ -8,6 +8,8 @@ export interface CalendarEvent {
   startTime: string | null;
   title: string;
   place: string | undefined;
+  /** 둘이 함께 하는 일정이면 true(분홍 형광펜), 개인 일정이면 false(크림색 형광펜) */
+  isTogether: boolean;
   authorNickname: string | undefined;
 }
 
@@ -26,6 +28,7 @@ export interface CalendarEventRow {
   start_time: string | null;
   title: string;
   place: string | null;
+  is_together: boolean;
   author: AuthorRow;
 }
 
@@ -42,12 +45,21 @@ export interface CalendarRecordRow {
  *
  * @example eventsResult.data.map(toCalendarEvent)
  */
-export const toCalendarEvent = ({ id, date, start_time, title, place, author }: CalendarEventRow): CalendarEvent => ({
+export const toCalendarEvent = ({
+  id,
+  date,
+  start_time,
+  title,
+  place,
+  is_together,
+  author,
+}: CalendarEventRow): CalendarEvent => ({
   id,
   date,
   startTime: start_time,
   title,
   place: place ?? undefined,
+  isTogether: is_together,
   authorNickname: author?.nickname,
 });
 

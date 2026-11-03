@@ -122,16 +122,19 @@ export const groupByDate = <Item extends { date: string }>(items: Item[]): Map<s
 };
 
 /**
- * 일정에 "기록 남기기"를 보여 줄지. 오늘까지의 일정이고, 그날 같은 제목의 기록이 아직 없을 때만 권한다(중복 기록 방지).
+ * 일정에 "기록 남기기"를 보여 줄지. 오늘까지의 함께 일정이고, 그날 같은 제목의 기록이 아직 없을 때만 권한다(중복 기록 방지).
+ * 데이트 기록은 둘이 함께 한 일을 남기는 곳이라 개인 일정에는 권하지 않는다(#61).
  *
- * @example canLeaveRecord({ date: "2026-11-01", title: "산책" }, "2026-11-02", []) // true
+ * @example canLeaveRecord({ date: "2026-11-01", title: "산책", isTogether: true }, "2026-11-02", []) // true
  */
 export const canLeaveRecord = (
-  event: { date: string; title: string },
+  event: { date: string; title: string; isTogether: boolean },
   today: string,
   records: readonly { date: string; title: string }[],
 ): boolean =>
-  event.date <= today && !records.some((record) => record.date === event.date && record.title === event.title);
+  event.isTogether &&
+  event.date <= today &&
+  !records.some((record) => record.date === event.date && record.title === event.title);
 
 /** 캘린더 탭 주소 */
 export const CALENDAR_PATH = "/calendar";
