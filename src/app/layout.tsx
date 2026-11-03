@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Noto_Sans_KR } from "next/font/google";
-import { ViewportDebug } from "@/components/ViewportDebug";
-import { VIEWPORT_MEASURE_SCRIPT } from "@/lib/debug/viewport";
 import "./globals.css";
 
 // next/font에 한글 subset이 없어 미리 불러오지 않는다. 브라우저가 필요한 글자 범위만 받는다.
@@ -35,12 +33,7 @@ export const viewport: Viewport = {
 
 const RootLayout = ({ children }: LayoutProps<"/">) => (
   <html lang="ko" className={`${notoSansKr.variable} ${cormorantGaramond.variable} h-full antialiased`}>
-    <body className="min-h-full bg-background font-sans text-ink">
-      {/* TODO(#51): 홈 화면 앱 실기기에서 높이 수정을 확인한 뒤 지운다. 앱을 띄운 순간의 높이를 하이드레이션 전에 잰다 */}
-      <script dangerouslySetInnerHTML={{ __html: VIEWPORT_MEASURE_SCRIPT }} />
-      {children}
-      <ViewportDebug />
-    </body>
+    <body className="min-h-full bg-background font-sans text-ink">{children}</body>
   </html>
 );
 

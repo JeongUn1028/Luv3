@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { BackIcon } from "@/components/icons";
-import { ViewportDebugToggle } from "@/components/ViewportDebug";
 import { getCurrentMember } from "@/lib/auth/member";
 
 export const metadata: Metadata = { title: "설정 · Luv3" };
@@ -45,18 +44,6 @@ const SettingsPage = () => (
         <MemberSection />
       </Suspense>
     </div>
-    {/* TODO(#51): 홈 화면 앱 실기기에서 높이 수정을 확인한 뒤 지운다 */}
-    <section aria-labelledby="settings-debug" className="mt-8 flex flex-col">
-      <h2 id="settings-debug" className="text-[13px] text-ink-sub">
-        화면 진단(임시)
-      </h2>
-      <div className="mt-2">
-        <ViewportDebugToggle />
-      </div>
-      <p className="mt-2 text-[12px] leading-[1.6] text-ink-sub">
-        켜고 나서 앱을 완전히 닫았다가 다시 열면, 처음 띄운 순간의 높이 값이 기록돼요.
-      </p>
-    </section>
   </main>
 );
 
