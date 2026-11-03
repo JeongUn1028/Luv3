@@ -10,8 +10,6 @@ import { describe, expect, it } from "vitest";
 const SRC_DIR = fileURLToPath(new URL("..", import.meta.url));
 // h-dvh·md:min-h-dvh·h-[100dvh]·calc(100vh-…)·h-svh·h-screen처럼 뷰포트 높이를 직접 쓰는 모든 형태
 const VIEWPORT_UNIT = /(?:\b\d+|-)[sdl]?vh\b|\bh-screen\b/;
-// 진단 도구는 높이 단위를 재는 것이 목적이라 검사하지 않는다. TODO(#51): 진단 도구를 지울 때 함께 지운다
-const EXCLUDED = [join("lib", "debug"), join("components", "ViewportDebug.tsx")];
 
 const listSourceFiles = (dir: string): string[] =>
   readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
@@ -35,7 +33,6 @@ describe("화면 높이", () => {
 
     for (const path of listSourceFiles(SRC_DIR)) {
       const at = relative(SRC_DIR, path);
-      if (EXCLUDED.some((excluded) => at.startsWith(excluded))) continue;
       const lines = stripComments(readFileSync(path, "utf8")).split("\n");
       lines.forEach((line, index) => {
         if (/\b(min-)?h-app\b/.test(line)) appHeightUsages += 1;
