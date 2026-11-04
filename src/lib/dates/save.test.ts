@@ -10,6 +10,7 @@ const PHOTO_B = "20000000-0000-4000-8000-00000000000b";
 
 const draft: DateRecordDraft = {
   date: "2026-11-01",
+  endDate: undefined,
   title: "첫 데이트",
   place: "성수",
   memo: "",

@@ -9,7 +9,7 @@ import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { getCurrentMember } from "@/lib/auth/member";
 import { RECORDS_PATH } from "@/lib/dates/album";
-import { formatRecordDate, type DateRecordDetail } from "@/lib/dates/detail";
+import { formatRecordPeriod, type DateRecordDetail } from "@/lib/dates/detail";
 import { DateRecordLoadError, getDateRecordDetail } from "@/lib/dates/queries";
 
 export const metadata: Metadata = { title: "기록 · Luv3" };
@@ -68,7 +68,7 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
         <div className="flex flex-col px-4 pt-6">
           <div className="flex items-center justify-between gap-3">
             <p className="min-w-0 text-[13px] break-words text-ink-sub">
-              <time dateTime={record.date}>{formatRecordDate(record.date)}</time>
+              <time dateTime={record.date}>{formatRecordPeriod(record)}</time>
               {record.place && <span> · {record.place}</span>}
             </p>
             {record.authorNickname && <AuthorHeart nickname={record.authorNickname} />}

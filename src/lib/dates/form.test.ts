@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_PHOTOS,
   addPhotos,
+  getMinEndDate,
   movePhoto,
   parseRecordPrefill,
   removePhoto,
@@ -15,6 +16,7 @@ const TODAY = "2026-11-02";
 const photo = (id: string, caption = "") => ({ id, caption });
 const draft = (overrides: Partial<DateRecordDraft> = {}): DateRecordDraft => ({
   date: "2026-11-01",
+  endDate: undefined,
   title: "첫 데이트",
   place: "",
   memo: "",
@@ -23,9 +25,39 @@ const draft = (overrides: Partial<DateRecordDraft> = {}): DateRecordDraft => ({
   ...overrides,
 });
 
+describe("getMinEndDate", () => {
+  it("시작 다음 날부터 고르게 한다", () => {
+    expect(getMinEndDate("2026-10-31", TODAY)).toBe("2026-11-01");
+  });
+
+  it("시작이 오늘이거나 비어 있으면 제한을 두지 않는다", () => {
+    expect(getMinEndDate(TODAY, TODAY)).toBeUndefined();
+    expect(getMinEndDate("", TODAY)).toBeUndefined();
+  });
+});
+
 describe("validateDraft", () => {
   it("필수 값이 모두 맞으면 에러가 없다", () => {
     expect(validateDraft(draft(), TODAY)).toEqual({});
+  });
+
+  it("기간을 켜고 끝 날짜를 고르지 않았거나 없는 날이면 알려 준다", () => {
+    expect(validateDraft(draft({ endDate: "" }), TODAY).endDate).toBe("끝 날짜를 골라 주세요.");
+    expect(validateDraft(draft({ endDate: "2026-02-31" }), TODAY).endDate).toBe("끝 날짜를 골라 주세요.");
+  });
+
+  it("끝 날짜가 시작 날짜와 같거나 이르면 알려 준다", () => {
+    const message = "끝 날짜는 시작 날짜보다 뒤여야 해요.";
+    expect(validateDraft(draft({ endDate: "2026-11-01" }), TODAY).endDate).toBe(message);
+    expect(validateDraft(draft({ endDate: "2026-10-31" }), TODAY).endDate).toBe(message);
+  });
+
+  it("끝 날짜가 오늘보다 뒤면 알려 준다", () => {
+    expect(validateDraft(draft({ endDate: "2026-11-03" }), TODAY).endDate).toBe("끝 날짜는 오늘까지 고를 수 있어요.");
+  });
+
+  it("끝 날짜가 시작 다음 날부터 오늘까지면 에러가 없다", () => {
+    expect(validateDraft(draft({ endDate: "2026-11-02" }), TODAY)).toEqual({});
   });
 
   it("제목이 비었거나 공백뿐이면 알려 준다", () => {
@@ -131,6 +163,14 @@ describe("toCreateRecordArgs", () => {
       ],
       p_cover_photo_id: "b",
     });
+  });
+
+  it("기간이면 끝 날짜를 넘기고, 하루짜리면 넘기지 않아 DB 함수가 비워 둔다", () => {
+    const withPeriod = toCreateRecordArgs("r1", draft({ endDate: "2026-11-02" }));
+    expect(withPeriod.p_end_date).toBe("2026-11-02");
+
+    const oneDay = toCreateRecordArgs("r1", draft());
+    expect(JSON.parse(JSON.stringify(oneDay))).not.toHaveProperty("p_end_date");
   });
 
   it("대표 사진이 없으면 코드 실수라 에러를 낸다", () => {

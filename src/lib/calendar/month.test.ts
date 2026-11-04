@@ -115,7 +115,47 @@ describe("groupByDate", () => {
   });
 });
 
+describe("groupByDate 기간", () => {
+  it("기간의 모든 날에 넣는다", () => {
+    const record = { id: "trip", date: "2026-11-01", endDate: "2026-11-03" };
+    const grouped = groupByDate([record]);
+    expect([...grouped.keys()]).toEqual(["2026-11-01", "2026-11-02", "2026-11-03"]);
+    expect(grouped.get("2026-11-02")).toEqual([record]);
+  });
+
+  it("달 경계에 걸친 기간도 양쪽 달의 날에 모두 넣는다", () => {
+    const grouped = groupByDate([{ date: "2026-10-30", endDate: "2026-11-02" }]);
+    expect([...grouped.keys()]).toEqual(["2026-10-30", "2026-10-31", "2026-11-01", "2026-11-02"]);
+  });
+
+  it("해가 바뀌거나 2월 29일을 지나는 기간도 빠짐없이 넣는다", () => {
+    expect([...groupByDate([{ date: "2026-12-31", endDate: "2027-01-01" }]).keys()]).toEqual(["2026-12-31", "2027-01-01"]);
+    expect([...groupByDate([{ date: "2028-02-28", endDate: "2028-03-01" }]).keys()]).toEqual(["2028-02-28", "2028-02-29", "2028-03-01"]);
+  });
+
+  it("끝 날짜가 없으면 그 하루에만 넣고, 겹치는 날에는 받은 순서를 지킨다", () => {
+    const trip = { id: "trip", date: "2026-11-01", endDate: "2026-11-02" };
+    const walk = { id: "walk", date: "2026-11-02", endDate: undefined };
+    const grouped = groupByDate([trip, walk]);
+    expect(grouped.get("2026-11-01")).toEqual([trip]);
+    expect(grouped.get("2026-11-02")).toEqual([trip, walk]);
+    expect(grouped.get("2026-11-03")).toBeUndefined();
+  });
+});
+
 describe("canLeaveRecord", () => {
+  it("일정 날짜가 같은 제목 기록의 기간 안에 있으면 권하지 않는다", () => {
+    const records = [{ date: "2026-10-31", endDate: "2026-11-02", title: "제주 여행" }];
+    const canLeave = (date: string, title = "제주 여행") =>
+      canLeaveRecord({ date, title, isTogether: true }, "2026-11-05", records);
+    expect(canLeave("2026-10-31")).toBe(false);
+    expect(canLeave("2026-11-01")).toBe(false);
+    expect(canLeave("2026-11-02")).toBe(false);
+    expect(canLeave("2026-10-30")).toBe(true);
+    expect(canLeave("2026-11-03")).toBe(true);
+    expect(canLeave("2026-11-01", "저녁")).toBe(true);
+  });
+
   const today = "2026-11-02";
 
   it("오늘까지의 일정은 기록으로 이어 쓸 수 있다", () => {

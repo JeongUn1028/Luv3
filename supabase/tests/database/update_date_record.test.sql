@@ -16,7 +16,7 @@ insert into public.members (id, email, nickname) values
 
 select has_function(
   'public', 'update_date_record',
-  array['uuid', 'date', 'text', 'text', 'text', 'jsonb', 'uuid'],
+  array['uuid', 'date', 'text', 'text', 'text', 'jsonb', 'uuid', 'date'],
   '기록 수정 함수가 있다'
 );
 

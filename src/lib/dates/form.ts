@@ -1,3 +1,4 @@
+import { toNextDay } from "@/lib/calendar/month";
 import { countChars, isIsoDate } from "@/lib/form";
 import type { Database } from "@/lib/supabase/database.types";
 
@@ -18,6 +19,8 @@ export interface DraftPhoto {
 /** 작성 화면의 입력값. 날짜는 YYYY-MM-DD 문자열(input type="date" 값) */
 export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
   date: string;
+  /** 기간의 끝 날짜. undefined면 하루짜리, ""면 기간을 켰지만 아직 고르지 않은 상태 */
+  endDate: string | undefined;
   title: string;
   place: string;
   memo: string;
@@ -26,7 +29,7 @@ export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
 }
 
 /** 칸 이름 → 화면에 보여 줄 에러 문구. 사진 한마디는 `caption:<사진 id>` */
-export type DraftErrors = Partial<Record<"date" | "title" | "place" | "memo" | "photos" | `caption:${string}`, string>>;
+export type DraftErrors = Partial<Record<"date" | "endDate" | "title" | "place" | "memo" | "photos" | `caption:${string}`, string>>;
 
 export type CreateDateRecordArgs = Database["public"]["Functions"]["create_date_record"]["Args"];
 
@@ -44,6 +47,12 @@ export const validateDraft = (draft: DateRecordDraft, today: string): DraftError
   if (!isIsoDate(draft.date)) errors.date = "날짜를 골라 주세요.";
   else if (draft.date > today) errors.date = "다녀온 날짜를 골라 주세요. 앞으로의 약속은 캘린더에 적어요.";
 
+  if (draft.endDate !== undefined) {
+    if (!isIsoDate(draft.endDate)) errors.endDate = "끝 날짜를 골라 주세요.";
+    else if (draft.endDate <= draft.date) errors.endDate = "끝 날짜는 시작 날짜보다 뒤여야 해요.";
+    else if (draft.endDate > today) errors.endDate = "끝 날짜는 오늘까지 고를 수 있어요.";
+  }
+
   if (draft.title.trim() === "") errors.title = "제목을 적어 주세요.";
   else if (tooLong(draft.title.trim(), TITLE_MAX_LENGTH)) errors.title = "제목은 100자까지 적을 수 있어요.";
 
@@ -59,6 +68,15 @@ export const validateDraft = (draft: DateRecordDraft, today: string): DraftError
 
   return errors;
 };
+
+/**
+ * 끝 날짜 달력에서 고를 수 있는 첫날(시작 다음 날).
+ * 시작이 비었거나 오늘이면 고를 수 있는 날이 없어 달력이 통째로 막히므로 제한을 두지 않고, 저장할 때 왜 안 되는지 알린다.
+ *
+ * @example getMinEndDate("2026-11-01", "2026-11-04") // "2026-11-02"
+ */
+export const getMinEndDate = (date: string, today: string): string | undefined =>
+  isIsoDate(date) && date < today ? toNextDay(date) : undefined;
 
 /** 일정에서 기록 작성으로 넘어갈 때 작성 폼에 미리 채울 값 */
 export interface RecordPrefill {
@@ -145,7 +163,7 @@ export const movePhoto = <Photo>(photos: Photo[], index: number, offset: -1 | 1)
 };
 
 /**
- * 입력값을 기록 작성 함수(`create_date_record`) 인자로 바꾼다. 빈 장소·글·한마디는 DB 함수가 null로 저장한다.
+ * 입력값을 기록 작성 함수(`create_date_record`) 인자로 바꾼다. 빈 장소·글·한마디와 넘기지 않은 끝 날짜는 DB 함수가 null로 저장한다.
  *
  * @throws {Error} 대표 사진이 없으면(검증을 거치지 않은 코드 실수)
  * @example await supabase.rpc("create_date_record", toCreateRecordArgs(recordId, draft))
@@ -155,6 +173,7 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
   return {
     p_id: recordId,
     p_date: draft.date,
+    p_end_date: draft.endDate,
     p_title: draft.title.trim(),
     p_place: draft.place.trim(),
     p_memo: draft.memo.trim(),

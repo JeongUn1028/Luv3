@@ -32,15 +32,18 @@ describe("toCalendarEvent", () => {
 
 describe("toCalendarRecord", () => {
   it("기록 행을 달력 값으로 바꾸고 작성자 닉네임을 붙인다", () => {
-    expect(toCalendarRecord({ id: "r1", date: "2026-11-02", title: "산책", author: { nickname: "진아" } })).toEqual({
+    expect(toCalendarRecord({ id: "r1", date: "2026-11-02", end_date: "2026-11-04", title: "산책", author: { nickname: "진아" } })).toEqual({
       id: "r1",
       date: "2026-11-02",
+      endDate: "2026-11-04",
       title: "산책",
       authorNickname: "진아",
     });
   });
 
-  it("작성자를 읽지 못하면 undefined로 둔다", () => {
-    expect(toCalendarRecord({ id: "r1", date: "2026-11-02", title: "산책", author: null }).authorNickname).toBeUndefined();
+  it("작성자·끝 날짜가 비어 있으면 undefined로 둔다", () => {
+    const record = toCalendarRecord({ id: "r1", date: "2026-11-02", end_date: null, title: "산책", author: null });
+    expect(record.authorNickname).toBeUndefined();
+    expect(record.endDate).toBeUndefined();
   });
 });
