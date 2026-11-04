@@ -56,7 +56,7 @@ describe("toEventValues", () => {
     expect(toEventValues(draft({ isAllDay: false, startTime: "19:30" })).start_time).toBe("19:30");
   });
 
-  it("개인 일정을 고르면 함께 일정이 아니라고 저장한다", () => {
+  it("한 사람 일정을 고르면 함께 일정이 아니라고 저장한다", () => {
     expect(toEventValues(draft({ isTogether: false })).is_together).toBe(false);
   });
 });

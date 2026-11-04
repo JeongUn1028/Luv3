@@ -7,10 +7,10 @@ import { EventTimeLabel } from "@/components/events/EventTimeLabel";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/icons";
 import { ANNIVERSARY_DATE, countDaysTogether, getAnniversaryLabel } from "@/lib/anniversary";
 import {
-  EVENT_KINDS,
   describeDayEvents,
   getDayHighlight,
   getDayNumberClassName,
+  getEventKinds,
   getHighlightClassNames,
 } from "@/lib/calendar/highlight";
 import {
@@ -36,6 +36,8 @@ interface CalendarViewProps {
   requestedDate?: string | string[];
   events: CalendarEvent[];
   records: CalendarRecord[];
+  /** 범례에 쓰는 현재 사용자 닉네임 */
+  memberNickname: string;
 }
 
 const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
@@ -50,7 +52,7 @@ const highlightBandClassName =
   "absolute top-2.5 left-1/2 h-5 w-10 -translate-x-1/2 -rotate-2 rounded-[2px_7px_3px_8px/5px_3px_6px_3px]";
 
 /** 공유 캘린더: 월 달력 + 고른 날의 데이트 기록·일정 */
-export const CalendarView = ({ month, today, requestedDate, events, records }: CalendarViewProps): ReactElement => {
+export const CalendarView = ({ month, today, requestedDate, events, records, memberNickname }: CalendarViewProps): ReactElement => {
   // 달이나 주소의 날이 바뀌면 부모가 key로 새로 그리므로, 처음 고른 날만 정하면 된다
   const [selectedDate, setSelectedDate] = useState(() => getDefaultSelectedDate(month, today, requestedDate));
   const eventsByDate = groupByDate(events);
@@ -147,7 +149,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
           <span aria-hidden="true" className="size-1.5 rounded-full bg-ink-sub" />
           데이트 기록
         </span>
-        {EVENT_KINDS.map(({ highlight, label }) => (
+        {getEventKinds(memberNickname).map(({ highlight, label }) => (
           <span key={highlight} className="flex items-center gap-1">
             <span
               aria-hidden="true"

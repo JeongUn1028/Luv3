@@ -6,7 +6,7 @@ import { AuthorHeart } from "@/components/AuthorHeart";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
-import { EVENT_KINDS, getHighlightClassNames } from "@/lib/calendar/highlight";
+import { getEventKinds, getHighlightClassNames } from "@/lib/calendar/highlight";
 import { toCalendarHref } from "@/lib/calendar/month";
 import {
   EVENT_MEMO_MAX_LENGTH,
@@ -36,6 +36,8 @@ interface EventFormProps {
   eventId?: string;
   /** 고칠 일정의 작성자 닉네임. 있으면 제목 옆에 작성자 하트를 그린다 */
   authorNickname?: string;
+  /** 함께 일정이 아닐 때 선택지에 쓰는 닉네임. 새 일정은 현재 사용자, 고칠 일정은 그 작성자다 */
+  ownerNickname: string;
 }
 
 /** 일정을 저장한다. 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
@@ -52,7 +54,7 @@ const saveEvent = async (values: EventValues, eventId: string | undefined): Prom
 };
 
 /** 공유 캘린더 일정 추가·수정 폼 */
-export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormProps): ReactElement => {
+export const EventForm = ({ initialDraft, eventId, authorNickname, ownerNickname }: EventFormProps): ReactElement => {
   const router = useRouter();
   const [draft, setDraft] = useState(initialDraft);
   const [errors, setErrors] = useState<EventDraftErrors>({});
@@ -148,12 +150,12 @@ export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormPr
         </div>
 
         <fieldset className="flex flex-col">
-          <legend className={labelClassName}>함께 / 개인</legend>
+          <legend className={labelClassName}>누구 일정</legend>
           <div className="mt-2 grid grid-cols-2 gap-2">
-            {EVENT_KINDS.map(({ isTogether, highlight, label }) => (
+            {getEventKinds(ownerNickname).map(({ isTogether, highlight, label }) => (
               <label
-                key={label}
-                className="flex h-[51px] items-center justify-center gap-2 rounded-[10px] border border-line bg-surface text-[15px] text-ink-sub has-checked:border-accent has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent has-disabled:opacity-50"
+                key={highlight}
+                className="flex h-[51px] min-w-0 items-center justify-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-[15px] text-ink-sub has-checked:border-accent has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent has-disabled:opacity-50"
               >
                 <input
                   type="radio"
@@ -166,9 +168,9 @@ export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormPr
                 {/* 캘린더 형광펜과 같은 색 띠로, 고른 종류가 캘린더에서 어떤 색으로 보일지 알려 준다 */}
                 <span
                   aria-hidden="true"
-                  className={`h-2.5 w-4 -rotate-2 rounded-[2px] ${getHighlightClassNames({ highlight, isCurrentMonth: true }).band}`}
+                  className={`h-2.5 w-4 shrink-0 -rotate-2 rounded-[2px] ${getHighlightClassNames({ highlight, isCurrentMonth: true }).band}`}
                 />
-                {label}
+                <span className="truncate">{label}</span>
               </label>
             ))}
           </div>
