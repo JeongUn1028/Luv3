@@ -6,26 +6,16 @@ import { PageShell } from "@/components/PageShell";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { getCurrentMember } from "@/lib/auth/member";
 import { RECORDS_PATH } from "@/lib/dates/album";
-import type { EditableRecord } from "@/lib/dates/detail";
 import { DateRecordLoadError, getEditableRecord } from "@/lib/dates/queries";
+import { catchLoadError } from "@/lib/load";
 
 export const metadata: Metadata = { title: "기록 고치기 · Luv3" };
-
-/** 조회 실패만 화면 문구로 바꾸고, 그 밖의 에러는 그대로 던진다 */
-const loadRecord = async (id: string): Promise<EditableRecord | DateRecordLoadError | undefined> => {
-  try {
-    return await getEditableRecord(id);
-  } catch (error) {
-    if (error instanceof DateRecordLoadError) return error;
-    throw error;
-  }
-};
 
 const EditForm = async ({ params }: { params: Promise<{ id: string }> }) => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
   await getCurrentMember();
   const { id } = await params;
-  const record = await loadRecord(id);
+  const record = await catchLoadError(() => getEditableRecord(id), DateRecordLoadError);
 
   if (!record) notFound();
   if (record instanceof DateRecordLoadError) {
