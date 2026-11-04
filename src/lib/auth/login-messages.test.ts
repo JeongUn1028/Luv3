@@ -5,7 +5,7 @@ import {
   TOO_MANY_REQUESTS_MESSAGE,
   getLoginErrorMessage,
   getSignInErrorMessage,
-} from "./messages";
+} from "./login-messages";
 
 describe("getLoginErrorMessage", () => {
   it("허용목록 밖 계정이면 안내 문장을 돌려준다", () => {
