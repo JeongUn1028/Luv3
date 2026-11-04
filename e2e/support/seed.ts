@@ -1,0 +1,125 @@
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/supabase/database.types";
+import { toKstDate } from "@/lib/anniversary";
+import { ALBUM_BUCKET } from "@/lib/photos/limits";
+import { COUPLE_PHOTO_PATH, E2E_EVENTS, E2E_MEMBER, E2E_TODOS, PERIOD_RECORD, PHOTO_COUNT, PHOTO_FIXTURE_PATH, PHOTO_RECORD } from "./constants";
+import { readLocalSupabase } from "./local-supabase";
+import { getMonthCrossingPeriod } from "./period";
+
+type AdminClient = SupabaseClient<Database>;
+
+const createAdminClient = (): AdminClient => {
+  const { url, serviceRoleKey } = readLocalSupabase();
+  return createClient<Database>(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
+};
+
+const assertNoError = ({ error }: { error: { message: string } | null }, step: string): void => {
+  if (error) throw new Error(`E2E 데이터 준비 실패(${step}): ${error.message}`);
+};
+
+const uploadPhoto = async (admin: AdminClient, path: string): Promise<void> => {
+  const { error } = await admin.storage
+    .from(ALBUM_BUCKET)
+    .upload(path, readFileSync(PHOTO_FIXTURE_PATH), { contentType: "image/jpeg", upsert: true });
+  assertNoError({ error }, `사진 ${path}`);
+};
+
+const clearAccount = async (admin: AdminClient): Promise<void> => {
+  const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
+  assertNoError({ error }, "계정 조회");
+  const user = data.users.find(({ email }) => email === E2E_MEMBER.email);
+  if (!user) return;
+
+  // 내용이 작성자(members)를 참조하므로 먼저 지운다. 사진 행은 기록과 함께 지워진다
+  for (const table of ["dates", "events", "todos"] as const) {
+    assertNoError(await admin.from(table).delete().eq("author_id", user.id), `${table} 지우기`);
+  }
+  // members는 계정을 지우면 함께 지워진다
+  assertNoError(await admin.auth.admin.deleteUser(user.id), "계정 지우기");
+};
+
+const clearStorage = async (admin: AdminClient): Promise<void> => {
+  const storage = admin.storage.from(ALBUM_BUCKET);
+  const { data, error } = await storage.list(PHOTO_RECORD.id);
+  assertNoError({ error }, "사진 조회");
+  const paths = [COUPLE_PHOTO_PATH, ...(data ?? []).map(({ name }) => `${PHOTO_RECORD.id}/${name}`)];
+  assertNoError(await storage.remove(paths), "사진 지우기");
+};
+
+const seedRecords = async (admin: AdminClient, authorId: string): Promise<void> => {
+  const period = getMonthCrossingPeriod();
+  assertNoError(
+    await admin.from("dates").insert([
+      { id: PHOTO_RECORD.id, date: toKstDate(new Date()), title: PHOTO_RECORD.title, author_id: authorId },
+      { id: PERIOD_RECORD.id, date: period.startDate, end_date: period.endDate, title: PERIOD_RECORD.title, author_id: authorId },
+    ]),
+    "기록",
+  );
+
+  const photos = Array.from({ length: PHOTO_COUNT }, (_, index) => {
+    const path = `${PHOTO_RECORD.id}/${randomUUID()}.jpg`;
+    return { id: randomUUID(), date_id: PHOTO_RECORD.id, path, thumb_path: path, sort_order: index };
+  });
+  await Promise.all(photos.map(({ path }) => uploadPhoto(admin, path)));
+  assertNoError(await admin.from("photos").insert(photos), "사진 행");
+  assertNoError(await admin.from("dates").update({ cover_photo_id: photos[0]?.id }).eq("id", PHOTO_RECORD.id), "대표 사진");
+};
+
+const seedEventsAndTodos = async (admin: AdminClient, authorId: string): Promise<void> => {
+  const today = toKstDate(new Date());
+  assertNoError(
+    await admin.from("events").insert(E2E_EVENTS.map(({ id, title }) => ({ id, title, date: today, author_id: authorId }))),
+    "일정",
+  );
+  // 로컬 DB에 다른 항목이 있어도 맨 위에 오도록 순서 값을 음수로 둔다
+  assertNoError(
+    await admin
+      .from("todos")
+      .insert(E2E_TODOS.map(({ id, content }, index) => ({ id, content, author_id: authorId, sort_order: index - E2E_TODOS.length }))),
+    "하고 싶은 것",
+  );
+};
+
+/** 커플 사진이 비어 있을 때만 E2E 사진을 넣는다. 로컬에 이미 있는 사진은 건드리지 않아 잃을 일이 없다 */
+const seedCouplePhoto = async (admin: AdminClient): Promise<void> => {
+  const { data, error } = await admin.from("couple_photo").select("path").single();
+  assertNoError({ error }, "커플 사진 조회");
+  if (data?.path && data.path !== COUPLE_PHOTO_PATH) return;
+  await uploadPhoto(admin, COUPLE_PHOTO_PATH);
+  assertNoError(await admin.from("couple_photo").update({ path: COUPLE_PHOTO_PATH }).eq("id", true), "커플 사진");
+};
+
+const clearCouplePhoto = async (admin: AdminClient): Promise<void> => {
+  assertNoError(await admin.from("couple_photo").update({ path: null }).eq("path", COUPLE_PHOTO_PATH), "커플 사진 비우기");
+};
+
+/**
+ * 로컬 Supabase에 E2E 전용 계정과 내용을 만든다. 지난 실행이 남긴 것이 있으면 먼저 지운다.
+ *
+ * @returns 만든 것을 지우는 함수
+ * @example const clear = await seedE2eData(password)
+ */
+export const seedE2eData = async (password: string): Promise<() => Promise<void>> => {
+  const admin = createAdminClient();
+  await clearCouplePhoto(admin);
+  await clearAccount(admin);
+  await clearStorage(admin);
+
+  const { data, error } = await admin.auth.admin.createUser({ email: E2E_MEMBER.email, password, email_confirm: true });
+  assertNoError({ error }, "계정 만들기");
+  const authorId = data.user?.id;
+  if (!authorId) throw new Error("E2E 계정을 만들지 못했습니다.");
+
+  assertNoError(await admin.from("members").insert({ id: authorId, ...E2E_MEMBER }), "허용목록");
+  await seedRecords(admin, authorId);
+  await seedEventsAndTodos(admin, authorId);
+  await seedCouplePhoto(admin);
+
+  return async () => {
+    await clearCouplePhoto(admin);
+    await clearAccount(admin);
+    await clearStorage(admin);
+  };
+};
