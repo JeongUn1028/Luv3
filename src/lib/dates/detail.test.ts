@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRecordDate, isRecordId, toDateRecordDetail, toEditableRecord, type DetailRow } from "./detail";
+import { formatRecordDate, formatRecordMonthDay, isRecordId, toDateRecordDetail, toEditableRecord, type DetailRow } from "./detail";
 
 const row: DetailRow = {
   id: "r1",
@@ -81,5 +81,12 @@ describe("formatRecordDate", () => {
   it("YYYY.MM.DD와 요일로 쓴다", () => {
     expect(formatRecordDate("2026-11-02")).toBe("2026.11.02 월요일");
     expect(formatRecordDate("2025-12-24")).toBe("2025.12.24 수요일");
+  });
+});
+
+describe("formatRecordMonthDay", () => {
+  it("연도 없이 MM.DD와 요일로 쓴다", () => {
+    expect(formatRecordMonthDay("2026-11-02")).toBe("11.02 월요일");
+    expect(formatRecordMonthDay("2025-12-24")).toBe("12.24 수요일");
   });
 });

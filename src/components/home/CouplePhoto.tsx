@@ -139,7 +139,7 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
   };
 
   return (
-    <section aria-label="커플 사진" className="mt-4">
+    <section aria-label="커플 사진" className="shrink-0">
       <input
         ref={inputRef}
         type="file"
