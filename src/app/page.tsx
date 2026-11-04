@@ -118,12 +118,16 @@ const HomePage = () => (
         <SettingsIcon className="size-[22px]" />
       </ScreenHeaderLink>
     }
-    className="px-4 pb-2.5"
+    // 로고가 설정 버튼 아래 줄에 있으면 왼쪽과 가운데가 빈 줄만큼 떠 보여 같은 줄에 놓는다(#98)
+    headerCenter={
+      // 세션을 읽고 오늘 날짜로 세는 부분만 요청 때 그린다(cacheComponents)
+      <LoadingSuspense fallback={<DdaySkeleton />}>
+        <HomeDday />
+      </LoadingSuspense>
+    }
+    // 52px 로고가 44px 머리글 아래로 4px 나오므로, 로고 아래 간격 14px에 더한다
+    className="px-4 pt-[18px] pb-2.5"
   >
-    {/* 세션을 읽고 오늘 날짜로 세는 부분만 요청 때 그린다(cacheComponents) */}
-    <LoadingSuspense fallback={<DdaySkeleton />}>
-      <HomeDday />
-    </LoadingSuspense>
     <LoadingSuspense fallback={<CouplePhotoSkeleton />}>
       <HomeCouplePhoto />
     </LoadingSuspense>

@@ -6,9 +6,9 @@ interface DdayHeaderProps {
   days: number;
 }
 
-/** 홈 맨 위의 D-day 한 줄: 하트, 큰 숫자, DAYS. DAYS는 숫자 아랫선에 맞춘다 */
+/** 홈 머리글 가운데의 D-day 한 줄: 하트, 큰 숫자, DAYS. DAYS는 숫자 아랫선에 맞춘다 */
 export const DdayHeader = ({ days }: DdayHeaderProps): ReactElement => (
-  <section className="shrink-0 pb-3.5">
+  <section>
     <h2 className="sr-only">함께한 지 {days}일째</h2>
     <div aria-hidden="true" className="flex items-baseline justify-center gap-3">
       <HeartLogo className="size-[30px] self-center text-highlight" strokeWidth={4} />

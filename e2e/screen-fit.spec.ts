@@ -116,6 +116,39 @@ test.describe("내용 스크롤 영역", () => {
   });
 });
 
+test.describe("홈 맨 위", () => {
+  test("로고가 설정 버튼과 같은 줄 가운데에 있고 제목은 화면 읽기 프로그램이 그대로 읽는다", async ({ page, viewport }) => {
+    await openScreen(page, "/", page.getByText(TODO.content));
+
+    const logo = await page.locator("header").getByText("DAYS").boundingBox();
+    const settings = await page.getByRole("link", { name: "설정" }).boundingBox();
+    expect(logo).not.toBeNull();
+    expect(settings).not.toBeNull();
+    const logoMiddle = (logo?.y ?? 0) + (logo?.height ?? 0) / 2;
+    expect(logoMiddle).toBeGreaterThanOrEqual(settings?.y ?? 0);
+    expect(logoMiddle).toBeLessThanOrEqual((settings?.y ?? 0) + (settings?.height ?? 0));
+    expect(settings?.width).toBeGreaterThanOrEqual(44);
+    expect(settings?.height).toBeGreaterThanOrEqual(44);
+
+    // 하트·숫자·DAYS 묶음이 화면 가운데에 있고 설정 버튼과 겹치지 않는다
+    const group = await page.locator("header [aria-hidden='true']", { hasText: "DAYS" }).boundingBox();
+    const groupCenter = (group?.x ?? 0) + (group?.width ?? 0) / 2;
+    expect(Math.abs(groupCenter - (viewport?.width ?? 0) / 2)).toBeLessThanOrEqual(1);
+    expect((group?.x ?? 0) + (group?.width ?? 0)).toBeLessThanOrEqual(settings?.x ?? 0);
+
+    // 탭을 옮겨도 설정·추가 버튼이 위아래로 튀지 않게 머리글 높이가 같다
+    const homeHeader = await page.locator("header").boundingBox();
+    expect(homeHeader?.height).toBe(44);
+
+    await expect(page.getByRole("heading", { name: "홈", level: 1 })).toBeAttached();
+    await expect(page.getByRole("heading", { name: /함께한 지 \d+일째/, level: 2 })).toBeAttached();
+    // 화면 읽기 순서: 제목 → 설정 → 함께한 날
+    const readOrder = await page.locator("header").locator("h1, a, h2").allInnerTexts();
+    expect(readOrder[0]).toBe("홈");
+    expect(readOrder[readOrder.length - 1]).toMatch(/함께한 지/);
+  });
+});
+
 test.describe("일정 폼", () => {
   for (const { name, path } of [
     { name: "일정 추가", path: "/events/new" },

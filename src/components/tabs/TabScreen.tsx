@@ -12,6 +12,8 @@ interface TabScreenProps {
   isTitleHidden?: boolean;
   /** 머리글 오른쪽 버튼(설정, 추가) */
   actions?: ReactNode;
+  /** 머리글 가운데에 놓을 것(홈 D-day) */
+  headerCenter?: ReactNode;
   /** 내용 영역에 더할 클래스 */
   className?: string;
   children: ReactNode;
@@ -26,9 +28,9 @@ interface TabScreenProps {
  *   <AlbumGrid tiles={tiles} />
  * </TabScreen>
  */
-export const TabScreen = ({ tab, title, isTitleHidden, actions, className, children }: TabScreenProps): ReactElement => (
+export const TabScreen = ({ tab, title, isTitleHidden, actions, headerCenter, className, children }: TabScreenProps): ReactElement => (
   <PageShell
-    header={<ScreenHeader title={title} isTitleHidden={isTitleHidden} actions={actions} />}
+    header={<ScreenHeader title={title} isTitleHidden={isTitleHidden} actions={actions} center={headerCenter} />}
     footer={<TabBar current={tab} />}
     className={className}
     scrollKey={tab}
