@@ -53,7 +53,7 @@ body {
 
 /*
   화면 전환(#53). 클래스 이름은 lib/navigation/transition.ts의 움직임과 같다.
-  옛 화면은 빨리 사라지고 새 화면은 조금 늦게 나타나, 두 화면의 글자가 겹쳐 읽히지 않게 한다.
+  화면 배경이 투명해서 이전 화면이 조금이라도 보이면 새 화면과 겹쳐 비친다(#88). 그래서 이전 화면은 처음부터 숨기고 새 화면만 움직인다.
 */
 ::view-transition {
   /* 전환 중에도 다음 화면을 바로 누를 수 있게 한다 */
@@ -66,75 +66,44 @@ body {
   }
 }
 
-@keyframes screen-fade-out {
-  to {
-    opacity: 0;
-  }
-}
-
 @keyframes screen-slide-in {
   from {
     translate: var(--slide-offset);
   }
 }
 
-@keyframes screen-slide-out {
-  to {
-    translate: var(--slide-offset);
-  }
+::view-transition-old(*) {
+  animation: none;
+  opacity: 0;
 }
 
-/* 앞으로: 옛 화면은 왼쪽으로, 새 화면은 오른쪽에서 */
-::view-transition-old(.nav-forward) {
-  --slide-offset: -60px;
-  animation:
-    110ms ease-in both screen-fade-out,
-    260ms ease-in-out both screen-slide-out;
+/* 전환에 끼지 않은 부분(머리글, 하단 탭)은 흐려지지 않고 바로 바뀐다 */
+::view-transition-new(root) {
+  animation: none;
 }
 
+/* 앞으로: 새 화면이 오른쪽에서 들어온다 */
 ::view-transition-new(.nav-forward) {
   --slide-offset: 60px;
   animation:
-    170ms ease-out 90ms both screen-fade-in,
+    170ms ease-out both screen-fade-in,
     260ms ease-in-out both screen-slide-in;
 }
 
-/* 뒤로: 옛 화면은 오른쪽으로, 새 화면은 왼쪽에서 */
-::view-transition-old(.nav-back) {
-  --slide-offset: 60px;
-  animation:
-    110ms ease-in both screen-fade-out,
-    260ms ease-in-out both screen-slide-out;
-}
-
+/* 뒤로: 새 화면이 왼쪽에서 들어온다 */
 ::view-transition-new(.nav-back) {
   --slide-offset: -60px;
   animation:
-    170ms ease-out 90ms both screen-fade-in,
+    170ms ease-out both screen-fade-in,
     260ms ease-in-out both screen-slide-in;
 }
 
 /* 탭끼리: 앞뒤 관계가 없어 밀지 않고 살짝만 바꾼다 */
-::view-transition-old(.nav-tab) {
-  animation: 80ms ease-in both screen-fade-out;
-}
-
 ::view-transition-new(.nav-tab) {
-  animation: 140ms ease-out 40ms both screen-fade-in;
-}
-
-/* 뼈대 → 실제 내용: 내용은 바로 그리고 뼈대 사진만 그 위에서 사라진다. 그래서 내용은 전환 중에도 누를 수 있다 */
-::view-transition-old(.reveal) {
-  animation: 140ms ease-out both screen-fade-out;
-}
-
-/* 전환에 끼지 않은 부분(머리글, 하단 탭)의 옛 사진. 기본 250ms면 전환이 끝나는 시점만 늦어진다 */
-::view-transition-old(root) {
-  animation-duration: 140ms;
+  animation: 140ms ease-out both screen-fade-in;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  ::view-transition-old(*),
   ::view-transition-new(*),
   ::view-transition-group(*) {
     animation-duration: 0s !important;

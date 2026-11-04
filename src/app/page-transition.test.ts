@@ -47,16 +47,33 @@ describe("화면 전환", () => {
   it.each([["nav-forward"], ["nav-back"], ["nav-tab"]])("움직임 %s의 CSS가 있다", (name) => {
     const css = readSource("app/globals.css");
 
-    expect(css).toContain(`::view-transition-old(.${name})`);
     expect(css).toContain(`::view-transition-new(.${name})`);
   });
 
-  it("뼈대는 실제 내용 위에서 사라지기만 한다", () => {
+  it("이전 화면은 전환 시작부터 보이지 않아 새 화면과 겹치지 않는다", () => {
     const css = readSource("app/globals.css");
 
-    expect(css).toContain("::view-transition-old(.reveal)");
+    // 화면 배경이 투명해서 이전 화면이 보이는 동안에는 새 화면과 겹쳐 비친다(#88)
+    expect(css).toMatch(/::view-transition-old\(\*\)\s*\{[^}]*animation: none;[^}]*opacity: 0;/);
+    expect(css.match(/::view-transition-old\([^)]*\)/g)).toEqual(["::view-transition-old(*)"]);
+  });
+
+  it("새 화면은 빈 시간 없이 바로 나타난다", () => {
+    const css = readSource("app/globals.css");
+
+    // 지연 시간이 있으면 이전 화면이 사라진 뒤 그만큼 빈 화면이 보인다
+    expect(css).not.toMatch(/\d+ms\s+[\w-]+\s+\d+ms/);
+    // 머리글·하단 탭처럼 움직이지 않는 부분은 흐려지지 않고 바로 바뀐다
+    expect(css).toMatch(/::view-transition-new\(root\)\s*\{[^}]*animation: none;/);
+  });
+
+  it("뼈대는 움직임 없이 내용으로 바로 바뀐다", () => {
+    // 뼈대를 내용 위에서 지우면 그동안 둘이 겹쳐 보인다(#88)
+    expect(readSource("app/globals.css")).not.toContain(".reveal");
+    expect(readSource("components/LoadingSuspense.tsx")).toMatch(
+      /<ViewTransition enter=\{SCREEN_MOTION\} exit=\{SCREEN_MOTION\} default="none">/,
+    );
     // 내용에 움직임을 주면 전환하는 동안 그 영역을 누를 수 없다(달 이동, Todo 순서 버튼)
-    expect(css).not.toContain("::view-transition-new(.reveal)");
     expect(readSource("components/PageShell.tsx")).not.toContain("update=");
   });
 
@@ -72,7 +89,7 @@ describe("화면 전환", () => {
 });
 
 describe("로딩 표시", () => {
-  it("화면은 뼈대가 부드럽게 사라지는 LoadingSuspense로 불러온다", () => {
+  it("화면은 LoadingSuspense로 불러와 기다리는 동안 뼈대를 보여 준다", () => {
     // 로그인은 세션을 기다리지 않고 주소 쿼리만 읽어 뼈대가 필요 없다
     const raw = readSourceLines().flatMap(({ at, lines }) =>
       at.startsWith("app/") && at !== "app/login/page.tsx"
