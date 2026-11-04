@@ -59,7 +59,7 @@ export const PageShell = ({ children, header, footer, bottomSpace = "safe", clas
           className={[
             // min-h-0이 없으면 내용 영역이 내용만큼 늘어나 안쪽 스크롤이 생기지 않는다.
             // relative: sr-only 같은 absolute 자식이 문서가 아닌 스크롤 영역 안에 놓이게 한다
-            "relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain",
+            "relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain",
             header ? "" : "pt-[env(safe-area-inset-top)]",
             footer ? "" : BOTTOM_SPACE[bottomSpace],
             className,
