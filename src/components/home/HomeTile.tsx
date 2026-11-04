@@ -67,7 +67,7 @@ export const HomeTileMessage = ({ text, isError = false, action }: HomeTileMessa
       {text}
     </p>
     {action && (
-      <Link href={action.href} transitionTypes={FORWARD_TRANSITION} className="flex h-9 items-center px-2 text-[14px] text-accent hover:underline">
+      <Link href={action.href} transitionTypes={FORWARD_TRANSITION} className="flex h-11 items-center px-2 text-[14px] text-accent hover:underline">
         {action.label}
       </Link>
     )}
