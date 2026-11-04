@@ -59,6 +59,22 @@ PR과 main push마다 GitHub Actions(`.github/workflows/ci.yml`)가 같은 검�
 
 로그인 메일을 쓰지 않으므로 SMTP 설정은 필요 없다.
 
+### DB를 바꾸는 PR
+
+main에 머지하면 Vercel이 바로 배포하므로, 새 칸이나 함수를 쓰는 코드가 먼저 나가면 운영 화면이 깨진다. 아래 순서를 지킨다.
+
+1. 먼저 적용해도 지금 배포된 코드가 동작하게 만든다. 예를 들어 함수에 인자를 더할 때는 맨 뒤에 기본값을 둔다.
+2. 머지 전에 운영 DB에 반영한다. 실행 전에 `--dry-run`으로 적용될 파일을 확인한다.
+
+   ```bash
+   pnpm exec supabase db push --linked --dry-run
+   pnpm exec supabase db push --linked
+   ```
+
+3. `pnpm exec supabase migration list --linked`로 로컬과 운영이 같은지 확인한 뒤 머지한다.
+
+워크트리에서 실행하면 연결 정보가 없으므로, 원본 클론의 `supabase/.temp` 내용을 워크트리의 같은 폴더로 복사한다. 이 폴더는 커밋되지 않는다.
+
 ### 비밀번호를 잊었을 때
 
 비밀번호 찾기 메일은 없다. 대시보드의 "Send password recovery"도 메일을 보내는 기능이라 쓰지 않고, SQL Editor에서 직접 바꾼다.
