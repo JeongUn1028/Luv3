@@ -16,16 +16,18 @@ interface ScreenHeaderProps {
   titleAddon?: ReactNode;
   /** 오른쪽 끝 버튼들(설정, 추가, 수정·삭제 등) */
   actions?: ReactNode;
+  /** 줄 위에 겹쳐 화면 가운데에 놓을 것(홈 D-day). 머리글 높이는 그대로이고 눌리지 않으므로 보여 주기만 하는 내용을 넣는다 */
+  center?: ReactNode;
 }
 
 /**
- * 모든 화면 위의 머리글: 뒤로 가기 + 제목 + 오른쪽 버튼. 높이는 버튼 크기(44px)에 맞춘다.
+ * 모든 화면 위의 머리글: 뒤로 가기 + 제목 + 오른쪽 버튼. 탭을 옮겨도 버튼이 튀지 않게 높이는 버튼 크기(44px)로 같다.
  *
  * @example
  * <ScreenHeader back={{ href: "/", label: "홈으로" }} title="설정" />
  * <ScreenHeader title="기록" actions={<ScreenHeaderLink href="/dates/new" label="기록 남기기">…</ScreenHeaderLink>} />
  */
-export const ScreenHeader = ({ back, title, isTitleHidden = false, titleAddon, actions }: ScreenHeaderProps): ReactElement => (
+export const ScreenHeader = ({ back, title, isTitleHidden = false, titleAddon, actions, center }: ScreenHeaderProps): ReactElement => (
   // relative: 숨긴 제목(sr-only)이 문서가 아닌 머리글 안에 놓이게 한다
   <header className="relative flex min-h-11 shrink-0 items-center justify-between px-2">
     <div className="flex min-w-0 items-center">
@@ -40,6 +42,7 @@ export const ScreenHeader = ({ back, title, isTitleHidden = false, titleAddon, a
       {titleAddon}
     </div>
     {actions && <div className="flex shrink-0 items-center">{actions}</div>}
+    {center && <div className="pointer-events-none absolute inset-0 flex items-center justify-center">{center}</div>}
   </header>
 );
 
