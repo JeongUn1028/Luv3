@@ -9,6 +9,7 @@ import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { toOwnerLabel } from "@/lib/events/calendar";
 import { toEventDraft } from "@/lib/events/form";
 import { EventLoadError, getEvent } from "@/lib/events/queries";
+import { catchLoadError } from "@/lib/load";
 
 export const metadata: Metadata = { title: "일정 고치기 · Luv3" };
 
@@ -17,15 +18,13 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
   await getCurrentMember();
   const { id } = await params;
 
-  let event: Awaited<ReturnType<typeof getEvent>>;
-  try {
-    event = await getEvent(id);
-  } catch (error) {
-    if (!(error instanceof EventLoadError)) throw error;
+  const event = await catchLoadError(() => getEvent(id), EventLoadError);
+
+  if (event instanceof EventLoadError) {
     return (
       <PageShell className="items-center justify-center px-4">
         <p role="alert" className="text-[13px] text-ink-sub">
-          {error.message}
+          {event.message}
         </p>
       </PageShell>
     );

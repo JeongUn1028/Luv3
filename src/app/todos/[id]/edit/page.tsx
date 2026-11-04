@@ -5,6 +5,7 @@ import { StatusLink, StatusScreen } from "@/components/StatusScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { TodoForm } from "@/components/todos/TodoForm";
 import { getCurrentMember } from "@/lib/auth/member";
+import { catchLoadError } from "@/lib/load";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { getTodo, TodoLoadError } from "@/lib/todos/queries";
 
@@ -15,15 +16,13 @@ const EditTodoForm = async ({ params }: { params: Promise<{ id: string }> }) => 
   await getCurrentMember();
   const { id } = await params;
 
-  let todo: Awaited<ReturnType<typeof getTodo>>;
-  try {
-    todo = await getTodo(id);
-  } catch (error) {
-    if (!(error instanceof TodoLoadError)) throw error;
+  const todo = await catchLoadError(() => getTodo(id), TodoLoadError);
+
+  if (todo instanceof TodoLoadError) {
     return (
       <PageShell className="items-center justify-center px-4">
         <p role="alert" className="text-[13px] text-ink-sub">
-          {error.message}
+          {todo.message}
         </p>
       </PageShell>
     );
