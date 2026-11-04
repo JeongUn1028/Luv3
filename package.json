@@ -14,6 +14,8 @@
     "db:reset": "supabase db reset",
     "test:db": "supabase test db",
     "test:e2e": "playwright test",
+    "backup": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/backup/backup.mts",
+    "backup:restore": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/backup/restore.mts",
     "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts"
   },
   "dependencies": {
