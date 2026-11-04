@@ -32,7 +32,7 @@ import { PhotoPicker, type PickedPhoto } from "./PhotoPicker";
 
 const labelClassName = "text-[13px] text-ink-sub";
 const inputClassName =
-  "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-[15px] text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent";
+  "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent";
 const errorClassName = "mt-2 text-[12px] text-accent";
 
 const toProgressLabel = ({ step, done, total }: SaveProgress): string => {
@@ -350,7 +350,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
             aria-invalid={Boolean(errors.memo)}
             aria-describedby={errors.memo ? "memo-count memo-error" : "memo-count"}
             onChange={(event) => updateField("memo", event.target.value)}
-            className={`${inputClassName} h-auto grow resize-y py-3 leading-[1.6]`}
+            className={`${inputClassName} h-auto grow resize-y py-3 leading-[1.5]`}
           />
           {errors.memo && (
             <p id="memo-error" className={errorClassName}>

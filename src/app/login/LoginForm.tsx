@@ -8,7 +8,7 @@ import { getLoginErrorMessage, getSignInErrorMessage } from "./messages";
 
 const labelClassName = "text-[13px] text-ink-sub";
 const inputClassName =
-  "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-[15px] text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none";
+  "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none";
 
 /**
  * 로그인 화면의 쿼리(next, error)가 바뀌면 폼을 새로 마운트해 입력값과 안내 문구를 초기화한다.

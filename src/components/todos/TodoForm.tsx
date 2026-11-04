@@ -116,7 +116,7 @@ export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormPro
               setContent(event.target.value);
               setError(undefined);
             }}
-            className="mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-[15px] text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent"
+            className="mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent"
           />
           {error && (
             <p id="todo-content-error" className="mt-2 text-[12px] text-accent">

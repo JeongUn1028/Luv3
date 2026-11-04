@@ -32,6 +32,16 @@ body {
 }
 
 /*
+  iOS는 글자가 16px보다 작은 입력 칸을 누르면 화면을 확대한다(#90). 확대를 막으려고 maximum-scale을 쓰면 손가락으로 벌려 확대하는 기능까지 막을 수 있다.
+  @layer 밖에 두어 Tailwind 유틸리티보다 우선하므로, 앞으로 만드는 칸에도 적용된다.
+*/
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+/*
   아이폰 홈 화면 앱(black-translucent + viewport-fit=cover)을 처음 띄우면 iOS가 innerHeight·100dvh·fixed 높이를
   상태바만큼 작게(852 → 793) 알리고, 스크롤하기 전까지 바로잡지 않아 아래가 빈다. 실기기에서 100lvh만 늘 화면 높이와
   같았으므로 홈 화면 앱에서는 dvh 대신 lvh로 높이를 정한다(#51). Safari 탭은 아래 주소창 때문에 dvh를 그대로 쓴다.
