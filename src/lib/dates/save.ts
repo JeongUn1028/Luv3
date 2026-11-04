@@ -9,6 +9,9 @@ export interface SaveProgress {
   total: number;
 }
 
+/** `update_date_record`가 없는 기록(허용목록 밖이라 보이지 않는 기록 포함)에 내는 오류 코드 */
+const RECORD_NOT_FOUND_CODE = "P0002";
+
 export interface SaveDateRecordParams {
   /** 새 기록 id. 업로드 경로와 `dates.id`에 같은 값을 쓴다 */
   recordId: string;
@@ -24,8 +27,8 @@ export interface SaveDateRecordParams {
 
 /** 사진은 올렸지만 기록을 저장하지 못했을 때. `message`는 화면에 그대로 보여 줄 수 있다 */
 export class SaveDateRecordError extends Error {
-  constructor(options?: ErrorOptions) {
-    super("기록을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.", options);
+  constructor(options?: ErrorOptions, message = "기록을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.") {
+    super(message, options);
     this.name = "SaveDateRecordError";
   }
 }
@@ -70,13 +73,21 @@ export const saveDateRecord = async ({
   }
 };
 
+/** 고치는 사이 상대가 기록을 지웠을 때. 다시 시도해도 실패하므로 재시도를 권하지 않는다 */
+export class DateRecordGoneError extends SaveDateRecordError {
+  constructor(options?: ErrorOptions) {
+    super(options, "이 기록은 이미 지워졌어요. 기록 목록에서 다시 확인해 주세요.");
+    this.name = "DateRecordGoneError";
+  }
+}
+
 export interface UpdateDateRecordParams extends Omit<SaveDateRecordParams, "files" | "createRecord"> {
   /** 이번에 새로 고른 사진의 id → 파일. 이미 저장된 사진은 넣지 않는다 */
   files: ReadonlyMap<string, File>;
   /** `supabase.rpc("update_date_record", args)`. 뺀 사진의 파일 경로를 돌려준다 */
   updateRecord: (
     args: CreateDateRecordArgs,
-  ) => PromiseLike<{ data: string[] | null; error: { message: string } | null }>;
+  ) => PromiseLike<{ data: string[] | null; error: { message: string; code?: string } | null }>;
 }
 
 /**
@@ -84,6 +95,7 @@ export interface UpdateDateRecordParams extends Omit<SaveDateRecordParams, "file
  * 행 수정이 실패하면 새로 올린 사진만 지운다(기존 사진은 기록이 그대로라 남겨 둔다).
  *
  * @throws {PhotoError} 새 사진을 줄이거나 올리지 못했을 때(기록은 바뀌지 않는다)
+ * @throws {DateRecordGoneError} 고치는 사이 상대가 기록을 지웠을 때
  * @throws {SaveDateRecordError} 기록 행을 고치지 못했을 때
  * @example
  * await updateDateRecord({
@@ -112,7 +124,7 @@ export const updateDateRecord = async ({
   const { data: removedPaths, error } = await updateRecord(args);
   if (error) {
     await removeUploadedPhotos(storage, uploaded).catch(() => undefined);
-    throw new SaveDateRecordError({ cause: error });
+    throw error.code === RECORD_NOT_FOUND_CODE ? new DateRecordGoneError({ cause: error }) : new SaveDateRecordError({ cause: error });
   }
 
   // 기록은 이미 고쳐졌으므로 파일 정리가 실패해도 수정 실패로 알리지 않는다(남은 파일은 #31에서 정리)
