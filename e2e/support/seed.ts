@@ -26,6 +26,45 @@ const uploadPhoto = async (admin: AdminClient, path: string): Promise<void> => {
   assertNoError({ error }, `사진 ${path}`);
 };
 
+/**
+ * 테스트 하나에서만 쓰는 사진 1장짜리 기록을 만든다. 돌려준 함수는 상대가 기록을 지운 것처럼 행과 폴더의 파일을 모두 지운다.
+ * 여러 번 불러도 되므로 테스트가 중간에 실패해도 남지 않게 마지막에 한 번 더 부른다.
+ *
+ * @example const deleteRecord = await createDisposableRecord({ id: randomUUID(), title: "지울 기록" })
+ */
+export const createDisposableRecord = async ({ id, title }: { id: string; title: string }): Promise<() => Promise<void>> => {
+  const admin = createAdminClient();
+  const { data: member, error } = await admin.from("members").select("id").eq("email", E2E_MEMBER.email).single();
+  assertNoError({ error }, "계정 조회");
+  if (!member) throw new Error("E2E 데이터 준비 실패(계정 조회): 전용 계정이 없습니다");
+
+  const path = `${id}/${randomUUID()}.jpg`;
+  await uploadPhoto(admin, path);
+  // 오늘 날짜면 나란히 도는 홈 테스트의 "최근 기록" 자리를 잠깐 차지하므로 어제로 둔다
+  const yesterday = toKstDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  assertNoError(await admin.from("dates").insert({ id, date: yesterday, title, author_id: member.id }), "기록");
+  const photoId = randomUUID();
+  assertNoError(await admin.from("photos").insert({ id: photoId, date_id: id, path, thumb_path: path, sort_order: 0 }), "사진 행");
+  assertNoError(await admin.from("dates").update({ cover_photo_id: photoId }).eq("id", id), "대표 사진");
+
+  return async () => {
+    assertNoError(await admin.from("dates").delete().eq("id", id), "기록 지우기");
+    const names = await listRecordFiles(id);
+    if (names.length > 0) assertNoError(await admin.storage.from(ALBUM_BUCKET).remove(names.map((name) => `${id}/${name}`)), "사진 지우기");
+  };
+};
+
+/**
+ * 기록 폴더에 남은 파일 이름 목록.
+ *
+ * @example expect(await listRecordFiles(id)).toEqual([])
+ */
+export const listRecordFiles = async (recordId: string): Promise<string[]> => {
+  const { data, error } = await createAdminClient().storage.from(ALBUM_BUCKET).list(recordId);
+  assertNoError({ error }, "사진 조회");
+  return (data ?? []).map(({ name }) => name);
+};
+
 const clearAccount = async (admin: AdminClient): Promise<void> => {
   const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
   assertNoError({ error }, "계정 조회");
