@@ -9,18 +9,9 @@ import { toKstDate } from "@/lib/anniversary";
 import { getCurrentMember } from "@/lib/auth/member";
 import { parseMonth } from "@/lib/calendar/month";
 import { EventLoadError, getCalendarMonth } from "@/lib/events/queries";
+import { catchLoadError } from "@/lib/load";
 
 export const metadata: Metadata = { title: "캘린더 · Luv3" };
-
-/** 일정을 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다 */
-const loadCalendarMonth = async (month: string) => {
-  try {
-    return await getCalendarMonth(month);
-  } catch (error) {
-    if (error instanceof EventLoadError) return error;
-    throw error;
-  }
-};
 
 const CalendarContent = async ({ searchParams }: Pick<PageProps<"/calendar">, "searchParams">) => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
@@ -28,7 +19,8 @@ const CalendarContent = async ({ searchParams }: Pick<PageProps<"/calendar">, "s
   const { month: monthParam, date: dateParam } = await searchParams;
   const today = toKstDate(new Date());
   const month = parseMonth(monthParam, today);
-  const result = await loadCalendarMonth(month);
+  // 일정을 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다
+  const result = await catchLoadError(() => getCalendarMonth(month), EventLoadError);
 
   if (result instanceof EventLoadError) {
     return (

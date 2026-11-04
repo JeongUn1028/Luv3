@@ -6,25 +6,16 @@ import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
 import { getCurrentMember } from "@/lib/auth/member";
-import type { AlbumTile } from "@/lib/dates/album";
 import { AlbumLoadError, getAlbumTiles } from "@/lib/dates/queries";
+import { catchLoadError } from "@/lib/load";
 
 export const metadata: Metadata = { title: "기록 · Luv3" };
-
-/** 그리드를 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다 */
-const loadAlbumTiles = async (): Promise<AlbumTile[] | AlbumLoadError> => {
-  try {
-    return await getAlbumTiles();
-  } catch (error) {
-    if (error instanceof AlbumLoadError) return error;
-    throw error;
-  }
-};
 
 const RecordsContent = async () => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
   await getCurrentMember();
-  const tiles = await loadAlbumTiles();
+  // 그리드를 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다
+  const tiles = await catchLoadError(getAlbumTiles, AlbumLoadError);
 
   if (tiles instanceof AlbumLoadError) {
     return (

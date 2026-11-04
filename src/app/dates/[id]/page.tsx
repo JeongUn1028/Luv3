@@ -11,21 +11,12 @@ import { RecordDetailSkeleton } from "@/components/dates/RecordDetailSkeleton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { getCurrentMember } from "@/lib/auth/member";
 import { RECORDS_PATH } from "@/lib/dates/album";
-import { formatRecordPeriod, type DateRecordDetail } from "@/lib/dates/detail";
+import { formatRecordPeriod } from "@/lib/dates/detail";
 import { DateRecordLoadError, getDateRecordDetail } from "@/lib/dates/queries";
+import { catchLoadError } from "@/lib/load";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 export const metadata: Metadata = { title: "기록 · Luv3" };
-
-/** 조회 실패만 화면 문구로 바꾸고, 그 밖의 에러는 그대로 던진다 */
-const loadRecord = async (id: string): Promise<DateRecordDetail | DateRecordLoadError | undefined> => {
-  try {
-    return await getDateRecordDetail(id);
-  } catch (error) {
-    if (error instanceof DateRecordLoadError) return error;
-    throw error;
-  }
-};
 
 // 수정·삭제 버튼이 기록을 읽은 뒤에야 정해져 머리글도 Suspense 안에서 그린다. 그래서 틀의 고정 머리글 대신 내용과 함께 스크롤한다
 // 제목은 사진 아래 본문의 h1이 맡는다
@@ -37,7 +28,7 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
   await getCurrentMember();
   const { id } = await params;
-  const record = await loadRecord(id);
+  const record = await catchLoadError(() => getDateRecordDetail(id), DateRecordLoadError);
 
   if (!record) notFound();
   if (record instanceof DateRecordLoadError) {
