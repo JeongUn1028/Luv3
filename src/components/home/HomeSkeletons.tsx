@@ -4,14 +4,14 @@ import { SkeletonBlock } from "@/components/Skeleton";
 // 칸마다 실제 내용과 같은 크기로 자리를 잡아, 불러온 뒤 홈 배치(#77)가 밀리지 않게 한다.
 // 실제 칸의 여백·글자 크기를 바꾸면 여기도 같이 맞춘다
 
-/** DdayHeader 자리(66px). 칸마다 알리면 시끄러워 맨 위 칸에서만 불러오는 중임을 알린다 */
+/** DdayHeader 자리(52px). 칸마다 알리면 시끄러워 맨 위 칸에서만 불러오는 중임을 알린다 */
 export const DdaySkeleton = (): ReactElement => (
-  <div className="flex h-[66px] shrink-0 justify-center">
+  <>
     <p role="status" className="sr-only">
       불러오는 중이에요
     </p>
     <SkeletonBlock className="h-[52px] w-[150px] rounded-[10px]" />
-  </div>
+  </>
 );
 
 /** 커플 사진 자리. 사진이 있을 때가 대부분이라 사진 칸 크기로 둔다 */
