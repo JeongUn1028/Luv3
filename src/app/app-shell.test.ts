@@ -129,7 +129,7 @@ describe("누름 영역", () => {
     // 완료한 줄은 공유 데이터를 바꿔야 나와 E2E 대신 클래스로 고정한다(#105)
     const source = readSource("components/todos/TodoList.tsx");
 
-    expect(source).toMatch(/MOVE_BUTTON_CLASS_NAME =s*"flex size-11 /);
+    expect(source).toMatch(/MOVE_BUTTON_CLASS_NAME =\s*"flex size-11 /);
     expect(source).toContain('className="w-22 shrink-0"');
   });
 });
