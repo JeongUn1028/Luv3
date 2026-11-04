@@ -40,7 +40,10 @@ pnpm lint
 pnpm type-check
 pnpm test       # Vitest 단위 테스트
 pnpm test:db    # pgTAP RLS 테스트 (로컬 Supabase 실행 중이어야 함)
+pnpm test:e2e   # 화면 높이 E2E 테스트 (로컬 Supabase 실행 중이어야 하고, 설치된 Chrome을 쓴다)
 ```
+
+E2E는 대상 기기 두 크기(아이폰 15 Pro, 아이폰 17)에서 앱을 빌드해 3100번 포트로 띄우고 잰다. `.env.local`과 상관없이 로컬 Supabase만 쓰고, 전용 계정(`e2e-member@example.com`)과 데이터를 만들었다가 끝나면 지운다. 커플 사진이 비어 있으면 실행하는 동안만 넣었다가 비운다.
 
 PR과 main push마다 GitHub Actions(`.github/workflows/ci.yml`)가 같은 검사와 `pnpm build`를 실행한다.
 
