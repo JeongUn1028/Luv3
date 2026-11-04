@@ -1,11 +1,12 @@
-import { Suspense } from "react";
 import { CouplePhoto } from "@/components/home/CouplePhoto";
 import { DdayHeader } from "@/components/home/DdayHeader";
+import { CouplePhotoSkeleton, DdaySkeleton, HomeTileSkeleton, TodoPreviewSkeleton } from "@/components/home/HomeSkeletons";
 import { HomeTile, HomeTileMessage } from "@/components/home/HomeTile";
 import { LatestRecordCard } from "@/components/home/LatestRecordCard";
 import { TodoPreview } from "@/components/home/TodoPreview";
 import { UpcomingEventList } from "@/components/home/UpcomingEventList";
 import { SettingsIcon } from "@/components/icons";
+import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
 import { ANNIVERSARY_DATE, countDaysTogether, toKstDate } from "@/lib/anniversary";
@@ -107,9 +108,6 @@ const HomeTodos = async () => {
   return <TodoPreview todos={groupTodos(todos).open.slice(0, TODO_PREVIEW_COUNT)} />;
 };
 
-/** 정사각형 칸을 불러오는 동안 자리만 잡아 둔다 */
-const TilePlaceholder = () => <div aria-hidden="true" className="aspect-square rounded-[16px] bg-surface" />;
-
 const HomePage = () => (
   <TabScreen
     tab="home"
@@ -122,27 +120,24 @@ const HomePage = () => (
     }
     className="px-4 pb-2.5"
   >
-    {/* 세션을 읽고 오늘 날짜로 세는 부분만 요청 때 그린다(cacheComponents).
-        빈 자리 높이는 DdayHeader를 그린 높이(66px)라, DdayHeader 여백·글자 크기를 바꾸면 같이 맞춘다 */}
-    <Suspense fallback={<div className="h-[66px] shrink-0" />}>
+    {/* 세션을 읽고 오늘 날짜로 세는 부분만 요청 때 그린다(cacheComponents) */}
+    <LoadingSuspense fallback={<DdaySkeleton />}>
       <HomeDday />
-    </Suspense>
-    {/* 사진이 있을 때가 대부분이라 빈 자리는 사진 칸 크기로 둔다 */}
-    <Suspense fallback={<div className="aspect-[4/3] shrink-0 rounded-[16px] bg-surface" />}>
+    </LoadingSuspense>
+    <LoadingSuspense fallback={<CouplePhotoSkeleton />}>
       <HomeCouplePhoto />
-    </Suspense>
+    </LoadingSuspense>
     <div className="mt-2.5 grid shrink-0 grid-cols-2 gap-2.5">
-      <Suspense fallback={<TilePlaceholder />}>
+      <LoadingSuspense fallback={<HomeTileSkeleton />}>
         <HomeLatestRecord />
-      </Suspense>
-      <Suspense fallback={<TilePlaceholder />}>
+      </LoadingSuspense>
+      <LoadingSuspense fallback={<HomeTileSkeleton />}>
         <HomeUpcomingEvents />
-      </Suspense>
+      </LoadingSuspense>
     </div>
-    {/* 빈 자리 높이는 내용이 한 줄일 때의 TodoPreview 높이(72px)다 */}
-    <Suspense fallback={<div className="mt-2.5 h-[72px] shrink-0 rounded-[16px] bg-surface" />}>
+    <LoadingSuspense fallback={<TodoPreviewSkeleton />}>
       <HomeTodos />
-    </Suspense>
+    </LoadingSuspense>
   </TabScreen>
 );
 

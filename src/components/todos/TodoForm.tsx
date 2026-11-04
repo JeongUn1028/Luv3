@@ -6,6 +6,7 @@ import { AuthorHeart } from "@/components/AuthorHeart";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { createClient } from "@/lib/supabase/client";
 import { TODO_CONTENT_MAX_LENGTH, validateTodoContent } from "@/lib/todos/form";
 import { TODOS_PATH } from "@/lib/todos/list";
@@ -44,7 +45,7 @@ export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormPro
 
   const goToList = () => {
     startTransition(() => {
-      router.replace(TODOS_PATH);
+      router.replace(TODOS_PATH, { transitionTypes: BACK_TRANSITION });
       router.refresh();
     });
   };

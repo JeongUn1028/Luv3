@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { AuthorHeart } from "@/components/AuthorHeart";
 import { DeleteRecordButton } from "@/components/dates/DeleteRecordButton";
 import { PhotoCarousel } from "@/components/dates/PhotoCarousel";
+import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
+import { RecordDetailSkeleton } from "@/components/dates/RecordDetailSkeleton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { getCurrentMember } from "@/lib/auth/member";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { formatRecordPeriod, type DateRecordDetail } from "@/lib/dates/detail";
 import { DateRecordLoadError, getDateRecordDetail } from "@/lib/dates/queries";
+import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 export const metadata: Metadata = { title: "기록 · Luv3" };
 
@@ -55,6 +58,7 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
           <>
             <Link
               href={`/dates/${record.id}/edit`}
+              transitionTypes={FORWARD_TRANSITION}
               className="flex h-11 items-center px-3 text-[14px] text-ink-sub hover:text-ink"
             >
               수정
@@ -86,16 +90,16 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
 const DateRecordPage = ({ params }: PageProps<"/dates/[id]">) => (
   <PageShell bottomSpace="md">
     {/* 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents). 수정·삭제는 기록을 읽은 뒤 보인다 */}
-    <Suspense
+    <LoadingSuspense
       fallback={
         <>
           <DetailHeader />
-          <div className="aspect-[4/5] w-full bg-surface" />
+          <RecordDetailSkeleton />
         </>
       }
     >
       <RecordDetail params={params} />
-    </Suspense>
+    </LoadingSuspense>
   </PageShell>
 );
 

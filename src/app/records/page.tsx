@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { AlbumGrid } from "@/components/dates/AlbumGrid";
+import { AlbumGridSkeleton } from "@/components/dates/AlbumGridSkeleton";
 import { PlusIcon } from "@/components/icons";
+import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
 import { getCurrentMember } from "@/lib/auth/member";
@@ -49,9 +50,9 @@ const RecordsPage = () => (
     className="px-4"
   >
     {/* 세션을 읽는 부분만 요청 때 그린다(cacheComponents) */}
-    <Suspense fallback={<div className="flex-1" />}>
+    <LoadingSuspense fallback={<AlbumGridSkeleton />}>
       <RecordsContent />
-    </Suspense>
+    </LoadingSuspense>
   </TabScreen>
 );
 

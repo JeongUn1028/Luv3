@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useId, type ReactElement } from "react";
+import { FORWARD_TRANSITION, TAB_TRANSITION } from "@/lib/navigation/transition";
 import { TODOS_PATH, type Todo } from "@/lib/todos/list";
 
 interface TodoPreviewProps {
@@ -26,7 +27,7 @@ export const TodoPreview = ({ todos, errorMessage }: TodoPreviewProps): ReactEle
           하고 싶은 것
         </h2>
         {!isEmpty && (
-          <Link href={TODOS_PATH} className="text-[12px] leading-4 text-ink-sub after:absolute after:inset-0 after:rounded-[16px]">
+          <Link href={TODOS_PATH} transitionTypes={TAB_TRANSITION} className="text-[12px] leading-4 text-ink-sub after:absolute after:inset-0 after:rounded-[16px]">
             <span className="sr-only">하고 싶은 것 </span>모두 보기
           </Link>
         )}
@@ -40,6 +41,7 @@ export const TodoPreview = ({ todos, errorMessage }: TodoPreviewProps): ReactEle
           <p className="min-w-0 text-[13px] leading-5 text-ink-sub">함께 하고 싶은 것을 적어 보세요</p>
           <Link
             href={`${TODOS_PATH}/new`}
+            transitionTypes={FORWARD_TRANSITION}
             className="shrink-0 text-[14px] leading-5 text-accent after:absolute after:inset-0 after:rounded-[16px]"
           >
             <span className="sr-only">하고 싶은 것 </span>추가

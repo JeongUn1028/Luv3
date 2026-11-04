@@ -5,6 +5,7 @@ import { startTransition, type ReactElement } from "react";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { deleteDateRecord } from "@/lib/dates/delete";
+import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { createClient } from "@/lib/supabase/client";
 
@@ -28,7 +29,7 @@ export const DeleteRecordButton = ({ recordId, filePaths, photoCount }: DeleteRe
       deleteRecord: (id) => supabase.from("dates").delete().eq("id", id),
     });
     startTransition(() => {
-      router.replace(RECORDS_PATH);
+      router.replace(RECORDS_PATH, { transitionTypes: BACK_TRANSITION });
       router.refresh();
     });
   };

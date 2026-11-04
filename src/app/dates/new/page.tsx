@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { DateRecordForm } from "@/components/dates/DateRecordForm";
+import { FormSkeleton } from "@/components/FormSkeleton";
+import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { toKstDate } from "@/lib/anniversary";
 import { getCurrentMember } from "@/lib/auth/member";
+import { RECORDS_PATH } from "@/lib/dates/album";
 import { parseRecordPrefill } from "@/lib/dates/form";
 
 export const metadata: Metadata = { title: "기록 남기기 · Luv3" };
@@ -19,9 +21,9 @@ const MemberOnlyForm = async ({ searchParams }: Pick<PageProps<"/dates/new">, "s
 
 const NewDateRecordPage = ({ searchParams }: PageProps<"/dates/new">) => (
   // 세션·주소 쿼리를 읽고 오늘 날짜를 기본값으로 쓰므로 요청 시점에 렌더링한다(cacheComponents)
-  <Suspense fallback={<div className="min-h-app" />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: RECORDS_PATH, label: "기록 목록으로" }} title="기록 남기기" fieldCount={4} />}>
     <MemberOnlyForm searchParams={searchParams} />
-  </Suspense>
+  </LoadingSuspense>
 );
 
 export default NewDateRecordPage;

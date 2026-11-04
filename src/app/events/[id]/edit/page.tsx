@@ -1,12 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Suspense } from "react";
 import { EventForm } from "@/components/events/EventForm";
+import { FormSkeleton } from "@/components/FormSkeleton";
 import { PageShell } from "@/components/PageShell";
+import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { getCurrentMember } from "@/lib/auth/member";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { toEventDraft } from "@/lib/events/form";
 import { EventLoadError, getEvent } from "@/lib/events/queries";
+import { BACK_TRANSITION } from "@/lib/navigation/transition";
 
 export const metadata: Metadata = { title: "일정 고치기 · Luv3" };
 
@@ -36,6 +38,7 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
         <p className="text-[13px] text-ink-sub">지워졌거나 주소가 잘못됐어요.</p>
         <Link
           href={CALENDAR_PATH}
+          transitionTypes={BACK_TRANSITION}
           className="mt-2 flex h-[51px] w-full items-center justify-center rounded-[10px] border border-line text-[15px] text-ink hover:bg-surface"
         >
           캘린더로
@@ -57,9 +60,9 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
 
 const EditEventPage = ({ params }: PageProps<"/events/[id]/edit">) => (
   // 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <Suspense fallback={<div className="min-h-app" />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: CALENDAR_PATH, label: "캘린더로" }} title="일정 고치기" fieldCount={5} />}>
     <EditEventForm params={params} />
-  </Suspense>
+  </LoadingSuspense>
 );
 
 export default EditEventPage;

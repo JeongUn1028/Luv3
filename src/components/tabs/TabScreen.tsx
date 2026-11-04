@@ -19,7 +19,7 @@ interface TabScreenProps {
 
 /**
  * 하단 탭 화면(홈·기록·캘린더·Todo)의 공통 틀: 머리글 + 스크롤되는 내용 + 하단 탭.
- * 탭마다 스크롤 영역이 따로 있어, 탭을 옮겨도 다른 탭의 스크롤 위치가 섞이지 않는다.
+ * 탭마다 스크롤 위치를 따로 기억해, 다른 곳에 다녀와도 보던 자리로 돌아온다.
  *
  * @example
  * <TabScreen tab="records" title="기록" actions={<ScreenHeaderLink href="/dates/new" label="기록 남기기">…</ScreenHeaderLink>}>
@@ -31,6 +31,7 @@ export const TabScreen = ({ tab, title, isTitleHidden, actions, className, child
     header={<ScreenHeader title={title} isTitleHidden={isTitleHidden} actions={actions} />}
     footer={<TabBar current={tab} />}
     className={className}
+    scrollKey={tab}
   >
     {children}
   </PageShell>
