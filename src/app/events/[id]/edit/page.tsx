@@ -1,15 +1,14 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { EventForm } from "@/components/events/EventForm";
 import { FormSkeleton } from "@/components/FormSkeleton";
 import { PageShell } from "@/components/PageShell";
+import { StatusLink, StatusScreen } from "@/components/StatusScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { getCurrentMember } from "@/lib/auth/member";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { toOwnerLabel } from "@/lib/events/calendar";
 import { toEventDraft } from "@/lib/events/form";
 import { EventLoadError, getEvent } from "@/lib/events/queries";
-import { BACK_TRANSITION } from "@/lib/navigation/transition";
 
 export const metadata: Metadata = { title: "일정 고치기 · Luv3" };
 
@@ -34,17 +33,9 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
 
   if (!event) {
     return (
-      <PageShell className="items-center justify-center gap-4 px-4 text-center">
-        <p className="text-[15px] text-ink">일정을 찾을 수 없어요</p>
-        <p className="text-[13px] text-ink-sub">지워졌거나 주소가 잘못됐어요.</p>
-        <Link
-          href={CALENDAR_PATH}
-          transitionTypes={BACK_TRANSITION}
-          className="mt-2 flex h-[51px] w-full items-center justify-center rounded-[10px] border border-line text-[15px] text-ink hover:bg-surface"
-        >
-          캘린더로
-        </Link>
-      </PageShell>
+      <StatusScreen title="일정을 찾을 수 없어요" description="지워졌거나 주소가 잘못됐어요.">
+        <StatusLink href={CALENDAR_PATH}>캘린더로</StatusLink>
+      </StatusScreen>
     );
   }
 
