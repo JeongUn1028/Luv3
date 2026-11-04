@@ -88,3 +88,29 @@ describe("화면 틀", () => {
     expect(findLines(/safe-area-inset-(?:top|bottom)/, allowed)).toEqual([]);
   });
 });
+
+describe("입력 칸", () => {
+  it("iOS가 눌렀을 때 화면을 확대하지 않도록 입력 칸은 16px이다", () => {
+    // iOS는 글자가 16px보다 작은 칸을 누르면 화면을 확대한다(#90).
+    // @layer 밖의 규칙이라 Tailwind 유틸리티보다 우선하고, 앞으로 만드는 칸에도 적용된다
+    expect(readSource("app/globals.css")).toMatch(/\binput,\s*textarea,\s*select\s*\{\s*font-size: 16px;/);
+  });
+
+  it("입력 칸 클래스에 16px보다 작은 글자 크기를 적지 않는다", () => {
+    const small = readSourceLines().flatMap(({ at }) => {
+      if (!at.endsWith(".tsx")) return [];
+      const source = readSource(at);
+      const classNames = [
+        ...[...source.matchAll(/const inputClassName =\s*"([^"]*)"/g)].map((match) => match[1]),
+        ...[...source.matchAll(/<(?:input|textarea|select)\b[\s\S]*?\/>/g)].flatMap((match) => match[0].match(/className="[^"]*"/g) ?? []),
+      ];
+      return classNames.filter((className) => /text-\[(?:\d|1[0-5])px\]/.test(className)).map((className) => `${at}: ${className.slice(0, 60)}`);
+    });
+
+    expect(small).toEqual([]);
+  });
+
+  it("손가락으로 벌려 확대하는 기능은 막지 않는다", () => {
+    expect(readSource("app/layout.tsx")).not.toMatch(/maximumScale|userScalable/);
+  });
+});

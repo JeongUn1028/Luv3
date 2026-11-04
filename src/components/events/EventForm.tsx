@@ -24,7 +24,7 @@ import { createClient } from "@/lib/supabase/client";
 
 const labelClassName = "text-[13px] text-ink-sub";
 const inputClassName =
-  "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-[15px] text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent";
+  "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent";
 const errorClassName = "mt-2 text-[12px] text-accent";
 const SAVE_FAILED_MESSAGE = "일정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
@@ -268,7 +268,7 @@ export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormPr
             aria-invalid={Boolean(errors.memo)}
             aria-describedby={errors.memo ? "event-memo-error" : undefined}
             onChange={(event) => updateField("memo", event.target.value)}
-            className={`${inputClassName} h-auto resize-y py-3 leading-[1.6]`}
+            className={`${inputClassName} h-auto resize-y py-3 leading-[1.5]`}
           />
           {errors.memo && (
             <p id="event-memo-error" className={errorClassName}>
