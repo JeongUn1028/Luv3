@@ -6,7 +6,7 @@ export default defineConfig({
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
   test: {
-    include: ["src/**/*.test.ts", "supabase/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "supabase/**/*.test.ts", "scripts/**/*.test.ts"],
     environment: "node",
   },
 });
