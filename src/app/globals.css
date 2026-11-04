@@ -51,6 +51,16 @@ input[type="time"] {
   max-width: 100%;
 }
 
+/* iOS는 기본 스타일의 flex로 값을 세로 가운데에 맞춘다. block이면 값이 위로 올라간다(#96).
+   Chrome은 flex면 달력 아이콘이 값 옆으로 붙어서 iOS에만 적용한다 */
+@supports (-webkit-touch-callout: none) {
+  input[type="date"],
+  input[type="time"] {
+    display: flex;
+    align-items: center;
+  }
+}
+
 /* iOS는 날짜 값을 가운데에 놓는다. 다른 칸처럼 왼쪽에 맞춘다 */
 ::-webkit-date-and-time-value {
   text-align: left;

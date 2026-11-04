@@ -126,6 +126,21 @@ describe("날짜·시간 칸", () => {
     expect(rule).toContain("max-width: 100%;");
   });
 
+  it("iOS에서는 기본 배치를 유지해 값이 칸의 세로 가운데에 놓인다", () => {
+    // iOS 기본 스타일은 inline-flex + align-items: center로 가운데를 맞춘다. block으로 바꾸면 값이 위로 올라간다(#96)
+    const rule = readSource("app/globals.css").match(/@supports \(-webkit-touch-callout: none\)\s*\{[^}]*\}/)?.[0] ?? "";
+
+    expect(rule).toContain("display: flex;");
+    expect(rule).toContain("align-items: center;");
+  });
+
+  it("다른 브라우저에서는 달력 아이콘이 칸 오른쪽에 남도록 block을 쓴다", () => {
+    // Chrome은 flex로 두면 달력·시계 아이콘이 값 바로 옆으로 붙는다(#96)
+    const rule = readSource("app/globals.css").match(/input\[type="date"\],\s*input\[type="time"\]\s*\{[^}]*\}/)?.[0] ?? "";
+
+    expect(rule).toContain("display: block;");
+  });
+
   it("날짜 값은 다른 칸처럼 왼쪽에 놓인다", () => {
     expect(readSource("app/globals.css")).toMatch(/::-webkit-date-and-time-value\s*\{[^}]*text-align: left;/);
   });
