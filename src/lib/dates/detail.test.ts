@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatRecordDate, formatRecordMonthDay, isRecordId, toDateRecordDetail, toEditableRecord, type DetailRow } from "./detail";
+import { formatRecordDate, formatRecordMonthDay, formatRecordPeriod, formatRecordShortDate, isRecordId, toDateRecordDetail, toEditableRecord, type DetailRow } from "./detail";
 
 const row: DetailRow = {
   id: "r1",
   date: "2026-11-02",
+  end_date: null,
   title: "산책",
   place: null,
   memo: "오래 걸었다",
@@ -33,6 +34,7 @@ describe("toDateRecordDetail", () => {
     expect(detail).toEqual({
       id: "r1",
       date: "2026-11-02",
+      endDate: undefined,
       title: "산책",
       place: undefined,
       memo: "오래 걸었다",
@@ -43,6 +45,11 @@ describe("toDateRecordDetail", () => {
       ],
       filePaths: ["r1/p1.jpg", "r1/p1_thumb.jpg", "r1/p2.jpg", "r1/p2_thumb.jpg"],
     });
+  });
+
+  it("끝 날짜가 있으면 그대로 넘긴다", () => {
+    expect(toDateRecordDetail({ ...row, end_date: "2026-11-04" }, []).endDate).toBe("2026-11-04");
+    expect(toEditableRecord({ ...row, end_date: "2026-11-04" }, []).endDate).toBe("2026-11-04");
   });
 
   it("작성자를 읽지 못하면 작성자 없이 둔다", () => {
@@ -61,6 +68,7 @@ describe("toEditableRecord", () => {
     expect(editable).toEqual({
       id: "r1",
       date: "2026-11-02",
+      endDate: undefined,
       title: "산책",
       place: "",
       memo: "오래 걸었다",
@@ -81,6 +89,39 @@ describe("formatRecordDate", () => {
   it("YYYY.MM.DD와 요일로 쓴다", () => {
     expect(formatRecordDate("2026-11-02")).toBe("2026.11.02 월요일");
     expect(formatRecordDate("2025-12-24")).toBe("2025.12.24 수요일");
+  });
+});
+
+describe("formatRecordPeriod", () => {
+  it("하루짜리는 날짜 표기 그대로다", () => {
+    expect(formatRecordPeriod({ date: "2026-11-02", endDate: undefined })).toBe("2026.11.02 월요일");
+  });
+
+  it("같은 달 기간은 끝 날짜에서 연도를 뺀다", () => {
+    expect(formatRecordPeriod({ date: "2026-11-01", endDate: "2026-11-03" })).toBe("2026.11.01 일요일 – 11.03 화요일");
+  });
+
+  it("달이 바뀌는 기간도 끝 날짜에서 연도를 뺀다", () => {
+    expect(formatRecordPeriod({ date: "2026-10-31", endDate: "2026-11-02" })).toBe("2026.10.31 토요일 – 11.02 월요일");
+  });
+
+  it("해가 바뀌는 기간은 끝 날짜에도 연도를 쓴다", () => {
+    expect(formatRecordPeriod({ date: "2026-12-31", endDate: "2027-01-02" })).toBe("2026.12.31 목요일 – 2027.01.02 토요일");
+  });
+});
+
+describe("formatRecordShortDate", () => {
+  it("하루짜리는 월.일과 요일을 쓴다", () => {
+    expect(formatRecordShortDate({ date: "2026-11-02", endDate: undefined })).toBe("11.02 월요일");
+  });
+
+  it("기간은 그리드와 같은 표기로 요일 없이 쓴다", () => {
+    expect(formatRecordShortDate({ date: "2026-11-01", endDate: "2026-11-03" })).toBe("11.01–11.03");
+  });
+
+  it("달이나 해가 바뀌어도 그리드와 같은 표기다", () => {
+    expect(formatRecordShortDate({ date: "2026-10-31", endDate: "2026-11-02" })).toBe("10.31–11.02");
+    expect(formatRecordShortDate({ date: "2026-12-31", endDate: "2027-01-02" })).toBe("12.31–01.02");
   });
 });
 

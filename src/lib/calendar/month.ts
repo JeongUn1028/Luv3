@@ -111,18 +111,30 @@ export const getGridRange = (month: string): { start: string; end: string } => {
 };
 
 /**
- * 날짜마다 묶는다. 같은 날 안에서는 받은 순서를 지킨다.
+ * 다음 날. 달과 해가 바뀌어도 맞다.
+ *
+ * @example toNextDay("2026-12-31") // "2027-01-01"
+ */
+export const toNextDay = (isoDate: string): string => toIsoDate(new Date(toUtc(isoDate).getTime() + DAY_MS));
+
+/**
+ * 날짜마다 묶는다. 끝 날짜가 있으면(기간 기록) 기간의 모든 날에 넣는다. 같은 날 안에서는 받은 순서를 지킨다.
  *
  * @example groupByDate(events).get("2026-11-14") // [...]
  */
-export const groupByDate = <Item extends { date: string }>(items: Item[]): Map<string, Item[]> => {
+export const groupByDate = <Item extends { date: string; endDate?: string | undefined }>(items: Item[]): Map<string, Item[]> => {
   const grouped = new Map<string, Item[]>();
-  for (const item of items) grouped.set(item.date, [...(grouped.get(item.date) ?? []), item]);
+  for (const item of items) {
+    const lastDate = item.endDate ?? item.date;
+    for (let date = item.date; date <= lastDate; date = toNextDay(date)) {
+      grouped.set(date, [...(grouped.get(date) ?? []), item]);
+    }
+  }
   return grouped;
 };
 
 /**
- * 일정에 "기록 남기기"를 보여 줄지. 오늘까지의 함께 일정이고, 그날 같은 제목의 기록이 아직 없을 때만 권한다(중복 기록 방지).
+ * 일정에 "기록 남기기"를 보여 줄지. 오늘까지의 함께 일정이고, 그날이 들어간 같은 제목의 기록이 아직 없을 때만 권한다(중복 기록 방지).
  * 데이트 기록은 둘이 함께 한 일을 남기는 곳이라 개인 일정에는 권하지 않는다(#61).
  *
  * @example canLeaveRecord({ date: "2026-11-01", title: "산책", isTogether: true }, "2026-11-02", []) // true
@@ -130,11 +142,13 @@ export const groupByDate = <Item extends { date: string }>(items: Item[]): Map<s
 export const canLeaveRecord = (
   event: { date: string; title: string; isTogether: boolean },
   today: string,
-  records: readonly { date: string; title: string }[],
+  records: readonly { date: string; endDate?: string | undefined; title: string }[],
 ): boolean =>
   event.isTogether &&
   event.date <= today &&
-  !records.some((record) => record.date === event.date && record.title === event.title);
+  !records.some(
+    ({ date, endDate, title }) => title === event.title && date <= event.date && event.date <= (endDate ?? date),
+  );
 
 /** 캘린더 탭 주소 */
 export const CALENDAR_PATH = "/calendar";

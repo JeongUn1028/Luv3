@@ -16,7 +16,10 @@ export interface CalendarEvent {
 /** 달력에 표시하는 데이트 기록(누르면 기록 상세) */
 export interface CalendarRecord {
   id: string;
+  /** 기간이면 시작일 */
   date: string;
+  /** 기간의 끝 날짜. 하루짜리면 undefined */
+  endDate: string | undefined;
   title: string;
   authorNickname: string | undefined;
 }
@@ -36,6 +39,7 @@ export interface CalendarEventRow {
 export interface CalendarRecordRow {
   id: string;
   date: string;
+  end_date: string | null;
   title: string;
   author: AuthorRow;
 }
@@ -68,9 +72,10 @@ export const toCalendarEvent = ({
  *
  * @example recordsResult.data.map(toCalendarRecord)
  */
-export const toCalendarRecord = ({ id, date, title, author }: CalendarRecordRow): CalendarRecord => ({
+export const toCalendarRecord = ({ id, date, end_date, title, author }: CalendarRecordRow): CalendarRecord => ({
   id,
   date,
+  endDate: end_date ?? undefined,
   title,
   authorNickname: author?.nickname,
 });

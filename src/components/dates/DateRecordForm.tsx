@@ -11,6 +11,7 @@ import {
   PLACE_MAX_LENGTH,
   TITLE_MAX_LENGTH,
   addPhotos,
+  getMinEndDate,
   movePhoto,
   removePhoto,
   validateDraft,
@@ -45,6 +46,7 @@ const toSaveErrorMessage = (error: unknown): string => {
 
 const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto> => ({
   date: prefill?.date ?? toKstDate(new Date()),
+  endDate: undefined,
   title: prefill?.title ?? "",
   place: prefill?.place ?? "",
   memo: "",
@@ -52,8 +54,9 @@ const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto>
   coverPhotoId: undefined,
 });
 
-const toEditDraft = ({ date, title, place, memo, coverPhotoId, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
+const toEditDraft = ({ date, endDate, title, place, memo, coverPhotoId, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
   date,
+  endDate,
   title,
   place,
   memo,
@@ -77,6 +80,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
   const [progress, setProgress] = useState<SaveProgress>();
   const [isSaving, setIsSaving] = useState(false);
   const today = toKstDate(new Date());
+  const isPeriod = draft.endDate !== undefined;
 
   // 만든 미리보기 URL. 사진을 빼거나 화면을 떠날 때 해제한다(브라우저 메모리 = 외부 자원)
   const previewUrlsRef = useRef(new Set<string>());
@@ -92,9 +96,18 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
     previewUrlsRef.current.delete(url);
   };
 
-  const updateField = (field: "date" | "title" | "place" | "memo", value: string) => {
+  const updateField = (field: "date" | "endDate" | "title" | "place" | "memo", value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
-    setErrors((current) => clearError(current, field));
+    setErrors((current) => {
+      const cleared = clearError(current, field);
+      // 끝 날짜 에러는 시작 날짜에 따라 달라지므로, 시작 날짜를 고치면 함께 지우고 저장할 때 다시 확인한다
+      return field === "date" ? clearError(cleared, "endDate") : cleared;
+    });
+  };
+
+  const handlePeriodChange = (isChecked: boolean) => {
+    setDraft((current) => ({ ...current, endDate: isChecked ? "" : undefined }));
+    setErrors((current) => clearError(current, "endDate"));
   };
 
   const handleAddPhotos = (files: File[]) => {
@@ -216,7 +229,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
 
         <div className="flex flex-col">
           <label htmlFor="date" className={labelClassName}>
-            날짜
+            {isPeriod ? "시작 날짜" : "날짜"}
           </label>
           <input
             id="date"
@@ -233,6 +246,40 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
             <p id="date-error" className={errorClassName}>
               {errors.date}
             </p>
+          )}
+          <label className="mt-1 flex h-11 w-fit items-center gap-2 text-[13px] text-ink-sub">
+            <input
+              type="checkbox"
+              checked={isPeriod}
+              disabled={isSaving}
+              onChange={(event) => handlePeriodChange(event.target.checked)}
+              className="size-4 accent-accent"
+            />
+            기간으로 남기기
+          </label>
+          {isPeriod && (
+            <>
+              <label htmlFor="endDate" className={`${labelClassName} mt-2`}>
+                끝 날짜
+              </label>
+              <input
+                id="endDate"
+                type="date"
+                min={getMinEndDate(draft.date, today)}
+                max={today}
+                value={draft.endDate}
+                disabled={isSaving}
+                aria-invalid={Boolean(errors.endDate)}
+                aria-describedby={errors.endDate ? "endDate-error" : undefined}
+                onChange={(event) => updateField("endDate", event.target.value)}
+                className={inputClassName}
+              />
+              {errors.endDate && (
+                <p id="endDate-error" className={errorClassName}>
+                  {errors.endDate}
+                </p>
+              )}
+            </>
           )}
         </div>
 
