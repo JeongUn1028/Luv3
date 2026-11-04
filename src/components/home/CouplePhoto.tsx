@@ -159,7 +159,7 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
               onClick={handleOpenMenu}
               aria-label="커플 사진 바꾸기"
               aria-haspopup="dialog"
-              className="absolute right-2.5 bottom-2.5 flex size-10 items-center justify-center rounded-full bg-background/70 text-ink"
+              className="absolute right-2.5 bottom-2.5 flex size-10 items-center justify-center rounded-full bg-background/70 text-ink after:absolute after:-inset-0.5"
             >
               <CameraIcon className="size-5" />
             </button>

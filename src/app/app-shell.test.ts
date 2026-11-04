@@ -117,6 +117,23 @@ describe("입력 칸", () => {
   });
 });
 
+describe("누름 영역", () => {
+  it("홈 칸이 비었을 때의 추가 링크는 세로 44px이다", () => {
+    // 일정이 없는 상태는 E2E 데이터와 맞지 않아 클래스로 고정한다(#105)
+    const link = readSource("components/home/HomeTile.tsx").match(/<Link href=\{action\.href\}[^>]*>/)?.[0] ?? "";
+
+    expect(link).toContain("h-11");
+  });
+
+  it("완료한 줄의 빈 칸은 순서 버튼 두 개 너비와 같아 하트가 위 목록과 같은 세로줄에 온다", () => {
+    // 완료한 줄은 공유 데이터를 바꿔야 나와 E2E 대신 클래스로 고정한다(#105)
+    const source = readSource("components/todos/TodoList.tsx");
+
+    expect(source).toMatch(/MOVE_BUTTON_CLASS_NAME =\s*"flex size-11 /);
+    expect(source).toContain('className="w-22 shrink-0"');
+  });
+});
+
 describe("날짜·시간 칸", () => {
   it("iOS 기본 모양을 꺼서 다른 칸과 같은 폭·높이를 따른다", () => {
     // iOS의 기본 모양 날짜·시간 칸은 width·height를 따르지 않고 부모보다 커질 수 있다(#92)

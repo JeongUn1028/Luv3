@@ -13,7 +13,7 @@ const SAVE_FAILED_MESSAGE = "저장하지 못했어요. 잠시 후 다시 시도
 const ALREADY_DELETED_MESSAGE = "이미 지워진 항목이에요. 목록을 새로 불러왔어요.";
 
 const MOVE_BUTTON_CLASS_NAME =
-  "flex h-11 w-10 shrink-0 items-center justify-center text-ink-sub hover:text-ink aria-disabled:opacity-25 aria-disabled:hover:text-ink-sub";
+  "flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink aria-disabled:opacity-25 aria-disabled:hover:text-ink-sub";
 
 interface TodoListProps {
   /** 서버에서 읽은 전체 목록(하지 않은 것·완료한 것 모두) */
@@ -177,7 +177,7 @@ const TodoItem = ({ todo, onToggle, children }: TodoItemProps): ReactElement => 
       </Link>
       {todo.authorNickname && <AuthorHeart nickname={todo.authorNickname} className={isCompleted ? "opacity-50" : ""} />}
       {/* 순서 버튼이 없는 줄(완료)도 하트가 위 목록의 하트와 같은 세로줄에 오도록 버튼 두 개 너비를 비워 둔다 */}
-      {children ?? <span aria-hidden="true" className="w-20 shrink-0" />}
+      {children ?? <span aria-hidden="true" className="w-22 shrink-0" />}
     </li>
   );
 };

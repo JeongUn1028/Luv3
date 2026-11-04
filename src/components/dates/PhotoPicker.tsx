@@ -54,8 +54,10 @@ const PhotoPreview = ({ src, alt }: PhotoPreviewProps): ReactElement => {
   );
 };
 
+// 보이는 크기는 36px로 두고 누르는 영역만 44px로 넓힌다. 버튼 사이 간격(8px)을 반씩 나눠 가져 서로 겹치지 않는다(#105).
+// 가상 요소는 테두리 안쪽을 기준으로 놓이므로 테두리 1px을 더해 5px 넓힌다
 const smallButtonClassName =
-  "h-9 min-w-9 rounded-[8px] border border-line px-2 text-[12px] text-ink-sub hover:text-ink disabled:opacity-30";
+  "relative h-9 min-w-9 rounded-[8px] border border-line px-2 text-[12px] text-ink-sub after:absolute after:-inset-[5px] hover:text-ink disabled:opacity-30";
 
 /** 사진 고르기 + 고른 사진 목록(미리보기, 한마디, 대표 사진, 순서, 빼기) */
 export const PhotoPicker = ({
@@ -112,7 +114,7 @@ export const PhotoPicker = ({
                     aria-invalid={Boolean(captionError)}
                     aria-describedby={captionError ? `caption-error-${photo.id}` : undefined}
                     onChange={(event) => onCaptionChange(photo.id, event.target.value)}
-                    className="h-10 w-full rounded-[8px] border border-line bg-background px-3 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none"
+                    className="h-11 w-full rounded-[8px] border border-line bg-background px-3 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none"
                   />
                   {captionError && (
                     <p id={`caption-error-${photo.id}`} className="text-[12px] text-accent">
@@ -120,7 +122,7 @@ export const PhotoPicker = ({
                     </p>
                   )}
                   <div className="flex flex-wrap items-center gap-2">
-                    <label className="flex h-9 items-center gap-1.5 text-[12px] text-ink-sub">
+                    <label className="relative flex h-9 items-center gap-1.5 text-[12px] text-ink-sub after:absolute after:-inset-1">
                       <input
                         type="radio"
                         name="cover"
