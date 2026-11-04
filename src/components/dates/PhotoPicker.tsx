@@ -112,7 +112,7 @@ export const PhotoPicker = ({
                     aria-invalid={Boolean(captionError)}
                     aria-describedby={captionError ? `caption-error-${photo.id}` : undefined}
                     onChange={(event) => onCaptionChange(photo.id, event.target.value)}
-                    className="h-10 w-full rounded-[8px] border border-line bg-background px-3 text-[14px] text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none"
+                    className="h-10 w-full rounded-[8px] border border-line bg-background px-3 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none"
                   />
                   {captionError && (
                     <p id={`caption-error-${photo.id}`} className="text-[12px] text-accent">
