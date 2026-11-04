@@ -23,7 +23,7 @@ import { clearError, countChars } from "@/lib/form";
 import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import type { EditableRecord } from "@/lib/dates/detail";
-import { SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
+import { DateRecordGoneError, SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
@@ -79,6 +79,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
   const [draft, setDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft(prefill)));
   const [errors, setErrors] = useState<DraftErrors>({});
   const [notice, setNotice] = useState<string>();
+  const [isRecordGone, setIsRecordGone] = useState(false);
   const [progress, setProgress] = useState<SaveProgress>();
   const [isSaving, setIsSaving] = useState(false);
   const today = toKstDate(new Date());
@@ -194,10 +195,20 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
         setIsSaving(false);
       });
     } catch (error) {
+      setIsRecordGone(error instanceof DateRecordGoneError);
       setNotice(toSaveErrorMessage(error));
       setIsSaving(false);
       setProgress(undefined);
     }
+  };
+
+  // 기록을 지웠을 때(DeleteRecordButton)와 같이 옮기면서 다시 불러온다
+  const handleGoToRecords = () => {
+    draft.photos.forEach(({ previewUrl }) => revokePreview(previewUrl));
+    startTransition(() => {
+      router.replace(RECORDS_PATH, { transitionTypes: BACK_TRANSITION });
+      router.refresh();
+    });
   };
 
   return (
@@ -206,7 +217,8 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
       className="px-4"
       header={
         <ScreenHeader
-          back={record ? { href: `/dates/${record.id}`, label: "기록으로" } : { href: RECORDS_PATH, label: "기록 목록으로" }}
+          // 지워진 기록의 상세는 찾을 수 없음 화면이라 목록으로 돌아가게 한다
+          back={record && !isRecordGone ? { href: `/dates/${record.id}`, label: "기록으로" } : { href: RECORDS_PATH, label: "기록 목록으로" }}
           title={record ? "기록 고치기" : "기록 남기기"}
         />
       }
@@ -365,13 +377,24 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
               {notice}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="h-[52px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background disabled:opacity-50"
-          >
-            {progress ? toProgressLabel(progress) : isSaving ? "저장 중…" : "저장"}
-          </button>
+          {isRecordGone ? (
+            // 다시 저장해도 실패하고 사진만 또 올리게 되므로 저장 버튼 대신 나가는 길을 준다
+            <button
+              type="button"
+              onClick={handleGoToRecords}
+              className="h-[52px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background"
+            >
+              기록 목록으로
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="h-[52px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background disabled:opacity-50"
+            >
+              {progress ? toProgressLabel(progress) : isSaving ? "저장 중…" : "저장"}
+            </button>
+          )}
           <p aria-live="polite" className="sr-only">
             {progress ? toProgressLabel(progress) : ""}
           </p>

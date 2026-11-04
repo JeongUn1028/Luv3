@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PhotoError } from "@/lib/photos/errors";
 import type { PhotoStorage } from "@/lib/photos/upload";
 import type { DateRecordDraft } from "./form";
-import { SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "./save";
+import { DateRecordGoneError, SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "./save";
 
 const RECORD_ID = "10000000-0000-4000-8000-000000000001";
 const PHOTO_A = "20000000-0000-4000-8000-00000000000a";
@@ -180,6 +180,17 @@ describe("updateDateRecord", () => {
     ).rejects.toThrow(SaveDateRecordError);
     // 기존 사진 파일은 그대로 둔다(기록이 바뀌지 않았으므로)
     expect([...stored].sort()).toEqual([...removedPaths].sort());
+  });
+
+  it("상대가 이미 지운 기록이면 새로 올린 사진을 지우고 다시 시도하라고 하지 않는다", async () => {
+    const { storage, stored } = createFakeStorage();
+    const updateRecord = vi.fn(async () => ({ data: null, error: { message: "기록을 찾을 수 없습니다", code: "P0002" } }));
+
+    const save = updateDateRecord({ recordId: RECORD_ID, draft: editedDraft, files: newFiles, storage, resize, updateRecord });
+
+    await expect(save).rejects.toThrow(DateRecordGoneError);
+    await expect(save).rejects.toThrow("이미 지워졌어요");
+    expect([...stored]).toEqual([]);
   });
 
   it("뺀 사진 파일을 지우지 못해도 수정은 성공으로 본다(남은 파일은 #31에서 정리)", async () => {
