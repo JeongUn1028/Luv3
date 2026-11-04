@@ -1,9 +1,6 @@
-import Link from "next/link";
 import type { ReactElement } from "react";
-import { AuthorHeart } from "@/components/AuthorHeart";
-import { EventTimeLabel } from "@/components/events/EventTimeLabel";
-import { toCalendarHref } from "@/lib/calendar/month";
 import type { CalendarEvent } from "@/lib/events/calendar";
+import { formatEventMeta, previewUpcomingEvents } from "@/lib/events/upcoming";
 
 interface UpcomingEventListProps {
   /** 하루치 일정(`pickUpcomingDay`가 고르고 정렬한 순서) */
@@ -11,25 +8,28 @@ interface UpcomingEventListProps {
 }
 
 /**
- * 홈의 오늘·다음 일정 목록. 같은 날 일정이 여러 개여도 모두 작게 보여 준다.
- * 줄을 누르면 캘린더 탭에서 그날을 연다.
+ * 홈 일정 칸의 내용: 일정 2개까지, 더 있으면 칸 아래에 "외 N개".
+ * 개인 일정이면 둘째 줄 앞에 크림색 "개인"을 붙인다. 칸이 좁아 작성자 하트는 그리지 않는다(캘린더 탭에서 보인다).
+ *
+ * @example <UpcomingEventList events={day.events} />
  */
-export const UpcomingEventList = ({ events }: UpcomingEventListProps): ReactElement => (
-  <ul className="flex flex-col gap-1.5">
-    {events.map((event) => (
-      <li key={event.id}>
-        <Link
-          href={toCalendarHref({ date: event.date })}
-          className="flex min-h-11 items-center gap-3 rounded-[10px] bg-surface py-0.5 pr-2 pl-3"
-        >
-          <EventTimeLabel event={event} />
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate text-[14px] text-ink">{event.title}</span>
-            {event.place && <span className="truncate text-[12px] text-ink-sub">{event.place}</span>}
-          </span>
-          {event.authorNickname && <AuthorHeart nickname={event.authorNickname} />}
-        </Link>
-      </li>
-    ))}
-  </ul>
-);
+export const UpcomingEventList = ({ events }: UpcomingEventListProps): ReactElement => {
+  const { shown, moreLabel } = previewUpcomingEvents(events);
+
+  return (
+    <>
+      <ul className="mt-2.5 flex flex-col gap-2">
+        {shown.map((event) => (
+          <li key={event.id}>
+            <p className="truncate text-[14px] leading-5 text-ink">{event.title}</p>
+            <p className="truncate text-[12px] leading-4 text-ink-sub">
+              {!event.isTogether && <span className="text-cream">개인 · </span>}
+              {formatEventMeta(event)}
+            </p>
+          </li>
+        ))}
+      </ul>
+      {moreLabel && <p className="mt-auto text-[12px] leading-4 text-accent">{moreLabel}</p>}
+    </>
+  );
+};

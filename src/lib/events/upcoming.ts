@@ -1,5 +1,8 @@
 import { countDaysBetween } from "@/lib/anniversary";
-import { formatDayHeading } from "@/lib/calendar/month";
+import { formatDayHeading, formatEventTime } from "@/lib/calendar/month";
+
+/** 홈 일정 칸에 보여 줄 일정 수. 칸이 정사각형이라 더 넣으면 넘친다 */
+const UPCOMING_PREVIEW_COUNT = 2;
 
 /** 홈에 보여 줄 하루치 일정 */
 export interface UpcomingDay<Event> {
@@ -45,14 +48,40 @@ export const pickUpcomingDay = <Event extends UpcomingEvent>(
 };
 
 /**
- * 일정 칸 제목과 날짜 설명. 다음 일정이면 며칠 뒤인지 덧붙인다.
+ * 일정 칸의 제목, 날짜, 며칠 뒤인지. 오늘 일정이면 며칠 뒤인지는 없다.
  *
- * @example describeUpcomingDay("2026-11-04", "2026-11-03") // { title: "다음 일정", detail: "11월 4일 수요일 · 내일" }
+ * @example describeUpcomingDay("2026-11-14", "2026-11-03") // { title: "다음 일정", dateLabel: "11월 14일 토요일", relativeLabel: "11일 뒤" }
  */
-export const describeUpcomingDay = (date: string, today: string): { title: string; detail: string } => {
-  const heading = formatDayHeading(date);
-  if (date === today) return { title: "오늘 일정", detail: heading };
+export const describeUpcomingDay = (
+  date: string,
+  today: string,
+): { title: string; dateLabel: string; relativeLabel: string | undefined } => {
+  const dateLabel = formatDayHeading(date);
+  if (date === today) return { title: "오늘 일정", dateLabel, relativeLabel: undefined };
 
   const days = countDaysBetween(today, date);
-  return { title: "다음 일정", detail: `${heading} · ${days === 1 ? "내일" : `${days}일 뒤`}` };
+  return { title: "다음 일정", dateLabel, relativeLabel: days === 1 ? "내일" : `${days}일 뒤` };
+};
+
+/**
+ * 일정 칸에 보여 줄 일정과, 칸에 못 넣은 일정 수 문구.
+ *
+ * @example previewUpcomingEvents(["전시", "저녁", "영화"]) // { shown: ["전시", "저녁"], moreLabel: "외 1개" }
+ */
+export const previewUpcomingEvents = <Event>(events: Event[]): { shown: Event[]; moreLabel: string | undefined } => {
+  const hiddenCount = events.length - UPCOMING_PREVIEW_COUNT;
+  return {
+    shown: events.slice(0, UPCOMING_PREVIEW_COUNT),
+    moreLabel: hiddenCount > 0 ? `외 ${hiddenCount}개` : undefined,
+  };
+};
+
+/**
+ * 일정 칸의 일정 제목 아래 줄: 시간(또는 종일)과 장소.
+ *
+ * @example formatEventMeta({ startTime: "19:00:00", place: "성수" }) // "19:00 · 성수"
+ */
+export const formatEventMeta = ({ startTime, place }: { startTime: string | null; place: string | undefined }): string => {
+  const time = formatEventTime(startTime);
+  return place ? `${time} · ${place}` : time;
 };

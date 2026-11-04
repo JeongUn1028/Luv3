@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeUpcomingDay, pickUpcomingDay } from "./upcoming";
+import { describeUpcomingDay, formatEventMeta, pickUpcomingDay, previewUpcomingEvents } from "./upcoming";
 
 const event = (id: string, date: string, startTime: string | null) => ({ id, date, startTime });
 
@@ -58,22 +58,52 @@ describe("pickUpcomingDay", () => {
 });
 
 describe("describeUpcomingDay", () => {
-  it("오늘이면 제목은 오늘 일정, 설명은 오늘 날짜다", () => {
+  it("오늘이면 제목은 오늘 일정이고 며칠 뒤인지는 쓰지 않는다", () => {
     expect(describeUpcomingDay("2026-11-03", "2026-11-03")).toEqual({
       title: "오늘 일정",
-      detail: "11월 3일 화요일",
+      dateLabel: "11월 3일 화요일",
+      relativeLabel: undefined,
     });
   });
 
-  it("내일이면 날짜 뒤에 내일을 붙인다", () => {
+  it("내일이면 제목은 다음 일정이고 내일이라고 쓴다", () => {
     expect(describeUpcomingDay("2026-11-04", "2026-11-03")).toEqual({
       title: "다음 일정",
-      detail: "11월 4일 수요일 · 내일",
+      dateLabel: "11월 4일 수요일",
+      relativeLabel: "내일",
     });
   });
 
-  it("이틀 뒤부터는 며칠 뒤인지 붙이고, 달·해가 바뀌어도 날 수를 센다", () => {
-    expect(describeUpcomingDay("2026-11-14", "2026-11-03").detail).toBe("11월 14일 토요일 · 11일 뒤");
-    expect(describeUpcomingDay("2027-01-02", "2026-12-31").detail).toBe("1월 2일 토요일 · 2일 뒤");
+  it("이틀 뒤부터는 며칠 뒤인지 쓰고, 달·해가 바뀌어도 날 수를 센다", () => {
+    expect(describeUpcomingDay("2026-11-14", "2026-11-03").relativeLabel).toBe("11일 뒤");
+    expect(describeUpcomingDay("2027-01-02", "2026-12-31").relativeLabel).toBe("2일 뒤");
+  });
+});
+
+describe("previewUpcomingEvents", () => {
+  it("일정이 2개 이하면 모두 보여 주고 외 N개 문구는 없다", () => {
+    expect(previewUpcomingEvents([])).toEqual({ shown: [], moreLabel: undefined });
+    expect(previewUpcomingEvents(["전시"])).toEqual({ shown: ["전시"], moreLabel: undefined });
+    expect(previewUpcomingEvents(["전시", "저녁"])).toEqual({ shown: ["전시", "저녁"], moreLabel: undefined });
+  });
+
+  it("일정이 3개 이상이면 앞의 2개만 보여 주고 남은 수를 외 N개로 쓴다", () => {
+    expect(previewUpcomingEvents(["전시", "저녁", "영화"])).toEqual({ shown: ["전시", "저녁"], moreLabel: "외 1개" });
+    expect(previewUpcomingEvents(["전시", "저녁", "영화", "산책"]).moreLabel).toBe("외 2개");
+  });
+});
+
+describe("formatEventMeta", () => {
+  it("시간과 장소를 가운뎃점으로 잇는다", () => {
+    expect(formatEventMeta({ startTime: "19:00:00", place: "성수" })).toBe("19:00 · 성수");
+  });
+
+  it("시간이 없으면 종일이라고 쓴다", () => {
+    expect(formatEventMeta({ startTime: null, place: "국립현대미술관" })).toBe("종일 · 국립현대미술관");
+  });
+
+  it("장소가 없으면 시간만 쓴다", () => {
+    expect(formatEventMeta({ startTime: "19:00:00", place: undefined })).toBe("19:00");
+    expect(formatEventMeta({ startTime: null, place: undefined })).toBe("종일");
   });
 });
