@@ -113,11 +113,11 @@ describe("formatEventOwner", () => {
     expect(formatEventOwner({ isTogether: true, authorNickname: "진아" })).toBe("함께");
   });
 
-  it("개인 일정이면 작성자 닉네임을 쓴다", () => {
+  it("한 사람 일정이면 작성자 닉네임을 쓴다", () => {
     expect(formatEventOwner({ isTogether: false, authorNickname: "정운" })).toBe("정운");
   });
 
-  it("개인 일정인데 작성자를 모르면 개인이라고 쓴다", () => {
-    expect(formatEventOwner({ isTogether: false, authorNickname: undefined })).toBe("개인");
+  it("한 사람 일정인데 작성자를 모르면 한 사람이라고 쓴다", () => {
+    expect(formatEventOwner({ isTogether: false, authorNickname: undefined })).toBe("한 사람");
   });
 });

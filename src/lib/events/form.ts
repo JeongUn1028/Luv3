@@ -14,7 +14,7 @@ export interface EventDraft {
   title: string;
   place: string;
   memo: string;
-  /** 둘이 함께 하는 일정이면 true, 한 사람의 개인 일정이면 false */
+  /** 둘이 함께 하는 일정이면 true, 한 사람 일정이면 false */
   isTogether: boolean;
 }
 

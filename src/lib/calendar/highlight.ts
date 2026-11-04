@@ -1,19 +1,25 @@
-import type { CalendarEvent } from "@/lib/events/calendar";
+import { toOwnerLabel, type CalendarEvent } from "@/lib/events/calendar";
 
-/** 일정 있는 날에 칠하는 형광펜 종류. 함께 일정은 분홍, 개인 일정만 있으면 크림색 */
+/** 일정 있는 날에 칠하는 형광펜 종류. 함께 일정은 분홍, 한 사람 일정만 있으면 크림색 */
 export type DayHighlight = "together" | "personal";
 
 type EventKind = Pick<CalendarEvent, "isTogether">;
 
+/** 일정 종류 하나의 이름과 형광펜 */
+export interface EventKindOption extends EventKind {
+  highlight: DayHighlight;
+  label: string;
+}
+
 /**
- * 일정 종류(함께/개인)와 형광펜의 짝. 일정 폼의 선택지와 캘린더 범례가 같은 이름·색을 쓰도록 여기서만 정한다.
+ * 일정 종류(함께 / 닉네임)와 형광펜의 짝. 일정 폼의 선택지와 캘린더 범례가 같은 이름·색을 쓰도록 여기서만 정한다.
  *
- * @example EVENT_KINDS.map(({ label }) => `${label} 일정`) // ["함께 일정", "개인 일정"]
+ * @example getEventKinds("정운").map(({ label }) => `${label} 일정`) // ["함께 일정", "정운 일정"]
  */
-export const EVENT_KINDS = [
+export const getEventKinds = (ownerNickname: string): EventKindOption[] => [
   { isTogether: true, highlight: "together", label: "함께" },
-  { isTogether: false, highlight: "personal", label: "개인" },
-] as const satisfies readonly (EventKind & { highlight: DayHighlight; label: string })[];
+  { isTogether: false, highlight: "personal", label: ownerNickname },
+];
 
 /**
  * 그날 일정으로 형광펜 종류를 정한다. 함께 일정이 하나라도 있으면 함께 형광펜이다.
@@ -28,16 +34,22 @@ export const getDayHighlight = (events: EventKind[]): DayHighlight | undefined =
 
 /**
  * 날짜 버튼 이름에 넣을 일정 수 설명. 형광펜 색은 화면 읽기 프로그램이 알 수 없어 글로 알려 준다.
+ * 한 사람 일정은 작성자별로 센다.
  *
- * @example describeDayEvents(events) // ["함께 일정 1개", "개인 일정 2개"]
+ * @example describeDayEvents(events) // ["함께 일정 1개", "정운 일정 2개"]
  */
-export const describeDayEvents = (events: EventKind[]): string[] => {
+export const describeDayEvents = (events: Pick<CalendarEvent, "isTogether" | "authorNickname">[]): string[] => {
   const togetherCount = events.filter((event) => event.isTogether).length;
-  const personalCount = events.length - togetherCount;
+  const countByOwner = new Map<string, number>();
+  for (const { isTogether, authorNickname } of events) {
+    if (isTogether) continue;
+    const owner = toOwnerLabel(authorNickname);
+    countByOwner.set(owner, (countByOwner.get(owner) ?? 0) + 1);
+  }
   return [
-    togetherCount > 0 && `함께 일정 ${togetherCount}개`,
-    personalCount > 0 && `개인 일정 ${personalCount}개`,
-  ].filter((description) => description !== false);
+    ...(togetherCount > 0 ? [`함께 일정 ${togetherCount}개`] : []),
+    ...Array.from(countByOwner, ([owner, count]) => `${owner} 일정 ${count}개`),
+  ];
 };
 
 /** 형광펜 띠와 그 위 날짜 숫자의 클래스 */

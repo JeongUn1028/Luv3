@@ -2,47 +2,58 @@ import { describe, expect, it } from "vitest";
 import { blendColors, getContrastRatio, parseHexColor } from "@/test-utils/contrast";
 import { readSource } from "@/test-utils/source";
 import {
-  EVENT_KINDS,
   describeDayEvents,
   getDayHighlight,
   getDayNumberClassName,
+  getEventKinds,
   getHighlightClassNames,
   type DayHighlight,
 } from "./highlight";
 
-const together = { isTogether: true };
-const personal = { isTogether: false };
+const together = { isTogether: true, authorNickname: "정운" };
+const personal = { isTogether: false, authorNickname: "정운" };
+const partnerPersonal = { isTogether: false, authorNickname: "진아" };
 
 describe("getDayHighlight", () => {
   it("일정이 없으면 형광펜을 칠하지 않는다", () => {
     expect(getDayHighlight([])).toBeUndefined();
   });
 
-  it("개인 일정만 있으면 개인 형광펜(크림색)을 칠한다", () => {
+  it("한 사람 일정만 있으면 크림색 형광펜을 칠한다", () => {
     expect(getDayHighlight([personal, personal])).toBe("personal");
   });
 
-  it("함께 일정이 하나라도 있으면 개인 일정과 겹쳐도 함께 형광펜(분홍)을 칠한다", () => {
+  it("함께 일정이 하나라도 있으면 한 사람 일정과 겹쳐도 함께 형광펜(분홍)을 칠한다", () => {
     expect(getDayHighlight([together])).toBe("together");
     expect(getDayHighlight([personal, together])).toBe("together");
   });
 });
 
 describe("describeDayEvents", () => {
-  it("화면 읽기 프로그램용으로 함께·개인 일정 수를 알려 준다", () => {
+  it("화면 읽기 프로그램용으로 함께 일정과 작성자별 일정 수를 알려 준다", () => {
     expect(describeDayEvents([])).toEqual([]);
     expect(describeDayEvents([together, together])).toEqual(["함께 일정 2개"]);
-    expect(describeDayEvents([personal, together, personal])).toEqual(["함께 일정 1개", "개인 일정 2개"]);
+    expect(describeDayEvents([personal, together, partnerPersonal, personal])).toEqual([
+      "함께 일정 1개",
+      "정운 일정 2개",
+      "진아 일정 1개",
+    ]);
+  });
+
+  it("작성자를 모르는 일정은 한 사람 일정으로 센다", () => {
+    expect(describeDayEvents([{ isTogether: false, authorNickname: undefined }])).toEqual(["한 사람 일정 1개"]);
   });
 });
 
-describe("EVENT_KINDS", () => {
-  it("함께·개인 두 종류가 각자의 형광펜과 짝을 이룬다", () => {
-    expect(EVENT_KINDS.map(({ isTogether, highlight, label }) => ({ isTogether, highlight, label }))).toEqual([
+describe("getEventKinds", () => {
+  it("함께와 닉네임 두 종류가 각자의 형광펜과 짝을 이룬다", () => {
+    const kinds = getEventKinds("정운");
+
+    expect(kinds).toEqual([
       { isTogether: true, highlight: "together", label: "함께" },
-      { isTogether: false, highlight: "personal", label: "개인" },
+      { isTogether: false, highlight: "personal", label: "정운" },
     ]);
-    for (const { isTogether, highlight } of EVENT_KINDS) expect(getDayHighlight([{ isTogether }])).toBe(highlight);
+    for (const { isTogether, highlight } of kinds) expect(getDayHighlight([{ isTogether }])).toBe(highlight);
   });
 });
 
@@ -109,7 +120,7 @@ describe("형광펜 위 글자 대비", () => {
     }
   });
 
-  it("함께·개인 형광펜은 서로 다른 색이다", () => {
+  it("함께 일정과 한 사람 일정의 형광펜은 서로 다른 색이다", () => {
     const togetherBand = getHighlightClassNames({ highlight: "together", isCurrentMonth: true }).band;
     const personalBand = getHighlightClassNames({ highlight: "personal", isCurrentMonth: true }).band;
     expect(togetherBand).not.toBe(personalBand);

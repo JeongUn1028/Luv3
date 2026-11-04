@@ -42,13 +42,13 @@ select results_eq(
 select results_eq(
   $$select bool_and(is_together) from public.events where id::text like '30000000-%'$$,
   $$values (true)$$,
-  '함께/개인을 적지 않은 일정은 함께 일정으로 저장된다'
+  '함께 여부를 적지 않은 일정은 함께 일정으로 저장된다'
 );
 
 select lives_ok(
   $$insert into public.events (id, date, title, is_together) values
       ('30000000-0000-0000-0000-000000000003', '2026-11-15', '치과', false)$$,
-  '개인 일정으로 만들 수 있다'
+  '한 사람 일정으로 만들 수 있다'
 );
 
 select throws_ok(
@@ -100,7 +100,7 @@ select results_eq(
       update public.events set is_together = false where id = '30000000-0000-0000-0000-000000000001' returning is_together
     ) select is_together from changed$$,
   $$values (false)$$,
-  '다른 멤버도 일정을 개인 일정으로 바꾼다'
+  '다른 멤버도 일정을 한 사람 일정으로 바꾼다'
 );
 
 select lives_ok(

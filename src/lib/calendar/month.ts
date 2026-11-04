@@ -135,7 +135,7 @@ export const groupByDate = <Item extends { date: string; endDate?: string | unde
 
 /**
  * 일정에 "기록 남기기"를 보여 줄지. 오늘까지의 함께 일정이고, 그날이 들어간 같은 제목의 기록이 아직 없을 때만 권한다(중복 기록 방지).
- * 데이트 기록은 둘이 함께 한 일을 남기는 곳이라 개인 일정에는 권하지 않는다(#61).
+ * 데이트 기록은 둘이 함께 한 일을 남기는 곳이라 한 사람 일정에는 권하지 않는다(#61).
  *
  * @example canLeaveRecord({ date: "2026-11-01", title: "산책", isTogether: true }, "2026-11-02", []) // true
  */
