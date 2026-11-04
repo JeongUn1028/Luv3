@@ -6,6 +6,8 @@ import { readSource, readSourceLines } from "@/test-utils/source";
 // Vitest(node)로는 레이아웃을 잴 수 없어 소스 규칙으로 고정한다.
 
 const SHELL = "components/PageShell.tsx";
+// 루트 레이아웃까지 실패했을 때의 최후의 화면은 일반 화면 코드에 기대지 않고 직접 그린다(#83)
+const GLOBAL_ERROR = "app/global-error.tsx";
 
 const findLines = (pattern: RegExp, allowed: readonly string[]): string[] =>
   readSourceLines().flatMap(({ at, lines }) =>
@@ -16,7 +18,7 @@ const findLines = (pattern: RegExp, allowed: readonly string[]): string[] =>
 
 describe("화면 틀", () => {
   it("화면의 main은 PageShell에서만 만든다", () => {
-    expect(findLines(/<main\b/, [SHELL])).toEqual([]);
+    expect(findLines(/<main\b/, [SHELL, GLOBAL_ERROR])).toEqual([]);
   });
 
   it("루트 레이아웃이 화면 높이(h-app)를 고정하고 PageShell은 그 안을 채워 안쪽 영역만 스크롤한다", () => {
@@ -83,7 +85,7 @@ describe("화면 틀", () => {
   });
 
   it("safe-area 여백은 틀·하단 탭·설치 안내에서만 정한다", () => {
-    const allowed = [SHELL, "components/tabs/TabBar.tsx", "components/InstallHint.tsx"];
+    const allowed = [SHELL, GLOBAL_ERROR, "components/tabs/TabBar.tsx", "components/InstallHint.tsx"];
 
     expect(findLines(/safe-area-inset-(?:top|bottom)/, allowed)).toEqual([]);
   });
