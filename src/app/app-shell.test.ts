@@ -114,3 +114,23 @@ describe("입력 칸", () => {
     expect(readSource("app/layout.tsx")).not.toMatch(/maximumScale|userScalable/);
   });
 });
+
+describe("날짜·시간 칸", () => {
+  it("iOS 기본 모양을 꺼서 다른 칸과 같은 폭·높이를 따른다", () => {
+    // iOS의 기본 모양 날짜·시간 칸은 width·height를 따르지 않고 부모보다 커질 수 있다(#92)
+    const rule = readSource("app/globals.css").match(/input\[type="date"\],\s*input\[type="time"\]\s*\{[^}]*\}/)?.[0] ?? "";
+
+    expect(rule).toContain("-webkit-appearance: none;");
+    expect(rule).toContain("appearance: none;");
+    expect(rule).toContain("min-width: 0;");
+    expect(rule).toContain("max-width: 100%;");
+  });
+
+  it("날짜 값은 다른 칸처럼 왼쪽에 놓인다", () => {
+    expect(readSource("app/globals.css")).toMatch(/::-webkit-date-and-time-value\s*\{[^}]*text-align: left;/);
+  });
+
+  it("스크롤 영역은 칸이 넘쳐도 옆으로 움직이지 않는다", () => {
+    expect(readSource(SHELL)).toMatch(/"[^"]*\boverflow-x-hidden\b[^"]*\boverflow-y-auto\b[^"]*"/);
+  });
+});

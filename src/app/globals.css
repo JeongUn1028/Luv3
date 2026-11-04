@@ -41,6 +41,21 @@ select {
   font-size: 16px;
 }
 
+/* iOS의 기본 모양 날짜·시간 칸은 width·height를 따르지 않고 부모보다 커질 수 있어 기본 모양을 끈다(#92) */
+input[type="date"],
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* iOS는 날짜 값을 가운데에 놓는다. 다른 칸처럼 왼쪽에 맞춘다 */
+::-webkit-date-and-time-value {
+  text-align: left;
+}
+
 /*
   아이폰 홈 화면 앱(black-translucent + viewport-fit=cover)을 처음 띄우면 iOS가 innerHeight·100dvh·fixed 높이를
   상태바만큼 작게(852 → 793) 알리고, 스크롤하기 전까지 바로잡지 않아 아래가 빈다. 실기기에서 100lvh만 늘 화면 높이와
