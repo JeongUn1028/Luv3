@@ -64,6 +64,8 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
         // 옮기지 못했으면 "옮겼어요" 안내가 남지 않게 지운다(실패 문구는 alert로 따로 읽힌다)
         setAnnouncement("");
       }
+      // 저장에 실패하면 먼저 바꾼 화면은 저절로 되돌아간다. 세션이 끊겼을 때 다시 불러오면 로그인 화면으로 넘어가 다시 로그인 창이 소용없어진다(#102)
+      if (failure === SAVE_FAILED_MESSAGE) return;
       // await 뒤의 갱신은 다시 transition으로 감싸야 새 목록이 올 때까지 먼저 바꾼 화면이 유지된다
       startTransition(() => router.refresh());
     });

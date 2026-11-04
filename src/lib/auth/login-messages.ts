@@ -1,5 +1,7 @@
+export const NOT_MEMBER_MESSAGE = "허용된 계정이 아닙니다.";
+
 const LOGIN_ERROR_MESSAGES: Record<string, string> = {
-  not_member: "허용된 계정이 아닙니다.",
+  not_member: NOT_MEMBER_MESSAGE,
 };
 
 /**

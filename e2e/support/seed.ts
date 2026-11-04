@@ -65,6 +65,20 @@ export const listRecordFiles = async (recordId: string): Promise<string[]> => {
   return (data ?? []).map(({ name }) => name);
 };
 
+/**
+ * 로그인은 되지만 허용목록(members)에는 없는 계정을 만든다. 돌려준 함수는 계정을 지운다.
+ *
+ * @example const deleteAccount = await createNonMemberAccount("x@example.com", password)
+ */
+export const createNonMemberAccount = async (email: string, password: string): Promise<() => Promise<void>> => {
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  assertNoError({ error }, "허용목록 밖 계정");
+  const userId = data.user?.id;
+  if (!userId) throw new Error("E2E 데이터 준비 실패(허용목록 밖 계정): 계정 id가 없습니다");
+  return async () => assertNoError(await admin.auth.admin.deleteUser(userId), "허용목록 밖 계정 지우기");
+};
+
 const clearAccount = async (admin: AdminClient): Promise<void> => {
   const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
   assertNoError({ error }, "계정 조회");
