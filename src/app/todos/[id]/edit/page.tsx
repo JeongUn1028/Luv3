@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { FormSkeleton } from "@/components/FormSkeleton";
 import { PageShell } from "@/components/PageShell";
+import { StatusLink, StatusScreen } from "@/components/StatusScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { TodoForm } from "@/components/todos/TodoForm";
 import { getCurrentMember } from "@/lib/auth/member";
-import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { getTodo, TodoLoadError } from "@/lib/todos/queries";
 
@@ -32,17 +31,9 @@ const EditTodoForm = async ({ params }: { params: Promise<{ id: string }> }) => 
 
   if (!todo) {
     return (
-      <PageShell className="items-center justify-center gap-4 px-4 text-center">
-        <p className="text-[15px] text-ink">항목을 찾을 수 없어요</p>
-        <p className="text-[13px] text-ink-sub">지워졌거나 주소가 잘못됐어요.</p>
-        <Link
-          href={TODOS_PATH}
-          transitionTypes={BACK_TRANSITION}
-          className="mt-2 flex h-[51px] w-full items-center justify-center rounded-[10px] border border-line text-[15px] text-ink hover:bg-surface"
-        >
-          목록으로
-        </Link>
-      </PageShell>
+      <StatusScreen title="항목을 찾을 수 없어요" description="지워졌거나 주소가 잘못됐어요.">
+        <StatusLink href={TODOS_PATH}>목록으로</StatusLink>
+      </StatusScreen>
     );
   }
 
