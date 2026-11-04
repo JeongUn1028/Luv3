@@ -149,6 +149,47 @@ test.describe("홈 맨 위", () => {
   });
 });
 
+test.describe("홈 커플 사진", () => {
+  // 칸마다 따로 불러오므로 내용이 빠진 채로 재지 않도록 모든 칸을 먼저 기다린다
+  const openLoadedHome = async (page: Page): Promise<void> => {
+    await openScreen(page, "/", page.getByText(TODO.content));
+    await expect(page.getByText(PHOTO_RECORD.title)).toBeVisible();
+    for (const { title } of E2E_EVENTS) await expect(page.getByText(title)).toBeVisible();
+    await expect(page.getByRole("img", { name: "커플 사진" })).toBeVisible();
+  };
+
+  test("남는 높이를 채워 하단 탭 위에 빈 공간이 없고 스크롤도 생기지 않는다", async ({ page, viewport }) => {
+    await openLoadedHome(page);
+
+    const area = await getScrollArea(page).boundingBox();
+    const last = await getScrollArea(page).locator("> *").last().boundingBox();
+    const photo = await page.getByRole("img", { name: "커플 사진" }).boundingBox();
+    expect(area).not.toBeNull();
+    expect(last).not.toBeNull();
+    expect(photo).not.toBeNull();
+
+    // 내용 영역의 아래 안쪽 여백(10px)만 남는다
+    expect((area?.y ?? 0) + (area?.height ?? 0) - (last?.y ?? 0) - (last?.height ?? 0)).toBeLessThanOrEqual(11);
+    // 세로만 늘고 폭은 좌우 여백(16px씩)을 뺀 그대로다
+    expect(photo?.width).toBe((viewport?.width ?? 0) - 32);
+    expect((photo?.height ?? 0) * 4).toBeGreaterThan((photo?.width ?? 0) * 3);
+    expect(await getScrollAreaOverflow(page)).toEqual({ vertical: 0, horizontal: 0 });
+    // 사진을 바꾸는 버튼이 사진 안에 있어 누를 수 있다
+    await expect(page.getByRole("button", { name: "커플 사진 바꾸기" })).toBeInViewport({ ratio: 1 });
+  });
+
+  test("화면이 낮으면 사진은 4:3 아래로 줄어들지 않고 화면이 스크롤된다", async ({ page, viewport }) => {
+    await page.setViewportSize({ width: viewport?.width ?? 0, height: 600 });
+    await openLoadedHome(page);
+
+    const photo = await page.getByRole("img", { name: "커플 사진" }).boundingBox();
+    expect(photo).not.toBeNull();
+
+    expect(Math.abs((photo?.height ?? 0) - ((photo?.width ?? 0) * 3) / 4)).toBeLessThanOrEqual(1);
+    expect((await getScrollAreaOverflow(page)).vertical).toBeGreaterThan(0);
+  });
+});
+
 test.describe("일정 폼", () => {
   for (const { name, path } of [
     { name: "일정 추가", path: "/events/new" },

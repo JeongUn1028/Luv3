@@ -139,7 +139,8 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
   };
 
   return (
-    <section aria-label="커플 사진" className="shrink-0">
+    // 사진이 있으면 남는 높이를 채운다. 4:3보다 작아지지 않고, 공간이 모자라면 화면이 스크롤된다(#115)
+    <section aria-label="커플 사진" className={photoUrl ? "flex shrink-0 grow flex-col" : "shrink-0"}>
       <input
         ref={inputRef}
         type="file"
@@ -149,9 +150,10 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
         aria-label="커플 사진 고르기"
       />
       {photoUrl ? (
-        <div className="relative aspect-[4/3] overflow-hidden rounded-[16px] bg-surface">
+        // w-full: 늘어난 높이로 비율을 다시 계산해 폭까지 넓어지지 않게 폭을 고정한다
+        <div className="relative aspect-[4/3] w-full shrink-0 grow overflow-hidden rounded-[16px] bg-surface">
           {/* eslint-disable-next-line @next/next/no-img-element -- 업로드 때 이미 2000px JPEG로 줄였고, 서명 URL이라 next/image 캐시에 맞지 않는다 */}
-          <img src={photoUrl} alt="커플 사진" className="size-full object-cover" />
+          <img src={photoUrl} alt="커플 사진" className="absolute inset-0 size-full object-cover" />
           {!isBusy && (
             <button
               ref={changeButtonRef}
