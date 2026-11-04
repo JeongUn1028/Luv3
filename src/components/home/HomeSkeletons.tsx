@@ -16,7 +16,7 @@ export const DdaySkeleton = (): ReactElement => (
 
 /** 커플 사진 자리. 사진이 있을 때가 대부분이라 사진 칸 크기로 둔다 */
 export const CouplePhotoSkeleton = (): ReactElement => (
-  <SkeletonBlock className="aspect-[4/3] shrink-0 rounded-[16px]" />
+  <SkeletonBlock className="aspect-[4/3] w-full shrink-0 grow rounded-[16px]" />
 );
 
 /** 최근 데이트·일정의 정사각형 칸 */
