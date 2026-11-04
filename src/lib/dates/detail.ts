@@ -109,10 +109,18 @@ export const toEditableRecord = (row: DetailRow, signedThumbs: SignedThumb[]): E
 
 const WEEKDAY_FORMAT = new Intl.DateTimeFormat("ko-KR", { weekday: "long", timeZone: "UTC" });
 
+const toWeekday = (isoDate: string): string => WEEKDAY_FORMAT.format(new Date(`${isoDate}T00:00:00Z`));
+
 /**
  * 상세 화면 날짜 표기: "2026.11.02 월요일". 날짜만 있는 값이라 시간대 영향을 받지 않게 UTC로 요일을 구한다.
  *
  * @example formatRecordDate("2026-11-02") // "2026.11.02 월요일"
  */
-export const formatRecordDate = (isoDate: string): string =>
-  `${isoDate.replaceAll("-", ".")} ${WEEKDAY_FORMAT.format(new Date(`${isoDate}T00:00:00Z`))}`;
+export const formatRecordDate = (isoDate: string): string => `${isoDate.replaceAll("-", ".")} ${toWeekday(isoDate)}`;
+
+/**
+ * 좁은 칸에 쓰는 기록 날짜: 연도 없이 MM.DD와 요일.
+ *
+ * @example formatRecordMonthDay("2026-11-02") // "11.02 월요일"
+ */
+export const formatRecordMonthDay = (isoDate: string): string => `${isoDate.slice(5).replace("-", ".")} ${toWeekday(isoDate)}`;

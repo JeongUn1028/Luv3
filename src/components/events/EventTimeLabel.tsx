@@ -7,7 +7,7 @@ interface EventTimeLabelProps {
 }
 
 /**
- * 일정 줄 왼쪽의 시간 칸: "19:30" 또는 "종일", 개인 일정이면 아래에 크림색 "개인". 캘린더와 홈이 같은 표기를 쓴다.
+ * 캘린더 일정 줄 왼쪽의 시간 칸: "19:30" 또는 "종일", 개인 일정이면 아래에 크림색 "개인".
  *
  * @example <EventTimeLabel event={event} />
  */
