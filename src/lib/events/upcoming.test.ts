@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeUpcomingDay, formatEventMeta, pickUpcomingDay, previewUpcomingEvents } from "./upcoming";
+import { describeUpcomingDay, formatEventMeta, formatEventOwner, pickUpcomingDay, previewUpcomingEvents } from "./upcoming";
 
 const event = (id: string, date: string, startTime: string | null) => ({ id, date, startTime });
 
@@ -105,5 +105,19 @@ describe("formatEventMeta", () => {
   it("장소가 없으면 시간만 쓴다", () => {
     expect(formatEventMeta({ startTime: "19:00:00", place: undefined })).toBe("19:00");
     expect(formatEventMeta({ startTime: null, place: undefined })).toBe("종일");
+  });
+});
+
+describe("formatEventOwner", () => {
+  it("함께 일정이면 작성자와 상관없이 함께라고 쓴다", () => {
+    expect(formatEventOwner({ isTogether: true, authorNickname: "진아" })).toBe("함께");
+  });
+
+  it("개인 일정이면 작성자 닉네임을 쓴다", () => {
+    expect(formatEventOwner({ isTogether: false, authorNickname: "정운" })).toBe("정운");
+  });
+
+  it("개인 일정인데 작성자를 모르면 개인이라고 쓴다", () => {
+    expect(formatEventOwner({ isTogether: false, authorNickname: undefined })).toBe("개인");
   });
 });

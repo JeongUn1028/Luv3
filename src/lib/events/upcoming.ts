@@ -85,3 +85,16 @@ export const formatEventMeta = ({ startTime, place }: { startTime: string | null
   const time = formatEventTime(startTime);
   return place ? `${time} · ${place}` : time;
 };
+
+/**
+ * 일정 칸에서 누구 일정인지 쓰는 글자: 함께 일정은 "함께", 개인 일정은 작성자 닉네임(모르면 "개인").
+ *
+ * @example formatEventOwner({ isTogether: false, authorNickname: "정운" }) // "정운"
+ */
+export const formatEventOwner = ({
+  isTogether,
+  authorNickname,
+}: {
+  isTogether: boolean;
+  authorNickname: string | undefined;
+}): string => (isTogether ? "함께" : (authorNickname ?? "개인"));
