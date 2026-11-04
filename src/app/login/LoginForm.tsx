@@ -4,7 +4,7 @@ import { useState, type SubmitEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getSafeNextPath } from "@/lib/auth/paths";
-import { getLoginErrorMessage, getSignInErrorMessage } from "./messages";
+import { getLoginErrorMessage, getSignInErrorMessage } from "@/lib/auth/login-messages";
 
 const labelClassName = "text-[13px] text-ink-sub";
 const inputClassName =
