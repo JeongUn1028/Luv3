@@ -126,7 +126,8 @@ export const EventForm = ({ initialDraft, eventId, authorNickname, ownerNickname
         />
       }
     >
-      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-6">
+      {/* 칸이 많아 간격을 좁혀야 메모 4줄이 15 Pro 화면에 들어온다. 남은 높이는 메모 칸이 채워 기기마다 저장 버튼이 같은 자리에 온다(#57) */}
+      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-1 flex-col gap-5">
         <div className="flex flex-col">
           <label htmlFor="event-title" className={labelClassName}>
             제목
@@ -257,7 +258,7 @@ export const EventForm = ({ initialDraft, eventId, authorNickname, ownerNickname
           )}
         </div>
 
-        <div className="flex flex-col">
+        <div className="flex grow flex-col">
           <label htmlFor="event-memo" className={labelClassName}>
             메모 <span className="text-ink-placeholder">(선택)</span>
           </label>
@@ -270,7 +271,7 @@ export const EventForm = ({ initialDraft, eventId, authorNickname, ownerNickname
             aria-invalid={Boolean(errors.memo)}
             aria-describedby={errors.memo ? "event-memo-error" : undefined}
             onChange={(event) => updateField("memo", event.target.value)}
-            className={`${inputClassName} h-auto resize-y py-3 leading-[1.5]`}
+            className={`${inputClassName} h-auto grow resize-y py-3 leading-[1.5]`}
           />
           {errors.memo && (
             <p id="event-memo-error" className={errorClassName}>
