@@ -7,6 +7,12 @@ const [EVENT] = E2E_EVENTS;
 const [TODO] = E2E_TODOS;
 const MEMO_MIN_HEIGHT = 122;
 
+const getSaveButtonBottom = async (page: Page): Promise<number> => {
+  const box = await page.getByRole("button", { name: "저장" }).boundingBox();
+  expect(box).not.toBeNull();
+  return (box?.y ?? 0) + (box?.height ?? 0);
+};
+
 interface Screen {
   name: string;
   path: string;
@@ -89,9 +95,7 @@ test.describe("내용 스크롤 영역", () => {
     // Assert
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     expect((await header.boundingBox())?.y).toBe(headerTop);
-    const saveButton = await page.getByRole("button", { name: "저장" }).boundingBox();
-    expect(saveButton).not.toBeNull();
-    expect((saveButton?.y ?? 0) + (saveButton?.height ?? 0)).toBeLessThanOrEqual((viewport?.height ?? 0) - safeArea.bottom);
+    expect(await getSaveButtonBottom(page)).toBeLessThanOrEqual((viewport?.height ?? 0) - safeArea.bottom);
   });
 
   test("기록 작성에서 사진을 고르면 정리 글 칸이 4줄 높이를 유지한다", async ({ page }) => {
@@ -108,6 +112,43 @@ test.describe("내용 스크롤 영역", () => {
 
     // Assert
     const memo = await page.locator("#memo").boundingBox();
+    expect(memo?.height).toBeGreaterThanOrEqual(MEMO_MIN_HEIGHT);
+  });
+});
+
+test.describe("일정 폼", () => {
+  for (const { name, path } of [
+    { name: "일정 추가", path: "/events/new" },
+    { name: "일정 고치기", path: `/events/${EVENT.id}/edit` },
+  ]) {
+    test(`${name} 화면을 열면 넘치지 않고 저장 버튼이 화면 아래에 붙으며 메모 칸이 4줄 높이를 유지한다`, async ({ page, safeArea, viewport }) => {
+      await openScreen(page, path, page.locator("#event-memo"));
+
+      expect((await getScrollAreaOverflow(page)).vertical).toBe(0);
+      expect(await getSaveButtonBottom(page)).toBeCloseTo((viewport?.height ?? 0) - safeArea.bottom, 0);
+      const memo = await page.locator("#event-memo").boundingBox();
+      expect(memo?.height).toBeGreaterThanOrEqual(MEMO_MIN_HEIGHT);
+    });
+  }
+
+  test("일정 추가에서 종일을 끄고 끝까지 내리면 안쪽만 스크롤되고 저장 버튼이 safe-area 위에 멈춘다", async ({ page, safeArea, viewport }) => {
+    // Arrange
+    await openScreen(page, "/events/new", page.locator("#event-memo"));
+    const header = page.locator("main > .shrink-0");
+    const headerTop = (await header.boundingBox())?.y;
+    expect(headerTop).toBeDefined();
+
+    // Act
+    await page.getByRole("checkbox", { name: "종일" }).uncheck();
+    expect((await getScrollAreaOverflow(page)).vertical).toBeGreaterThan(0);
+    await getScrollArea(page).evaluate((element) => element.scrollTo(0, element.scrollHeight));
+
+    // Assert
+    expect(await getDocumentOverflow(page)).toBe(0);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    expect((await header.boundingBox())?.y).toBe(headerTop);
+    expect(await getSaveButtonBottom(page)).toBeLessThanOrEqual((viewport?.height ?? 0) - safeArea.bottom);
+    const memo = await page.locator("#event-memo").boundingBox();
     expect(memo?.height).toBeGreaterThanOrEqual(MEMO_MIN_HEIGHT);
   });
 });
