@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
 import { formatTileLabel, groupByMonth, type AlbumTile } from "@/lib/dates/album";
+import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 interface AlbumGridProps {
   tiles: AlbumTile[];
@@ -27,7 +28,7 @@ export const AlbumGrid = ({ tiles }: AlbumGridProps): ReactElement => {
           <ul className="mt-2 grid grid-cols-2 gap-1">
             {monthTiles.map((tile) => (
               <li key={tile.id}>
-                <Link href={`/dates/${tile.id}`} className="relative block aspect-[4/5] overflow-hidden bg-surface">
+                <Link href={`/dates/${tile.id}`} transitionTypes={FORWARD_TRANSITION} className="relative block aspect-[4/5] overflow-hidden bg-surface">
                   {tile.thumbUrl && (
                     // eslint-disable-next-line @next/next/no-img-element -- 업로드 때 이미 600px로 줄인 썸네일이라 next/image 최적화를 다시 거치지 않는다
                     <img src={tile.thumbUrl} alt={tile.title} loading="lazy" className="size-full object-cover" />

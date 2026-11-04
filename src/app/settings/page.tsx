@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
+import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
 import { getCurrentMember } from "@/lib/auth/member";
 import { HOME_PATH } from "@/lib/auth/paths";
 
@@ -39,9 +40,17 @@ const SettingsPage = () => (
   >
     <div className="mt-6">
       {/* 세션을 읽는 부분만 요청 시점에 렌더링한다(cacheComponents) */}
-      <Suspense fallback={<div className="h-[115px]" />}>
+      <LoadingSuspense
+        fallback={
+          <SkeletonArea>
+            <SkeletonBlock className="h-5 w-10 rounded-[4px]" />
+            <SkeletonBlock className="mt-2 h-[51px] rounded-[10px]" />
+            <SkeletonBlock className="mt-3 h-[51px] rounded-[10px]" />
+          </SkeletonArea>
+        }
+      >
         <MemberSection />
-      </Suspense>
+      </LoadingSuspense>
     </div>
   </PageShell>
 );

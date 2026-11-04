@@ -25,6 +25,7 @@ import {
 } from "@/lib/calendar/month";
 import { toNewRecordHref } from "@/lib/dates/form";
 import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
+import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 interface CalendarViewProps {
   /** 보고 있는 달 YYYY-MM */
@@ -169,6 +170,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
           </div>
           <Link
             href={`/events/new?date=${selectedDate}`}
+            transitionTypes={FORWARD_TRANSITION}
             // 머리글의 + (오늘 일정 추가)와 구별되게 고른 날을 이름에 넣는다
             aria-label={`${formatDayHeading(selectedDate)} 일정 추가`}
             className="-mr-2 flex h-11 items-center gap-1 px-2 text-[14px] text-ink-sub hover:text-ink"
@@ -191,6 +193,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
               <li key={record.id}>
                 <Link
                   href={`/dates/${record.id}`}
+                  transitionTypes={FORWARD_TRANSITION}
                   className="flex min-h-[51px] items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
                 >
                   <span className="w-11 shrink-0 text-[12px] text-label">기록</span>
@@ -203,6 +206,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
               <li key={event.id} className="flex gap-2">
                 <Link
                   href={`/events/${event.id}/edit`}
+                  transitionTypes={FORWARD_TRANSITION}
                   className="flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
                 >
                   <EventTimeLabel event={event} />
@@ -216,6 +220,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                 {canLeaveRecord(event, today, selectedRecords) && (
                   <Link
                     href={toNewRecordHref({ date: event.date, title: event.title, place: event.place ?? "" })}
+                    transitionTypes={FORWARD_TRANSITION}
                     aria-label={`${event.title} 기록 남기기`}
                     className="flex shrink-0 items-center rounded-[10px] border border-line px-3 text-[12px] text-ink-sub hover:text-ink"
                   >

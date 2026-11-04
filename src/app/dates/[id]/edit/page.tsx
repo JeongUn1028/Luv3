@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
 import { DateRecordForm } from "@/components/dates/DateRecordForm";
+import { FormSkeleton } from "@/components/FormSkeleton";
 import { PageShell } from "@/components/PageShell";
+import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { getCurrentMember } from "@/lib/auth/member";
+import { RECORDS_PATH } from "@/lib/dates/album";
 import type { EditableRecord } from "@/lib/dates/detail";
 import { DateRecordLoadError, getEditableRecord } from "@/lib/dates/queries";
 
@@ -43,9 +45,9 @@ const EditForm = async ({ params }: { params: Promise<{ id: string }> }) => {
 
 const EditDateRecordPage = ({ params }: PageProps<"/dates/[id]/edit">) => (
   // 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <Suspense fallback={<div className="min-h-app" />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: RECORDS_PATH, label: "기록 목록으로" }} title="기록 고치기" fieldCount={4} />}>
     <EditForm params={params} />
-  </Suspense>
+  </LoadingSuspense>
 );
 
 export default EditDateRecordPage;

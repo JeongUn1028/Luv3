@@ -20,6 +20,8 @@ import {
   type RecordPrefill,
 } from "@/lib/dates/form";
 import { clearError, countChars } from "@/lib/form";
+import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
+import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import type { EditableRecord } from "@/lib/dates/detail";
 import { SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
 import { PhotoError } from "@/lib/photos/errors";
@@ -180,8 +182,10 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
       // 이동과 같은 transition에서 되돌린다(이동이 끝날 때 함께 반영돼 빈 폼이 잠깐 보이지 않는다)
       // 이미 그려진 미리보기는 URL을 해제해도 그대로 보인다. 수정 화면은 페이지가 매번 새 key로 다시 그린다
       draft.photos.forEach(({ previewUrl }) => revokePreview(previewUrl));
+      // 목록은 날짜 내림차순이라 새 기록은 맨 위에 있다. 보던 위치로 돌아가면 저장되지 않은 것처럼 보인다
+      if (!record) forgetScrollPosition("records");
       startTransition(() => {
-        router.replace(record ? `/dates/${record.id}` : RECORDS_PATH);
+        router.replace(record ? `/dates/${record.id}` : RECORDS_PATH, { transitionTypes: BACK_TRANSITION });
         router.refresh();
         setDraft(record ? toEditDraft(record) : createEmptyDraft());
         setErrors({});

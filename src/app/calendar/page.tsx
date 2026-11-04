@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
+import { CalendarSkeleton } from "@/components/calendar/CalendarSkeleton";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { PlusIcon } from "@/components/icons";
+import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
 import { toKstDate } from "@/lib/anniversary";
@@ -62,9 +63,9 @@ const CalendarPage = ({ searchParams }: PageProps<"/calendar">) => (
     }
   >
     {/* 세션·주소 쿼리를 읽는 부분만 요청 때 그린다(cacheComponents) */}
-    <Suspense fallback={<div className="flex-1" />}>
+    <LoadingSuspense fallback={<CalendarSkeleton />}>
       <CalendarContent searchParams={searchParams} />
-    </Suspense>
+    </LoadingSuspense>
   </TabScreen>
 );
 

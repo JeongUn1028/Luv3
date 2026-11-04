@@ -19,6 +19,7 @@ import {
   type EventValues,
 } from "@/lib/events/form";
 import { clearError } from "@/lib/form";
+import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { createClient } from "@/lib/supabase/client";
 
 const labelClassName = "text-[13px] text-ink-sub";
@@ -67,7 +68,7 @@ export const EventForm = ({ initialDraft, eventId, authorNickname }: EventFormPr
 
   const goToCalendar = (date: string) => {
     startTransition(() => {
-      router.replace(toCalendarHref({ date }));
+      router.replace(toCalendarHref({ date }), { transitionTypes: BACK_TRANSITION });
       router.refresh();
     });
   };

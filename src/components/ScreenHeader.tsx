@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactElement, ReactNode } from "react";
 import { BackIcon } from "@/components/icons";
+import { BACK_TRANSITION, FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 const ICON_BUTTON_CLASS_NAME = "flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink";
 
@@ -29,7 +30,7 @@ export const ScreenHeader = ({ back, title, isTitleHidden = false, titleAddon, a
   <header className="relative flex min-h-11 shrink-0 items-center justify-between px-2">
     <div className="flex min-w-0 items-center">
       {back && (
-        <Link href={back.href} aria-label={back.label} className={ICON_BUTTON_CLASS_NAME}>
+        <Link href={back.href} transitionTypes={BACK_TRANSITION} aria-label={back.label} className={ICON_BUTTON_CLASS_NAME}>
           <BackIcon className="size-[22px]" />
         </Link>
       )}
@@ -55,7 +56,7 @@ interface ScreenHeaderLinkProps {
  * @example <ScreenHeaderLink href="/settings" label="설정"><SettingsIcon className="size-[22px]" /></ScreenHeaderLink>
  */
 export const ScreenHeaderLink = ({ href, label, children }: ScreenHeaderLinkProps): ReactElement => (
-  <Link href={href} aria-label={label} className={ICON_BUTTON_CLASS_NAME}>
+  <Link href={href} transitionTypes={FORWARD_TRANSITION} aria-label={label} className={ICON_BUTTON_CLASS_NAME}>
     {children}
   </Link>
 );

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { EventForm } from "@/components/events/EventForm";
+import { FormSkeleton } from "@/components/FormSkeleton";
+import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { toKstDate } from "@/lib/anniversary";
 import { getCurrentMember } from "@/lib/auth/member";
+import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { createEmptyEventDraft } from "@/lib/events/form";
 import { isIsoDate } from "@/lib/form";
 
@@ -21,9 +23,9 @@ const NewEventForm = async ({ searchParams }: Pick<PageProps<"/events/new">, "se
 
 const NewEventPage = ({ searchParams }: PageProps<"/events/new">) => (
   // 세션·주소 쿼리는 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <Suspense fallback={<div className="min-h-app" />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: CALENDAR_PATH, label: "캘린더로" }} title="일정 추가" fieldCount={5} />}>
     <NewEventForm searchParams={searchParams} />
-  </Suspense>
+  </LoadingSuspense>
 );
 
 export default NewEventPage;
