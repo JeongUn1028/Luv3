@@ -11,13 +11,13 @@ const VIEWPORT_UNIT = /(?:\b\d+|-)[sdl]?vh\b|\bh-screen\b/;
 const readGlobalCss = (): string => readSource("app/globals.css");
 
 describe("화면 높이", () => {
-  it("뷰포트 높이 단위는 --app-height 정의에서만 쓰고, 화면은 h-app·min-h-app을 쓴다", () => {
+  it("뷰포트 높이 단위는 --app-height 정의에서만 쓰고, 화면은 h-app을 쓴다", () => {
     const offenders: string[] = [];
     let appHeightUsages = 0;
 
     for (const { at, lines } of readSourceLines()) {
       lines.forEach((line, index) => {
-        if (/\b(min-)?h-app\b/.test(line)) appHeightUsages += 1;
+        if (/\bh-app\b/.test(line)) appHeightUsages += 1;
         if (VIEWPORT_UNIT.test(line) && !line.includes("--app-height:")) offenders.push(`${at}:${index + 1}`);
       });
     }
@@ -34,10 +34,7 @@ describe("화면 높이", () => {
     expect(css).toMatch(/@media\s*\(display-mode:\s*standalone\)\s*\{\s*:root\s*\{[^}]*--app-height:\s*100lvh;/);
   });
 
-  it("h-app·min-h-app 유틸리티가 --app-height를 쓴다", () => {
-    const css = readGlobalCss();
-
-    expect(css).toMatch(/@utility\s+h-app\s*\{\s*height:\s*var\(--app-height\);/);
-    expect(css).toMatch(/@utility\s+min-h-app\s*\{\s*min-height:\s*var\(--app-height\);/);
+  it("h-app 유틸리티가 --app-height를 쓴다", () => {
+    expect(readGlobalCss()).toMatch(/@utility\s+h-app\s*\{\s*height:\s*var\(--app-height\);/);
   });
 });

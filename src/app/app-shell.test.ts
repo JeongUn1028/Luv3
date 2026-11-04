@@ -19,11 +19,12 @@ describe("화면 틀", () => {
     expect(findLines(/<main\b/, [SHELL])).toEqual([]);
   });
 
-  it("PageShell은 머리글까지 담은 main을 화면 높이(h-app)로 고정하고 안쪽 영역만 스크롤한다", () => {
+  it("루트 레이아웃이 화면 높이(h-app)를 고정하고 PageShell은 그 안을 채워 안쪽 영역만 스크롤한다", () => {
     const shell = readSource(SHELL);
 
+    expect(readSource("app/layout.tsx")).toMatch(/<div className="[^"]*\bflex\b[^"]*\bh-app\b[^"]*\bflex-col\b[^"]*">\{children\}<\/div>/);
     // 화면 제목(h1)이 본문 영역 안에 남도록 머리글도 main 안에 둔다
-    expect(shell).toMatch(/<main\s+className="[^"]*\bh-app\b[^"]*\bflex-col\b[^"]*">\s*\{header &&/);
+    expect(shell).toMatch(/<main className="[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*\bflex-col\b[^"]*">\s*\{header &&/);
     // min-h-0이 없으면 flex 자식이 내용만큼 늘어나 안쪽 스크롤이 생기지 않는다
     expect(shell).toMatch(/"[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*\boverflow-y-auto\b[^"]*\boverscroll-contain\b[^"]*"/);
   });
@@ -31,8 +32,8 @@ describe("화면 틀", () => {
   it("하단 탭은 스크롤 영역 아래, 화면 높이 틀 안에 둔다", () => {
     const shell = readSource(SHELL);
 
-    // fixed 대신 main의 마지막 자식으로 두어야 첫 실행 때(793) 하단 탭이 위로 뜨지 않는다
-    expect(shell).toMatch(/\{footer\}\s*<\/main>/);
+    // fixed 대신 높이 틀의 마지막 자식으로 두어야 첫 실행 때(793) 하단 탭이 위로 뜨지 않는다
+    expect(shell).toMatch(/<\/main>\s*<\/ViewTransition>\s*\{footer && \(\s*<ViewTransition[^>]*>\s*\{footer\}\s*<\/ViewTransition>\s*\)\}\s*<\/>/);
     // 아래 safe-area는 하단 탭이 채우므로, 하단 탭이 있는 화면은 내용 아래 여백을 따로 두지 않는다
     expect(shell).toMatch(/footer \? "" : BOTTOM_SPACE\[bottomSpace\]/);
   });

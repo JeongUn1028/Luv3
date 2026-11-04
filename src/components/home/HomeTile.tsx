@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useId, type ReactElement, type ReactNode } from "react";
+import { FORWARD_TRANSITION, TAB_TRANSITION } from "@/lib/navigation/transition";
 
 interface HomeTileProps {
   title: string;
@@ -38,7 +39,7 @@ export const HomeTile = ({ title, detail, more, isOutlined = false, children }: 
       </div>
       {children}
       {more && (
-        <Link href={more.href} className="absolute inset-0 rounded-[16px]">
+        <Link href={more.href} transitionTypes={TAB_TRANSITION} className="absolute inset-0 rounded-[16px]">
           <span className="sr-only">{more.target} 모두 보기</span>
         </Link>
       )}
@@ -66,7 +67,7 @@ export const HomeTileMessage = ({ text, isError = false, action }: HomeTileMessa
       {text}
     </p>
     {action && (
-      <Link href={action.href} className="flex h-9 items-center px-2 text-[14px] text-accent hover:underline">
+      <Link href={action.href} transitionTypes={FORWARD_TRANSITION} className="flex h-9 items-center px-2 text-[14px] text-accent hover:underline">
         {action.label}
       </Link>
     )}

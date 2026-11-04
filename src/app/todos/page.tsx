@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { PlusIcon } from "@/components/icons";
+import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
 import { TodoList } from "@/components/todos/TodoList";
+import { TodoListSkeleton } from "@/components/todos/TodoListSkeleton";
 import { getCurrentMember } from "@/lib/auth/member";
 import { TODOS_PATH, type Todo } from "@/lib/todos/list";
 import { getTodos, TodoLoadError } from "@/lib/todos/queries";
@@ -49,9 +50,9 @@ const TodosPage = () => (
     className="px-4"
   >
     {/* 세션을 읽는 부분만 요청 때 그린다(cacheComponents) */}
-    <Suspense fallback={<div className="flex-1" />}>
+    <LoadingSuspense fallback={<TodoListSkeleton />}>
       <TodosContent />
-    </Suspense>
+    </LoadingSuspense>
   </TabScreen>
 );
 

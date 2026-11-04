@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
-import { Suspense } from "react";
+import { FormSkeleton } from "@/components/FormSkeleton";
+import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { TodoForm } from "@/components/todos/TodoForm";
 import { getCurrentMember } from "@/lib/auth/member";
+import { TODOS_PATH } from "@/lib/todos/list";
 
 export const metadata: Metadata = { title: "하고 싶은 것 추가 · Luv3" };
 
@@ -14,9 +16,9 @@ const NewTodoForm = async () => {
 
 const NewTodoPage = () => (
   // 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <Suspense fallback={<div className="min-h-app" />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: TODOS_PATH, label: "목록으로" }} title="하고 싶은 것 추가" fieldCount={1} />}>
     <NewTodoForm />
-  </Suspense>
+  </LoadingSuspense>
 );
 
 export default NewTodoPage;

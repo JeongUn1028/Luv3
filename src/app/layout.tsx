@@ -33,7 +33,10 @@ export const viewport: Viewport = {
 
 const RootLayout = ({ children }: LayoutProps<"/">) => (
   <html lang="ko" className={`${notoSansKr.variable} ${cormorantGaramond.variable} h-full antialiased`}>
-    <body className="min-h-full bg-background font-sans text-ink">{children}</body>
+    <body className="min-h-full bg-background font-sans text-ink">
+      {/* 화면 높이 틀. 화면(PageShell)이 이 안을 채운다 */}
+      <div className="mx-auto flex h-app w-full max-w-[430px] flex-col">{children}</div>
+    </body>
   </html>
 );
 

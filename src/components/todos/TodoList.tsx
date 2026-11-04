@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useOptimistic, useState, type ReactElement } from "react";
 import { AuthorHeart } from "@/components/AuthorHeart";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
+import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { createClient } from "@/lib/supabase/client";
 import { applyTodoAction, groupTodos, TODOS_PATH, type Todo, type TodoAction } from "@/lib/todos/list";
 
@@ -167,6 +168,7 @@ const TodoItem = ({ todo, onToggle, children }: TodoItemProps): ReactElement => 
       </label>
       <Link
         href={`${TODOS_PATH}/${todo.id}/edit`}
+        transitionTypes={FORWARD_TRANSITION}
         className={`min-w-0 flex-1 py-3 pr-2 text-[15px] leading-[1.5] break-words ${isCompleted ? "text-ink-sub line-through" : "text-ink"}`}
       >
         {todo.content}

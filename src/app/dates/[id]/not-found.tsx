@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactElement } from "react";
 import { PageShell } from "@/components/PageShell";
 import { RECORDS_PATH } from "@/lib/dates/album";
+import { BACK_TRANSITION } from "@/lib/navigation/transition";
 
 /** 없는 기록(지워졌거나 잘못된 주소)을 열었을 때 */
 const DateRecordNotFound = (): ReactElement => (
@@ -11,6 +12,7 @@ const DateRecordNotFound = (): ReactElement => (
     <p className="text-[13px] text-ink-sub">지워졌거나 주소가 잘못됐어요.</p>
     <Link
       href={RECORDS_PATH}
+      transitionTypes={BACK_TRANSITION}
       className="mt-2 flex h-[51px] w-full items-center justify-center rounded-[10px] border border-line text-[15px] text-ink hover:bg-surface"
     >
       기록 목록으로
