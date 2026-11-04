@@ -1,5 +1,6 @@
 import { countDaysBetween } from "@/lib/anniversary";
 import { formatDayHeading, formatEventTime } from "@/lib/calendar/month";
+import { toOwnerLabel } from "./calendar";
 
 /** 홈 일정 칸에 보여 줄 일정 수. 칸이 정사각형이라 더 넣으면 넘친다 */
 const UPCOMING_PREVIEW_COUNT = 2;
@@ -26,7 +27,7 @@ const compareStartTime = (left: UpcomingEvent, right: UpcomingEvent): number => 
 
 /**
  * 홈의 일정 칸에 보여 줄 날을 고른다. 오늘 일정이 있으면 오늘(이미 지난 시간 일정 포함), 없으면 가장 가까운 다음 날이다.
- * 누가 만든 일정이든, 함께·개인 일정이든 모두 센다. 같은 시간 일정은 받은 순서(만든 순서)를 지킨다.
+ * 누가 만든 일정이든, 함께 일정이든 한 사람 일정이든 모두 센다. 같은 시간 일정은 받은 순서(만든 순서)를 지킨다.
  *
  * @param today 한국 날짜 YYYY-MM-DD(`toKstDate(new Date())`)
  * @returns 오늘과 그 뒤에 일정이 없으면 undefined
@@ -87,7 +88,7 @@ export const formatEventMeta = ({ startTime, place }: { startTime: string | null
 };
 
 /**
- * 일정 칸에서 누구 일정인지 쓰는 글자: 함께 일정은 "함께", 개인 일정은 작성자 닉네임(모르면 "개인").
+ * 일정 칸에서 누구 일정인지 쓰는 글자: 함께 일정은 "함께", 한 사람 일정은 작성자 닉네임.
  *
  * @example formatEventOwner({ isTogether: false, authorNickname: "정운" }) // "정운"
  */
@@ -97,4 +98,4 @@ export const formatEventOwner = ({
 }: {
   isTogether: boolean;
   authorNickname: string | undefined;
-}): string => (isTogether ? "함께" : (authorNickname ?? "개인"));
+}): string => (isTogether ? "함께" : toOwnerLabel(authorNickname));

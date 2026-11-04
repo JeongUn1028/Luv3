@@ -6,6 +6,7 @@ import { PageShell } from "@/components/PageShell";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { getCurrentMember } from "@/lib/auth/member";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
+import { toOwnerLabel } from "@/lib/events/calendar";
 import { toEventDraft } from "@/lib/events/form";
 import { EventLoadError, getEvent } from "@/lib/events/queries";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
@@ -53,6 +54,7 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
       key={crypto.randomUUID()}
       eventId={event.id}
       authorNickname={event.authorNickname}
+      ownerNickname={toOwnerLabel(event.authorNickname)}
       initialDraft={toEventDraft(event)}
     />
   );

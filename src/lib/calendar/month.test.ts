@@ -171,7 +171,7 @@ describe("canLeaveRecord", () => {
     expect(canLeaveRecord({ date: "2026-10-31", title: "산책", isTogether: true }, today, records)).toBe(true);
   });
 
-  it("개인 일정은 데이트 기록으로 권하지 않는다", () => {
+  it("한 사람 일정은 데이트 기록으로 권하지 않는다", () => {
     expect(canLeaveRecord({ date: "2026-11-01", title: "치과", isTogether: false }, today, [])).toBe(false);
   });
 });

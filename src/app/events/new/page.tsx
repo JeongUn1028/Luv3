@@ -12,13 +12,13 @@ export const metadata: Metadata = { title: "일정 추가 · Luv3" };
 
 const NewEventForm = async ({ searchParams }: Pick<PageProps<"/events/new">, "searchParams">) => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  await getCurrentMember();
+  const { nickname } = await getCurrentMember();
   const { date } = await searchParams;
   // 캘린더에서 고른 날을 기본값으로, 없거나 틀리면 오늘(한국 날짜)
   const initialDate = typeof date === "string" && isIsoDate(date) ? date : toKstDate(new Date());
 
   // cacheComponents는 다녀온 화면의 상태를 보존해, 다시 열면 예전 입력값이 남는다. 요청마다 새 key로 새 폼을 만든다
-  return <EventForm key={crypto.randomUUID()} initialDraft={createEmptyEventDraft(initialDate)} />;
+  return <EventForm key={crypto.randomUUID()} initialDraft={createEmptyEventDraft(initialDate)} ownerNickname={nickname} />;
 };
 
 const NewEventPage = ({ searchParams }: PageProps<"/events/new">) => (

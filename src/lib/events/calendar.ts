@@ -8,7 +8,7 @@ export interface CalendarEvent {
   startTime: string | null;
   title: string;
   place: string | undefined;
-  /** 둘이 함께 하는 일정이면 true(분홍 형광펜), 개인 일정이면 false(크림색 형광펜) */
+  /** 둘이 함께 하는 일정이면 true(분홍 형광펜), 한 사람 일정이면 false(크림색 형광펜) */
   isTogether: boolean;
   authorNickname: string | undefined;
 }
@@ -23,6 +23,14 @@ export interface CalendarRecord {
   title: string;
   authorNickname: string | undefined;
 }
+
+/**
+ * 한 사람 일정의 주인 이름. 작성자를 모르면 내 닉네임으로 대신하지 않는다(상대 일정에 내 이름이 붙을 수 있다).
+ *
+ * @example toOwnerLabel("정운") // "정운"
+ * @example toOwnerLabel(undefined) // "한 사람"
+ */
+export const toOwnerLabel = (authorNickname: string | undefined): string => authorNickname ?? "한 사람";
 
 /** `events` 조회 결과 한 행 */
 export interface CalendarEventRow {
