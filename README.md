@@ -90,3 +90,61 @@ where email = 'me@example.com';
 ```
 
 허용목록 이메일과 키는 리포에 커밋하지 않는다.
+
+## 백업과 복구
+
+무료 플랜은 자동 백업을 하지 않으므로 **월 1회** 직접 받아 **개인 클라우드 드라이브**에 둔다. 마지막 백업 이후의 내용은 되살릴 수 없다.
+
+### 백업 받기
+
+필요한 것: Node 22.18 이상(스크립트가 TypeScript를 바로 실행한다), Docker Desktop 실행, `pnpm exec supabase login`, `supabase link`가 끝난 원본 클론. 입력하거나 저장할 키는 없다(로그인 상태로 그때그때 받아 메모리에만 둔다).
+
+```bash
+pnpm backup "<백업 폴더>"   # 예: "G:\내 드라이브\Luv3-백업"
+```
+
+이미 받은 사진은 건너뛴다. 끝나면 표마다 행 수와 저장 용량 사용량(파일 수, MB, 1GB 중 몇 %)을 출력하고, 80%를 넘으면 경고한다. 기록이 가리키는데 받지 못한 파일이 있으면 경로를 함께 경고하니, 앨범을 쓰지 않을 때 다시 받는다.
+
+```text
+<백업 폴더>/
+  album/                  사진 원본·썸네일·couple/. 시점과 상관없이 계속 쌓인다
+  snapshots/<시점>/
+    data.sql              public 스키마와 계정(auth.users, auth.identities)
+    manifest.json         표 행 수와 그 시점의 파일 목록. 이 파일이 없으면 중간에 끊긴 백업이다
+```
+
+- `data.sql`에는 이메일과 비밀번호 해시가, `album/`에는 사진이 들어 있다. 드라이브 계정에 2단계 인증을 켜 두고, 폴더를 공유하지 않는다.
+- **Git 리포 안에는 만들 수 없다**(공개 리포라 스크립트가 거부한다). 공개 리포의 GitHub Actions 결과물로도 올리지 않는다.
+- 세션·토큰 같은 나머지 `auth` 표는 받지 않는다.
+- 오래된 `snapshots/<시점>`은 지워도 되지만, `album/`은 다른 시점도 함께 쓰므로 지우지 않는다.
+
+### 복구 연습
+
+```bash
+pnpm backup:restore "<백업 폴더>" --yes              # 가장 최근 시점
+pnpm backup:restore "<백업 폴더>" <시점 이름> --yes  # 시점을 골라서
+```
+
+**로컬 Supabase의 내용을 지우고** 되살린 뒤, 표 행 수와 파일 수를 원본과 비교한다. 운영 프로젝트에는 쓸 수 없다. 스키마가 달라 DB 되살리기가 실패하면 백업 시각의 커밋으로 돌아가 다시 실행한다. 끝나면 `pnpm dev`로 띄워 원래 비밀번호로 로그인해 화면을 확인하고, 다 봤으면 `pnpm db:reset`으로 비운다. 운영 데이터가 로컬에 남지 않게 하기 위해서다. 로컬 확인 계정은 위 "로컬 개발"대로 다시 만든다.
+
+### 운영 프로젝트를 잃었을 때
+
+새 프로젝트로 옮기는 절차다. **이 절차 전체를 실제 프로젝트에 연습해 보지는 않았고**, 명령 형식만 로컬에서 확인했다.
+
+```bash
+pnpm exec supabase link --project-ref <새 ref>
+pnpm exec supabase db push --linked
+
+# DB: 접속 주소는 새 프로젝트 대시보드의 Connect에서 복사한다. 셸 기록에 비밀번호가 남으니 끝나면 DB 비밀번호를 바꾼다
+docker exec -i supabase_db_Luv3 psql "<접속 주소>" --single-transaction -v ON_ERROR_STOP=1 \
+  -c "truncate table public.couple_photo" -f - < "<백업 폴더>/snapshots/<시점>/data.sql"
+
+# 사진: 절대 경로는 인식하지 못하므로 백업 폴더에서 실행한다. 받는 쪽은 버킷 이름 없이 ss:/// 이다
+cd "<백업 폴더>"
+find album -name "*.part" -delete   # 받다 끊겨 남은 조각
+node "<리포>/node_modules/supabase/dist/supabase.js" storage cp -r album ss:/// --linked --experimental --workdir "<리포>"
+```
+
+이 명령은 `album/`을 통째로 올리므로 그동안 지운 사진도 함께 올라간다. 앱에는 보이지 않고 용량만 차지하며, #31(주인 없는 파일 정리)에서 치운다.
+
+그다음 위 "운영 Supabase 설정"의 2·3·5번을 새 프로젝트 기준으로 다시 맞춘다. 계정은 함께 되살아나므로 4번은 건너뛴다.
