@@ -14,7 +14,7 @@ export class EventLoadError extends Error {
 }
 
 /**
- * 달력에 그릴 한 달(앞뒤 주 포함)의 일정과 데이트 기록을 함께 읽는다.
+ * 달력에 그릴 한 달(앞뒤 주 포함)의 일정과 데이트 기록을 함께 읽는다. 기록은 기간이 이 범위와 겹치면 읽는다.
  * 일정은 날짜 → 종일 먼저 → 시간 → 만든 순서로 정렬한다.
  *
  * @throws {EventLoadError} 조회가 실패했을 때
@@ -36,9 +36,10 @@ export const getCalendarMonth = async (
       .order("created_at"),
     supabase
       .from("dates")
-      .select("id, date, title, author:members!dates_author_id_fkey(nickname)")
-      .gte("date", start)
+      .select("id, date, end_date, title, author:members!dates_author_id_fkey(nickname)")
       .lte("date", end)
+      // coalesce(end_date, date) >= start와 같다. 끝 날짜는 있으면 늘 시작일보다 뒤다(dates_end_date_after_date)
+      .or(`date.gte.${start},end_date.gte.${start}`)
       .order("date")
       .order("created_at"),
   ]);

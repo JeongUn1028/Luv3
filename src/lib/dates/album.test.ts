@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatTileLabel, groupByMonth, toAlbumTiles, type AlbumTile } from "./album";
+import { formatPeriodMonthDay, formatTileLabel, groupByMonth, toAlbumTiles, type AlbumTile } from "./album";
 
 const tile = (overrides: Partial<AlbumTile>): AlbumTile => ({
   id: "r",
   date: "2026-11-02",
+  endDate: undefined,
   title: "기록",
   place: undefined,
   thumbUrl: undefined,
@@ -30,7 +31,29 @@ describe("groupByMonth", () => {
   });
 });
 
+describe("formatPeriodMonthDay", () => {
+  it("하루짜리는 월.일만 쓴다", () => {
+    expect(formatPeriodMonthDay({ date: "2026-11-02", endDate: undefined })).toBe("11.02");
+  });
+
+  it("같은 달 기간은 시작과 끝의 월.일을 잇는다", () => {
+    expect(formatPeriodMonthDay({ date: "2026-11-01", endDate: "2026-11-03" })).toBe("11.01–11.03");
+  });
+
+  it("달이 바뀌는 기간도 같은 모양이다", () => {
+    expect(formatPeriodMonthDay({ date: "2026-10-31", endDate: "2026-11-02" })).toBe("10.31–11.02");
+  });
+
+  it("해가 바뀌는 기간도 연도 없이 쓴다", () => {
+    expect(formatPeriodMonthDay({ date: "2026-12-31", endDate: "2027-01-02" })).toBe("12.31–01.02");
+  });
+});
+
 describe("formatTileLabel", () => {
+  it("기간이면 기간과 장소를 가운뎃점으로 잇는다", () => {
+    expect(formatTileLabel(tile({ date: "2026-11-01", endDate: "2026-11-03", place: "제주" }))).toBe("11.01–11.03 · 제주");
+  });
+
   it("월.일과 장소를 가운뎃점으로 잇는다", () => {
     expect(formatTileLabel(tile({ date: "2026-11-02", place: "성수동" }))).toBe("11.02 · 성수동");
   });
@@ -44,20 +67,20 @@ describe("toAlbumTiles", () => {
   it("대표 사진 썸네일 경로에 서명 URL을 붙이고, 빈 장소는 undefined로 바꾼다", () => {
     const tiles = toAlbumTiles(
       [
-        { id: "a", date: "2026-11-02", title: "산책", place: "성수동", cover: { thumb_path: "a/p_thumb.jpg" } },
-        { id: "b", date: "2026-11-01", title: "카페", place: null, cover: null },
+        { id: "a", date: "2026-11-02", end_date: "2026-11-03", title: "산책", place: "성수동", cover: { thumb_path: "a/p_thumb.jpg" } },
+        { id: "b", date: "2026-11-01", end_date: null, title: "카페", place: null, cover: null },
       ],
       [{ path: "a/p_thumb.jpg", signedUrl: "https://example.test/a" }],
     );
     expect(tiles).toEqual([
-      { id: "a", date: "2026-11-02", title: "산책", place: "성수동", thumbUrl: "https://example.test/a" },
-      { id: "b", date: "2026-11-01", title: "카페", place: undefined, thumbUrl: undefined },
+      { id: "a", date: "2026-11-02", endDate: "2026-11-03", title: "산책", place: "성수동", thumbUrl: "https://example.test/a" },
+      { id: "b", date: "2026-11-01", endDate: undefined, title: "카페", place: undefined, thumbUrl: undefined },
     ]);
   });
 
   it("서명 URL을 받지 못한 사진은 썸네일 없이 둔다", () => {
     const [first] = toAlbumTiles(
-      [{ id: "a", date: "2026-11-02", title: "산책", place: null, cover: { thumb_path: "a/p_thumb.jpg" } }],
+      [{ id: "a", date: "2026-11-02", end_date: null, title: "산책", place: null, cover: { thumb_path: "a/p_thumb.jpg" } }],
       [{ path: "a/p_thumb.jpg", signedUrl: null }],
     );
     expect(first?.thumbUrl).toBeUndefined();

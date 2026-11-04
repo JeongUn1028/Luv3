@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useId, type ReactElement } from "react";
 import type { AlbumTile } from "@/lib/dates/album";
-import { formatRecordMonthDay } from "@/lib/dates/detail";
+import { formatRecordShortDate } from "@/lib/dates/detail";
 
 interface LatestRecordCardProps {
   record: AlbumTile;
@@ -29,7 +29,7 @@ export const LatestRecordCard = ({ record }: LatestRecordCardProps): ReactElemen
         <span className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 bg-gradient-to-t from-background/90 via-background/70 via-60% to-transparent px-3 pt-9 pb-3">
           <span className="line-clamp-2 text-[15px] leading-5 font-bold text-ink">{record.title}</span>
           <span className="truncate text-[12px] leading-4 text-ink/80">
-            {formatRecordMonthDay(record.date)}
+            {formatRecordShortDate(record)}
             {record.place && ` · ${record.place}`}
           </span>
         </span>
