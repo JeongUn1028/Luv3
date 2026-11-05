@@ -8,6 +8,8 @@ import { readSource, readSourceLines } from "@/test-utils/source";
 const SHELL = "components/PageShell.tsx";
 // 루트 레이아웃까지 실패했을 때의 최후의 화면은 일반 화면 코드에 기대지 않고 직접 그린다(#83)
 const GLOBAL_ERROR = "app/global-error.tsx";
+// 화면 위쪽에 겹쳐 뜨는 안내. 첫 실행 때 줄어드는 것은 아래쪽 높이라 위쪽 기준 fixed는 어긋나지 않는다
+const TOP_OVERLAYS = ["components/InstallHint.tsx", "components/SaveNotices.tsx"];
 
 const findLines = (pattern: RegExp, allowed: readonly string[]): string[] =>
   readSourceLines().flatMap(({ at, lines }) =>
@@ -78,14 +80,14 @@ describe("화면 틀", () => {
     expect(rootTags.filter((tag) => /\boverflow(?:-[xy])?-hidden\b/.test(tag))).toEqual([]);
   });
 
-  it("fixed는 Safari 탭에서만 보이는 설치 안내에서만 쓴다", () => {
+  it("fixed는 화면 위쪽에 겹쳐 뜨는 안내에서만 쓴다", () => {
     // 홈 화면 앱 첫 실행 때 fixed는 793 기준으로 잡혀, 하단 탭·떠 있는 버튼은 틀 안에 둔다
     // table-fixed·toFixed는 빼고, 클래스 fixed와 CSS position: fixed만 잡는다
-    expect(findLines(/(?<![\w-])fixed(?![\w-])/, ["components/InstallHint.tsx"])).toEqual([]);
+    expect(findLines(/(?<![\w-])fixed(?![\w-])/, TOP_OVERLAYS)).toEqual([]);
   });
 
-  it("safe-area 여백은 틀·하단 탭·설치 안내에서만 정한다", () => {
-    const allowed = [SHELL, GLOBAL_ERROR, "components/tabs/TabBar.tsx", "components/InstallHint.tsx"];
+  it("safe-area 여백은 틀·하단 탭·위쪽 안내에서만 정한다", () => {
+    const allowed = [SHELL, GLOBAL_ERROR, "components/tabs/TabBar.tsx", ...TOP_OVERLAYS];
 
     expect(findLines(/safe-area-inset-(?:top|bottom)/, allowed)).toEqual([]);
   });

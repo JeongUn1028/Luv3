@@ -20,6 +20,7 @@ import {
 } from "@/lib/events/form";
 import { clearError } from "@/lib/form";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
+import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { createClient } from "@/lib/supabase/client";
 
 const labelClassName = "text-[13px] text-ink-sub";
@@ -27,8 +28,11 @@ const inputClassName =
   "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent";
 const errorClassName = "mt-2 text-[12px] text-accent";
 const SAVE_FAILED_MESSAGE = "일정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
+const GONE_MESSAGE = "이 일정은 이미 지워졌어요. 캘린더에서 다시 확인해 주세요.";
 
 type TextField = "date" | "startTime" | "title" | "place" | "memo";
+
+const failedSaves = new Map<string, FailedSave<EventDraft>>();
 
 interface EventFormProps {
   initialDraft: EventDraft;
@@ -50,15 +54,18 @@ const saveEvent = async (values: EventValues, eventId: string | undefined): Prom
   // 고치는 사이 상대가 지운 일정은 오류 없이 0행이 바뀌므로, 바뀐 행을 받아 확인한다
   const { data, error } = await events.update(values).eq("id", eventId).select("id");
   if (error) return SAVE_FAILED_MESSAGE;
-  return data.length === 0 ? "이 일정은 이미 지워졌어요. 캘린더에서 다시 확인해 주세요." : undefined;
+  return data.length === 0 ? GONE_MESSAGE : undefined;
 };
 
 /** 공유 캘린더 일정 추가·수정 폼 */
 export const EventForm = ({ initialDraft, eventId, authorNickname, ownerNickname }: EventFormProps): ReactElement => {
   const router = useRouter();
-  const [draft, setDraft] = useState(initialDraft);
+  // 캘린더에서 고른 날마다 다른 폼이다. 다른 날의 실패한 내용이 채워지지 않게 날짜까지 구분한다
+  const formKey = `event:${eventId ?? `new:${initialDraft.date}`}`;
+  const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "일정을", failedSaves });
+  const [draft, setDraft] = useState(failedSave?.draft ?? initialDraft);
   const [errors, setErrors] = useState<EventDraftErrors>({});
-  const [notice, setNotice] = useState<string>();
+  const [notice, setNotice] = useState(failedSave?.message);
   const [isSaving, setIsSaving] = useState(false);
   // 캘린더로 돌아가면 일정 날짜가 속한 달을 열고 그날을 고른다
   const backHref = toCalendarHref({ date: initialDraft.date });
@@ -86,15 +93,23 @@ export const EventForm = ({ initialDraft, eventId, authorNickname, ownerNickname
       return;
     }
 
+    beginSave();
     setNotice(undefined);
     setIsSaving(true);
     const failure = await saveEvent(toEventValues(draft), eventId);
     if (failure) {
       setNotice(failure);
       setIsSaving(false);
+      finishFailed({ draft, message: failure, isGone: failure === GONE_MESSAGE });
       return;
     }
-    goToCalendar(draft.date);
+    finishSaved({
+      href: toCalendarHref({ date: draft.date }),
+      reset: () => {
+        setDraft(initialDraft);
+        setIsSaving(false);
+      },
+    });
   };
 
   const handleDelete = async () => {
