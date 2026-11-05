@@ -1,4 +1,4 @@
-import { SETTINGS_PASSWORD_PATH } from "@/lib/auth/paths";
+import { SETTINGS_NICKNAME_PATH, SETTINGS_PASSWORD_PATH } from "@/lib/auth/paths";
 
 /**
  * 저장 중에 다른 화면으로 옮겼을 때 저장 결과를 알리는 알림. 결과를 보여 줄 곳이 없는 비밀번호 변경은 성공도 이 알림으로 알린다.
@@ -68,4 +68,4 @@ export const saveNoticeStore = createSaveNoticeStore();
  *
  * @example isWritingPath("/todos/abc/edit") // true
  */
-export const isWritingPath = (pathname: string): boolean => pathname === SETTINGS_PASSWORD_PATH || /\/(new|edit)$/.test(pathname);
+export const isWritingPath = (pathname: string): boolean => pathname === SETTINGS_PASSWORD_PATH || pathname === SETTINGS_NICKNAME_PATH || /\/(new|edit)$/.test(pathname);

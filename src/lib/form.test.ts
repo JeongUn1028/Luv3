@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { clearError, countChars, isIsoDate } from "@/lib/form";
+import { clearError, countChars, countGraphemes, isIsoDate } from "@/lib/form";
 
 describe("countChars", () => {
   it("DB(char_length)처럼 이모지 하나를 한 글자로 센다", () => {
     expect(countChars("가나")).toBe(2);
     expect(countChars("😀")).toBe(1);
+  });
+});
+
+describe("countGraphemes", () => {
+  it("화면에 보이는 글자 단위로 센다", () => {
+    expect(countGraphemes("")).toBe(0);
+    expect(countGraphemes("가나")).toBe(2);
+    expect(countGraphemes("😀")).toBe(1);
+    expect(countGraphemes("👨‍👩‍👧‍👦")).toBe(1);
+    expect(countGraphemes("🇰🇷")).toBe(1);
   });
 });
 
