@@ -12,11 +12,25 @@ describe("글꼴", () => {
     const layout = readSource("app/layout.tsx");
     const css = readSource("app/globals.css");
 
-    expect(layout).toMatch(/import \{ Gowun_Dodum, Jua \} from "next\/font\/google"/);
+    expect(layout).toContain("Gowun_Dodum({");
+    expect(layout).toContain("Jua({");
     // html에 변수를 넣지 않으면 글꼴 변수가 정의되지 않아 모든 글자가 시스템 글꼴로 떨어진다
-    expect(layout).toMatch(/className=\{`\$\{gowunDodum\.variable\} \$\{jua\.variable\} /);
+    expect(layout).toContain("${gowunDodum.variable}");
+    expect(layout).toContain("${jua.variable}");
     expect(css).toMatch(/--font-sans: var\(--font-gowun-dodum\)/);
     expect(css).toMatch(/--font-display: var\(--font-jua\)/);
+  });
+
+  it("로고의 SINCE 문구만 Cormorant Garamond로 그린다", () => {
+    const layout = readSource("app/layout.tsx");
+    const logoUsers = readSourceLines().filter(({ lines }) => lines.some((line) => /(?<![\w-])font-logo(?![\w-])/.test(line))).map(({ at }) => at);
+
+    expect(layout).toContain("Cormorant_Garamond({");
+    expect(layout).toContain("${cormorantGaramond.variable}");
+    expect(readSource("app/globals.css")).toMatch(/--font-logo: var\(--font-cormorant\)/);
+    expect(readSource("app/login/page.tsx")).toMatch(/font-logo[^"]*tracking-\[6px\]/);
+    // 홈 D-day, 연·월 제목, 탭, 버튼은 주아를 유지한다
+    expect(logoUsers).toEqual(["app/login/page.tsx"]);
   });
 
   it("브라우저가 가짜 굵기를 만들지 않게 막는다", () => {
