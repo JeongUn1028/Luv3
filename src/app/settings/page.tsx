@@ -30,7 +30,7 @@ const SettingsPage = () => (
   <PageShell
     bottomSpace="sm"
     className="px-4"
-    header={<ScreenHeader back={{ href: HOME_PATH, label: "홈으로" }} title="설정" />}
+    header={<ScreenHeader back={{ href: HOME_PATH }} title="설정" />}
   >
     <div className="mt-6">
       {/* 세션을 읽는 부분만 요청 시점에 렌더링한다(cacheComponents) */}

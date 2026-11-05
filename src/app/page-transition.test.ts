@@ -17,9 +17,16 @@ describe("화면 전환", () => {
 
   it("하단 탭 링크는 탭 전환, 뒤로 가기 링크는 뒤로, 머리글 추가 버튼은 앞으로 움직인다", () => {
     expect(findLinks("components/tabs/TabBar.tsx").join()).toMatch(/transitionTypes=\{TAB_TRANSITION\}/);
-    const [backLink, headerLink] = findLinks("components/ScreenHeader.tsx");
+    const [backLink] = findLinks("components/BackLink.tsx");
+    const [headerLink] = findLinks("components/ScreenHeader.tsx");
     expect(backLink).toMatch(/transitionTypes=\{BACK_TRANSITION\}/);
     expect(headerLink).toMatch(/transitionTypes=\{FORWARD_TRANSITION\}/);
+  });
+
+  it("뒤로 버튼 움직임은 Next가 시작한 되돌아가기 안에서 붙이고, 그 전환이 건너뛰어지지 않게 Next보다 먼저 듣는다", () => {
+    // 움직임이 사라져도 Vitest로는 알 수 없으므로 실제 움직임은 e2e/back-navigation.spec.ts가 잰다
+    expect(readSource("instrumentation-client.ts")).toMatch(/onRouterTransitionStart[\s\S]*claimBackMotion\(\)[\s\S]*addTransitionType/);
+    expect(readSource("app/layout.tsx")).toContain("<HistoryReturn />");
   });
 
   it("화면을 옮기는 링크는 방향을 빠뜨리지 않는다", () => {

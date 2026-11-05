@@ -1,9 +1,12 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactElement } from "react";
+import type { MouseEvent, ReactElement } from "react";
 import { CalendarIcon, GridIcon, HomeIcon, TodoIcon } from "@/components/icons";
 import { HOME_PATH } from "@/lib/auth/paths";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
+import { scrollAreaToTop } from "@/lib/navigation/scroll-memory";
 import { TAB_TRANSITION } from "@/lib/navigation/transition";
 import { TODOS_PATH } from "@/lib/todos/list";
 
@@ -21,6 +24,14 @@ interface TabBarProps {
   /** 지금 보고 있는 탭 */
   current: MainTab;
 }
+
+/** 지금 탭을 다시 누르면 맨 위로 올린다. 다른 달을 보던 캘린더처럼 주소가 다르면 이동도 그대로 한다 */
+const handleCurrentTabClick = (event: MouseEvent<HTMLAnchorElement>, tab: MainTab, href: string) => {
+  // 새 탭으로 열기는 브라우저에 맡긴다
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  scrollAreaToTop(tab);
+  if (`${window.location.pathname}${window.location.search}` === href) event.preventDefault();
+};
 
 /**
  * 하단 탭 4개. 탭은 화면 이동 링크라 tablist가 아닌 nav로 두고, 지금 화면은 `aria-current`로 알린다.
@@ -43,6 +54,7 @@ export const TabBar = ({ current }: TabBarProps): ReactElement => (
               href={href}
               transitionTypes={TAB_TRANSITION}
               aria-current={isCurrent ? "page" : undefined}
+              onClick={isCurrent ? (event) => handleCurrentTabClick(event, tab, href) : undefined}
               className={`flex flex-1 flex-col items-center justify-center gap-1 text-[11px] ${isCurrent ? "text-highlight" : "text-ink-sub"}`}
             >
               <Icon className="size-[22px]" />

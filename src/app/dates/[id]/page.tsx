@@ -21,7 +21,7 @@ export const metadata: Metadata = { title: "기록 · Luv3" };
 // 수정·삭제 버튼이 기록을 읽은 뒤에야 정해져 머리글도 Suspense 안에서 그린다. 그래서 틀의 고정 머리글 대신 내용과 함께 스크롤한다
 // 제목은 사진 아래 본문의 h1이 맡는다
 const DetailHeader = ({ actions }: { actions?: ReactNode }) => (
-  <ScreenHeader back={{ href: RECORDS_PATH, label: "기록 목록으로" }} actions={actions} />
+  <ScreenHeader back={{ href: RECORDS_PATH }} actions={actions} />
 );
 
 const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => {

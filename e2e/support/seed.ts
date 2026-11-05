@@ -49,6 +49,15 @@ export const createDisposableRecord = async ({ id, title }: { id: string; title:
 };
 
 /**
+ * 상대가 고친 것처럼 기록 제목을 바꾼다.
+ *
+ * @example await renameRecord(id, "상대가 고친 제목")
+ */
+export const renameRecord = async (id: string, title: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("dates").update({ title }).eq("id", id), "기록 제목 바꾸기");
+};
+
+/**
  * 기록 행과 폴더의 파일을 모두 지운다. 여러 번 불러도 된다.
  *
  * @example await deleteRecordWithFiles(id)

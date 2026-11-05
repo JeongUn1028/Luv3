@@ -54,7 +54,7 @@ const fillNewRecord = async (page: Page, title: string): Promise<void> => {
 };
 
 const leaveRecordFormToTodos = async (page: Page): Promise<void> => {
-  await page.getByRole("link", { name: "기록 목록으로" }).locator("visible=true").tap();
+  await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
   await page.waitForURL(`**${RECORDS_PATH}`);
   await getTab(page, TODOS_PATH).tap();
   await page.waitForURL(`**${TODOS_PATH}`);
@@ -199,7 +199,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await save.requested;
 
       // Act
-      await page.getByRole("link", { name: "기록으로" }).locator("visible=true").tap();
+      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**/dates/${id}`);
       save.release();
       const notice = getNotice(page, "alert", "기록을 저장하지 못했어요");
@@ -221,7 +221,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await save.requested;
     try {
       // Act
-      await page.getByRole("link", { name: "기록 목록으로" }).locator("visible=true").tap();
+      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${RECORDS_PATH}`);
       await page.goBack();
       await page.waitForURL("**/dates/new");
@@ -247,7 +247,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await save.requested;
     try {
       // Act: 다른 폼으로 옮겨 쓰는 중에 저장이 끝난다
-      await page.getByRole("link", { name: "목록으로" }).locator("visible=true").tap();
+      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${TODOS_PATH}`);
       await getTab(page, CALENDAR_PATH).tap();
       await page.waitForURL(`**${CALENDAR_PATH}*`);
@@ -281,7 +281,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await getSaveButton(page).tap();
       await save.requested;
 
-      await page.getByRole("link", { name: "목록으로" }).locator("visible=true").tap();
+      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${TODOS_PATH}`);
       save.release();
       const notice = getNotice(page, "alert", "하고 싶은 것을 저장하지 못했어요");
@@ -305,7 +305,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       const save = await holdSaveRequest(page, TODOS_URL);
       await getSaveButton(page).tap();
       await save.requested;
-      await page.getByRole("link", { name: "목록으로" }).locator("visible=true").tap();
+      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${TODOS_PATH}`);
       save.release();
       await expect(getNotice(page, "status", "하고 싶은 것을 저장했어요")).toBeVisible();
@@ -330,7 +330,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await getSaveButton(page).tap();
     await save.requested;
     try {
-      await page.getByRole("link", { name: "목록으로" }).locator("visible=true").tap();
+      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${TODOS_PATH}`);
       await page.waitForLoadState("networkidle");
       await getTab(page, CALENDAR_PATH).tap();
@@ -361,7 +361,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     const save = await holdSaveRequest(page, TODOS_URL, failRequest);
     await getSaveButton(page).tap();
     await save.requested;
-    await page.getByRole("link", { name: "목록으로" }).locator("visible=true").tap();
+    await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
     await page.waitForURL(`**${TODOS_PATH}`);
     save.release();
     const notice = getNotice(page, "alert", "하고 싶은 것을 저장하지 못했어요");
@@ -376,7 +376,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await expect(notice).toHaveCount(0);
 
     // Act: 쓰지 않기로 하고 나갔다가 새로 연다
-    await page.getByRole("link", { name: "목록으로" }).locator("visible=true").tap();
+    await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
     await page.waitForURL(`**${TODOS_PATH}`);
     await page.locator('main a[href="/todos/new"]').locator("visible=true").first().tap();
     await page.waitForURL("**/todos/new");
@@ -394,7 +394,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       const save = await holdSaveRequest(page, TODOS_URL);
       await getSaveButton(page).tap();
       await save.requested;
-      await page.getByRole("link", { name: "목록으로" }).locator("visible=true").tap();
+      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${TODOS_PATH}`);
 
       // Act: 저장이 끝나기 전에 상대가 지운다
@@ -418,7 +418,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await getSaveButton(page).tap();
     await save.requested;
     try {
-      await page.getByRole("link", { name: "캘린더로" }).locator("visible=true").tap();
+      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${CALENDAR_PATH}*`);
       await getTab(page, TODOS_PATH).tap();
       await page.waitForURL(`**${TODOS_PATH}`);
@@ -444,7 +444,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await getSaveButton(page).tap();
       await save.requested;
 
-      await page.getByRole("link", { name: "캘린더로" }).locator("visible=true").tap();
+      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${CALENDAR_PATH}*`);
       save.release();
       const notice = getNotice(page, "alert", "일정을 저장하지 못했어요");

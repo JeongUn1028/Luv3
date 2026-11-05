@@ -21,7 +21,7 @@ const MemberOnlyForm = async ({ searchParams }: Pick<PageProps<"/dates/new">, "s
 
 const NewDateRecordPage = ({ searchParams }: PageProps<"/dates/new">) => (
   // 세션·주소 쿼리를 읽고 오늘 날짜를 기본값으로 쓰므로 요청 시점에 렌더링한다(cacheComponents)
-  <LoadingSuspense fallback={<FormSkeleton back={{ href: RECORDS_PATH, label: "기록 목록으로" }} title="기록 남기기" fieldCount={4} />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: RECORDS_PATH }} title="기록 남기기" fieldCount={4} />}>
     <MemberOnlyForm searchParams={searchParams} />
   </LoadingSuspense>
 );
