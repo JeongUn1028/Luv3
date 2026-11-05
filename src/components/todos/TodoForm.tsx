@@ -7,11 +7,15 @@ import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
+import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { createClient } from "@/lib/supabase/client";
 import { TODO_CONTENT_MAX_LENGTH, validateTodoContent } from "@/lib/todos/form";
 import { TODOS_PATH } from "@/lib/todos/list";
 
 const SAVE_FAILED_MESSAGE = "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
+const GONE_MESSAGE = "이 항목은 이미 지워졌어요. 목록에서 다시 확인해 주세요.";
+
+const failedSaves = new Map<string, FailedSave<string>>();
 
 interface TodoFormProps {
   /** 처음 채울 내용. 새 항목이면 빈 문자열 */
@@ -32,15 +36,17 @@ const saveTodo = async (content: string, todoId: string | undefined): Promise<st
   // 고치는 사이 상대가 지운 항목은 오류 없이 0행이 바뀌므로, 바뀐 행을 받아 확인한다
   const { data, error } = await todos.update({ content }).eq("id", todoId).select("id");
   if (error) return SAVE_FAILED_MESSAGE;
-  return data.length === 0 ? "이 항목은 이미 지워졌어요. 목록에서 다시 확인해 주세요." : undefined;
+  return data.length === 0 ? GONE_MESSAGE : undefined;
 };
 
 /** 하고 싶은 것 추가·고치기 폼. 고칠 때는 머리글에서 지울 수도 있다 */
 export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormProps): ReactElement => {
   const router = useRouter();
-  const [content, setContent] = useState(initialContent);
+  const formKey = `todo:${todoId ?? "new"}`;
+  const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "하고 싶은 것을", failedSaves });
+  const [content, setContent] = useState(failedSave?.draft ?? initialContent);
   const [error, setError] = useState<string>();
-  const [notice, setNotice] = useState<string>();
+  const [notice, setNotice] = useState(failedSave?.message);
   const [isSaving, setIsSaving] = useState(false);
 
   const goToList = () => {
@@ -58,15 +64,23 @@ export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormPro
     setError(nextError);
     if (nextError) return;
 
+    beginSave();
     setNotice(undefined);
     setIsSaving(true);
     const failure = await saveTodo(content.trim(), todoId);
     if (failure) {
       setNotice(failure);
       setIsSaving(false);
+      finishFailed({ draft: content, message: failure, isGone: failure === GONE_MESSAGE });
       return;
     }
-    goToList();
+    finishSaved({
+      href: TODOS_PATH,
+      reset: () => {
+        setContent(initialContent);
+        setIsSaving(false);
+      },
+    });
   };
 
   const handleDelete = async () => {

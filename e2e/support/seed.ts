@@ -34,24 +34,78 @@ const uploadPhoto = async (admin: AdminClient, path: string): Promise<void> => {
  */
 export const createDisposableRecord = async ({ id, title }: { id: string; title: string }): Promise<() => Promise<void>> => {
   const admin = createAdminClient();
-  const { data: member, error } = await admin.from("members").select("id").eq("email", E2E_MEMBER.email).single();
-  assertNoError({ error }, "계정 조회");
-  if (!member) throw new Error("E2E 데이터 준비 실패(계정 조회): 전용 계정이 없습니다");
+  const authorId = await getMemberId(admin);
 
   const path = `${id}/${randomUUID()}.jpg`;
   await uploadPhoto(admin, path);
   // 오늘 날짜면 나란히 도는 홈 테스트의 "최근 기록" 자리를 잠깐 차지하므로 어제로 둔다
   const yesterday = toKstDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
-  assertNoError(await admin.from("dates").insert({ id, date: yesterday, title, author_id: member.id }), "기록");
+  assertNoError(await admin.from("dates").insert({ id, date: yesterday, title, author_id: authorId }), "기록");
   const photoId = randomUUID();
   assertNoError(await admin.from("photos").insert({ id: photoId, date_id: id, path, thumb_path: path, sort_order: 0 }), "사진 행");
   assertNoError(await admin.from("dates").update({ cover_photo_id: photoId }).eq("id", id), "대표 사진");
 
-  return async () => {
-    assertNoError(await admin.from("dates").delete().eq("id", id), "기록 지우기");
-    const names = await listRecordFiles(id);
-    if (names.length > 0) assertNoError(await admin.storage.from(ALBUM_BUCKET).remove(names.map((name) => `${id}/${name}`)), "사진 지우기");
-  };
+  return () => deleteRecordWithFiles(id);
+};
+
+/**
+ * 기록 행과 폴더의 파일을 모두 지운다. 여러 번 불러도 된다.
+ *
+ * @example await deleteRecordWithFiles(id)
+ */
+export const deleteRecordWithFiles = async (id: string): Promise<void> => {
+  const admin = createAdminClient();
+  assertNoError(await admin.from("dates").delete().eq("id", id), "기록 지우기");
+  const names = await listRecordFiles(id);
+  if (names.length > 0) assertNoError(await admin.storage.from(ALBUM_BUCKET).remove(names.map((name) => `${id}/${name}`)), "사진 지우기");
+};
+
+const getMemberId = async (admin: AdminClient): Promise<string> => {
+  const { data, error } = await admin.from("members").select("id").eq("email", E2E_MEMBER.email).single();
+  assertNoError({ error }, "계정 조회");
+  if (!data) throw new Error("E2E 데이터 준비 실패(계정 조회): 전용 계정이 없습니다");
+  return data.id;
+};
+
+/**
+ * 테스트 하나에서만 쓰는 하고 싶은 것을 만든다. 돌려준 함수는 그 항목을 지운다.
+ *
+ * @example const deleteTodo = await createDisposableTodo({ id: randomUUID(), content: "고칠 항목" })
+ */
+export const createDisposableTodo = async ({ id, content }: { id: string; content: string }): Promise<() => Promise<void>> => {
+  const admin = createAdminClient();
+  assertNoError(await admin.from("todos").insert({ id, content, author_id: await getMemberId(admin) }), "하고 싶은 것");
+  return async () => assertNoError(await admin.from("todos").delete().eq("id", id), "하고 싶은 것 지우기");
+};
+
+/**
+ * 화면에서 저장한 하고 싶은 것을 내용으로 찾아 지운다.
+ *
+ * @example await deleteTodosByContent("저장한 항목")
+ */
+export const deleteTodosByContent = async (content: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("todos").delete().eq("content", content), "하고 싶은 것 지우기");
+};
+
+/**
+ * 테스트 하나에서만 쓰는 일정을 만든다. 돌려준 함수는 그 일정을 지운다.
+ *
+ * @example const deleteEvent = await createDisposableEvent({ id: randomUUID(), title: "고칠 일정" })
+ */
+export const createDisposableEvent = async ({ id, title }: { id: string; title: string }): Promise<() => Promise<void>> => {
+  const admin = createAdminClient();
+  const date = toKstDate(new Date());
+  assertNoError(await admin.from("events").insert({ id, title, date, author_id: await getMemberId(admin) }), "일정");
+  return async () => assertNoError(await admin.from("events").delete().eq("id", id), "일정 지우기");
+};
+
+/**
+ * 화면에서 저장한 일정을 제목으로 찾아 지운다.
+ *
+ * @example await deleteEventsByTitle("저장한 일정")
+ */
+export const deleteEventsByTitle = async (title: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("events").delete().eq("title", title), "일정 지우기");
 };
 
 /**
