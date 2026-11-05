@@ -22,6 +22,7 @@ import {
 import { clearError, countChars } from "@/lib/form";
 import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
+import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import type { EditableRecord } from "@/lib/dates/detail";
 import { DateRecordGoneError, SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
 import { PhotoError } from "@/lib/photos/errors";
@@ -66,6 +67,16 @@ const toEditDraft = ({ date, endDate, title, place, memo, coverPhotoId, photos }
   photos: photos.map((photo) => ({ ...photo, file: undefined })),
 });
 
+type RecordDraft = DateRecordDraft<PickedPhoto>;
+
+const failedSaves = new Map<string, FailedSave<RecordDraft>>();
+
+/** 예전 폼의 미리보기는 숨겨질 때 해제됐으므로 파일로 다시 만든다 */
+const withNewPreviews = (draft: RecordDraft): RecordDraft => ({
+  ...draft,
+  photos: draft.photos.map((photo) => (photo.file ? { ...photo, previewUrl: URL.createObjectURL(photo.file) } : photo)),
+});
+
 interface DateRecordFormProps {
   /** 고칠 기록. 없으면 새 기록을 쓴다 */
   record?: EditableRecord;
@@ -76,9 +87,15 @@ interface DateRecordFormProps {
 /** 데이트 기록 작성·수정 폼. 새로 고른 사진을 줄여 올린 뒤 기록과 사진 행을 한 번에 저장한다. */
 export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactElement => {
   const router = useRouter();
-  const [draft, setDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft(prefill)));
+  // 지난 일정에서 넘어온 새 기록은 일정마다 다른 폼이다. 다른 일정의 실패한 내용이 채워지지 않게 값까지 구분한다
+  const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.title ?? ""}:${prefill?.place ?? ""}`}`;
+  const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "기록을", failedSaves });
+  const [draft, setDraft] = useState(() => {
+    if (failedSave) return withNewPreviews(failedSave.draft);
+    return record ? toEditDraft(record) : createEmptyDraft(prefill);
+  });
   const [errors, setErrors] = useState<DraftErrors>({});
-  const [notice, setNotice] = useState<string>();
+  const [notice, setNotice] = useState(failedSave?.message);
   const [isRecordGone, setIsRecordGone] = useState(false);
   const [progress, setProgress] = useState<SaveProgress>();
   const [isSaving, setIsSaving] = useState(false);
@@ -86,7 +103,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
   const isPeriod = draft.endDate !== undefined;
 
   // 만든 미리보기 URL. 사진을 빼거나 화면을 떠날 때 해제한다(브라우저 메모리 = 외부 자원)
-  const previewUrlsRef = useRef(new Set<string>());
+  const previewUrlsRef = useRef(new Set(draft.photos.flatMap(({ file, previewUrl }) => (file && previewUrl ? [previewUrl] : []))));
   useEffect(() => {
     const previewUrls = previewUrlsRef.current;
     return () => previewUrls.forEach((url) => URL.revokeObjectURL(url));
@@ -152,6 +169,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
       return;
     }
 
+    beginSave();
     setNotice(undefined);
     setIsSaving(true);
     try {
@@ -185,20 +203,24 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
       draft.photos.forEach(({ previewUrl }) => revokePreview(previewUrl));
       // 목록은 날짜 내림차순이라 새 기록은 맨 위에 있다. 보던 위치로 돌아가면 저장되지 않은 것처럼 보인다
       if (!record) forgetScrollPosition("records");
-      startTransition(() => {
-        router.replace(record ? `/dates/${record.id}` : RECORDS_PATH, { transitionTypes: BACK_TRANSITION });
-        router.refresh();
-        setDraft(record ? toEditDraft(record) : createEmptyDraft());
-        setErrors({});
-        setNotice(undefined);
-        setProgress(undefined);
-        setIsSaving(false);
+      finishSaved({
+        href: record ? `/dates/${record.id}` : RECORDS_PATH,
+        reset: () => {
+          setDraft(record ? toEditDraft(record) : createEmptyDraft());
+          setErrors({});
+          setNotice(undefined);
+          setProgress(undefined);
+          setIsSaving(false);
+        },
       });
     } catch (error) {
-      setIsRecordGone(error instanceof DateRecordGoneError);
-      setNotice(toSaveErrorMessage(error));
+      const message = toSaveErrorMessage(error);
+      const isGone = error instanceof DateRecordGoneError;
+      setIsRecordGone(isGone);
+      setNotice(message);
       setIsSaving(false);
       setProgress(undefined);
+      finishFailed({ draft, message, isGone });
     }
   };
 
