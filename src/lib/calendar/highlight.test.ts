@@ -7,6 +7,7 @@ import {
   getDayNumberClassName,
   getEventKinds,
   getHighlightClassNames,
+  LEGEND_EVENT_KINDS,
   type DayHighlight,
 } from "./highlight";
 
@@ -54,6 +55,15 @@ describe("getEventKinds", () => {
       { isTogether: false, highlight: "personal", label: "정운" },
     ]);
     for (const { isTogether, highlight } of kinds) expect(getDayHighlight([{ isTogether }])).toBe(highlight);
+  });
+});
+
+describe("LEGEND_EVENT_KINDS", () => {
+  it("한 사람 일정의 이름은 닉네임이 아니라 개인이다", () => {
+    expect(LEGEND_EVENT_KINDS).toEqual([
+      { isTogether: true, highlight: "together", label: "함께" },
+      { isTogether: false, highlight: "personal", label: "개인" },
+    ]);
   });
 });
 
