@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useOptimistic, useState, type ReactElement } from "react";
-import { AuthorHeart } from "@/components/AuthorHeart";
+import { AuthorTag } from "@/components/AuthorTag";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { createClient } from "@/lib/supabase/client";
@@ -154,7 +154,7 @@ interface TodoItemProps {
   children?: ReactElement[];
 }
 
-/** 목록 한 줄: 완료 체크 + 내용(누르면 고치기 화면) + 작성자 하트 + 순서 버튼 */
+/** 목록 한 줄: 완료 체크 + 내용(누르면 고치기 화면) + 작성자 이름표 + 순서 버튼 */
 const TodoItem = ({ todo, onToggle, children }: TodoItemProps): ReactElement => {
   const isCompleted = todo.completedAt !== undefined;
   return (
@@ -175,8 +175,8 @@ const TodoItem = ({ todo, onToggle, children }: TodoItemProps): ReactElement => 
       >
         {todo.content}
       </Link>
-      {todo.authorNickname && <AuthorHeart nickname={todo.authorNickname} className={isCompleted ? "opacity-50" : ""} />}
-      {/* 순서 버튼이 없는 줄(완료)도 하트가 위 목록의 하트와 같은 세로줄에 오도록 버튼 두 개 너비를 비워 둔다 */}
+      {todo.authorNickname && <AuthorTag nickname={todo.authorNickname} className={isCompleted ? "opacity-50" : ""} />}
+      {/* 순서 버튼이 없는 줄(완료)도 이름표 오른쪽 끝이 위 목록과 같은 세로줄에 오도록 버튼 두 개 너비를 비워 둔다 */}
       {children ?? <span aria-hidden="true" className="w-22 shrink-0" />}
     </li>
   );
