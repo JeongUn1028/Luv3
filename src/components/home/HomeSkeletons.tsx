@@ -30,7 +30,7 @@ export const HomeTileSkeleton = (): ReactElement => (
 
 /** 하고 싶은 것 칸. 높이는 내용이 한 줄일 때의 TodoPreview 높이(72px)다 */
 export const TodoPreviewSkeleton = (): ReactElement => (
-  <div aria-hidden="true" className="mt-2.5 flex h-[72px] shrink-0 flex-col gap-2 rounded-[16px] bg-surface px-3.5 py-3">
+  <div aria-hidden="true" className="mt-4 flex h-[72px] shrink-0 flex-col gap-2 rounded-[16px] bg-surface px-3.5 py-3">
     <SkeletonBlock tone="line" className="h-5 w-20 rounded-[4px]" />
     <SkeletonBlock tone="line" className="h-5 w-3/4 rounded-[4px]" />
   </div>

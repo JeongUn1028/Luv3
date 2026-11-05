@@ -112,7 +112,7 @@ export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormPro
         />
       }
     >
-      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-col gap-6">
+      <form onSubmit={handleSubmit} noValidate className="mt-3 flex flex-col gap-4">
         <div className="flex flex-col">
           <label htmlFor="todo-content" className="text-[13px] text-ink-sub">
             하고 싶은 것

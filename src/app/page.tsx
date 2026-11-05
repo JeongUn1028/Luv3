@@ -131,7 +131,7 @@ const HomePage = () => (
     <LoadingSuspense fallback={<CouplePhotoSkeleton />}>
       <HomeCouplePhoto />
     </LoadingSuspense>
-    <div className="mt-2.5 grid shrink-0 grid-cols-2 gap-2.5">
+    <div className="mt-4 grid shrink-0 grid-cols-2 gap-2.5">
       <LoadingSuspense fallback={<HomeTileSkeleton />}>
         <HomeLatestRecord />
       </LoadingSuspense>

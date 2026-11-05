@@ -10,8 +10,6 @@ const SHELL = "components/PageShell.tsx";
 const GLOBAL_ERROR = "app/global-error.tsx";
 // 화면 위쪽에 겹쳐 뜨는 안내. 첫 실행 때 줄어드는 것은 아래쪽 높이라 위쪽 기준 fixed는 어긋나지 않는다
 const TOP_OVERLAYS = ["components/InstallHint.tsx", "components/SaveNotices.tsx"];
-// 상태바 자리를 덮는 띠. 안내가 아니라 맨 위에 붙어 있어야 해서 끊김 안내 아래로 내려오지 않는다(#127)
-const STATUS_BAR_STRIP = "components/StatusBarStrip.tsx";
 
 const findLines = (pattern: RegExp, allowed: readonly string[]): string[] =>
   readSourceLines().flatMap(({ at, lines }) =>
@@ -30,7 +28,7 @@ describe("화면 틀", () => {
 
     expect(readSource("app/layout.tsx")).toMatch(/<div className="[^"]*\bflex\b[^"]*\bh-app\b[^"]*\bflex-col\b[^"]*">\s*<OfflineNotice \/>\s*\{children\}\s*<\/div>/);
     // 화면 제목(h1)이 본문 영역 안에 남도록 머리글도 main 안에 둔다
-    expect(shell).toMatch(/<main className="[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*\bflex-col\b[^"]*">\s*\{header &&/);
+    expect(shell).toMatch(/<main className="[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*\bflex-col\b[^"]*">\s*<div className="shrink-0 pt-\[var\(--screen-top-inset\)\]">\{header\}<\/div>/);
     // min-h-0이 없으면 flex 자식이 내용만큼 늘어나 안쪽 스크롤이 생기지 않는다
     expect(shell).toMatch(/"[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*\boverflow-y-auto\b[^"]*\boverscroll-contain\b[^"]*"/);
   });
@@ -95,11 +93,11 @@ describe("화면 틀", () => {
   it("fixed는 화면 위쪽에 겹치는 요소에서만 쓴다", () => {
     // 홈 화면 앱 첫 실행 때 fixed는 793 기준으로 잡혀, 하단 탭·떠 있는 버튼은 틀 안에 둔다
     // table-fixed·toFixed는 빼고, 클래스 fixed와 CSS position: fixed만 잡는다
-    expect(findLines(/(?<![\w-])fixed(?![\w-])/, [...TOP_OVERLAYS, STATUS_BAR_STRIP])).toEqual([]);
+    expect(findLines(/(?<![\w-])fixed(?![\w-])/, TOP_OVERLAYS)).toEqual([]);
   });
 
-  it("safe-area 여백은 틀·하단 탭·끊김 안내·상태바 띠와 위쪽 여백 변수에서만 정한다", () => {
-    const allowed = [SHELL, GLOBAL_ERROR, "components/tabs/TabBar.tsx", "components/OfflineNotice.tsx", STATUS_BAR_STRIP, "app/globals.css"];
+  it("safe-area 여백은 틀·하단 탭과 위쪽 여백 변수에서만 정한다", () => {
+    const allowed = [SHELL, GLOBAL_ERROR, "components/tabs/TabBar.tsx", "app/globals.css"];
 
     expect(findLines(/safe-area-inset-(?:top|bottom)/, allowed)).toEqual([]);
   });
