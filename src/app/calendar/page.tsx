@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { CalendarSkeleton } from "@/components/calendar/CalendarSkeleton";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { PlusIcon } from "@/components/icons";
+import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
@@ -22,15 +23,7 @@ const CalendarContent = async ({ searchParams }: Pick<PageProps<"/calendar">, "s
   // 일정을 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다
   const result = await catchLoadError(() => getCalendarMonth(month), EventLoadError);
 
-  if (result instanceof EventLoadError) {
-    return (
-      <div className="flex flex-1 items-center justify-center px-4">
-        <p role="alert" className="text-[13px] text-ink-sub">
-          {result.message}
-        </p>
-      </div>
-    );
-  }
+  if (result instanceof EventLoadError) return <LoadErrorMessage message={result.message} />;
   // 달이나 주소의 날이 바뀌면 고른 날을 다시 정하도록 key로 새로 그린다
   return (
     <CalendarView

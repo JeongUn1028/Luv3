@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { AuthorTag } from "@/components/AuthorTag";
 import { DeleteRecordButton } from "@/components/dates/DeleteRecordButton";
 import { PhotoCarousel } from "@/components/dates/PhotoCarousel";
+import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { RecordDetailSkeleton } from "@/components/dates/RecordDetailSkeleton";
@@ -30,17 +31,15 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
   const { id } = await params;
   const record = await catchLoadError(() => getDateRecordDetail(id), DateRecordLoadError);
 
-  if (!record) notFound();
   if (record instanceof DateRecordLoadError) {
     return (
       <>
         <DetailHeader />
-        <p role="alert" className="px-4 py-12 text-center text-[13px] text-ink-sub">
-          {record.message}
-        </p>
+        <LoadErrorMessage message={record.message} />
       </>
     );
   }
+  if (!record) notFound();
 
   return (
     <>
