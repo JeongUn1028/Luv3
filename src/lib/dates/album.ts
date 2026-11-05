@@ -1,3 +1,5 @@
+import type { SignedUrl } from "@/lib/photos/signed-urls";
+
 /** 기록 탭(앨범 그리드) 주소 */
 export const RECORDS_PATH = "/records";
 
@@ -33,18 +35,12 @@ export interface AlbumRow {
   cover: { thumb_path: string } | null;
 }
 
-/** `storage.createSignedUrls` 결과 중 쓰는 값 */
-export interface SignedThumb {
-  path: string | null;
-  signedUrl: string | null;
-}
-
 /**
  * 조회한 기록 행에 썸네일 서명 URL을 붙여 그리드 칸으로 바꾼다. DB의 null은 화면 경계에서 undefined로 바꾼다.
  *
  * @example toAlbumTiles(rows, signedUrls) // [{ id, date, title, place, thumbUrl }]
  */
-export const toAlbumTiles = (rows: AlbumRow[], signedThumbs: SignedThumb[]): AlbumTile[] => {
+export const toAlbumTiles = (rows: AlbumRow[], signedThumbs: SignedUrl[]): AlbumTile[] => {
   const urlByPath = new Map(
     signedThumbs.flatMap(({ path, signedUrl }) => (path && signedUrl ? [[path, signedUrl] as const] : [])),
   );
