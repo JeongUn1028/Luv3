@@ -46,6 +46,7 @@ const SCREENS: Screen[] = [
   { name: "캘린더", path: "/calendar", ready: (page) => page.locator('button[aria-pressed="true"]') },
   { name: "Todo", path: "/todos", ready: (page) => page.getByText(TODO.content) },
   { name: "설정", path: "/settings", ready: (page) => page.getByText(E2E_MEMBER.nickname, { exact: true }) },
+  { name: "비밀번호 변경", path: "/settings/password", ready: (page) => page.getByLabel("현재 비밀번호") },
   { name: "기록 상세", path: `/dates/${PHOTO_RECORD.id}`, ready: (page) => page.getByRole("heading", { name: PHOTO_RECORD.title }) },
   { name: "기록 작성", path: "/dates/new", ready: (page) => page.locator("#memo") },
   { name: "기록 고치기", path: `/dates/${PHOTO_RECORD.id}/edit`, ready: (page) => page.locator("#memo") },

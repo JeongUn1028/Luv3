@@ -78,6 +78,10 @@ describe("isWritingPath", () => {
     },
   );
 
+  it("비밀번호 변경 화면도 다시 불러오면 적던 비밀번호가 사라지므로 true를 돌려준다", () => {
+    expect(isWritingPath("/settings/password")).toBe(true);
+  });
+
   it.each(["/", "/records", "/calendar", "/todos", "/dates/abc", "/settings"])("폼이 아닌 화면 %s이면 false를 돌려준다", (pathname) => {
     expect(isWritingPath(pathname)).toBe(false);
   });

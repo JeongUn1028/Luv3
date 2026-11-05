@@ -10,6 +10,7 @@ import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
 import { ANNIVERSARY_DATE, countDaysTogether, toKstDate } from "@/lib/anniversary";
+import { SETTINGS_PATH } from "@/lib/auth/paths";
 import { getCurrentMember } from "@/lib/auth/member";
 import { CALENDAR_PATH, toCalendarHref } from "@/lib/calendar/month";
 import { CouplePhotoLoadError, getCouplePhotoUrl } from "@/lib/couple-photo/queries";
@@ -114,7 +115,7 @@ const HomePage = () => (
     title="홈"
     isTitleHidden
     actions={
-      <ScreenHeaderLink href="/settings" label="설정">
+      <ScreenHeaderLink href={SETTINGS_PATH} label="설정">
         <SettingsIcon className="size-[22px]" />
       </ScreenHeaderLink>
     }
