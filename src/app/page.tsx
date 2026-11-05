@@ -1,6 +1,6 @@
 import { CouplePhoto } from "@/components/home/CouplePhoto";
 import { DdayHeader } from "@/components/home/DdayHeader";
-import { CouplePhotoSkeleton, DdaySkeleton, HomeTileSkeleton, TodoPreviewSkeleton } from "@/components/home/HomeSkeletons";
+import { CouplePhotoSkeleton, DdaySkeleton, LatestRecordSkeleton, TodoPreviewSkeleton, UpcomingEventSkeleton } from "@/components/home/HomeSkeletons";
 import { HomeTile, HomeTileMessage } from "@/components/home/HomeTile";
 import { LatestRecordCard } from "@/components/home/LatestRecordCard";
 import { TodoPreview } from "@/components/home/TodoPreview";
@@ -132,10 +132,10 @@ const HomePage = () => (
       <HomeCouplePhoto />
     </LoadingSuspense>
     <div className="mt-4 grid shrink-0 grid-cols-2 gap-2.5">
-      <LoadingSuspense fallback={<HomeTileSkeleton />}>
+      <LoadingSuspense fallback={<LatestRecordSkeleton />}>
         <HomeLatestRecord />
       </LoadingSuspense>
-      <LoadingSuspense fallback={<HomeTileSkeleton />}>
+      <LoadingSuspense fallback={<UpcomingEventSkeleton />}>
         <HomeUpcomingEvents />
       </LoadingSuspense>
     </div>
