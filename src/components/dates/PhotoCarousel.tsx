@@ -44,7 +44,7 @@ export const PhotoCarousel = ({ photos, title }: PhotoCarouselProps): ReactEleme
               className="aspect-[4/5] min-w-0 shrink-0 grow-0 basis-full bg-surface"
             >
               {photo.url && (
-                // eslint-disable-next-line @next/next/no-img-element -- 업로드 때 이미 줄인 원본이고 서명 URL이 요청마다 바뀌어 next/image 최적화를 거치지 않는다
+                // eslint-disable-next-line @next/next/no-img-element -- 업로드 때 이미 줄인 원본이고 서명 URL이 시간이 지나면 바뀌어 next/image 최적화를 거치지 않는다
                 <img
                   src={photo.url}
                   alt={photo.caption ?? `${title} 사진 ${index + 1}`}

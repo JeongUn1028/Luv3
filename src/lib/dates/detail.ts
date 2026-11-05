@@ -1,5 +1,6 @@
 import type { AuthorRow } from "@/lib/author";
-import { formatPeriodMonthDay, toMonthDay, type RecordPeriod, type SignedThumb } from "./album";
+import type { SignedUrl } from "@/lib/photos/signed-urls";
+import { formatPeriodMonthDay, toMonthDay, type RecordPeriod } from "./album";
 
 export interface DetailPhoto {
   id: string;
@@ -52,7 +53,7 @@ export interface DetailRow {
   photos: { id: string; path: string; thumb_path: string; caption: string | null; sort_order: number }[];
 }
 
-const toUrlByPath = (signed: SignedThumb[]): Map<string, string> =>
+const toUrlByPath = (signed: SignedUrl[]): Map<string, string> =>
   new Map(signed.flatMap(({ path, signedUrl }) => (path && signedUrl ? [[path, signedUrl] as const] : [])));
 
 const sortPhotos = (photos: DetailRow["photos"]): DetailRow["photos"] =>
@@ -73,7 +74,7 @@ export const isRecordId = (id: string): boolean => UUID_PATTERN.test(id);
  *
  * @example toDateRecordDetail(row, signedUrls)
  */
-export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedThumb[]): DateRecordDetail => {
+export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): DateRecordDetail => {
   const urlByPath = toUrlByPath(signedPhotos);
   const photos = sortPhotos(row.photos);
   return {
@@ -94,7 +95,7 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedThumb[]):
  *
  * @example toEditableRecord(row, signedThumbs)
  */
-export const toEditableRecord = (row: DetailRow, signedThumbs: SignedThumb[]): EditableRecord => {
+export const toEditableRecord = (row: DetailRow, signedThumbs: SignedUrl[]): EditableRecord => {
   const urlByPath = toUrlByPath(signedThumbs);
   const photos = sortPhotos(row.photos);
   return {
