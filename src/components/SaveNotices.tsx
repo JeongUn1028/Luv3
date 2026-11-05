@@ -49,7 +49,7 @@ export const SaveNotices = (): ReactElement => {
   const notices = useSyncExternalStore(saveNoticeStore.subscribe, saveNoticeStore.getNotices, () => NO_NOTICES);
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-[calc(env(safe-area-inset-top)+8px)] z-10 mx-auto flex max-w-[430px] flex-col gap-2 px-4">
+    <div className="pointer-events-none fixed inset-x-0 top-[calc(var(--overlay-top)+8px)] z-10 mx-auto flex max-w-[430px] flex-col gap-2 px-4">
       {notices.map((notice) => (
         <SaveNoticeItem key={notice.id} notice={notice} />
       ))}

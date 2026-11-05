@@ -87,6 +87,21 @@ input[type="time"] {
 }
 
 /*
+  위쪽 여백의 기준(#106). 끊김 안내는 오래 떠 있을 수 있어 머리글을 가리지 않게 화면을 밀어내며 맨 위에 놓인다.
+  안내가 상태바 여백을 대신 채우므로 머리글은 여백을 또 두지 않고, 위에 겹쳐 뜨는 안내는 끊김 안내 아래로 내려온다.
+*/
+:root {
+  --offline-notice-line: 32px;
+  --screen-top-inset: env(safe-area-inset-top);
+  --overlay-top: env(safe-area-inset-top);
+}
+
+:root:has([data-offline-notice]) {
+  --screen-top-inset: 0px;
+  --overlay-top: calc(env(safe-area-inset-top) + var(--offline-notice-line));
+}
+
+/*
   화면 전환(#53). 클래스 이름은 lib/navigation/transition.ts의 움직임과 같다.
   화면 배경이 투명해서 이전 화면이 조금이라도 보이면 새 화면과 겹쳐 비친다(#88). 그래서 이전 화면은 처음부터 숨기고 새 화면만 움직인다.
 */

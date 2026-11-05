@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { LogoutForm } from "@/components/LogoutForm";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -20,14 +21,7 @@ const MemberSection = async () => {
         <span className="text-[13px] text-ink-sub">닉네임</span>
         <span className="text-[15px] text-ink">{member.nickname}</span>
       </div>
-      <form action="/auth/signout" method="post" className="mt-3">
-        <button
-          type="submit"
-          className="h-[51px] w-full rounded-[10px] border border-line text-[15px] text-ink hover:bg-surface"
-        >
-          로그아웃
-        </button>
-      </form>
+      <LogoutForm />
     </section>
   );
 };

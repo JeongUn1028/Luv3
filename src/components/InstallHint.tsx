@@ -52,7 +52,7 @@ export const InstallHint = (): ReactElement | null => {
   return (
     <aside
       aria-label="홈 화면에 추가 안내"
-      className="fixed inset-x-0 top-[calc(env(safe-area-inset-top)+16px)] z-10 mx-auto flex w-[calc(100%-48px)] max-w-[382px] items-start gap-3 rounded-[10px] border border-line bg-surface py-3 pr-1 pl-4"
+      className="fixed inset-x-0 top-[calc(var(--overlay-top)+16px)] z-10 mx-auto flex w-[calc(100%-48px)] max-w-[382px] items-start gap-3 rounded-[10px] border border-line bg-surface py-3 pr-1 pl-4"
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1 py-0.5">
         <p className="text-[14px] text-ink">홈 화면에 추가하면 앱처럼 열 수 있어요</p>

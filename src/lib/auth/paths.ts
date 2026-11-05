@@ -1,5 +1,6 @@
 export const LOGIN_PATH = "/login";
 export const HOME_PATH = "/";
+export const SIGN_OUT_PATH = "/auth/signout";
 
 /** 무료 플랜 일시정지를 막으려고 Vercel Cron이 부르는 경로. 로그인 대신 CRON_SECRET으로 확인한다 */
 export const KEEPALIVE_PATH = "/api/keepalive";

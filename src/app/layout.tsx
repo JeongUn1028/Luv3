@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Noto_Sans_KR } from "next/font/google";
+import { OfflineNotice } from "@/components/OfflineNotice";
 import { SaveNotices } from "@/components/SaveNotices";
 import { SessionLostDialog } from "@/components/SessionLostDialog";
 import "./globals.css";
@@ -65,7 +66,10 @@ const RootLayout = ({ children }: LayoutProps<"/">) => (
   >
     <body className="min-h-full bg-background font-sans text-ink">
       {/* 화면 높이 틀. 화면(PageShell)이 이 안을 채운다 */}
-      <div className="mx-auto flex h-app w-full max-w-[430px] flex-col">{children}</div>
+      <div className="mx-auto flex h-app w-full max-w-[430px] flex-col">
+        <OfflineNotice />
+        {children}
+      </div>
       <SaveNotices />
       <SessionLostDialog />
     </body>

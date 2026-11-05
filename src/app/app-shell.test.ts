@@ -26,7 +26,7 @@ describe("화면 틀", () => {
   it("루트 레이아웃이 화면 높이(h-app)를 고정하고 PageShell은 그 안을 채워 안쪽 영역만 스크롤한다", () => {
     const shell = readSource(SHELL);
 
-    expect(readSource("app/layout.tsx")).toMatch(/<div className="[^"]*\bflex\b[^"]*\bh-app\b[^"]*\bflex-col\b[^"]*">\{children\}<\/div>/);
+    expect(readSource("app/layout.tsx")).toMatch(/<div className="[^"]*\bflex\b[^"]*\bh-app\b[^"]*\bflex-col\b[^"]*">\s*<OfflineNotice \/>\s*\{children\}\s*<\/div>/);
     // 화면 제목(h1)이 본문 영역 안에 남도록 머리글도 main 안에 둔다
     expect(shell).toMatch(/<main className="[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*\bflex-col\b[^"]*">\s*\{header &&/);
     // min-h-0이 없으면 flex 자식이 내용만큼 늘어나 안쪽 스크롤이 생기지 않는다
@@ -80,14 +80,24 @@ describe("화면 틀", () => {
     expect(rootTags.filter((tag) => /\boverflow(?:-[xy])?-hidden\b/.test(tag))).toEqual([]);
   });
 
+  it.each(TOP_OVERLAYS)("위쪽에 겹쳐 뜨는 안내 %s는 끊김 안내 아래에 놓인다", (at) => {
+    // 끊김 안내가 떠 있으면 --overlay-top이 그 아래를 가리킨다(#106)
+    expect(readSource(at)).toMatch(/\btop-\[calc\(var\(--overlay-top\)\+\d+px\)\]/);
+  });
+
+  it("끊긴 동안에는 오류 화면의 홈으로 링크가 문서를 새로 받지 않는다", () => {
+    // 일반 a 링크라 끊긴 채로 누르면 브라우저 오류 화면으로 바뀐다(#106). 오류 화면은 E2E로 띄우기 어려워 소스로 고정한다
+    expect(readSource("components/ErrorScreen.tsx")).toMatch(/if \(isOffline\) event\.preventDefault\(\)/);
+  });
+
   it("fixed는 화면 위쪽에 겹쳐 뜨는 안내에서만 쓴다", () => {
     // 홈 화면 앱 첫 실행 때 fixed는 793 기준으로 잡혀, 하단 탭·떠 있는 버튼은 틀 안에 둔다
     // table-fixed·toFixed는 빼고, 클래스 fixed와 CSS position: fixed만 잡는다
     expect(findLines(/(?<![\w-])fixed(?![\w-])/, TOP_OVERLAYS)).toEqual([]);
   });
 
-  it("safe-area 여백은 틀·하단 탭·위쪽 안내에서만 정한다", () => {
-    const allowed = [SHELL, GLOBAL_ERROR, "components/tabs/TabBar.tsx", ...TOP_OVERLAYS];
+  it("safe-area 여백은 틀·하단 탭·끊김 안내와 위쪽 여백 변수에서만 정한다", () => {
+    const allowed = [SHELL, GLOBAL_ERROR, "components/tabs/TabBar.tsx", "components/OfflineNotice.tsx", "app/globals.css"];
 
     expect(findLines(/safe-area-inset-(?:top|bottom)/, allowed)).toEqual([]);
   });
