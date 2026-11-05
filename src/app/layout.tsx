@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Noto_Sans_KR } from "next/font/google";
 import { OfflineNotice } from "@/components/OfflineNotice";
 import { SaveNotices } from "@/components/SaveNotices";
 import { SessionLostDialog } from "@/components/SessionLostDialog";
+import { StatusBarStrip } from "@/components/StatusBarStrip";
 import "./globals.css";
 
 // next/font에 한글 subset이 없어 미리 불러오지 않는다. 브라우저가 필요한 글자 범위만 받는다.
@@ -65,6 +66,7 @@ const RootLayout = ({ children }: LayoutProps<"/">) => (
     style={{ backgroundColor: APP_BACKGROUND_COLOR }}
   >
     <body className="min-h-full bg-background font-sans text-ink">
+      <StatusBarStrip />
       {/* 화면 높이 틀. 화면(PageShell)이 이 안을 채운다 */}
       <div className="mx-auto flex h-app w-full max-w-[430px] flex-col">
         <OfflineNotice />
