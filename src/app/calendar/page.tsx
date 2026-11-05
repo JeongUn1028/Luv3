@@ -15,7 +15,7 @@ export const metadata: Metadata = { title: "캘린더 · Luv3" };
 
 const CalendarContent = async ({ searchParams }: Pick<PageProps<"/calendar">, "searchParams">) => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  const { nickname } = await getCurrentMember();
+  await getCurrentMember();
   const { month: monthParam, date: dateParam } = await searchParams;
   const today = toKstDate(new Date());
   const month = parseMonth(monthParam, today);
@@ -40,7 +40,6 @@ const CalendarContent = async ({ searchParams }: Pick<PageProps<"/calendar">, "s
       requestedDate={dateParam}
       events={result.events}
       records={result.records}
-      memberNickname={nickname}
     />
   );
 };
