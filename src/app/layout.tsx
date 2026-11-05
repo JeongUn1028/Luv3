@@ -1,23 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Noto_Sans_KR } from "next/font/google";
+import { Gowun_Dodum, Jua } from "next/font/google";
 import { HistoryReturn } from "@/components/HistoryReturn";
 import { OfflineNotice } from "@/components/OfflineNotice";
 import { SaveNotices } from "@/components/SaveNotices";
 import { SessionLostDialog } from "@/components/SessionLostDialog";
 import "./globals.css";
 
-// next/font에 한글 subset이 없어 미리 불러오지 않는다. 브라우저가 필요한 글자 범위만 받는다.
-const notoSansKr = Noto_Sans_KR({
-  weight: "variable",
-  variable: "--font-noto-sans-kr",
+// 본문, 설명, 입력 칸, 작은 글자용. next/font에 한글 subset이 없어 미리 불러오지 않는다. 브라우저가 필요한 글자 범위만 받는다.
+const gowunDodum = Gowun_Dodum({
+  weight: "400",
+  variable: "--font-gowun-dodum",
   preload: false,
 });
 
-// 영문·숫자 표기(SINCE, DAYS, 연·월)용
-const cormorantGaramond = Cormorant_Garamond({
-  weight: ["500", "600"],
+// 제목, 숫자, 영문 표기(SINCE, DAYS, 연·월), 탭, 주요 버튼용. 미리 불러오는 것은 영문·숫자 범위뿐이고 한글은 필요한 범위만 받는다
+const jua = Jua({
+  weight: "400",
   subsets: ["latin"],
-  variable: "--font-cormorant",
+  variable: "--font-jua",
 });
 
 // globals.css의 --color-background와 같은 값. CSS 파일을 받기 전에 쓰는 곳이라 CSS 변수를 쓸 수 없다
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
     // 아이폰은 manifest의 배경색으로 시작 화면을 만들지 않아, 이미지가 없으면 켤 때 하얀 화면이 나온다(#119).
     // 기기 화면과 크기가 정확히 맞아야 쓰이므로 대상 기기마다 하나씩 둔다. 세로로만 쓰는 앱이라 세로 이미지만 둔다.
     // 이미 홈 화면에 추가한 앱은 지우고 다시 추가해야 바뀔 수 있다.
-    // 이미지는 로그인 화면의 로고를 찍은 것이라 ANNIVERSARY_DATE나 로고를 바꾸면 다시 그린다
+    // 이미지는 로그인 화면의 로고를 찍은 것이라 ANNIVERSARY_DATE, 로고, 글꼴을 바꾸면 다시 그린다
     startupImage: [
       {
         url: "/startup/iphone-15-pro.png",
@@ -62,7 +62,7 @@ const RootLayout = ({ children }: LayoutProps<"/">) => (
   // 시작 이미지가 사라진 뒤 CSS가 오기 전에도 흰 화면이 보이지 않게 배경색을 HTML에 직접 넣는다(#121)
   <html
     lang="ko"
-    className={`${notoSansKr.variable} ${cormorantGaramond.variable} h-full antialiased`}
+    className={`${gowunDodum.variable} ${jua.variable} h-full antialiased`}
     style={{ backgroundColor: APP_BACKGROUND_COLOR }}
   >
     <body className="min-h-full bg-background font-sans text-ink">

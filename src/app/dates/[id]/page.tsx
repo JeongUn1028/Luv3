@@ -67,7 +67,7 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
             </p>
             {record.authorNickname && <AuthorTag nickname={record.authorNickname} />}
           </div>
-          <h1 className="mt-1.5 text-[22px] leading-[1.4] font-bold break-words text-ink">{record.title}</h1>
+          <h1 className="mt-1.5 font-display text-[22px] leading-[1.4] break-words text-ink">{record.title}</h1>
           {record.memo && (
             <p className="mt-5 text-[15px] leading-[1.75] break-words whitespace-pre-wrap text-ink">{record.memo}</p>
           )}
