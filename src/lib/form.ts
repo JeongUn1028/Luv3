@@ -10,6 +10,14 @@ const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 export const countChars = (text: string): number => Array.from(text).length;
 
 /**
+ * 화면에 보이는 글자 수를 센다. 여러 코드 포인트를 합쳐 그리는 이모지도 한 글자다.
+ * 이 파일을 불러오는 모든 화면이 Intl.Segmenter에 의존하지 않도록, 부를 때 만든다.
+ *
+ * @example countGraphemes("👨‍👩‍👧‍👦") // 1
+ */
+export const countGraphemes = (text: string): number => Array.from(new Intl.Segmenter("ko", { granularity: "grapheme" }).segment(text)).length;
+
+/**
  * YYYY-MM-DD 형식이면서 달력에 실제로 있는 날인지 확인한다. 주소 쿼리처럼 손으로 바꿀 수 있는 값은 형식만으로는 부족하다.
  *
  * @example isIsoDate("2026-02-31") // false

@@ -5,7 +5,7 @@ import { createDisposableAuthorTodo, createDisposableEvent, createDisposableTodo
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
 
 const AUTHOR_NAME = `작성자 ${E2E_MEMBER.nickname}`;
-/** 지금 저장할 수 있는 가장 긴 닉네임(20자) */
+/** DB가 받는 가장 긴 예전 닉네임(20자) */
 const LONGEST_NICKNAME = "가나다라마바사아자차카타파하가나다라마바";
 /** 닉네임 변경(#133)에서 허용할 가장 긴 닉네임. 넓은 글자로 재도 줄지 않아야 한다 */
 const SIX_CHARACTER_NICKNAME = "뷁뷁뷁뷁뷁뷁";
