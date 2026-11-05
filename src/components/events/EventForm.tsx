@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
-import { AuthorHeart } from "@/components/AuthorHeart";
+import { AuthorTag } from "@/components/AuthorTag";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -38,7 +38,7 @@ interface EventFormProps {
   initialDraft: EventDraft;
   /** 고칠 일정의 id. 없으면 새 일정을 만든다 */
   eventId?: string;
-  /** 고칠 일정의 작성자 닉네임. 있으면 제목 옆에 작성자 하트를 그린다 */
+  /** 고칠 일정의 작성자 닉네임. 있으면 제목 옆에 작성자 이름표를 그린다 */
   authorNickname?: string;
   /** 함께 일정이 아닐 때 선택지에 쓰는 닉네임. 새 일정은 현재 사용자, 고칠 일정은 그 작성자다 */
   ownerNickname: string;
@@ -127,7 +127,7 @@ export const EventForm = ({ initialDraft, eventId, authorNickname, ownerNickname
         <ScreenHeader
           back={{ href: backHref }}
           title={eventId ? "일정 고치기" : "일정 추가"}
-          titleAddon={authorNickname && <AuthorHeart nickname={authorNickname} className="ml-2" />}
+          titleAddon={authorNickname && <AuthorTag nickname={authorNickname} className="ml-2" />}
           actions={
             eventId && (
               <ConfirmDeleteButton

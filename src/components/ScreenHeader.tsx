@@ -16,7 +16,7 @@ interface ScreenHeaderProps {
   title?: string;
   /** true면 제목을 화면에 그리지 않고 스크린 리더에만 읽힌다(홈) */
   isTitleHidden?: boolean;
-  /** 제목 바로 뒤에 붙일 것(작성자 하트 등) */
+  /** 제목 바로 뒤에 붙일 것(작성자 이름표 등) */
   titleAddon?: ReactNode;
   /** 오른쪽 끝 버튼들(설정, 추가, 수정·삭제 등) */
   actions?: ReactNode;

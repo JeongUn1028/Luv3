@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
-import { AuthorHeart } from "@/components/AuthorHeart";
+import { AuthorTag } from "@/components/AuthorTag";
 import { DeleteRecordButton } from "@/components/dates/DeleteRecordButton";
 import { PhotoCarousel } from "@/components/dates/PhotoCarousel";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
@@ -65,7 +65,7 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
               <time dateTime={record.date}>{formatRecordPeriod(record)}</time>
               {record.place && <span> · {record.place}</span>}
             </p>
-            {record.authorNickname && <AuthorHeart nickname={record.authorNickname} />}
+            {record.authorNickname && <AuthorTag nickname={record.authorNickname} />}
           </div>
           <h1 className="mt-1.5 text-[22px] leading-[1.4] font-bold break-words text-ink">{record.title}</h1>
           {record.memo && (
