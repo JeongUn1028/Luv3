@@ -2,12 +2,15 @@ import { describe, expect, it } from "vitest";
 import { readSource, readSourceLines } from "@/test-utils/source";
 
 describe("일정 주인 표시", () => {
-  it("화면 문구에 개인이라는 말을 쓰지 않는다", () => {
-    const found = readSourceLines().flatMap(({ at, lines }) =>
-      lines.flatMap((line, index) => (line.includes("개인") ? [`${at}:${index + 1}`] : [])),
+  it("화면 문구에서 개인이라는 말은 캘린더 범례 한 곳에만 쓴다", () => {
+    const sources = readSourceLines();
+    const wordingLines = sources.flatMap(({ at, lines }) =>
+      lines.filter((line) => line.includes("개인")).map((line) => `${at}: ${line.trim()}`),
     );
+    const legendUsers = sources.filter(({ lines }) => lines.some((line) => line.includes("LEGEND_EVENT_KINDS"))).map(({ at }) => at);
 
-    expect(found).toEqual([]);
+    expect(wordingLines).toEqual(['lib/calendar/highlight.ts: export const LEGEND_EVENT_KINDS: readonly EventKindOption[] = getEventKinds("개인");']);
+    expect(legendUsers).toEqual(["components/calendar/CalendarView.tsx", "lib/calendar/highlight.ts"]);
   });
 
   it("일정 추가 폼의 선택지는 현재 사용자의 닉네임을 쓴다", () => {
@@ -19,8 +22,15 @@ describe("일정 주인 표시", () => {
     expect(readSource("app/events/[id]/edit/page.tsx")).toContain("ownerNickname={toOwnerLabel(event.authorNickname)}");
   });
 
-  it("캘린더 범례는 현재 사용자의 닉네임을 쓴다", () => {
-    expect(readSource("app/calendar/page.tsx")).toContain("memberNickname={nickname}");
+  it("캘린더 범례는 닉네임을 받지 않고 고정된 이름을 쓴다", () => {
+    // 크림색은 두 사람 일정에 모두 칠해져서, 보는 사람 닉네임을 쓰면 상대 일정까지 내 일정처럼 읽힌다
+    const calendarView = readSource("components/calendar/CalendarView.tsx");
+
+    expect(calendarView).toContain("LEGEND_EVENT_KINDS.map");
+    expect(calendarView).toContain("{label} 일정");
+    expect(calendarView).not.toContain("getEventKinds");
+    expect(calendarView).not.toContain("memberNickname");
+    expect(readSource("app/calendar/page.tsx")).not.toMatch(/nickname/i);
   });
 
   it("캘린더 일정 줄은 작성자 닉네임을 쓴다", () => {
