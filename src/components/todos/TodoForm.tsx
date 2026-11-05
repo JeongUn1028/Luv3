@@ -96,7 +96,7 @@ export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormPro
       className="px-4"
       header={
         <ScreenHeader
-          back={{ href: TODOS_PATH, label: "목록으로" }}
+          back={{ href: TODOS_PATH }}
           title={todoId ? "하고 싶은 것 고치기" : "하고 싶은 것 추가"}
           titleAddon={authorNickname && <AuthorHeart nickname={authorNickname} className="ml-2" />}
           actions={

@@ -23,7 +23,7 @@ const NewEventForm = async ({ searchParams }: Pick<PageProps<"/events/new">, "se
 
 const NewEventPage = ({ searchParams }: PageProps<"/events/new">) => (
   // 세션·주소 쿼리는 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <LoadingSuspense fallback={<FormSkeleton back={{ href: CALENDAR_PATH, label: "캘린더로" }} title="일정 추가" fieldCount={5} />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: CALENDAR_PATH }} title="일정 추가" fieldCount={5} />}>
     <NewEventForm searchParams={searchParams} />
   </LoadingSuspense>
 );

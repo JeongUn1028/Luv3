@@ -26,6 +26,30 @@ export const forgetScrollPosition = (key: string, memory: Map<string, number> = 
   memory.delete(key);
 };
 
+// 숨겨진 화면(Activity)은 layout effect가 정리되어 빠지므로, 지금 보이는 스크롤 영역만 들어 있다
+const scrollToTopHandlers = new Map<string, () => void>();
+
+/**
+ * 화면 이름으로 맨 위로 올리는 동작을 등록한다. 돌려준 함수는 등록을 지운다.
+ *
+ * @example const unregister = registerScrollToTop("records", () => element.scrollTo({ top: 0 }));
+ */
+export const registerScrollToTop = (key: string, handler: () => void): (() => void) => {
+  scrollToTopHandlers.set(key, handler);
+  return () => {
+    if (scrollToTopHandlers.get(key) === handler) scrollToTopHandlers.delete(key);
+  };
+};
+
+/**
+ * 지금 보이는 그 화면의 스크롤 영역을 맨 위로 올린다.
+ *
+ * @example scrollAreaToTop("records");
+ */
+export const scrollAreaToTop = (key: string): void => {
+  scrollToTopHandlers.get(key)?.();
+};
+
 /**
  * 화면 이름별로 스크롤 위치를 기억하고, 다시 열면 그 위치로 되돌린다.
  * 내용은 Suspense로 늦게 올 수 있어, 저장한 위치까지 스크롤할 수 있을 때까지 기다린다.

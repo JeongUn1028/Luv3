@@ -16,7 +16,7 @@ const NewTodoForm = async () => {
 
 const NewTodoPage = () => (
   // 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <LoadingSuspense fallback={<FormSkeleton back={{ href: TODOS_PATH, label: "목록으로" }} title="하고 싶은 것 추가" fieldCount={1} />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: TODOS_PATH }} title="하고 싶은 것 추가" fieldCount={1} />}>
     <NewTodoForm />
   </LoadingSuspense>
 );

@@ -35,7 +35,7 @@ const EditForm = async ({ params }: { params: Promise<{ id: string }> }) => {
 
 const EditDateRecordPage = ({ params }: PageProps<"/dates/[id]/edit">) => (
   // 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <LoadingSuspense fallback={<FormSkeleton back={{ href: RECORDS_PATH, label: "기록 목록으로" }} title="기록 고치기" fieldCount={4} />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: RECORDS_PATH }} title="기록 고치기" fieldCount={4} />}>
     <EditForm params={params} />
   </LoadingSuspense>
 );

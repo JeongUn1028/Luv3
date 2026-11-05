@@ -239,8 +239,8 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
       className="px-4"
       header={
         <ScreenHeader
-          // 지워진 기록의 상세는 찾을 수 없음 화면이라 목록으로 돌아가게 한다
-          back={record && !isRecordGone ? { href: `/dates/${record.id}`, label: "기록으로" } : { href: RECORDS_PATH, label: "기록 목록으로" }}
+          // 지워진 기록의 상세는 찾을 수 없음 화면이라 기록을 되돌아가지 않고 목록으로 간다
+          back={record && !isRecordGone ? { href: `/dates/${record.id}` } : { href: RECORDS_PATH, skipsHistory: isRecordGone }}
           title={record ? "기록 고치기" : "기록 남기기"}
         />
       }

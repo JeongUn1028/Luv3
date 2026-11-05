@@ -73,7 +73,7 @@ test.describe("인터넷이 끊기면", () => {
     await openScreen(page, "/settings", page.getByText(E2E_MEMBER.nickname, { exact: true }));
     await goOffline(page);
 
-    await page.getByRole("link", { name: "홈으로" }).tap();
+    await page.getByRole("link", { name: "뒤로" }).tap();
 
     await expect(getOfflineNotice(page)).toBeVisible();
     await expect(page.locator("main").locator("visible=true")).toBeVisible();
@@ -89,7 +89,7 @@ test.describe("인터넷이 끊기면", () => {
     await openScreen(page, "/settings", page.getByText(E2E_MEMBER.nickname, { exact: true }));
     await page.route("**/*", (route) => route.abort("internetdisconnected"));
 
-    await page.getByRole("link", { name: "홈으로" }).tap();
+    await page.getByRole("link", { name: "뒤로" }).tap();
 
     await expect(getOfflineNotice(page)).toBeVisible();
     await expect(page.locator("main").locator("visible=true")).toBeVisible();
@@ -135,7 +135,7 @@ test.describe("인터넷이 끊기면", () => {
     await saveRequested;
     await goOffline(page);
 
-    await page.getByRole("link", { name: /목록으로|뒤로/ }).locator("visible=true").tap();
+    await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
     await page.waitForURL("**/todos");
     finishSave();
 

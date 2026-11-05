@@ -1,6 +1,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useRef, useState } from "react";
 import { isWritingPath, saveNoticeStore } from "./save-notices";
+import { markAllScreensLoaded, markAllScreensStale } from "./screen-freshness";
 import { BACK_TRANSITION } from "./transition";
 
 /**
@@ -69,18 +70,10 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
     };
   }, [failedSaves, formKey]);
 
-  /** 폼은 다시 불러오면 쓰던 내용이 사라지므로, 다른 폼을 쓰는 중이면 그 폼에서 뒤로 나갈 때 불러온다. 링크로 옮기면 어차피 새로 불러온다 */
+  /** 폼은 다시 불러오면 쓰던 내용이 사라지므로, 다른 폼을 쓰는 중이면 지금 불러오지 않는다. 그 폼에서 나갈 때 링크로 옮기면 새로 받고, 뒤로 가면 HistoryReturn이 불러온다 */
   const refreshOutsideForm = () => {
-    if (!isWritingPath(window.location.pathname)) {
-      router.refresh();
-      return;
-    }
-    const handlePopState = () => {
-      if (isWritingPath(window.location.pathname)) return;
-      window.removeEventListener("popstate", handlePopState);
-      startTransition(() => router.refresh());
-    };
-    window.addEventListener("popstate", handlePopState);
+    if (isWritingPath(window.location.pathname)) markAllScreensStale();
+    else router.refresh();
   };
 
   return {
@@ -94,6 +87,7 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
         if (isVisible) {
           router.replace(href, { transitionTypes: BACK_TRANSITION });
           router.refresh();
+          markAllScreensLoaded();
         } else {
           refreshOutsideForm();
         }
@@ -102,6 +96,8 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
       if (!isVisible) saveNoticeStore.add({ formKey, isFailure: false, title: `${subject} 저장했어요`, href });
     },
     finishFailed: ({ draft, message, isGone = false }) => {
+      // 숨겨 둔 목록에 지워진 항목이 남아 있으므로, 뒤로 돌아가면 바로 새로 불러오게 한다
+      if (isGone) markAllScreensStale();
       if (isVisibleRef.current) return;
       if (!isGone) failedSaves.set(formKey, { draft, message });
       saveNoticeStore.add({
