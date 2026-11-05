@@ -17,6 +17,9 @@ const cormorantGaramond = Cormorant_Garamond({
   variable: "--font-cormorant",
 });
 
+// globals.css의 --color-background와 같은 값. CSS 파일을 받기 전에 쓰는 곳이라 CSS 변수를 쓸 수 없다
+const APP_BACKGROUND_COLOR = "#0A0A0A";
+
 export const metadata: Metadata = {
   title: "Luv3",
   description: "둘이서만 보는 데이트 앨범",
@@ -45,14 +48,19 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0A0A0A",
+  themeColor: APP_BACKGROUND_COLOR,
   colorScheme: "dark",
   // 노치·홈 인디케이터 영역까지 화면을 채운다. 이 설정이 있어야 env(safe-area-inset-*) 값이 0이 아니게 된다
   viewportFit: "cover",
 };
 
 const RootLayout = ({ children }: LayoutProps<"/">) => (
-  <html lang="ko" className={`${notoSansKr.variable} ${cormorantGaramond.variable} h-full antialiased`}>
+  // 시작 이미지가 사라진 뒤 CSS가 오기 전에도 흰 화면이 보이지 않게 배경색을 HTML에 직접 넣는다(#121)
+  <html
+    lang="ko"
+    className={`${notoSansKr.variable} ${cormorantGaramond.variable} h-full antialiased`}
+    style={{ backgroundColor: APP_BACKGROUND_COLOR }}
+  >
     <body className="min-h-full bg-background font-sans text-ink">
       {/* 화면 높이 틀. 화면(PageShell)이 이 안을 채운다 */}
       <div className="mx-auto flex h-app w-full max-w-[430px] flex-col">{children}</div>
