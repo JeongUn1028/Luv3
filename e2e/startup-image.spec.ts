@@ -37,4 +37,15 @@ test.describe("아이폰 앱 시작 화면", () => {
     // 시작 화면과 앱이 같은 색이어야 켤 때 번쩍이지 않는다
     expect(image.corner).toBe(image.background);
   });
+
+  test("서버가 보낸 HTML에 앱 배경색이 들어 있어 CSS가 오기 전에도 어둡다", async ({ page }) => {
+    const response = await page.goto("/login");
+
+    expect(await response?.text()).toMatch(/<html[^>]*style="background-color:/);
+    const colors = await page.evaluate(() => ({
+      html: getComputedStyle(document.documentElement).backgroundColor,
+      body: getComputedStyle(document.body).backgroundColor,
+    }));
+    expect(colors.html).toBe(colors.body);
+  });
 });
