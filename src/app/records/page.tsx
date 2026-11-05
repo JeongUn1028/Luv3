@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AlbumGrid } from "@/components/dates/AlbumGrid";
 import { AlbumGridSkeleton } from "@/components/dates/AlbumGridSkeleton";
 import { PlusIcon } from "@/components/icons";
+import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
@@ -17,15 +18,7 @@ const RecordsContent = async () => {
   // 그리드를 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다
   const tiles = await catchLoadError(getAlbumTiles, AlbumLoadError);
 
-  if (tiles instanceof AlbumLoadError) {
-    return (
-      <div className="flex flex-1 items-center justify-center py-12">
-        <p role="alert" className="text-[13px] text-ink-sub">
-          {tiles.message}
-        </p>
-      </div>
-    );
-  }
+  if (tiles instanceof AlbumLoadError) return <LoadErrorMessage message={tiles.message} />;
   return <AlbumGrid tiles={tiles} />;
 };
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { EventForm } from "@/components/events/EventForm";
 import { FormSkeleton } from "@/components/FormSkeleton";
-import { PageShell } from "@/components/PageShell";
+import { LoadErrorScreen } from "@/components/LoadErrorScreen";
 import { StatusLink, StatusScreen } from "@/components/StatusScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { getCurrentMember } from "@/lib/auth/member";
@@ -21,13 +21,7 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
   const event = await catchLoadError(() => getEvent(id), EventLoadError);
 
   if (event instanceof EventLoadError) {
-    return (
-      <PageShell className="items-center justify-center px-4">
-        <p role="alert" className="text-[13px] text-ink-sub">
-          {event.message}
-        </p>
-      </PageShell>
-    );
+    return <LoadErrorScreen title="일정을 불러오지 못했어요" backHref={CALENDAR_PATH} backLabel="캘린더로" />;
   }
 
   if (!event) {
