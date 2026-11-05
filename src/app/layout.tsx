@@ -22,7 +22,26 @@ export const metadata: Metadata = {
   description: "둘이서만 보는 데이트 앨범",
   robots: { index: false, follow: false },
   // 아이폰 홈 화면에 추가하면 주소창 없이 열고, 상태바는 배경 위에 겹쳐 그린다(각 화면이 safe-area만큼 띄운다)
-  appleWebApp: { capable: true, title: "Luv3", statusBarStyle: "black-translucent" },
+  appleWebApp: {
+    capable: true,
+    title: "Luv3",
+    statusBarStyle: "black-translucent",
+    // 아이폰은 manifest의 배경색으로 시작 화면을 만들지 않아, 이미지가 없으면 켤 때 하얀 화면이 나온다(#119).
+    // 기기 화면과 크기가 정확히 맞아야 쓰이므로 대상 기기마다 하나씩 둔다. 세로로만 쓰는 앱이라 세로 이미지만 둔다.
+    // 이미 홈 화면에 추가한 앱은 지우고 다시 추가해야 바뀔 수 있다
+    startupImage: [
+      {
+        url: "/startup/iphone-15-pro.png",
+        media: "(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
+      },
+      {
+        url: "/startup/iphone-17.png",
+        media: "(device-width: 402px) and (device-height: 874px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
+      },
+    ],
+  },
+  // Next.js가 appleWebApp.capable로 mobile-web-app-capable만 만들어, 시작 이미지에 필요하다고 보고된 예전 태그를 함께 넣는다
+  other: { "apple-mobile-web-app-capable": "yes" },
 };
 
 export const viewport: Viewport = {
