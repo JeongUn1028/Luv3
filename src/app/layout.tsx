@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Gowun_Dodum, Jua } from "next/font/google";
+import { Cormorant_Garamond, Gowun_Dodum, Jua } from "next/font/google";
 import { HistoryReturn } from "@/components/HistoryReturn";
 import { OfflineNotice } from "@/components/OfflineNotice";
 import { SaveNotices } from "@/components/SaveNotices";
@@ -13,11 +13,19 @@ const gowunDodum = Gowun_Dodum({
   preload: false,
 });
 
-// 제목, 숫자, 영문 표기(SINCE, DAYS, 연·월), 탭, 주요 버튼용. 미리 불러오는 것은 영문·숫자 범위뿐이고 한글은 필요한 범위만 받는다
+// 제목, 숫자, 영문 표기(DAYS, 연·월), 탭, 주요 버튼용. 미리 불러오는 것은 영문·숫자 범위뿐이고 한글은 필요한 범위만 받는다
 const jua = Jua({
   weight: "400",
   subsets: ["latin"],
   variable: "--font-jua",
+});
+
+// 로고의 SINCE 문구 전용. 앱 아이콘·시작 이미지·링크 미리보기에 새겨진 글자와 같은 글꼴이다.
+// 600 하나만 불러와 굵기 클래스 없이 이 굵기로 그려진다. 다른 굵기를 함께 불러오면 로고가 이미지와 달라진다
+const cormorantGaramond = Cormorant_Garamond({
+  weight: "600",
+  subsets: ["latin"],
+  variable: "--font-cormorant",
 });
 
 // globals.css의 --color-background와 같은 값. CSS 파일을 받기 전에 쓰는 곳이라 CSS 변수를 쓸 수 없다
@@ -35,7 +43,7 @@ export const metadata: Metadata = {
     // 아이폰은 manifest의 배경색으로 시작 화면을 만들지 않아, 이미지가 없으면 켤 때 하얀 화면이 나온다(#119).
     // 기기 화면과 크기가 정확히 맞아야 쓰이므로 대상 기기마다 하나씩 둔다. 세로로만 쓰는 앱이라 세로 이미지만 둔다.
     // 이미 홈 화면에 추가한 앱은 지우고 다시 추가해야 바뀔 수 있다.
-    // 이미지는 로그인 화면의 로고를 찍은 것이라 ANNIVERSARY_DATE, 로고, 글꼴을 바꾸면 다시 그린다
+    // 이미지는 로그인 화면의 로고를 찍은 것이라 ANNIVERSARY_DATE, 로고, 로고 글꼴을 바꾸면 다시 그린다
     startupImage: [
       {
         url: "/startup/iphone-15-pro.png",
@@ -62,7 +70,7 @@ const RootLayout = ({ children }: LayoutProps<"/">) => (
   // 시작 이미지가 사라진 뒤 CSS가 오기 전에도 흰 화면이 보이지 않게 배경색을 HTML에 직접 넣는다(#121)
   <html
     lang="ko"
-    className={`${gowunDodum.variable} ${jua.variable} h-full antialiased`}
+    className={`${gowunDodum.variable} ${jua.variable} ${cormorantGaramond.variable} h-full antialiased`}
     style={{ backgroundColor: APP_BACKGROUND_COLOR }}
   >
     <body className="min-h-full bg-background font-sans text-ink">
