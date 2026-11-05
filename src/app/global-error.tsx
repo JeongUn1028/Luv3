@@ -43,6 +43,10 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps): ReactElement => (
             </button>
             <a
               href={HOME_PATH}
+              // 끊긴 동안에는 문서를 받지 못해 브라우저 오류 화면으로 바뀌므로 옮기지 않는다(#106)
+              onClick={(event) => {
+                if (!navigator.onLine) event.preventDefault();
+              }}
               className="flex h-[51px] w-full items-center justify-center rounded-[10px] border border-line text-[15px] text-ink hover:bg-surface"
             >
               홈으로

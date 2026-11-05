@@ -1,5 +1,6 @@
 "use client";
 
+import { useOffline } from "next/offline";
 import { useTransition, type ReactElement } from "react";
 import { STATUS_LINK_CLASS_NAME, StatusScreen } from "@/components/StatusScreen";
 import { HOME_PATH } from "@/lib/auth/paths";
@@ -16,6 +17,7 @@ interface ErrorScreenProps {
  */
 export const ErrorScreen = ({ onRetry }: ErrorScreenProps): ReactElement => {
   const [isPending, startTransition] = useTransition();
+  const isOffline = useOffline();
 
   return (
     <StatusScreen title="문제가 생겼어요" description="잠시 후 다시 시도해 주세요." isAlert>
@@ -27,8 +29,14 @@ export const ErrorScreen = ({ onRetry }: ErrorScreenProps): ReactElement => {
       >
         {isPending ? "다시 시도하는 중…" : "다시 시도"}
       </button>
-      {/* 화면 전환 링크는 홈에서 난 오류를 지우지 못하고 옛 JS 때문에 난 오류도 고치지 못해, 문서를 새로 받는다 */}
-      <a href={HOME_PATH} className={STATUS_LINK_CLASS_NAME}>
+      {/* 화면 전환 링크는 홈에서 난 오류를 지우지 못하고 옛 JS 때문에 난 오류도 고치지 못해, 문서를 새로 받는다. 끊긴 동안에는 문서를 받지 못해 브라우저 오류 화면으로 바뀌므로 옮기지 않는다 */}
+      <a
+        href={HOME_PATH}
+        onClick={(event) => {
+          if (isOffline) event.preventDefault();
+        }}
+        className={STATUS_LINK_CLASS_NAME}
+      >
         홈으로
       </a>
     </StatusScreen>

@@ -2,7 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
-import { LOGIN_PATH } from "@/lib/auth/paths";
+import { LOGIN_PATH, SIGN_OUT_PATH } from "@/lib/auth/paths";
 
 export interface Member {
   id: string;
@@ -10,7 +10,7 @@ export interface Member {
 }
 
 /** 허용목록 밖 계정을 로그아웃시키는 경로 */
-export const NOT_MEMBER_SIGNOUT_PATH = "/auth/signout?reason=not_member";
+export const NOT_MEMBER_SIGNOUT_PATH = `${SIGN_OUT_PATH}?reason=not_member`;
 
 /**
  * 현재 로그인한 사용자를 허용목록(members)에서 찾는다.
