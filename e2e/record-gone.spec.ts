@@ -10,7 +10,7 @@ const getVisibleLink = (page: Page, href: string) => page.locator(`a[href="${hre
 
 test.describe("고치는 사이 지워진 기록", () => {
   for (const { name, goToList } of [
-    { name: "머리글 뒤로 버튼", goToList: (page: Page) => page.getByRole("link", { name: "기록 목록으로" }).locator("visible=true").click() },
+    { name: "머리글 뒤로 버튼", goToList: (page: Page) => page.getByRole("link", { name: "뒤로" }).locator("visible=true").click() },
     { name: "기록 목록으로 버튼", goToList: (page: Page) => page.getByRole("button", { name: "기록 목록으로" }).click() },
   ]) {
     test(`저장하면 이미 지워졌다고 알리고 새 사진을 남기지 않으며 ${name}으로 지워진 기록이 없는 목록에 돌아간다`, async ({ page }) => {

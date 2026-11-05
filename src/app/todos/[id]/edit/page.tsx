@@ -49,7 +49,7 @@ const EditTodoForm = async ({ params }: { params: Promise<{ id: string }> }) => 
 
 const EditTodoPage = ({ params }: PageProps<"/todos/[id]/edit">) => (
   // 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <LoadingSuspense fallback={<FormSkeleton back={{ href: TODOS_PATH, label: "목록으로" }} title="하고 싶은 것 고치기" fieldCount={1} />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: TODOS_PATH }} title="하고 싶은 것 고치기" fieldCount={1} />}>
     <EditTodoForm params={params} />
   </LoadingSuspense>
 );

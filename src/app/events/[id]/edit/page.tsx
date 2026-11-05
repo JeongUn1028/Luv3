@@ -52,7 +52,7 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
 
 const EditEventPage = ({ params }: PageProps<"/events/[id]/edit">) => (
   // 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <LoadingSuspense fallback={<FormSkeleton back={{ href: CALENDAR_PATH, label: "캘린더로" }} title="일정 고치기" fieldCount={5} />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: CALENDAR_PATH }} title="일정 고치기" fieldCount={5} />}>
     <EditEventForm params={params} />
   </LoadingSuspense>
 );

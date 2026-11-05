@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createScrollRestorer, forgetScrollPosition, type Scroller } from "./scroll-memory";
+import { createScrollRestorer, forgetScrollPosition, registerScrollToTop, scrollAreaToTop, type Scroller } from "./scroll-memory";
 
 /** 내용 높이를 바꿔 가며 쓸 수 있는 가짜 스크롤 영역. 브라우저처럼 위치를 내용 높이 안으로 제한한다 */
 const createScroller = (scrollHeight: number): Scroller & { setScrollHeight: (height: number) => void } => {
@@ -136,5 +136,45 @@ describe("forgetScrollPosition", () => {
     createScrollRestorer(scroller, "records", memory);
 
     expect(scroller.scrollTop).toBe(0);
+  });
+});
+
+describe("scrollAreaToTop", () => {
+  it("등록한 화면의 동작을 부른다", () => {
+    let calls = 0;
+    const unregister = registerScrollToTop("records", () => {
+      calls += 1;
+    });
+
+    scrollAreaToTop("records");
+    unregister();
+
+    expect(calls).toBe(1);
+  });
+
+  it("숨겨져 등록이 지워진 화면은 부르지 않는다", () => {
+    let calls = 0;
+    const unregister = registerScrollToTop("records", () => {
+      calls += 1;
+    });
+    unregister();
+
+    scrollAreaToTop("records");
+
+    expect(calls).toBe(0);
+  });
+
+  it("예전 화면의 정리가 나중에 돌아도 새로 등록한 화면을 지우지 않는다", () => {
+    let calls = 0;
+    const unregisterOld = registerScrollToTop("records", () => undefined);
+    const unregisterNew = registerScrollToTop("records", () => {
+      calls += 1;
+    });
+
+    unregisterOld();
+    scrollAreaToTop("records");
+    unregisterNew();
+
+    expect(calls).toBe(1);
   });
 });

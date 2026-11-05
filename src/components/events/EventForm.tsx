@@ -125,7 +125,7 @@ export const EventForm = ({ initialDraft, eventId, authorNickname, ownerNickname
       className="px-4"
       header={
         <ScreenHeader
-          back={{ href: backHref, label: "캘린더로" }}
+          back={{ href: backHref }}
           title={eventId ? "일정 고치기" : "일정 추가"}
           titleAddon={authorNickname && <AuthorHeart nickname={authorNickname} className="ml-2" />}
           actions={
