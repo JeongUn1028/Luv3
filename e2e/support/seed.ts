@@ -125,6 +125,30 @@ export const createDisposableAuthorTodo = async ({ nickname, content }: { nickna
 };
 
 /**
+ * 로그인해 쓸 수 있는 임시 멤버 계정을 만든다. 비밀번호를 바꾸는 테스트처럼 전용 계정을 쓰면 다른 테스트의 로그인이 끊기는 경우에 쓴다.
+ * `remove`는 계정을 지운다. 실행이 중간에 끊겨 남은 것은 다음 실행의 `seedE2eData`가 지운다.
+ *
+ * @example const { email, remove } = await createDisposableMember(password)
+ */
+export const createDisposableMember = async (password: string): Promise<{ email: string; remove: () => Promise<void> }> => {
+  const admin = createAdminClient();
+  const email = `${E2E_AUTHOR_EMAIL_PREFIX}${randomUUID()}@example.com`;
+  const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  assertNoError({ error }, "임시 멤버 계정");
+  const memberId = data.user?.id;
+  if (!memberId) throw new Error("E2E 데이터 준비 실패(임시 멤버 계정): 계정 id가 없습니다");
+
+  const remove = (): Promise<void> => deleteAccountWithContent(admin, memberId);
+  try {
+    assertNoError(await admin.from("members").insert({ id: memberId, email, nickname: "임시" }), "임시 멤버");
+  } catch (insertError) {
+    await remove();
+    throw insertError;
+  }
+  return { email, remove };
+};
+
+/**
  * 화면에서 저장한 하고 싶은 것을 내용으로 찾아 지운다.
  *
  * @example await deleteTodosByContent("저장한 항목")

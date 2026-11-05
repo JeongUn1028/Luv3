@@ -30,9 +30,11 @@ const SaveNoticeItem = ({ notice }: { notice: SaveNotice }): ReactElement => {
         <p className={`text-[14px] ${isFailure ? "font-bold text-accent" : ""}`}>{title}</p>
         {description && <p className="mt-0.5 text-[12px] text-ink-sub">{description}</p>}
       </div>
-      <Link href={href} transitionTypes={FORWARD_TRANSITION} onClick={dismiss} className="flex h-11 shrink-0 items-center px-3 text-[14px] font-bold text-accent">
-        {isFailure ? "돌아가기" : "보기"}
-      </Link>
+      {href && (
+        <Link href={href} transitionTypes={FORWARD_TRANSITION} onClick={dismiss} className="flex h-11 shrink-0 items-center px-3 text-[14px] font-bold text-accent">
+          {isFailure ? "돌아가기" : "보기"}
+        </Link>
+      )}
       <button type="button" onClick={dismiss} className="h-11 shrink-0 px-3 text-[14px] text-ink-sub">
         닫기
       </button>

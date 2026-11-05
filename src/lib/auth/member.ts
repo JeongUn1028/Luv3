@@ -38,3 +38,17 @@ export const getCurrentMember = cache(async (): Promise<Member> => {
 
   return member;
 });
+
+/**
+ * 현재 세션의 로그인 이메일을 읽는다. 허용목록의 이메일은 손으로 넣어 다를 수 있어, 비밀번호 확인에는 세션의 값을 쓴다.
+ * 쿠키를 읽으므로 cacheComponents에서는 반드시 <Suspense> 안의 컴포넌트에서 호출한다.
+ *
+ * @example const email = await getCurrentEmail()
+ */
+export const getCurrentEmail = async (): Promise<string> => {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getClaims();
+  const email = data?.claims.email;
+  if (!email) throw new Error("세션에서 로그인 이메일을 찾지 못했습니다");
+  return email;
+};
