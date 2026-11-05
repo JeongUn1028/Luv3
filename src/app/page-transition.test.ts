@@ -68,8 +68,10 @@ describe("화면 전환", () => {
   it("새 화면은 빈 시간 없이 바로 나타난다", () => {
     const css = readSource("app/globals.css");
 
-    // 지연 시간이 있으면 이전 화면이 사라진 뒤 그만큼 빈 화면이 보인다
-    expect(css).not.toMatch(/\d+ms\s+[\w-]+\s+\d+ms/);
+    // 지연 시간이 있으면 이전 화면이 사라진 뒤 그만큼 빈 화면이 보인다. 시작 화면(#131)의 움직임은 화면 전환이 아니라 대상에서 뺀다
+    const transitionRules = css.match(/::view-transition[^{]*\{[^}]*\}/g)?.join("\n");
+    expect(transitionRules).toMatch(/\d+ms\s+[\w-]+\s+both/);
+    expect(transitionRules).not.toMatch(/\d+ms\s+[\w-]+\s+\d+ms/);
     // 머리글·하단 탭처럼 움직이지 않는 부분은 흐려지지 않고 바로 바뀐다
     expect(css).toMatch(/::view-transition-new\(root\)\s*\{[^}]*animation: none;/);
   });

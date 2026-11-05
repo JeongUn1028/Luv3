@@ -4,6 +4,8 @@ import { HistoryReturn } from "@/components/HistoryReturn";
 import { OfflineNotice } from "@/components/OfflineNotice";
 import { SaveNotices } from "@/components/SaveNotices";
 import { SessionLostDialog } from "@/components/SessionLostDialog";
+import { StartupSplash } from "@/components/StartupSplash";
+import { SKIP_STARTUP_SPLASH_SCRIPT } from "@/lib/pwa/startup-splash";
 import "./globals.css";
 
 // 본문, 설명, 입력 칸, 작은 글자용. next/font에 한글 subset이 없어 미리 불러오지 않는다. 브라우저가 필요한 글자 범위만 받는다.
@@ -20,12 +22,14 @@ const jua = Jua({
   variable: "--font-jua",
 });
 
-// 로고의 SINCE 문구 전용. 앱 아이콘·시작 이미지·링크 미리보기에 새겨진 글자와 같은 글꼴이다.
+// 로고의 SINCE 문구 전용. 앱 아이콘·링크 미리보기에 새겨진 글자와 같은 글꼴이다.
 // 600 하나만 불러와 굵기 클래스 없이 이 굵기로 그려진다. 다른 굵기를 함께 불러오면 로고가 이미지와 달라진다
 const cormorantGaramond = Cormorant_Garamond({
   weight: "600",
   subsets: ["latin"],
   variable: "--font-cormorant",
+  // 시작 화면은 1초 남짓이라 글꼴이 늦으면 대체 글꼴로 나왔다가 바뀌는 것이 보인다. 로고 문구는 글꼴이 올 때까지 비워 둔다
+  display: "block",
 });
 
 // globals.css의 --color-background와 같은 값. CSS 파일을 받기 전에 쓰는 곳이라 CSS 변수를 쓸 수 없다
@@ -43,7 +47,7 @@ export const metadata: Metadata = {
     // 아이폰은 manifest의 배경색으로 시작 화면을 만들지 않아, 이미지가 없으면 켤 때 하얀 화면이 나온다(#119).
     // 기기 화면과 크기가 정확히 맞아야 쓰이므로 대상 기기마다 하나씩 둔다. 세로로만 쓰는 앱이라 세로 이미지만 둔다.
     // 이미 홈 화면에 추가한 앱은 지우고 다시 추가해야 바뀔 수 있다.
-    // 이미지는 로그인 화면의 로고를 찍은 것이라 ANNIVERSARY_DATE, 로고, 로고 글꼴을 바꾸면 다시 그린다
+    // 이미지는 앱 배경색 한 가지다. 하트는 앱이 그리므로(StartupSplash) 이미지에 넣으면 두 번 보인다(#131)
     startupImage: [
       {
         url: "/startup/iphone-15-pro.png",
@@ -74,6 +78,8 @@ const RootLayout = ({ children }: LayoutProps<"/">) => (
     style={{ backgroundColor: APP_BACKGROUND_COLOR }}
   >
     <body className="min-h-full bg-background font-sans text-ink">
+      <StartupSplash />
+      <script dangerouslySetInnerHTML={{ __html: SKIP_STARTUP_SPLASH_SCRIPT }} />
       {/* 화면 높이 틀. 화면(PageShell)이 이 안을 채운다 */}
       <div className="mx-auto flex h-app w-full max-w-[430px] flex-col">
         <OfflineNotice />
