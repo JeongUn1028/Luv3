@@ -1,5 +1,6 @@
 import "server-only";
-import { ALBUM_BUCKET, SIGNED_URL_EXPIRES_IN } from "@/lib/photos/limits";
+import { ALBUM_BUCKET } from "@/lib/photos/limits";
+import { getSignedUrls } from "@/lib/photos/signed-urls";
 import { createClient } from "@/lib/supabase/server";
 
 /** 커플 사진을 불러오지 못했을 때 */
@@ -11,7 +12,7 @@ export class CouplePhotoLoadError extends Error {
 }
 
 /**
- * 두 사람이 함께 보는 커플 사진의 서명 URL을 발급한다.
+ * 두 사람이 함께 보는 커플 사진의 서명 URL을 돌려준다.
  *
  * @returns 커플 사진이 없으면 undefined
  * @throws {CouplePhotoLoadError} 조회나 서명 URL 발급이 실패했을 때
@@ -23,9 +24,9 @@ export const getCouplePhotoUrl = async (): Promise<string | undefined> => {
   if (error) throw new CouplePhotoLoadError({ cause: error });
   if (!data?.path) return undefined;
 
-  const { data: signed, error: signError } = await supabase.storage
-    .from(ALBUM_BUCKET)
-    .createSignedUrl(data.path, SIGNED_URL_EXPIRES_IN);
+  const { data: signed, error: signError } = await getSignedUrls(supabase.storage.from(ALBUM_BUCKET), [data.path]);
   if (signError) throw new CouplePhotoLoadError({ cause: signError });
-  return signed.signedUrl;
+  const signedUrl = signed[0]?.signedUrl;
+  if (!signedUrl) throw new CouplePhotoLoadError({ cause: new Error(`서명 주소를 받지 못한 경로: ${data.path}`) });
+  return signedUrl;
 };

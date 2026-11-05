@@ -14,7 +14,13 @@ export const ORIGINAL_MAX_EDGE = 2000;
 export const THUMB_MAX_EDGE = 600;
 
 /**
- * 서명 URL 유효 시간(초). 화면은 요청마다 새로 그리고 한 번 불러온 사진은 브라우저가 들고 있으므로,
- * 화면을 오래 열어 둘 만큼만 두고 주소가 밖으로 새어도 오래 쓰이지 않게 한다
+ * 서명 URL 유효 시간(초). 화면을 오래 열어 둘 시간과 주소를 다시 쓸 시간을 더한 만큼만 두고,
+ * 주소가 밖으로 새어도 오래 쓰이지 않게 한다
  */
-export const SIGNED_URL_EXPIRES_IN = 60 * 60;
+export const SIGNED_URL_EXPIRES_IN = 2 * 60 * 60;
+
+/**
+ * 보관한 서명 URL을 다시 쓸 때 남아 있어야 하는 유효 시간(초). 화면에 받은 주소는 그 뒤로 이 시간만큼은 쓸 수 있어,
+ * 아직 받지 않은 사진이 화면을 연 채로 깨지지 않게 한다. 유효 시간에서 이 값을 뺀 시간(1시간) 동안 같은 주소를 다시 쓴다
+ */
+export const SIGNED_URL_MIN_REMAINING = 60 * 60;

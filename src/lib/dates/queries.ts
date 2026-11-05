@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { ALBUM_BUCKET, SIGNED_URL_EXPIRES_IN } from "@/lib/photos/limits";
+import { ALBUM_BUCKET } from "@/lib/photos/limits";
+import { getSignedUrls } from "@/lib/photos/signed-urls";
 import { toAlbumTiles, type AlbumTile } from "./album";
 import { isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
 
@@ -12,7 +13,7 @@ export class AlbumLoadError extends Error {
   }
 }
 
-/** 최신순(날짜 → 작성 시각) 기록을 `limit`개까지(없으면 전부) 읽고 대표 사진 썸네일 서명 URL을 한 번에 발급한다 */
+/** 최신순(날짜 → 작성 시각) 기록을 `limit`개까지(없으면 전부) 읽고 대표 사진 썸네일 서명 URL을 붙인다 */
 const loadLatestTiles = async (limit?: number): Promise<AlbumTile[]> => {
   const supabase = await createClient();
   const query = supabase
@@ -24,18 +25,14 @@ const loadLatestTiles = async (limit?: number): Promise<AlbumTile[]> => {
   if (error) throw new AlbumLoadError({ cause: error });
 
   const thumbPaths = rows.flatMap(({ cover }) => (cover ? [cover.thumb_path] : []));
-  if (thumbPaths.length === 0) return toAlbumTiles(rows, []);
-
-  const { data: signed, error: signError } = await supabase.storage
-    .from(ALBUM_BUCKET)
-    .createSignedUrls(thumbPaths, SIGNED_URL_EXPIRES_IN);
+  const { data: signed, error: signError } = await getSignedUrls(supabase.storage.from(ALBUM_BUCKET), thumbPaths);
   if (signError) throw new AlbumLoadError({ cause: signError });
 
   return toAlbumTiles(rows, signed);
 };
 
 /**
- * 앨범 그리드에 그릴 기록을 최신순(날짜 → 작성 시각)으로 불러온다. 대표 사진 썸네일 서명 URL은 한 번에 발급한다.
+ * 앨범 그리드에 그릴 기록을 최신순(날짜 → 작성 시각)으로 불러온다. 대표 사진 썸네일에 서명 URL을 붙인다.
  *
  * @throws {AlbumLoadError} 기록 조회나 서명 URL 발급이 실패했을 때
  * @example const tiles = await getAlbumTiles()
@@ -74,14 +71,13 @@ const getDetailRow = async (
 };
 
 const signPaths = async (supabase: Awaited<ReturnType<typeof createClient>>, paths: string[]) => {
-  if (paths.length === 0) return [];
-  const { data, error } = await supabase.storage.from(ALBUM_BUCKET).createSignedUrls(paths, SIGNED_URL_EXPIRES_IN);
+  const { data, error } = await getSignedUrls(supabase.storage.from(ALBUM_BUCKET), paths);
   if (error) throw new DateRecordLoadError({ cause: error });
   return data;
 };
 
 /**
- * 기록 하나와 사진 전체를 불러오고, 원본 사진 서명 URL을 한 번에 발급한다.
+ * 기록 하나와 사진 전체를 불러오고, 원본 사진에 서명 URL을 붙인다.
  *
  * @returns 없는 기록이거나 id 형식이 틀리면 undefined
  * @throws {DateRecordLoadError} 조회나 서명 URL 발급이 실패했을 때
@@ -95,7 +91,7 @@ export const getDateRecordDetail = async (id: string): Promise<DateRecordDetail 
 };
 
 /**
- * 수정 화면 초기값을 불러온다. 미리보기용으로 썸네일 서명 URL을 발급한다.
+ * 수정 화면 초기값을 불러온다. 미리보기용으로 썸네일에 서명 URL을 붙인다.
  *
  * @returns 없는 기록이거나 id 형식이 틀리면 undefined
  * @throws {DateRecordLoadError} 조회나 서명 URL 발급이 실패했을 때
