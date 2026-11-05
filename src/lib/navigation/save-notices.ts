@@ -1,5 +1,7 @@
+import { SETTINGS_PASSWORD_PATH } from "@/lib/auth/paths";
+
 /**
- * 저장 중에 다른 화면으로 옮겼을 때 저장 결과를 알리는 알림.
+ * 저장 중에 다른 화면으로 옮겼을 때 저장 결과를 알리는 알림. 결과를 보여 줄 곳이 없는 비밀번호 변경은 성공도 이 알림으로 알린다.
  *
  * @example const notice: SaveNotice = { id: "1", formKey: "todo:new", isFailure: false, title: "저장했어요", href: "/todos" };
  */
@@ -11,8 +13,8 @@ export interface SaveNotice {
   title: string;
   /** 제목 아래에 덧붙이는 설명 */
   description?: string;
-  /** 알림의 링크가 여는 화면. 성공이면 저장한 내용, 실패면 폼 */
-  href: string;
+  /** 알림의 링크가 여는 화면. 성공이면 저장한 내용, 실패면 폼. 없으면 링크를 그리지 않는다 */
+  href?: string;
 }
 
 /**
@@ -66,4 +68,4 @@ export const saveNoticeStore = createSaveNoticeStore();
  *
  * @example isWritingPath("/todos/abc/edit") // true
  */
-export const isWritingPath = (pathname: string): boolean => /\/(new|edit)$/.test(pathname);
+export const isWritingPath = (pathname: string): boolean => pathname === SETTINGS_PASSWORD_PATH || /\/(new|edit)$/.test(pathname);

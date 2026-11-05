@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { ChevronRightIcon } from "@/components/icons";
 import { LogoutForm } from "@/components/LogoutForm";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
 import { getCurrentMember } from "@/lib/auth/member";
-import { HOME_PATH } from "@/lib/auth/paths";
+import { HOME_PATH, SETTINGS_PASSWORD_PATH } from "@/lib/auth/paths";
+import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 export const metadata: Metadata = { title: "설정 · Luv3" };
 
@@ -21,6 +24,14 @@ const MemberSection = async () => {
         <span className="text-[13px] text-ink-sub">닉네임</span>
         <span className="text-[15px] text-ink">{member.nickname}</span>
       </div>
+      <Link
+        href={SETTINGS_PASSWORD_PATH}
+        transitionTypes={FORWARD_TRANSITION}
+        className="mt-3 flex h-[51px] items-center justify-between rounded-[10px] bg-surface pr-3 pl-4 text-[15px] text-ink"
+      >
+        비밀번호 변경
+        <ChevronRightIcon className="size-[18px] text-ink-sub" />
+      </Link>
       <LogoutForm />
     </section>
   );
@@ -39,6 +50,7 @@ const SettingsPage = () => (
           <SkeletonArea>
             <SkeletonBlock className="h-5 w-10 rounded-[4px]" />
             <SkeletonBlock className="mt-2 h-[51px] rounded-[10px]" />
+            <SkeletonBlock className="mt-3 h-[51px] rounded-[10px]" />
             <SkeletonBlock className="mt-3 h-[51px] rounded-[10px]" />
           </SkeletonArea>
         }
