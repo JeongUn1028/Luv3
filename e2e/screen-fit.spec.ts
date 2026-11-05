@@ -147,6 +147,37 @@ test.describe("홈 맨 위", () => {
     expect(readOrder[0]).toBe("홈");
     expect(readOrder[readOrder.length - 1]).toMatch(/함께한 지/);
   });
+
+  test("하트 아래 끝이 DAYS 글자 아랫선에 맞고 숫자가 바뀌어도 그대로다", async ({ page }) => {
+    await openScreen(page, "/", page.getByText(TODO.content));
+    const logo = page.locator("header [aria-hidden='true']", { hasText: "DAYS" });
+
+    // 하트는 선 두께의 절반만큼 도형 밖으로 그려지고, 글자 아랫선은 높이 없는 칸을 넣어 잰다
+    const measure = (): Promise<{ heartBottom: number; baseline: number }> =>
+      logo.evaluate((element) => {
+        const path = element.querySelector("path");
+        const toScreen = path?.getScreenCTM();
+        const days = element.querySelector("p:last-child");
+        if (!path || !toScreen || !days) throw new Error("로고 요소를 찾지 못했다");
+        const { y, height } = path.getBBox();
+        const heartBottom = (y + height + Number(path.getAttribute("stroke-width")) / 2) * toScreen.d + toScreen.f;
+        const probe = document.createElement("span");
+        probe.style.cssText = "display:inline-block;width:0;height:0";
+        days.append(probe);
+        const baseline = probe.getBoundingClientRect().bottom;
+        probe.remove();
+        return { heartBottom, baseline };
+      });
+
+    const before = await measure();
+    expect(Math.abs(before.heartBottom - before.baseline)).toBeLessThanOrEqual(0.5);
+
+    // 숫자마다 높이가 다른 글꼴이라, 다른 숫자로 바꿔도 하트가 위아래로 움직이지 않는지 본다
+    await logo.locator("p").first().evaluate((number) => {
+      number.textContent = "1208";
+    });
+    expect((await measure()).heartBottom).toBeCloseTo(before.heartBottom, 1);
+  });
 });
 
 test.describe("홈 커플 사진", () => {
