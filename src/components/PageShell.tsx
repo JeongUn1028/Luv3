@@ -14,7 +14,7 @@ type BottomSpace = keyof typeof BOTTOM_SPACE;
 
 interface PageShellBaseProps {
   children: ReactNode;
-  /** 스크롤해도 위에 남는 머리글. 위 safe-area 여백은 틀이 붙인다. 없으면 내용 맨 위에 여백을 둔다 */
+  /** 스크롤해도 위에 남는 머리글. 없으면 머리글을 내용에 넣어 함께 스크롤한다 */
   header?: ReactNode;
   /** 내용 영역에 더할 클래스(좌우 여백, 가운데 정렬 등) */
   className?: string;
@@ -40,6 +40,7 @@ type PageShellProps = PageShellBaseProps &
 /**
  * 모든 화면의 공통 틀. 화면 높이 틀(루트 레이아웃)을 머리글·내용과 하단 탭으로 채우고, 문서 대신 머리글 아래 내용 영역만 스크롤한다.
  * 화면 제목이 본문 영역 안에 남도록 머리글도 main 안에 둔다. 하단 탭은 fixed 대신 스크롤 영역 아래에 둔다.
+ * 맨 위 빈 자리는 머리글이 없어도 스크롤 영역 밖에 두어, 스크롤한 내용이 시스템 흐림이 생기는 자리로 올라가지 않게 한다(#127).
  * 홈 화면 앱을 처음 띄우면 iOS가 뷰포트·fixed를 상태바만큼 작게 잡아서(#51), 문서 스크롤과 fixed에 기대지 않는다.
  * 화면을 옮길 때 머리글·내용과 하단 탭을 따로 움직여, 탭끼리 옮길 때 하단 탭이 깜빡이지 않는다(#53).
  *
@@ -53,14 +54,13 @@ export const PageShell = ({ children, header, footer, bottomSpace = "safe", clas
   <>
     <ViewTransition enter={SCREEN_MOTION} exit={SCREEN_MOTION} default="none">
       <main className="flex min-h-0 flex-1 flex-col">
-        {header && <div className="shrink-0 pt-[var(--screen-top-inset)]">{header}</div>}
+        <div className="shrink-0 pt-[var(--screen-top-inset)]">{header}</div>
         <ScrollArea
           scrollKey={scrollKey}
           className={[
             // min-h-0이 없으면 내용 영역이 내용만큼 늘어나 안쪽 스크롤이 생기지 않는다.
             // relative: sr-only 같은 absolute 자식이 문서가 아닌 스크롤 영역 안에 놓이게 한다
             "relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain",
-            header ? "" : "pt-[var(--screen-top-inset)]",
             footer ? "" : BOTTOM_SPACE[bottomSpace],
             className,
           ]

@@ -19,7 +19,7 @@ interface FormSkeletonProps {
 export const FormSkeleton = ({ back, title, fieldCount }: FormSkeletonProps): ReactElement => (
   <PageShell bottomSpace="sm" className="px-4" header={<ScreenHeader back={back} title={title} />}>
     <SkeletonArea>
-      <div className="mt-6 flex flex-col gap-6">
+      <div className="mt-3 flex flex-col gap-4">
         {Array.from({ length: fieldCount }, (_, index) => (
           <div key={index}>
             <SkeletonBlock className="h-4 w-14 rounded-[4px]" />
