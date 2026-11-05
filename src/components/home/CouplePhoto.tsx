@@ -215,7 +215,7 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
       >
         {isConfirmingClear ? (
           <>
-            <h2 id={titleId} className="text-[17px] font-bold">
+            <h2 id={titleId} className="font-display text-[17px]">
               커플 사진을 지울까요?
             </h2>
             <p id={descriptionId} className="mt-2 text-[14px] leading-[1.6] text-ink-sub">
@@ -241,7 +241,7 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
                 type="button"
                 disabled={task === "clear"}
                 onClick={handleClear}
-                className="h-12 flex-1 rounded-[10px] bg-accent text-[15px] font-bold text-background disabled:opacity-50"
+                className="h-12 flex-1 rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
               >
                 {task === "clear" ? "지우는 중…" : "지우기"}
               </button>
@@ -249,7 +249,7 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
           </>
         ) : (
           <>
-            <h2 id={titleId} className="text-[17px] font-bold">
+            <h2 id={titleId} className="font-display text-[17px]">
               커플 사진
             </h2>
             <div className="mt-4 flex flex-col gap-2">

@@ -94,7 +94,7 @@ const SessionLostForm = ({ isPending, onPendingChange, onClose }: SessionLostFor
         <button
           type="submit"
           disabled={isPending}
-          className="h-12 flex-1 rounded-[10px] bg-accent text-[15px] font-bold text-background disabled:opacity-50"
+          className="h-12 flex-1 rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
         >
           {isPending ? "확인 중…" : "로그인"}
         </button>
@@ -142,7 +142,7 @@ export const SessionLostDialog = (): ReactElement => {
       onClose={() => setIsOpen(false)}
       className="m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
     >
-      <h2 id={titleId} className="text-[17px] font-bold">
+      <h2 id={titleId} className="font-display text-[17px]">
         다시 로그인해 주세요
       </h2>
       <p id={descriptionId} className="mt-2 text-[14px] leading-[1.6] text-ink-sub">

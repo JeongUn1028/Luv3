@@ -404,7 +404,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
             <button
               type="button"
               onClick={handleGoToRecords}
-              className="h-[52px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background"
+              className="h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background"
             >
               기록 목록으로
             </button>
@@ -412,7 +412,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
             <button
               type="submit"
               disabled={isSaving}
-              className="h-[52px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background disabled:opacity-50"
+              className="h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
             >
               {progress ? toProgressLabel(progress) : isSaving ? "저장 중…" : "저장"}
             </button>

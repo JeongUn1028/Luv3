@@ -55,7 +55,7 @@ export const TabBar = ({ current }: TabBarProps): ReactElement => (
               transitionTypes={TAB_TRANSITION}
               aria-current={isCurrent ? "page" : undefined}
               onClick={isCurrent ? (event) => handleCurrentTabClick(event, tab, href) : undefined}
-              className={`flex flex-1 flex-col items-center justify-center gap-1 text-[11px] ${isCurrent ? "text-highlight" : "text-ink-sub"}`}
+              className={`flex flex-1 flex-col items-center justify-center gap-1 font-display text-[11px] ${isCurrent ? "text-highlight" : "text-ink-sub"}`}
             >
               <Icon className="size-[22px]" />
               {label}

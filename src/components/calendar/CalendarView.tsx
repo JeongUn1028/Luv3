@@ -63,7 +63,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
   return (
     <div className="flex flex-col px-4 pb-6">
       <div className="flex items-center justify-between pt-2">
-        <h2 aria-live="polite" className="px-0.5 font-display text-[20px] font-semibold tracking-[3px] text-label">
+        <h2 aria-live="polite" className="px-0.5 font-display text-[20px] tracking-[3px] text-label">
           {formatMonthTitle(month)}
         </h2>
         <div className="-mr-3 flex items-center">
@@ -161,7 +161,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
       <section aria-labelledby="selected-day" className="mt-4 flex flex-col">
         <div className="flex items-center justify-between">
           <div className="flex flex-col">
-            <h3 id="selected-day" className="text-[15px] font-bold text-ink">
+            <h3 id="selected-day" className="font-display text-[15px] text-ink">
               {formatDayHeading(selectedDate)}
             </h3>
             {selectedDate >= ANNIVERSARY_DATE && (

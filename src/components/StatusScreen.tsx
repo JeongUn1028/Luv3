@@ -27,7 +27,7 @@ interface StatusScreenProps {
 export const StatusScreen = ({ title, description, isAlert = false, children }: StatusScreenProps): ReactElement => (
   <PageShell className="items-center justify-center gap-4 px-4 text-center">
     <div role={isAlert ? "alert" : undefined} className="flex flex-col gap-4">
-      <h1 className="text-[15px] text-ink">{title}</h1>
+      <h1 className="font-display text-[15px] text-ink">{title}</h1>
       <p className="text-[13px] text-ink-sub">{description}</p>
     </div>
     <div className="mt-2 flex w-full flex-col gap-2.5">{children}</div>

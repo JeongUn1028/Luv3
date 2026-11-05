@@ -148,7 +148,7 @@ export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormPro
           <button
             type="submit"
             disabled={isSaving}
-            className="h-[52px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background disabled:opacity-50"
+            className="h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
           >
             {isSaving ? "저장 중…" : "저장"}
           </button>

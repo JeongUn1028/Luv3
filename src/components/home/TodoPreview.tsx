@@ -23,7 +23,7 @@ export const TodoPreview = ({ todos, errorMessage }: TodoPreviewProps): ReactEle
   return (
     <section aria-labelledby={titleId} className="relative mt-4 shrink-0 rounded-[16px] bg-surface px-3.5 py-3">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 id={titleId} className="text-[14px] leading-5 font-bold text-ink">
+        <h2 id={titleId} className="font-display text-[14px] leading-5 text-ink">
           하고 싶은 것
         </h2>
         {!isEmpty && (

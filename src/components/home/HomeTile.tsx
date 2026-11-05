@@ -32,7 +32,7 @@ export const HomeTile = ({ title, detail, more, isOutlined = false, children }: 
       }`}
     >
       <div className="flex items-baseline justify-between gap-1.5">
-        <h2 id={titleId} className="text-[14px] leading-5 font-bold whitespace-nowrap text-ink">
+        <h2 id={titleId} className="font-display text-[14px] leading-5 whitespace-nowrap text-ink">
           {title}
         </h2>
         {detail && <p className="text-[12px] leading-4 whitespace-nowrap text-ink-sub">{detail}</p>}

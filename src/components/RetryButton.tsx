@@ -20,7 +20,7 @@ export const RetryButton = ({ onRetry }: RetryButtonProps): ReactElement => {
       type="button"
       disabled={isPending}
       onClick={() => startTransition(() => onRetry())}
-      className="h-[51px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background disabled:opacity-50"
+      className="h-[51px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
     >
       {isPending ? "다시 시도하는 중…" : "다시 시도"}
     </button>
