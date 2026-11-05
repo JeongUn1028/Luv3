@@ -114,7 +114,7 @@ export const getDayNumberClassName = ({
   highlightClassNames,
 }: DayNumberClassNameParams): string => {
   const isOnBand = highlightClassNames !== undefined;
-  const fill = isToday ? "bg-accent font-bold text-background" : isOnBand && `font-semibold ${highlightClassNames.text}`;
+  const fill = isToday ? "bg-accent text-background" : isOnBand && highlightClassNames.text;
   const separator = isSelected
     ? { offset: "ring-offset-surface", ring: "ring-surface" }
     : { offset: "ring-offset-background", ring: "ring-background" };

@@ -22,7 +22,7 @@ export const AlbumGrid = ({ tiles }: AlbumGridProps): ReactElement => {
     <div className="mt-[11px] flex flex-col gap-6 pb-6">
       {groupByMonth(tiles).map(({ key, label, tiles: monthTiles }) => (
         <section key={key} aria-labelledby={`month-${key}`}>
-          <h2 id={`month-${key}`} className="px-0.5 font-display text-[15px] font-semibold tracking-[3px] text-label">
+          <h2 id={`month-${key}`} className="px-0.5 font-display text-[15px] tracking-[3px] text-label">
             {label}
           </h2>
           <ul className="mt-2 grid grid-cols-2 gap-1">

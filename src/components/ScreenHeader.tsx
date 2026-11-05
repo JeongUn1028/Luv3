@@ -41,7 +41,7 @@ export const ScreenHeader = ({ back, title, isTitleHidden = false, titleAddon, a
         </BackLink>
       )}
       {title && (
-        <h1 className={isTitleHidden ? "sr-only" : `truncate text-[17px] text-ink ${back ? "" : "px-2"}`}>{title}</h1>
+        <h1 className={isTitleHidden ? "sr-only" : `truncate font-display text-[17px] text-ink ${back ? "" : "px-2"}`}>{title}</h1>
       )}
       {titleAddon}
     </div>
