@@ -31,7 +31,8 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     // 아이폰은 manifest의 배경색으로 시작 화면을 만들지 않아, 이미지가 없으면 켤 때 하얀 화면이 나온다(#119).
     // 기기 화면과 크기가 정확히 맞아야 쓰이므로 대상 기기마다 하나씩 둔다. 세로로만 쓰는 앱이라 세로 이미지만 둔다.
-    // 이미 홈 화면에 추가한 앱은 지우고 다시 추가해야 바뀔 수 있다
+    // 이미 홈 화면에 추가한 앱은 지우고 다시 추가해야 바뀔 수 있다.
+    // 이미지는 로그인 화면의 로고를 찍은 것이라 ANNIVERSARY_DATE나 로고를 바꾸면 다시 그린다
     startupImage: [
       {
         url: "/startup/iphone-15-pro.png",
