@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { FormSkeleton } from "@/components/FormSkeleton";
-import { PageShell } from "@/components/PageShell";
+import { LoadErrorScreen } from "@/components/LoadErrorScreen";
 import { StatusLink, StatusScreen } from "@/components/StatusScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { TodoForm } from "@/components/todos/TodoForm";
@@ -19,13 +19,7 @@ const EditTodoForm = async ({ params }: { params: Promise<{ id: string }> }) => 
   const todo = await catchLoadError(() => getTodo(id), TodoLoadError);
 
   if (todo instanceof TodoLoadError) {
-    return (
-      <PageShell className="items-center justify-center px-4">
-        <p role="alert" className="text-[13px] text-ink-sub">
-          {todo.message}
-        </p>
-      </PageShell>
-    );
+    return <LoadErrorScreen title="항목을 불러오지 못했어요" backHref={TODOS_PATH} backLabel="목록으로" />;
   }
 
   if (!todo) {

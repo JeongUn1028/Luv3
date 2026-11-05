@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PlusIcon } from "@/components/icons";
+import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
@@ -18,15 +19,7 @@ const TodosContent = async () => {
   // 목록을 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다
   const todos = await catchLoadError(getTodos, TodoLoadError);
 
-  if (todos instanceof TodoLoadError) {
-    return (
-      <div className="flex flex-1 items-center justify-center py-12">
-        <p role="alert" className="text-[13px] text-ink-sub">
-          {todos.message}
-        </p>
-      </div>
-    );
-  }
+  if (todos instanceof TodoLoadError) return <LoadErrorMessage message={todos.message} />;
   return <TodoList todos={todos} />;
 };
 
