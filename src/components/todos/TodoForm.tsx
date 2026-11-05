@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
-import { AuthorHeart } from "@/components/AuthorHeart";
+import { AuthorTag } from "@/components/AuthorTag";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -22,7 +22,7 @@ interface TodoFormProps {
   initialContent: string;
   /** 고칠 항목의 id. 없으면 새 항목을 목록 맨 아래에 추가한다 */
   todoId?: string;
-  /** 고칠 항목의 작성자 닉네임. 있으면 제목 옆에 작성자 하트를 그린다 */
+  /** 고칠 항목의 작성자 닉네임. 있으면 제목 옆에 작성자 이름표를 그린다 */
   authorNickname?: string;
 }
 
@@ -98,7 +98,7 @@ export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormPro
         <ScreenHeader
           back={{ href: TODOS_PATH }}
           title={todoId ? "하고 싶은 것 고치기" : "하고 싶은 것 추가"}
-          titleAddon={authorNickname && <AuthorHeart nickname={authorNickname} className="ml-2" />}
+          titleAddon={authorNickname && <AuthorTag nickname={authorNickname} className="ml-2" />}
           actions={
             todoId && (
               <ConfirmDeleteButton

@@ -137,7 +137,7 @@ describe("누름 영역", () => {
     expect(link).toContain("h-11");
   });
 
-  it("완료한 줄의 빈 칸은 순서 버튼 두 개 너비와 같아 하트가 위 목록과 같은 세로줄에 온다", () => {
+  it("완료한 줄의 빈 칸은 순서 버튼 두 개 너비와 같아 이름표 오른쪽 끝이 위 목록과 같은 세로줄에 온다", () => {
     // 완료한 줄은 공유 데이터를 바꿔야 나와 E2E 대신 클래스로 고정한다(#105)
     const source = readSource("components/todos/TodoList.tsx");
 

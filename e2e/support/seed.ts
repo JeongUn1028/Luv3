@@ -15,6 +15,9 @@ const createAdminClient = (): AdminClient => {
   return createClient<Database>(url, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } });
 };
 
+/** 닉네임이 다른 작성자가 필요한 테스트의 임시 계정. 다음 실행이 이 앞글자로 찾아 지운다 */
+const E2E_AUTHOR_EMAIL_PREFIX = "e2e-author-";
+
 const assertNoError = ({ error }: { error: { message: string } | null }, step: string): void => {
   if (error) throw new Error(`E2E 데이터 준비 실패(${step}): ${error.message}`);
 };
@@ -69,6 +72,15 @@ export const deleteRecordWithFiles = async (id: string): Promise<void> => {
   if (names.length > 0) assertNoError(await admin.storage.from(ALBUM_BUCKET).remove(names.map((name) => `${id}/${name}`)), "사진 지우기");
 };
 
+const deleteAccountWithContent = async (admin: AdminClient, userId: string): Promise<void> => {
+  // 내용이 작성자(members)를 참조하므로 먼저 지운다. 사진 행은 기록과 함께 지워진다
+  for (const table of ["dates", "events", "todos"] as const) {
+    assertNoError(await admin.from(table).delete().eq("author_id", userId), `${table} 지우기`);
+  }
+  // members는 계정을 지우면 함께 지워진다
+  assertNoError(await admin.auth.admin.deleteUser(userId), "계정 지우기");
+};
+
 const getMemberId = async (admin: AdminClient): Promise<string> => {
   const { data, error } = await admin.from("members").select("id").eq("email", E2E_MEMBER.email).single();
   assertNoError({ error }, "계정 조회");
@@ -85,6 +97,31 @@ export const createDisposableTodo = async ({ id, content }: { id: string; conten
   const admin = createAdminClient();
   assertNoError(await admin.from("todos").insert({ id, content, author_id: await getMemberId(admin) }), "하고 싶은 것");
   return async () => assertNoError(await admin.from("todos").delete().eq("id", id), "하고 싶은 것 지우기");
+};
+
+/**
+ * 다른 닉네임의 작성자와 그 사람이 쓴 하고 싶은 것을 만든다. 공유하는 전용 계정의 닉네임을 바꾸면 나란히 도는 테스트가 흔들려서 따로 만든다.
+ * 돌려준 함수는 항목과 계정을 지운다. 실행이 중간에 끊겨 남은 것은 다음 실행의 `seedE2eData`가 지운다.
+ *
+ * @example const deleteAuthorTodo = await createDisposableAuthorTodo({ nickname: "긴 닉네임", content: "항목" })
+ */
+export const createDisposableAuthorTodo = async ({ nickname, content }: { nickname: string; content: string }): Promise<() => Promise<void>> => {
+  const admin = createAdminClient();
+  const email = `${E2E_AUTHOR_EMAIL_PREFIX}${randomUUID()}@example.com`;
+  const { data, error } = await admin.auth.admin.createUser({ email, password: randomUUID(), email_confirm: true });
+  assertNoError({ error }, "작성자 계정");
+  const authorId = data.user?.id;
+  if (!authorId) throw new Error("E2E 데이터 준비 실패(작성자 계정): 계정 id가 없습니다");
+
+  const remove = (): Promise<void> => deleteAccountWithContent(admin, authorId);
+  try {
+    assertNoError(await admin.from("members").insert({ id: authorId, email, nickname }), "작성자");
+    assertNoError(await admin.from("todos").insert({ content, author_id: authorId }), "하고 싶은 것");
+  } catch (insertError) {
+    await remove();
+    throw insertError;
+  }
+  return remove;
 };
 
 /**
@@ -145,15 +182,8 @@ export const createNonMemberAccount = async (email: string, password: string): P
 const clearAccount = async (admin: AdminClient): Promise<void> => {
   const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
   assertNoError({ error }, "계정 조회");
-  const user = data.users.find(({ email }) => email === E2E_MEMBER.email);
-  if (!user) return;
-
-  // 내용이 작성자(members)를 참조하므로 먼저 지운다. 사진 행은 기록과 함께 지워진다
-  for (const table of ["dates", "events", "todos"] as const) {
-    assertNoError(await admin.from(table).delete().eq("author_id", user.id), `${table} 지우기`);
-  }
-  // members는 계정을 지우면 함께 지워진다
-  assertNoError(await admin.auth.admin.deleteUser(user.id), "계정 지우기");
+  const users = data.users.filter(({ email }) => email === E2E_MEMBER.email || email?.startsWith(E2E_AUTHOR_EMAIL_PREFIX));
+  for (const user of users) await deleteAccountWithContent(admin, user.id);
 };
 
 const clearStorage = async (admin: AdminClient): Promise<void> => {
