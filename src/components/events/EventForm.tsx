@@ -142,7 +142,7 @@ export const EventForm = ({ initialDraft, eventId, authorNickname, ownerNickname
       }
     >
       {/* 칸이 많아 간격을 좁혀야 메모 4줄이 15 Pro 화면에 들어온다. 남은 높이는 메모 칸이 채워 기기마다 저장 버튼이 같은 자리에 온다(#57) */}
-      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-1 flex-col gap-5">
+      <form onSubmit={handleSubmit} noValidate className="mt-3 flex flex-1 flex-col gap-4">
         <div className="flex flex-col">
           <label htmlFor="event-title" className={labelClassName}>
             제목

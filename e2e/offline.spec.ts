@@ -1,5 +1,5 @@
 import type { Locator, Page, Route } from "@playwright/test";
-import { E2E_MEMBER, E2E_TODOS, PHOTO_RECORD } from "./support/constants";
+import { E2E_MEMBER, E2E_TODOS, PHOTO_RECORD, TOP_BLANK_SPACE } from "./support/constants";
 import { expect, getDocumentOverflow, getScrollArea, openScreen, test } from "./support/test";
 
 const [TODO] = E2E_TODOS;
@@ -144,7 +144,7 @@ test.describe("인터넷이 끊기면", () => {
     expect((await getBox(getOfflineNotice(page))).bottom).toBeLessThanOrEqual((await getBox(saveNotice)).top);
   });
 
-  test("안내는 상태바 아래에 글자를 두고 머리글을 가리지 않으며 문서를 늘리지 않는다", async ({ page, safeArea }) => {
+  test("안내는 맨 위 빈 자리 아래에 글자를 두고 머리글을 가리지 않으며 문서를 늘리지 않는다", async ({ page, safeArea }) => {
     await openScreen(page, "/todos", page.getByText(TODO.content));
     const headerBefore = await getBox(page.locator("main header"));
 
@@ -153,8 +153,8 @@ test.describe("인터넷이 끊기면", () => {
     const notice = await getBox(getOfflineNotice(page));
     const header = await getBox(page.locator("main header"));
     expect(notice.top).toBe(0);
-    expect((await getBox(getOfflineNotice(page).locator("p"))).top).toBeGreaterThanOrEqual(safeArea.top);
-    // 머리글은 안내 바로 아래에 붙는다. 상태바 여백이 두 번 붙으면 이만큼 더 내려간다
+    expect((await getBox(getOfflineNotice(page).locator("p"))).top).toBe(safeArea.top + TOP_BLANK_SPACE);
+    // 머리글은 안내 바로 아래에 붙는다. 맨 위 여백이 두 번 붙으면 이만큼 더 내려간다
     expect(header.top).toBe(notice.bottom);
     expect(header.height).toBe(headerBefore.height);
     await expect(getScrollArea(page)).toBeVisible();

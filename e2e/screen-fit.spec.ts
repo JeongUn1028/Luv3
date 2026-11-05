@@ -1,11 +1,31 @@
 import { readFileSync } from "node:fs";
 import type { Locator, Page } from "@playwright/test";
-import { E2E_EVENTS, E2E_MEMBER, E2E_TODOS, PHOTO_FIXTURE_PATH, PHOTO_RECORD } from "./support/constants";
+import { E2E_EVENTS, E2E_MEMBER, E2E_TODOS, PHOTO_FIXTURE_PATH, PHOTO_RECORD, TOP_BLANK_SPACE } from "./support/constants";
 import { expect, getDocumentOverflow, getScrollArea, getScrollAreaOverflow, openScreen, test } from "./support/test";
 
 const [EVENT] = E2E_EVENTS;
 const [TODO] = E2E_TODOS;
 const MEMO_MIN_HEIGHT = 122;
+// 홈 로고는 머리글보다 4px 커서 위로 그만큼 나온다
+const HOME_LOGO_OVERHANG = 4;
+
+/** 화면에 보이는 글자·버튼·이미지 중 가장 위쪽 위치(화면 읽기 전용 글자는 뺀다) */
+const getTopmostContentTop = (page: Page): Promise<number> =>
+  page.evaluate(() => {
+    const isShown = (element: Element): boolean => element.checkVisibility() && !element.closest(".sr-only");
+    const tops = [...document.querySelectorAll("svg, img, button, a, input, textarea")].filter(isShown).flatMap((element) => {
+      const { top, width, height } = element.getBoundingClientRect();
+      return width > 0 && height > 0 ? [top] : [];
+    });
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const { parentElement, textContent } = walker.currentNode;
+      if (!textContent?.trim() || !parentElement || !isShown(parentElement)) continue;
+      // 글자 범위 상자는 글꼴 여백까지 포함해 실제 글자보다 위로 크다. 큰 로고 숫자가 잘못 걸리지 않게 글자를 담은 요소로 잰다
+      tops.push(parentElement.getBoundingClientRect().top);
+    }
+    return Math.min(...tops);
+  });
 
 const getSaveButtonBottom = async (page: Page): Promise<number> => {
   const box = await page.getByRole("button", { name: "저장" }).boundingBox();
@@ -43,16 +63,53 @@ test.describe("화면 높이", () => {
 
       expect(await getDocumentOverflow(page)).toBe(0);
     });
+
+    test(`${name} 화면을 열면 흐림이 생기는 맨 위에 글자와 버튼이 없다`, async ({ page, safeArea }) => {
+      await openScreen(page, path, ready(page));
+
+      expect(await getTopmostContentTop(page)).toBeGreaterThanOrEqual(safeArea.top + TOP_BLANK_SPACE - HOME_LOGO_OVERHANG);
+    });
   }
 
-  test("safe-area를 넣으면 머리글이 위 여백만큼 내려온다", async ({ page, safeArea }) => {
+  test("머리글은 상태바 아래에 맨 위 빈 자리를 두고 내려온다", async ({ page, safeArea }) => {
     await openScreen(page, "/settings", page.getByText(E2E_MEMBER.nickname, { exact: true }));
 
-    await expect(page.locator("main > .shrink-0")).toHaveCSS("padding-top", `${safeArea.top}px`);
+    await expect(page.locator("main > .shrink-0")).toHaveCSS("padding-top", `${safeArea.top + TOP_BLANK_SPACE}px`);
+  });
+
+  test("탭 화면과 폼 화면의 머리글 위치가 같아 옮겨도 튀지 않는다", async ({ page, safeArea }) => {
+    const paths = ["/", "/records", "/calendar", "/todos", "/settings", "/events/new"];
+    for (const { path, ready } of SCREENS.filter((screen) => paths.includes(screen.path))) {
+      await openScreen(page, path, ready(page));
+
+      expect((await page.locator("main header").locator("visible=true").first().boundingBox())?.y).toBe(safeArea.top + TOP_BLANK_SPACE);
+    }
+  });
+
+  test("머리글이 내용과 함께 움직이는 기록 상세도 스크롤 영역이 맨 위 빈 자리 아래에서 시작해 내용이 그 자리로 올라가지 않는다", async ({ page, safeArea }) => {
+    await openScreen(page, `/dates/${PHOTO_RECORD.id}`, page.getByRole("heading", { name: PHOTO_RECORD.title }));
+
+    expect((await getScrollArea(page).boundingBox())?.y).toBe(safeArea.top + TOP_BLANK_SPACE);
+  });
+
+  test.describe("상태바 아래까지 그리지 않을 때(Safari 탭, 컴퓨터)", () => {
+    test.use({ safeArea: { top: 0, bottom: 0 } });
+
+    test("맨 위를 비우지 않는다", async ({ page }) => {
+      await openScreen(page, "/settings", page.getByText(E2E_MEMBER.nickname, { exact: true }));
+
+      await expect(page.locator("main > .shrink-0")).toHaveCSS("padding-top", "0px");
+    });
   });
 
   test.describe("로그아웃 상태", () => {
     test.use({ storageState: { cookies: [], origins: [] } });
+
+    test("로그인 화면을 열면 흐림이 생기는 맨 위에 글자와 버튼이 없다", async ({ page, safeArea }) => {
+      await openScreen(page, "/login", page.getByRole("button", { name: "로그인" }));
+
+      expect(await getTopmostContentTop(page)).toBeGreaterThanOrEqual(safeArea.top + TOP_BLANK_SPACE);
+    });
 
     test("로그인 화면을 열면 문서가 화면 높이를 넘지 않는다", async ({ page }) => {
       await openScreen(page, "/login", page.getByRole("button", { name: "로그인" }));

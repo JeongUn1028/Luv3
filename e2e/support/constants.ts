@@ -1,6 +1,9 @@
 /** 임시 서버 주소. 다른 프로젝트의 개발 서버와 겹치지 않는 포트를 쓴다 */
 export const BASE_URL = "http://127.0.0.1:3100";
 
+/** 상태바 아래에 비워 두는 높이(px). `globals.css`의 `--top-blank`와 같다 */
+export const TOP_BLANK_SPACE = 44;
+
 /** 로그인 상태를 저장하는 파일. 실행 때마다 새로 만들고 커밋하지 않는다 */
 export const MEMBER_STATE_PATH = "e2e/.auth/member.json";
 

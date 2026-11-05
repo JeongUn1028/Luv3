@@ -246,7 +246,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
       }
     >
       {/* 폼을 화면 남은 높이까지 늘리고 정리 글 칸이 그 여유를 채운다. 칸을 고정 줄 수로 두면 기기 높이에 따라 조금씩 넘쳐 스크롤이 생긴다(#52) */}
-      <form onSubmit={handleSubmit} noValidate className="mt-6 flex flex-1 flex-col gap-6">
+      <form onSubmit={handleSubmit} noValidate className="mt-3 flex flex-1 flex-col gap-4">
         <PhotoPicker
           photos={draft.photos}
           coverPhotoId={draft.coverPhotoId}

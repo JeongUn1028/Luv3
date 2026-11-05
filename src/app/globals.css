@@ -87,18 +87,22 @@ input[type="time"] {
 }
 
 /*
-  위쪽 여백의 기준(#106). 끊김 안내는 오래 떠 있을 수 있어 머리글을 가리지 않게 화면을 밀어내며 맨 위에 놓인다.
-  안내가 상태바 여백을 대신 채우므로 머리글은 여백을 또 두지 않고, 위에 겹쳐 뜨는 안내는 끊김 안내 아래로 내려온다.
+  위쪽 여백의 기준(#106, #127).
+  홈 화면 앱의 맨 위(상태바와 그 아래 약 40px)에 시스템 흐림이 생기고 끌 방법을 찾지 못해, 그 자리를 비워 글자와 버튼이 걸리지 않게 한다.
+  상태바 아래까지 그릴 때만 비운다. safe-area가 0이면(Safari 탭, 컴퓨터) min의 뒤쪽 값이 0이 되어 비우지 않는다.
+  끊김 안내는 오래 떠 있을 수 있어 머리글을 가리지 않게 화면을 밀어내며 빈 자리 바로 아래에 놓인다.
+  안내가 빈 자리를 대신 채우므로 머리글은 여백을 또 두지 않고, 위에 겹쳐 뜨는 안내는 끊김 안내 아래로 내려온다.
 */
 :root {
   --offline-notice-line: 32px;
-  --screen-top-inset: env(safe-area-inset-top);
-  --overlay-top: env(safe-area-inset-top);
+  --top-blank: calc(env(safe-area-inset-top) + min(44px, env(safe-area-inset-top) * 100));
+  --screen-top-inset: var(--top-blank);
+  --overlay-top: var(--top-blank);
 }
 
 :root:has([data-offline-notice]) {
   --screen-top-inset: 0px;
-  --overlay-top: calc(env(safe-area-inset-top) + var(--offline-notice-line));
+  --overlay-top: calc(var(--top-blank) + var(--offline-notice-line));
 }
 
 /*
