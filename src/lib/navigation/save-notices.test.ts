@@ -82,6 +82,10 @@ describe("isWritingPath", () => {
     expect(isWritingPath("/settings/password")).toBe(true);
   });
 
+  it("닉네임 변경 화면도 다시 불러오면 적던 닉네임이 사라지므로 true를 돌려준다", () => {
+    expect(isWritingPath("/settings/nickname")).toBe(true);
+  });
+
   it.each(["/", "/records", "/calendar", "/todos", "/dates/abc", "/settings"])("폼이 아닌 화면 %s이면 false를 돌려준다", (pathname) => {
     expect(isWritingPath(pathname)).toBe(false);
   });

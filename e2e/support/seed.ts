@@ -130,7 +130,7 @@ export const createDisposableAuthorTodo = async ({ nickname, content }: { nickna
  *
  * @example const { email, remove } = await createDisposableMember(password)
  */
-export const createDisposableMember = async (password: string): Promise<{ email: string; remove: () => Promise<void> }> => {
+export const createDisposableMember = async (password: string, nickname = "임시"): Promise<{ id: string; email: string; remove: () => Promise<void> }> => {
   const admin = createAdminClient();
   const email = `${E2E_AUTHOR_EMAIL_PREFIX}${randomUUID()}@example.com`;
   const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
@@ -140,12 +140,30 @@ export const createDisposableMember = async (password: string): Promise<{ email:
 
   const remove = (): Promise<void> => deleteAccountWithContent(admin, memberId);
   try {
-    assertNoError(await admin.from("members").insert({ id: memberId, email, nickname: "임시" }), "임시 멤버");
+    assertNoError(await admin.from("members").insert({ id: memberId, email, nickname }), "임시 멤버");
   } catch (insertError) {
     await remove();
     throw insertError;
   }
-  return { email, remove };
+  return { id: memberId, email, remove };
+};
+
+/**
+ * 임시 멤버가 쓴 기록(사진 없음)·한 사람 일정·하고 싶은 것을 만든다. 멤버의 `remove`가 함께 지운다.
+ *
+ * @example const { recordId, eventId } = await createMemberContent({ memberId, label: "내 글" })
+ */
+export const createMemberContent = async ({ memberId, label }: { memberId: string; label: string }): Promise<{ recordId: string; eventId: string }> => {
+  const admin = createAdminClient();
+  const recordId = randomUUID();
+  const eventId = randomUUID();
+  const today = toKstDate(new Date());
+  // 오늘 날짜면 나란히 도는 홈 테스트의 "최근 기록" 자리를 잠깐 차지하므로 어제로 둔다
+  const yesterday = toKstDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
+  assertNoError(await admin.from("dates").insert({ id: recordId, date: yesterday, title: `${label} 기록`, author_id: memberId }), "기록");
+  assertNoError(await admin.from("events").insert({ id: eventId, date: today, title: `${label} 일정`, is_together: false, author_id: memberId }), "일정");
+  assertNoError(await admin.from("todos").insert({ content: `${label} 항목`, author_id: memberId }), "하고 싶은 것");
+  return { recordId, eventId };
 };
 
 /**
