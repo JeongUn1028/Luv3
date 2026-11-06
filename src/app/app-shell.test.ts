@@ -93,7 +93,8 @@ describe("화면 틀", () => {
   it("fixed는 화면 위쪽에 겹치는 요소에서만 쓴다", () => {
     // 홈 화면 앱 첫 실행 때 fixed는 793 기준으로 잡혀, 하단 탭·떠 있는 버튼은 틀 안에 둔다
     // table-fixed·toFixed는 빼고, 클래스 fixed와 CSS position: fixed만 잡는다
-    expect(findLines(/(?<![\w-])fixed(?![\w-])/, TOP_OVERLAYS)).toEqual([]);
+    // 시작 화면은 화면 전체를 덮지만 맨 위에서 시작하고 높이를 h-app으로 직접 정한다
+    expect(findLines(/(?<![\w-])fixed(?![\w-])/, [...TOP_OVERLAYS, "components/StartupSplash.tsx"])).toEqual([]);
   });
 
   it("safe-area 여백은 틀·하단 탭과 위쪽 여백 변수에서만 정한다", () => {

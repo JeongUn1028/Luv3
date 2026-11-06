@@ -30,7 +30,7 @@ describe("글꼴", () => {
     expect(readSource("app/globals.css")).toMatch(/--font-logo: var\(--font-cormorant\)/);
     expect(readSource("app/login/page.tsx")).toMatch(/font-logo[^"]*tracking-\[6px\]/);
     // 홈 D-day, 연·월 제목, 탭, 버튼은 주아를 유지한다
-    expect(logoUsers).toEqual(["app/login/page.tsx"]);
+    expect(logoUsers).toEqual(["app/login/page.tsx", "components/StartupSplash.tsx"]);
   });
 
   it("브라우저가 가짜 굵기를 만들지 않게 막는다", () => {
