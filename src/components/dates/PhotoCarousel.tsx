@@ -12,7 +12,7 @@ interface PhotoCarouselProps {
 }
 
 const navButtonClassName =
-  "flex size-11 items-center justify-center text-ink-sub hover:text-ink disabled:opacity-30 disabled:hover:text-ink-sub";
+  "press-icon flex size-11 items-center justify-center text-ink-sub hover:text-ink disabled:opacity-30 disabled:hover:text-ink-sub";
 
 /** 화면 폭으로 넘겨 보는 사진과 지금 사진의 한마디 */
 export const PhotoCarousel = ({ photos, title }: PhotoCarouselProps): ReactElement => {

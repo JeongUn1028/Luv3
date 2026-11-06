@@ -125,7 +125,7 @@ export const RecordMap = ({ pins, appKey }: RecordMapProps): ReactElement => {
           <p role="alert" className="text-[13px] text-ink-sub">
             지도를 불러오지 못했어요.
           </p>
-          <button type="button" onClick={handleRetry} className="min-h-11 px-4 text-[13px] text-ink underline">
+          <button type="button" onClick={handleRetry} className="press-icon min-h-11 px-4 text-[13px] text-ink underline">
             다시 시도
           </button>
         </div>
@@ -157,7 +157,7 @@ export const RecordMap = ({ pins, appKey }: RecordMapProps): ReactElement => {
                 type="button"
                 aria-label="목록 닫기"
                 onClick={() => setOpenPinKey(undefined)}
-                className="flex size-11 shrink-0 items-center justify-center text-ink-sub"
+                className="press-icon flex size-11 shrink-0 items-center justify-center text-ink-sub"
               >
                 <CloseIcon className="size-5" />
               </button>
@@ -165,7 +165,7 @@ export const RecordMap = ({ pins, appKey }: RecordMapProps): ReactElement => {
             <ul>
               {openPin.records.map(({ id, title, date, endDate, place }) => (
                 <li key={id} className="border-t border-line">
-                  <Link href={toRecordHref(id)} transitionTypes={FORWARD_TRANSITION} className="flex min-h-11 flex-col justify-center px-4 py-2">
+                  <Link href={toRecordHref(id)} transitionTypes={FORWARD_TRANSITION} className="press-card flex min-h-11 flex-col justify-center px-4 py-2">
                     <span className="text-[15px] break-words text-ink">{title}</span>
                     <span className="text-[12px] break-words text-ink-sub">
                       {formatRecordPeriod({ date, endDate })}

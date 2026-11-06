@@ -43,7 +43,7 @@ interface CalendarViewProps {
 // 달 이동은 주소(`/calendar?month=`)로 한다. 캘린더 탭은 일정·기록만 불러오므로 앨범 그리드를 다시 불러오지 않는다(#41)
 const monthHref = (month: string): string => toCalendarHref({ month });
 
-const navButtonClassName = "flex size-11 items-center justify-center text-ink-sub hover:text-ink";
+const navButtonClassName = "press-icon flex size-11 items-center justify-center text-ink-sub hover:text-ink";
 
 // 날짜 숫자 뒤에 손으로 그은 듯한 형광펜 띠. 숫자 원(size-7, 위 여백 pt-1.5)의 가운데 높이에 맞춘다
 const highlightBandClassName =
@@ -68,7 +68,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
         </h2>
         <div className="-mr-3 flex items-center">
           {!today.startsWith(month) && (
-            <Link href={monthHref(today.slice(0, 7))} scroll={false} className="h-11 px-2 text-[13px] leading-[44px] text-ink-sub hover:text-ink">
+            <Link href={monthHref(today.slice(0, 7))} scroll={false} className="press-icon h-11 px-2 text-[13px] leading-[44px] text-ink-sub hover:text-ink">
               오늘
             </Link>
           )}
@@ -173,7 +173,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
             transitionTypes={FORWARD_TRANSITION}
             // 머리글의 + (오늘 일정 추가)와 구별되게 고른 날을 이름에 넣는다
             aria-label={`${formatDayHeading(selectedDate)} 일정 추가`}
-            className="-mr-2 flex h-11 items-center gap-1 px-2 text-[14px] text-ink-sub hover:text-ink"
+            className="press-icon -mr-2 flex h-11 items-center gap-1 px-2 text-[14px] text-ink-sub hover:text-ink"
           >
             <PlusIcon className="size-4" />
             일정 추가
@@ -194,7 +194,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                 <Link
                   href={`/dates/${record.id}`}
                   transitionTypes={FORWARD_TRANSITION}
-                  className="flex min-h-[51px] items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
+                  className="press-card flex min-h-[51px] items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
                 >
                   <span className="w-11 shrink-0 text-[12px] text-label">기록</span>
                   <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{record.title}</span>
@@ -207,7 +207,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                 <Link
                   href={toEventEditHref(event)}
                   transitionTypes={FORWARD_TRANSITION}
-                  className="flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
+                  className="press-card flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
                 >
                   <span className="w-11 shrink-0 text-[12px] text-ink-sub">{formatEventTime(event.startTime)}</span>
                   <span className="flex min-w-0 flex-1 flex-col">
@@ -237,7 +237,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                     })}
                     transitionTypes={FORWARD_TRANSITION}
                     aria-label={`${event.title} 기록 남기기`}
-                    className="flex shrink-0 items-center rounded-[10px] border border-line px-3 text-[12px] text-ink-sub hover:text-ink"
+                    className="press-icon flex shrink-0 items-center rounded-[10px] border border-line px-3 text-[12px] text-ink-sub hover:text-ink"
                   >
                     기록 남기기
                   </Link>

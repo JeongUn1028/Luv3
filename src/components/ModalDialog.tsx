@@ -147,7 +147,7 @@ export const ModalActions = ({
       autoFocus={shouldFocusCancel}
       disabled={isDisabled}
       onClick={onCancel}
-      className="h-12 flex-1 rounded-[10px] border border-line text-[15px] text-ink hover:bg-background disabled:opacity-50"
+      className="press-wide h-12 flex-1 rounded-[10px] border border-line text-[15px] text-ink hover:bg-background disabled:opacity-50"
     >
       {cancelLabel}
     </button>
@@ -155,7 +155,7 @@ export const ModalActions = ({
       type={isSubmit ? "submit" : "button"}
       disabled={isDisabled}
       onClick={onConfirm && (() => onConfirm())}
-      className="h-12 flex-1 rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
+      className="press-wide h-12 flex-1 rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
     >
       {confirmLabel}
     </button>

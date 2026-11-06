@@ -13,7 +13,7 @@ const SAVE_FAILED_MESSAGE = "저장하지 못했어요. 잠시 후 다시 시도
 const ALREADY_DELETED_MESSAGE = "이미 지워진 항목이에요. 목록을 새로 불러왔어요.";
 
 const MOVE_BUTTON_CLASS_NAME =
-  "flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink aria-disabled:opacity-25 aria-disabled:hover:text-ink-sub";
+  "flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink press-icon aria-disabled:opacity-25 aria-disabled:hover:text-ink-sub";
 
 interface TodoListProps {
   /** 서버에서 읽은 전체 목록(하지 않은 것·완료한 것 모두) */

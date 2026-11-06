@@ -147,7 +147,7 @@ export const DatePickerField = ({
                       aria-label={buttonLabel}
                       disabled={targetMonth === view.month}
                       onClick={(event) => handleShowMonth(event, targetMonth)}
-                      className="flex size-11 items-center justify-center text-ink-sub hover:text-ink disabled:opacity-30"
+                      className="press-icon flex size-11 items-center justify-center text-ink-sub hover:text-ink disabled:opacity-30"
                     >
                       <Icon className="size-5" />
                     </button>
@@ -199,11 +199,11 @@ export const DatePickerField = ({
             </table>
             <div className="mt-1 flex justify-end">
               {isClearable && hasValue && (
-                <button type="button" onClick={() => handleChange("")} className="mr-auto h-11 px-2 text-[14px] text-ink-sub hover:text-ink">
+                <button type="button" onClick={() => handleChange("")} className="press-icon mr-auto h-11 px-2 text-[14px] text-ink-sub hover:text-ink">
                   지우기
                 </button>
               )}
-              <button type="button" onClick={closeDialog} className="h-11 px-2 text-[14px] text-ink-sub hover:text-ink">
+              <button type="button" onClick={closeDialog} className="press-icon h-11 px-2 text-[14px] text-ink-sub hover:text-ink">
                 닫기
               </button>
             </div>

@@ -23,7 +23,7 @@ const MemberSection = async () => {
       <Link
         href={SETTINGS_NICKNAME_PATH}
         transitionTypes={FORWARD_TRANSITION}
-        className="mt-2 flex h-[51px] items-center gap-3 rounded-[10px] bg-surface pr-3 pl-4"
+        className="press-wide mt-2 flex h-[51px] items-center gap-3 rounded-[10px] bg-surface pr-3 pl-4"
       >
         <span className="shrink-0 text-[13px] text-ink-sub">닉네임</span>
         {/* 예전 닉네임은 20자까지 있을 수 있어 줄여 그린다 */}
@@ -33,7 +33,7 @@ const MemberSection = async () => {
       <Link
         href={SETTINGS_PASSWORD_PATH}
         transitionTypes={FORWARD_TRANSITION}
-        className="mt-3 flex h-[51px] items-center justify-between rounded-[10px] bg-surface pr-3 pl-4 text-[15px] text-ink"
+        className="press-wide mt-3 flex h-[51px] items-center justify-between rounded-[10px] bg-surface pr-3 pl-4 text-[15px] text-ink"
       >
         비밀번호 변경
         <ChevronRightIcon className="size-[18px] text-ink-sub" />

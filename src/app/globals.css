@@ -243,3 +243,102 @@ input[type="time"] {
     display: none;
   }
 }
+
+/*
+  누름 반응(#175). 값은 이슈에 적힌 시안 값이다.
+  이 블록 밖에는 움직임을 두지 않아 기기의 "동작 줄이기"가 켜져 있으면 아무것도 움직이지 않는다.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  .press-wide,
+  .press-card,
+  .press-card-group,
+  .press-icon,
+  .tab-link {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .press-wide {
+    --press-scale: 0.96;
+  }
+
+  .press-card,
+  .press-card-group {
+    --press-scale: 0.97;
+  }
+
+  .press-icon {
+    --press-scale: 0.85;
+    --press-opacity: 0.5;
+  }
+
+  .press-wide,
+  .press-card,
+  .press-card-group,
+  .press-icon {
+    transition:
+      scale 200ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      opacity 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .press-wide:active:not(:disabled, [aria-disabled="true"]),
+  .press-card:active:not(:disabled),
+  .press-card-group:has(a:active:not(.press-icon)),
+  .press-icon:active:not(:disabled, [aria-disabled="true"]) {
+    scale: var(--press-scale);
+    opacity: var(--press-opacity, 1);
+    transition-duration: 80ms;
+  }
+
+  /*
+    줄어든 만큼 눌리는 범위도 줄어, 가장자리를 누른 손을 떼는 곳이 버튼 밖이 되면 눌림이 사라진다.
+    누르는 동안만 투명한 영역을 원래 크기까지 넓혀 메운다. 넘침을 숨긴 요소 안에서는 잘리므로 눌리는 요소에 overflow-hidden을 쓰지 않는다.
+  */
+  .press-wide:active:not(:disabled, [aria-disabled="true"])::before,
+  .press-card:active:not(:disabled)::before,
+  .press-card-group a:active:not(.press-icon)::before,
+  .press-icon:active:not(:disabled, [aria-disabled="true"])::before {
+    content: "";
+    position: absolute;
+    inset: calc((1 / var(--press-scale) - 1) * -50% - 1px);
+  }
+
+  .tab-link svg {
+    transition: scale 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .tab-link:active svg {
+    scale: 0.85;
+    transition-duration: 80ms;
+  }
+
+  /* 탭 줄은 화면마다 따로 있어 색이 저절로 이어지지 않는다. 고른 탭과 떠난 탭을 표시해 그 순간만 움직인다 */
+  .tab-link[data-tab-motion="in"] {
+    animation: tab-color-in 180ms ease-out;
+  }
+
+  .tab-link[data-tab-motion="in"] svg {
+    animation: tab-pop 240ms cubic-bezier(0.3, 1.35, 0.5, 1);
+  }
+
+  .tab-link[data-tab-motion="out"] {
+    animation: tab-color-out 180ms ease-out;
+  }
+
+  @keyframes tab-pop {
+    from {
+      scale: 0.8;
+    }
+  }
+
+  @keyframes tab-color-in {
+    from {
+      color: var(--color-ink-sub);
+    }
+  }
+
+  @keyframes tab-color-out {
+    from {
+      color: var(--color-highlight);
+    }
+  }
+}

@@ -37,7 +37,7 @@ const GlobalErrorPage = ({ retry }: GlobalErrorPageProps): ReactElement => (
             <button
               type="button"
               onClick={() => retry()}
-              className="h-[51px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background"
+              className="press-wide h-[51px] w-full rounded-[10px] bg-accent text-[15px] font-bold text-background"
             >
               다시 시도
             </button>

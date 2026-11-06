@@ -433,7 +433,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
                 disabled={isSaving}
                 onClick={handleOpenTagField}
                 // 글자 줄만큼만 차지하면서 44px을 누를 수 있게 넓힌다. 아래 입력 칸의 오른쪽 위 끝이 조금 겹치므로 칸보다 위에 둔다
-                className="relative z-10 text-[13px] leading-[19px] text-ink-sub after:absolute after:-inset-y-[12.5px] after:inset-x-0 disabled:opacity-50"
+                className="press-icon relative z-10 text-[13px] leading-[19px] text-ink-sub after:absolute after:-inset-y-[12.5px] after:inset-x-0 disabled:opacity-50"
               >
                 태그 추가
               </button>
@@ -504,7 +504,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
             <button
               type="button"
               onClick={handleGoToRecords}
-              className="h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background"
+              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background"
             >
               기록 목록으로
             </button>
@@ -514,7 +514,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
               type="button"
               disabled={isReloading}
               onClick={handleReloadLatest}
-              className="h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
+              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
             >
               {isReloading ? "불러오는 중…" : "최신 내용 불러오기"}
             </button>
@@ -522,7 +522,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
             <button
               type="submit"
               disabled={isSaving}
-              className="h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
+              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
             >
               {progress ? toProgressLabel(progress) : isSaving ? "저장 중…" : "저장"}
             </button>
