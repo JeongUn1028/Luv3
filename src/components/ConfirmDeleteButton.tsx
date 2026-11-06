@@ -1,7 +1,7 @@
 "use client";
 
-import { useId, useRef, useState, type ReactElement } from "react";
-import { useCloseDialogOnHide } from "@/lib/navigation/use-close-dialog-on-hide";
+import { useRef, useState, type ReactElement } from "react";
+import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
 
 interface ConfirmDeleteButtonProps {
   /** 확인 창 제목. 예: "이 기록을 지울까요?" */
@@ -14,7 +14,7 @@ interface ConfirmDeleteButtonProps {
   className?: string;
 }
 
-/** "삭제" 버튼과 확인 창. 네이티브 `<dialog>`라 바깥 초점을 막고 Esc로 닫힌다 */
+/** "삭제" 버튼과 확인 창 */
 export const ConfirmDeleteButton = ({
   title,
   description,
@@ -22,17 +22,13 @@ export const ConfirmDeleteButton = ({
   failureMessage,
   className = "h-11 px-3 text-[14px] text-ink-sub hover:text-ink",
 }: ConfirmDeleteButtonProps): ReactElement => {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  // 한 화면에 여러 개가 있어도 확인 창 제목·설명이 서로 섞이지 않게 id를 따로 만든다
-  const titleId = useId();
-  const descriptionId = useId();
+  const modalRef = useRef<ModalDialogHandle>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [message, setMessage] = useState<string>();
-  useCloseDialogOnHide(dialogRef);
 
   const handleOpen = () => {
     setMessage(undefined);
-    dialogRef.current?.showModal();
+    modalRef.current?.open();
   };
 
   const handleConfirm = async () => {
@@ -54,46 +50,16 @@ export const ConfirmDeleteButton = ({
       <button type="button" onClick={handleOpen} className={className}>
         삭제
       </button>
-      <dialog
-        ref={dialogRef}
-        aria-labelledby={titleId}
-        aria-describedby={descriptionId}
-        // 지우는 중에 Esc로 닫혀 결과를 놓치지 않게 한다
-        onCancel={(event) => {
-          if (isDeleting) event.preventDefault();
-        }}
-        className="m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
-      >
-        <h2 id={titleId} className="font-display text-[17px]">
-          {title}
-        </h2>
-        <p id={descriptionId} className="mt-2 text-[14px] leading-[1.6] text-ink-sub">
-          {description}
-        </p>
-        {message && (
-          <p role="alert" className="mt-3 text-[13px] text-accent">
-            {message}
-          </p>
-        )}
-        <div className="mt-5 flex gap-2">
-          <button
-            type="button"
-            disabled={isDeleting}
-            onClick={() => dialogRef.current?.close()}
-            className="h-12 flex-1 rounded-[10px] border border-line text-[15px] text-ink hover:bg-background disabled:opacity-50"
-          >
-            취소
-          </button>
-          <button
-            type="button"
-            disabled={isDeleting}
-            onClick={handleConfirm}
-            className="h-12 flex-1 rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-          >
-            {isDeleting ? "지우는 중…" : "삭제"}
-          </button>
-        </div>
-      </dialog>
+      <ModalDialog ref={modalRef} title={title} description={description} isBusy={isDeleting}>
+        {message && <ModalMessage>{message}</ModalMessage>}
+        <ModalActions
+          cancelLabel="취소"
+          onCancel={() => modalRef.current?.close()}
+          confirmLabel={isDeleting ? "지우는 중…" : "삭제"}
+          onConfirm={handleConfirm}
+          isDisabled={isDeleting}
+        />
+      </ModalDialog>
     </>
   );
 };
