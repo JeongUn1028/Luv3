@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -150,6 +150,15 @@ describe("isInsideGitWorkTree", () => {
 
   it("Git 리포 밖이면 false를 돌려준다", () => {
     expect(isInsideGitWorkTree(path.join(createTempDirectory(), "backups"))).toBe(false);
+  });
+
+  it("Git을 실행할 수 없으면 어떤 경로인지 알려 주는 에러를 낸다", () => {
+    // 없는 드라이브처럼 Git을 실행할 수 없는 경우. 운영체제와 상관없이 만들 수 있게 파일 아래 경로로 재현한다
+    const file = path.join(createTempDirectory(), "not-a-folder");
+    writeFileSync(file, "");
+    const target = path.join(file, "backups");
+
+    expect(() => isInsideGitWorkTree(target)).toThrow(`백업 폴더를 확인하지 못했습니다: ${target}`);
   });
 });
 
