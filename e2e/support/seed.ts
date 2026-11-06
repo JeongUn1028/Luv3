@@ -305,6 +305,27 @@ export const createDisposableRepeatingEvent = async ({
 };
 
 /**
+ * 테스트 하나에서만 쓰는 기간 일정을 만든다. 돌려준 함수는 일정을 지운다.
+ *
+ * @example const deleteEvent = await createDisposablePeriodEvent({ id: randomUUID(), title: "여행", date: "2020-03-10", endDate: "2020-03-12" })
+ */
+export const createDisposablePeriodEvent = async ({
+  id,
+  title,
+  date,
+  endDate,
+}: {
+  id: string;
+  title: string;
+  date: string;
+  endDate: string;
+}): Promise<() => Promise<void>> => {
+  const admin = createAdminClient();
+  assertNoError(await admin.from("events").insert({ id, title, date, end_date: endDate, author_id: await getMemberId(admin) }), "기간 일정");
+  return async () => assertNoError(await admin.from("events").delete().eq("id", id), "기간 일정 지우기");
+};
+
+/**
  * 상대가 그날을 고치거나 지운 상황을 만든다.
  *
  * @example await skipEventDate(id, "2044-03-09")

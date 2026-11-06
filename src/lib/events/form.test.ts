@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  getMinRepeatUntil,
+  getMinDateAfterStart,
   changeDraftScope,
+  findViewedPeriodDate,
+  getDateAfterSave,
   createEmptyEventDraft,
   toEditableEvent,
   toEventDraft,
@@ -16,14 +18,14 @@ const draft = (overrides: Partial<EventDraft> = {}): EventDraft => ({
   ...overrides,
 });
 
-describe("getMinRepeatUntil", () => {
+describe("getMinDateAfterStart", () => {
   it("시작하는 날의 다음 날이다", () => {
-    expect(getMinRepeatUntil("2026-11-30")).toBe("2026-12-01");
+    expect(getMinDateAfterStart("2026-11-30")).toBe("2026-12-01");
   });
 
   it("시작하는 날이 비었거나 틀리면 제한을 두지 않는다", () => {
-    expect(getMinRepeatUntil("")).toBeUndefined();
-    expect(getMinRepeatUntil("2026-02-31")).toBeUndefined();
+    expect(getMinDateAfterStart("")).toBeUndefined();
+    expect(getMinDateAfterStart("2026-02-31")).toBeUndefined();
   });
 });
 
@@ -71,6 +73,22 @@ describe("validateEventDraft", () => {
     expect(validateEventDraft(draft({ scope: "occurrence", repeatRule: "weekly", repeatUntil: "2026-11-01" }))).toEqual({});
     expect(validateEventDraft(draft({ repeatUntil: "2026-11-01" }))).toEqual({});
   });
+
+  it("끝 날짜는 시작 날짜보다 뒤여야 한다", () => {
+    const message = "끝 날짜는 시작 날짜보다 뒤여야 해요.";
+    expect(validateEventDraft(draft({ endDate: "2026-11-15" }))).toEqual({});
+    expect(validateEventDraft(draft({ endDate: "2026-11-14" })).endDate).toBe(message);
+    expect(validateEventDraft(draft({ endDate: "2026-11-13" })).endDate).toBe(message);
+  });
+
+  it("이 날만 고칠 때는 끝 날짜 칸이 없으므로 끝 날짜를 보지 않는다", () => {
+    expect(validateEventDraft(draft({ scope: "occurrence", endDate: "" }))).toEqual({});
+  });
+
+  it("기간을 켜고 끝 날짜를 고르지 않으면 알려 준다", () => {
+    expect(validateEventDraft(draft({ endDate: "" })).endDate).toBe("끝 날짜를 골라 주세요.");
+    expect(validateEventDraft(draft({ endDate: "2026-02-31" })).endDate).toBe("끝 날짜를 골라 주세요.");
+  });
 });
 
 describe("toEventValues", () => {
@@ -84,6 +102,7 @@ describe("toEventValues", () => {
       is_together: true,
       repeat_rule: null,
       repeat_until: null,
+      end_date: null,
     });
     expect(toEventValues(draft({ isAllDay: false, startTime: "19:30" })).start_time).toBe("19:30");
   });
@@ -101,6 +120,15 @@ describe("toEventValues", () => {
   it("반복을 끄면 입력해 둔 끝나는 날을 저장하지 않는다", () => {
     expect(toEventValues(draft({ repeatUntil: "2027-01-01" })).repeat_until).toBeNull();
   });
+
+  it("끝 날짜를 저장하고, 기간이 아니면 null로 둔다", () => {
+    expect(toEventValues(draft({ endDate: "2026-11-16" })).end_date).toBe("2026-11-16");
+    expect(toEventValues(draft()).end_date).toBeNull();
+  });
+
+  it("반복 일정에는 끝 날짜를 저장하지 않는다", () => {
+    expect(toEventValues(draft({ repeatRule: "weekly", endDate: "2026-11-16" })).end_date).toBeNull();
+  });
 });
 
 describe("createEmptyEventDraft", () => {
@@ -111,10 +139,14 @@ describe("createEmptyEventDraft", () => {
   it("새 일정은 반복하지 않는다", () => {
     expect(createEmptyEventDraft("2026-11-14")).toMatchObject({ scope: "all", repeatRule: undefined, repeatUntil: "" });
   });
+
+  it("새 일정은 하루 일정으로 시작한다", () => {
+    expect(createEmptyEventDraft("2026-11-14").endDate).toBeUndefined();
+  });
 });
 
 describe("toEventDraft", () => {
-  const noRepeat = { repeat_rule: null, repeat_until: null };
+  const noRepeat = { repeat_rule: null, repeat_until: null, end_date: null };
   const emptyRepeatDraft = { scope: "all", repeatRule: undefined, repeatUntil: "" };
 
   it("저장된 일정을 수정 화면 값으로 바꾼다", () => {
@@ -135,7 +167,12 @@ describe("toEventDraft", () => {
     is_together: true,
     repeat_rule: "weekly",
     repeat_until: "2027-01-02",
+    end_date: null,
   };
+
+  it("기간 일정의 끝 날짜를 수정 화면 값으로 바꾼다", () => {
+    expect(toEventDraft({ ...repeatingRow, repeat_rule: null, repeat_until: null, end_date: "2026-11-16" }).endDate).toBe("2026-11-16");
+  });
 
   it("오는 날을 모르면 반복 전체를 고치는 값으로 바꾼다", () => {
     expect(toEventDraft(repeatingRow)).toMatchObject({
@@ -148,6 +185,42 @@ describe("toEventDraft", () => {
 
   it("오는 날을 받으면 그날만 고치는 값으로 바꾼다", () => {
     expect(toEventDraft(repeatingRow, "2026-11-28")).toMatchObject({ date: "2026-11-28", scope: "occurrence", repeatRule: "weekly" });
+  });
+});
+
+describe("findViewedPeriodDate", () => {
+  const period = { date: "2026-10-30", end_date: "2026-11-02" };
+
+  it("주소의 날이 기간 안이면 그날을 돌려준다", () => {
+    expect(findViewedPeriodDate(period, "2026-10-30")).toBe("2026-10-30");
+    expect(findViewedPeriodDate(period, "2026-11-02")).toBe("2026-11-02");
+  });
+
+  it("기간 밖이거나 틀린 값이거나 하루 일정이면 undefined를 돌려준다", () => {
+    expect(findViewedPeriodDate(period, "2026-11-03")).toBeUndefined();
+    expect(findViewedPeriodDate(period, "2026-02-31")).toBeUndefined();
+    expect(findViewedPeriodDate(period, ["2026-11-01", "2026-11-02"])).toBeUndefined();
+    expect(findViewedPeriodDate({ date: "2026-10-30", end_date: null }, "2026-10-30")).toBeUndefined();
+  });
+});
+
+describe("getDateAfterSave", () => {
+  it("보고 있던 날이 고친 기간 안이면 그날로 돌아간다", () => {
+    expect(getDateAfterSave(draft({ date: "2026-11-14", endDate: "2026-11-16" }), { viewedDate: "2026-11-16" })).toBe("2026-11-16");
+  });
+
+  it("보고 있던 날이 기간 밖으로 밀려났으면 시작하는 날로 돌아간다", () => {
+    expect(getDateAfterSave(draft({ date: "2026-11-14", endDate: "2026-11-15" }), { viewedDate: "2026-11-16" })).toBe("2026-11-14");
+    expect(getDateAfterSave(draft({ date: "2026-11-14" }), { viewedDate: "2026-11-16" })).toBe("2026-11-14");
+  });
+
+  it("반복 전체를 고치면 보고 있던 날로, 이 날만 고치면 고친 날로 돌아간다", () => {
+    expect(getDateAfterSave(draft({ date: "2026-11-14", scope: "all" }), { occurrenceDate: "2026-11-28" })).toBe("2026-11-28");
+    expect(getDateAfterSave(draft({ date: "2026-11-21", scope: "occurrence" }), { occurrenceDate: "2026-11-28" })).toBe("2026-11-21");
+  });
+
+  it("보고 있던 날이 없으면 일정 날짜로 돌아간다", () => {
+    expect(getDateAfterSave(draft({ date: "2026-11-14" }), {})).toBe("2026-11-14");
   });
 });
 
@@ -186,6 +259,7 @@ describe("toEditableEvent", () => {
       is_together: true,
       repeat_rule: null,
       repeat_until: null,
+      end_date: null,
       repeat_parent_id: null,
       exceptions: [],
     };
@@ -203,6 +277,7 @@ describe("toEditableEvent", () => {
       is_together: true,
       repeat_rule: null,
       repeat_until: null,
+      end_date: null,
       repeat_parent_id: null,
       exceptions: [],
       author: null,

@@ -1,6 +1,7 @@
-import { toIsoDate } from "@/lib/calendar/month";
+import { toIsoDate, toNextDay } from "@/lib/calendar/month";
+import { formatPeriodMonthDay } from "@/lib/dates/album";
 import { isIsoDate } from "@/lib/form";
-import { isRepeatRule, toCalendarEvent, type CalendarEvent, type CalendarEventRow, type RepeatRule } from "./calendar";
+import { isRepeatRule, toCalendarEvent, type CalendarEvent, type CalendarEventRow, type EventPeriod, type RepeatRule } from "./calendar";
 
 /** 날짜 범위. 양 끝을 포함한다(YYYY-MM-DD) */
 export interface DateRange {
@@ -83,21 +84,32 @@ const toRepeatSeries = (
   exceptionDates: exceptions.map((exception) => exception.date),
 });
 
-const listRowDates = (row: CalendarEventRow, range: DateRange): string[] => {
-  if (!isRepeatRule(row.repeat_rule)) return row.date >= range.start && row.date <= range.end ? [row.date] : [];
-  return listOccurrenceDates(toRepeatSeries(row, row.repeat_rule), range);
+// 기간 일정은 범위와 겹치는 날 모두, 하루 일정은 끝 날짜가 없어 그날 하나다
+const listSpanDates = ({ date, end_date }: Pick<CalendarEventRow, "date" | "end_date">, { start, end }: DateRange): string[] => {
+  const dates: string[] = [];
+  const lastDate = end_date ?? date;
+  for (let day = date < start ? start : date; day <= lastDate && day <= end; day = toNextDay(day)) dates.push(day);
+  return dates;
 };
 
+const listRowDates = (row: CalendarEventRow, range: DateRange): string[] =>
+  isRepeatRule(row.repeat_rule) ? listOccurrenceDates(toRepeatSeries(row, row.repeat_rule), range) : listSpanDates(row, range);
+
 const getNextRowDate = (row: CalendarEventRow, from: string): string | undefined => {
-  if (!isRepeatRule(row.repeat_rule)) return row.date >= from ? row.date : undefined;
-  return getNextOccurrenceDate(toRepeatSeries(row, row.repeat_rule), from);
+  if (isRepeatRule(row.repeat_rule)) return getNextOccurrenceDate(toRepeatSeries(row, row.repeat_rule), from);
+  if (row.date >= from) return row.date;
+  // 이미 시작한 기간 일정은 끝나기 전까지 from에도 이어진다
+  return row.end_date !== null && row.end_date >= from ? from : undefined;
 };
 
 // 구분 문자 공백은 숫자보다 앞서서 시간 없는(종일) 일정이 먼저 온다. HH:MM:SS는 글자 순서가 곧 시간 순서다
-const toSortKey = (row: CalendarEventRow, date: string): string => `${date} ${row.start_time ?? ""} ${row.created_at}`;
+const toSortKey = (row: CalendarEventRow, date: string, startTime: string | null): string => `${date} ${startTime ?? ""} ${row.created_at}`;
+
+// 기간 일정의 시작 시간은 첫날의 것이다. 이어지는 날은 시작이 지났으므로 종일로 본다
+const getStartTimeOn = (row: CalendarEventRow, date: string): string | null => (row.end_date && date !== row.date ? null : row.start_time);
 
 /**
- * 조회한 일정 행을 범위 안의 날마다 한 줄씩 펼쳐 날짜 → 종일 먼저 → 시간 → 만든 순서로 돌려준다.
+ * 조회한 일정 행을 범위 안의 날마다(반복은 오는 날마다, 기간은 기간의 모든 날마다) 한 줄씩 펼쳐 날짜 → 종일 먼저 → 시간 → 만든 순서로 돌려준다.
  *
  * @example expandEventRows(data, getGridRange("2026-11"))
  */
@@ -105,7 +117,10 @@ export const expandEventRows = (rows: CalendarEventRow[], range: DateRange): Cal
   rows
     .flatMap((row) => {
       const event = toCalendarEvent(row);
-      return listRowDates(row, range).map((date) => ({ event: { ...event, date }, key: toSortKey(row, date) }));
+      return listRowDates(row, range).map((date) => {
+        const startTime = getStartTimeOn(row, date);
+        return { event: { ...event, date, startTime }, key: toSortKey(row, date, startTime) };
+      });
     })
     .toSorted((left, right) => (left.key < right.key ? -1 : left.key > right.key ? 1 : 0))
     .map(({ event }) => event);
@@ -136,12 +151,19 @@ export const findOccurrenceDate = (
 };
 
 /**
- * 일정 고치기 주소. 반복 일정은 어느 날을 눌렀는지 함께 담는다.
+ * 일정 고치기 주소. 반복·기간 일정은 어느 날을 눌렀는지 함께 담는다.
  *
- * @example toEventEditHref({ id: "e1", date: "2026-11-13", repeatRule: "weekly" }) // "/events/e1/edit?date=2026-11-13"
+ * @example toEventEditHref({ id: "e1", date: "2026-11-13", repeatRule: "weekly", period: undefined }) // "/events/e1/edit?date=2026-11-13"
  */
-export const toEventEditHref = ({ id, date, repeatRule }: Pick<CalendarEvent, "id" | "date" | "repeatRule">): string =>
-  repeatRule ? `/events/${id}/edit?date=${date}` : `/events/${id}/edit`;
+export const toEventEditHref = ({ id, date, repeatRule, period }: Pick<CalendarEvent, "id" | "date" | "repeatRule" | "period">): string =>
+  repeatRule || period ? `/events/${id}/edit?date=${date}` : `/events/${id}/edit`;
+
+/**
+ * 기간 일정의 짧은 기간 표기. 기록 그리드와 같은 모양이다.
+ *
+ * @example formatEventPeriod({ start: "2026-10-30", end: "2026-11-01" }) // "10.30–11.01"
+ */
+export const formatEventPeriod = ({ start, end }: EventPeriod): string => formatPeriodMonthDay({ date: start, endDate: end });
 
 /**
  * 반복 규칙을 화면 문구로 바꾼다.

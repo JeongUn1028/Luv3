@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expandEventRows, expandUpcomingEventRows, findOccurrenceDate, formatRepeatRule, listOccurrenceDates, toEventEditHref } from "./recurrence";
+import { expandEventRows, expandUpcomingEventRows, findOccurrenceDate, formatEventPeriod, formatRepeatRule, listOccurrenceDates, toEventEditHref } from "./recurrence";
 import type { CalendarEventRow } from "./calendar";
 
 const series = { date: "2026-11-06", repeatUntil: null, exceptionDates: [] };
@@ -13,6 +13,7 @@ const createRow = (overrides: Partial<CalendarEventRow>): CalendarEventRow => ({
   is_together: true,
   repeat_rule: null,
   repeat_until: null,
+  end_date: null,
   created_at: "2026-11-01T00:00:00+00:00",
   author: { nickname: "정운" },
   exceptions: [],
@@ -176,6 +177,81 @@ describe("expandUpcomingEventRows", () => {
   });
 });
 
+describe("기간 일정 펼치기", () => {
+  const range = { start: "2026-11-01", end: "2026-11-30" };
+
+  it("기간의 모든 날에 한 줄씩 펼치고 기간을 남긴다", () => {
+    const events = expandEventRows([createRow({ date: "2026-11-07", end_date: "2026-11-09" })], range);
+
+    expect(events.map(({ date }) => date)).toEqual(["2026-11-07", "2026-11-08", "2026-11-09"]);
+    expect(events[1]).toMatchObject({ id: "e1", repeatRule: undefined, period: { start: "2026-11-07", end: "2026-11-09" } });
+  });
+
+  it("하루 일정과 반복 일정에는 기간이 없다", () => {
+    const events = expandEventRows([createRow({}), createRow({ id: "e2", repeat_rule: "weekly" })], { start: "2026-11-06", end: "2026-11-06" });
+
+    expect(events.map((event) => event.period)).toEqual([undefined, undefined]);
+  });
+
+  it("달 경계에 걸친 기간은 범위 안의 날만 펼친다", () => {
+    const row = createRow({ date: "2026-10-30", end_date: "2026-11-02" });
+
+    const october = expandEventRows([row], { start: "2026-09-27", end: "2026-10-31" });
+    const november = expandEventRows([row], { start: "2026-11-01", end: "2026-12-05" });
+
+    expect(october.map(({ date }) => date)).toEqual(["2026-10-30", "2026-10-31"]);
+    expect(november.map(({ date }) => date)).toEqual(["2026-11-01", "2026-11-02"]);
+    expect(november[0]?.period).toEqual({ start: "2026-10-30", end: "2026-11-02" });
+  });
+
+  it("시작 시간은 첫날에만 쓰고 이어지는 날은 종일로 본다", () => {
+    const events = expandEventRows([createRow({ date: "2026-11-07", end_date: "2026-11-08", start_time: "10:00:00" })], range);
+
+    expect(events.map(({ startTime }) => startTime)).toEqual(["10:00:00", null]);
+  });
+
+  it("이어지는 날의 기간 일정은 종일 일정처럼 시간 일정보다 앞에 온다", () => {
+    const events = expandEventRows(
+      [
+        createRow({ id: "timed", date: "2026-11-08", start_time: "09:00:00" }),
+        createRow({ id: "period", date: "2026-11-07", end_date: "2026-11-08", start_time: "20:00:00" }),
+      ],
+      { start: "2026-11-08", end: "2026-11-08" },
+    );
+
+    expect(events.map(({ id }) => id)).toEqual(["period", "timed"]);
+  });
+
+  it("범위와 겹치지 않는 기간은 뺀다", () => {
+    expect(expandEventRows([createRow({ date: "2026-10-01", end_date: "2026-10-03" })], range)).toEqual([]);
+  });
+
+  it("진행 중인 기간 일정은 홈에서 오늘 일정이다", () => {
+    const events = expandUpcomingEventRows(
+      [createRow({ id: "trip", date: "2026-11-05", end_date: "2026-11-07" }), createRow({ id: "later", date: "2026-11-20" })],
+      "2026-11-06",
+    );
+
+    expect(events.map(({ id, date }) => [id, date])).toEqual([["trip", "2026-11-06"]]);
+  });
+
+  it("끝난 기간 일정은 홈에 나오지 않는다", () => {
+    expect(expandUpcomingEventRows([createRow({ date: "2026-11-01", end_date: "2026-11-05" })], "2026-11-06")).toEqual([]);
+  });
+
+  it("앞으로 시작하는 기간 일정은 시작하는 날에 나온다", () => {
+    const events = expandUpcomingEventRows([createRow({ date: "2026-11-10", end_date: "2026-11-12" })], "2026-11-06");
+
+    expect(events.map(({ date }) => date)).toEqual(["2026-11-10"]);
+  });
+});
+
+describe("formatEventPeriod", () => {
+  it("기간을 짧게 쓰고 달이 바뀌어도 맞다", () => {
+    expect(formatEventPeriod({ start: "2026-10-30", end: "2026-11-01" })).toBe("10.30–11.01");
+  });
+});
+
 describe("findOccurrenceDate", () => {
   const event = { date: "2026-11-06", repeat_rule: "weekly", repeat_until: "2026-12-31", exceptions: [{ date: "2026-11-20" }] };
 
@@ -209,11 +285,16 @@ describe("findOccurrenceDate", () => {
 
 describe("toEventEditHref", () => {
   it("반복 일정은 어느 날을 눌렀는지 주소에 담는다", () => {
-    expect(toEventEditHref({ id: "e1", date: "2026-11-13", repeatRule: "weekly" })).toBe("/events/e1/edit?date=2026-11-13");
+    expect(toEventEditHref({ id: "e1", date: "2026-11-13", repeatRule: "weekly", period: undefined })).toBe("/events/e1/edit?date=2026-11-13");
+  });
+
+  it("기간 일정은 어느 날을 눌렀는지 주소에 담는다", () => {
+    const period = { start: "2026-10-30", end: "2026-11-02" };
+    expect(toEventEditHref({ id: "e1", date: "2026-11-01", repeatRule: undefined, period })).toBe("/events/e1/edit?date=2026-11-01");
   });
 
   it("반복하지 않는 일정은 날짜를 담지 않는다", () => {
-    expect(toEventEditHref({ id: "e1", date: "2026-11-13", repeatRule: undefined })).toBe("/events/e1/edit");
+    expect(toEventEditHref({ id: "e1", date: "2026-11-13", repeatRule: undefined, period: undefined })).toBe("/events/e1/edit");
   });
 });
 

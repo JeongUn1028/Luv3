@@ -7,7 +7,7 @@ import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { getCurrentMember } from "@/lib/auth/member";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { isRepeatRule, toOwnerLabel } from "@/lib/events/calendar";
-import { toEventDraft } from "@/lib/events/form";
+import { findViewedPeriodDate, toEventDraft } from "@/lib/events/form";
 import { EventLoadError, getEvent } from "@/lib/events/queries";
 import { findOccurrenceDate } from "@/lib/events/recurrence";
 import { catchLoadError } from "@/lib/load";
@@ -55,6 +55,7 @@ const EditEventForm = async ({ params, searchParams }: Pick<PageProps<"/events/[
       ownerNickname={toOwnerLabel(event.authorNickname)}
       initialDraft={toEventDraft(event, occurrenceDate)}
       occurrence={occurrenceDate ? { date: occurrenceDate, startDate: event.date } : undefined}
+      viewedDate={findViewedPeriodDate(event, date)}
       isDetached={event.repeat_parent_id !== null}
     />
   );
