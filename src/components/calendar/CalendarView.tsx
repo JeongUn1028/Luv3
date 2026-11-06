@@ -22,6 +22,7 @@ import {
   groupByDate,
   shiftMonth,
   toCalendarHref,
+  WEEKDAYS,
 } from "@/lib/calendar/month";
 import { toNewRecordHref } from "@/lib/dates/form";
 import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
@@ -38,8 +39,6 @@ interface CalendarViewProps {
   events: CalendarEvent[];
   records: CalendarRecord[];
 }
-
-const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
 
 // 달 이동은 주소(`/calendar?month=`)로 한다. 캘린더 탭은 일정·기록만 불러오므로 앨범 그리드를 다시 불러오지 않는다(#41)
 const monthHref = (month: string): string => toCalendarHref({ month });

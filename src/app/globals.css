@@ -47,8 +47,7 @@ select {
   font-size: 16px;
 }
 
-/* iOS의 기본 모양 날짜·시간 칸은 width·height를 따르지 않고 부모보다 커질 수 있어 기본 모양을 끈다(#92) */
-input[type="date"],
+/* iOS의 기본 모양 시간 칸은 width·height를 따르지 않고 부모보다 커질 수 있어 기본 모양을 끈다(#92) */
 input[type="time"] {
   -webkit-appearance: none;
   appearance: none;
@@ -58,16 +57,15 @@ input[type="time"] {
 }
 
 /* iOS는 기본 스타일의 flex로 값을 세로 가운데에 맞춘다. block이면 값이 위로 올라간다(#96).
-   Chrome은 flex면 달력 아이콘이 값 옆으로 붙어서 iOS에만 적용한다 */
+   Chrome은 flex면 시계 아이콘이 값 옆으로 붙어서 iOS에만 적용한다 */
 @supports (-webkit-touch-callout: none) {
-  input[type="date"],
   input[type="time"] {
     display: flex;
     align-items: center;
   }
 }
 
-/* iOS는 날짜 값을 가운데에 놓는다. 다른 칸처럼 왼쪽에 맞춘다 */
+/* iOS는 시간 값을 가운데에 놓는다. 다른 칸처럼 왼쪽에 맞춘다 */
 ::-webkit-date-and-time-value {
   text-align: left;
 }

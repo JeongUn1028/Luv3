@@ -1,4 +1,5 @@
 import type { AuthorRow } from "@/lib/author";
+import { toNextDay } from "@/lib/calendar/month";
 import { countChars, isIsoDate } from "@/lib/form";
 import { isRepeatRule, type RepeatRule } from "./calendar";
 
@@ -81,6 +82,13 @@ export const createEmptyEventDraft = (date: string): EventDraft => ({
   repeatRule: undefined,
   repeatUntil: "",
 });
+
+/**
+ * 끝나는 날 달력에서 고를 수 있는 첫날(시작 다음 날). 시작이 비어 있으면 제한을 두지 않고 저장할 때 알린다.
+ *
+ * @example getMinRepeatUntil("2026-11-01") // "2026-11-02"
+ */
+export const getMinRepeatUntil = (date: string): string | undefined => (isIsoDate(date) ? toNextDay(date) : undefined);
 
 const validateRepeatUntil = ({ date, scope, repeatRule, repeatUntil }: EventDraft): string | undefined => {
   if (scope === "occurrence" || !repeatRule || repeatUntil === "") return undefined;

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { toKstDate } from "../src/lib/anniversary";
+import { pickDate } from "./support/date-picker";
 import { createDisposableRepeatingEvent, deleteEventById, deleteEventsByTitle, skipEventDate, stopEventRepeat } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
 
@@ -131,7 +132,7 @@ test.describe("반복 일정 폼", () => {
       // Act
       await page.locator("#event-title").fill(title);
       await page.locator("#event-repeat").selectOption("weekly");
-      await page.locator("#event-repeat-until").fill("2036-03-19");
+      await pickDate(page, "#event-repeat-until", "2036-03-19");
       await page.getByRole("button", { name: "저장" }).click();
       await page.waitForURL(/\/calendar/);
 
@@ -152,7 +153,9 @@ test.describe("반복 일정 폼", () => {
     // Act
     await page.locator("#event-title").fill("E2E 저장되면 안 되는 일정");
     await page.locator("#event-repeat").selectOption("monthly");
-    await page.locator("#event-repeat-until").fill("2036-03-05");
+    // 달력은 시작 다음 날부터 고를 수 있으므로, 끝나는 날을 고른 뒤 시작하는 날을 그 뒤로 옮긴다
+    await pickDate(page, "#event-repeat-until", "2036-03-12");
+    await pickDate(page, "#event-date", "2036-03-19");
     await page.getByRole("button", { name: "저장" }).click();
 
     // Assert
@@ -171,7 +174,7 @@ test.describe("반복 일정 폼", () => {
       // Act: 이 날만이 기본이고, 날짜 칸에는 누른 날이 채워진다
       await openScreen(page, `/events/${id}/edit?date=2037-03-18`, page.locator("#event-title"));
       await expect(page.getByRole("radio", { name: "이 날만" })).toBeChecked();
-      await expect(page.locator("#event-date")).toHaveValue("2037-03-18");
+      await expect(page.locator("#event-date")).toContainText("2037.03.18");
       await expect(page.locator("#event-repeat")).toHaveCount(0);
       await page.locator("#event-title").fill(changedTitle);
       await page.getByRole("button", { name: "저장" }).click();
@@ -223,7 +226,7 @@ test.describe("반복 일정 폼", () => {
       // Act
       await openScreen(page, `/events/${id}/edit?date=2039-03-16`, page.locator("#event-title"));
       await page.getByText("전체", { exact: true }).click();
-      await expect(page.locator("#event-date")).toHaveValue("2039-03-02");
+      await expect(page.locator("#event-date")).toContainText("2039.03.02");
       await expect(page.locator("#event-repeat")).toHaveValue("weekly");
       await page.locator("#event-title").fill(changedTitle);
       await page.getByRole("button", { name: "저장" }).click();
@@ -306,7 +309,7 @@ test.describe("반복 일정 폼", () => {
       // Act: 전체를 하루 뒤로 옮긴다
       await openScreen(page, `/events/${id}/edit?date=2048-03-25`, page.locator("#event-title"));
       await page.getByText("전체", { exact: true }).click();
-      await page.locator("#event-date").fill("2048-03-05");
+      await pickDate(page, "#event-date", "2048-03-05");
       await page.getByRole("button", { name: "저장" }).click();
       await page.waitForURL(/\/calendar/);
 
@@ -429,7 +432,7 @@ test.describe("반복 일정 폼", () => {
 
       // Assert
       await expect(page.getByRole("radio", { name: "이 날만" })).toHaveCount(0);
-      await expect(page.locator("#event-date")).toHaveValue("2047-03-06");
+      await expect(page.locator("#event-date")).toContainText("2047.03.06");
       await expect(page.locator("#event-repeat")).toHaveValue("weekly");
     } finally {
       await deleteEvent();

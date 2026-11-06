@@ -1,7 +1,10 @@
 "use client";
 
-import { useId, useImperativeHandle, useRef, type ReactElement, type ReactNode, type Ref } from "react";
+import { useId, useImperativeHandle, useRef, type MouseEvent, type ReactElement, type ReactNode, type Ref } from "react";
 import { useCloseDialogOnHide } from "@/lib/navigation/use-close-dialog-on-hide";
+
+/** 칸을 두 번 누르면 두 번째가 칸 자리에 뜬 창에 닿는다. 이 시간 안의 누름은 창이 받지 않는다 */
+const DOUBLE_TAP_GUARD_MS = 300;
 
 /** 창을 쓰는 쪽이 부르는 기능. 열기·닫기를 한곳에 두어 창 움직임 같은 변경이 이 파일에서 끝나게 한다 */
 export interface ModalDialogHandle {
@@ -17,8 +20,19 @@ interface ModalDialogProps {
   /** 작업 중이면 Esc로 닫혀 결과를 놓치지 않게 막는다 */
   isBusy?: boolean;
   onClose?: () => void;
+  /** 창 바깥을 누르면 닫는다. 닫아도 잃는 것이 없는 창에만 쓴다 */
+  shouldCloseOnOutsideClick?: boolean;
+  /** 열린 직후의 누름을 받지 않는다. 고르면 바로 값이 바뀌는 창이 두 번 누르기로 눌리지 않게 한다 */
+  shouldGuardDoubleTap?: boolean;
   children: ReactNode;
 }
+
+// 키보드로 누른 click은 좌표가 없어(detail 0) 바깥을 누른 것으로 보지 않는다. 창 안쪽 여백은 dialog 자신이 눌려도 사각형 안이다
+const isOutsideClick = ({ currentTarget, target, detail, clientX, clientY }: MouseEvent<HTMLDialogElement>): boolean => {
+  if (target !== currentTarget || detail === 0) return false;
+  const { left, right, top, bottom } = currentTarget.getBoundingClientRect();
+  return clientX < left || clientX > right || clientY < top || clientY > bottom;
+};
 
 /**
  * 앱의 모달 창. 네이티브 `<dialog>`라 바깥 초점을 막고 Esc로 닫히며, 화면이 숨겨지면 함께 닫힌다.
@@ -30,8 +44,18 @@ interface ModalDialogProps {
  *   <ModalActions cancelLabel="취소" onCancel={() => modalRef.current?.close()} confirmLabel="삭제" onConfirm={handleConfirm} />
  * </ModalDialog>
  */
-export const ModalDialog = ({ ref, title, description, isBusy = false, onClose, children }: ModalDialogProps): ReactElement => {
+export const ModalDialog = ({
+  ref,
+  title,
+  description,
+  isBusy = false,
+  onClose,
+  shouldCloseOnOutsideClick = false,
+  shouldGuardDoubleTap = false,
+  children,
+}: ModalDialogProps): ReactElement => {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const openedAtRef = useRef(0);
   // 한 화면에 창이 여러 개 있어도 제목·설명이 서로 섞이지 않게 id를 따로 만든다
   const titleId = useId();
   const descriptionId = useId();
@@ -39,7 +63,10 @@ export const ModalDialog = ({ ref, title, description, isBusy = false, onClose, 
   useImperativeHandle(
     ref,
     () => ({
-      open: () => dialogRef.current?.showModal(),
+      open: () => {
+        openedAtRef.current = performance.now();
+        dialogRef.current?.showModal();
+      },
       close: () => dialogRef.current?.close(),
       isOpen: () => dialogRef.current?.open ?? false,
     }),
@@ -55,6 +82,13 @@ export const ModalDialog = ({ ref, title, description, isBusy = false, onClose, 
         if (isBusy) event.preventDefault();
       }}
       onClose={onClose}
+      onClickCapture={(event) => {
+        // 키보드 누름(detail 0)은 두 번 누르기와 상관없다
+        if (shouldGuardDoubleTap && event.detail > 0 && event.timeStamp - openedAtRef.current < DOUBLE_TAP_GUARD_MS) event.stopPropagation();
+      }}
+      onClick={(event) => {
+        if (shouldCloseOnOutsideClick && isOutsideClick(event)) event.currentTarget.close();
+      }}
       className="m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
     >
       <h2 id={titleId} className="font-display text-[17px]">

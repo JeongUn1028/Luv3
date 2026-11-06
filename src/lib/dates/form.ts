@@ -22,7 +22,7 @@ export interface DraftPhoto {
   caption: string;
 }
 
-/** 작성 화면의 입력값. 날짜는 YYYY-MM-DD 문자열(input type="date" 값) */
+/** 작성 화면의 입력값. 날짜는 YYYY-MM-DD 문자열 */
 export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
   /** 앞선 저장이 실패로 끝났지만 저장됐을 수 있을 때의 기록 id. 실패 내용과 함께 보관해 다시 저장해도 기록이 둘이 되지 않게 한다 */
   uncertainSaveRecordId?: string;

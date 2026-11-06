@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
 import { AuthorTag } from "@/components/AuthorTag";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { DatePickerField } from "@/components/DatePickerField";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { getEventKinds, getHighlightClassNames } from "@/lib/calendar/highlight";
@@ -14,6 +15,7 @@ import {
   EVENT_PLACE_MAX_LENGTH,
   EVENT_TITLE_MAX_LENGTH,
   changeDraftScope,
+  getMinRepeatUntil,
   validateEventDraft,
   type EventDraft,
   type EventDraftErrors,
@@ -249,14 +251,14 @@ export const EventForm = ({
           <label htmlFor="event-date" className={labelClassName}>
             날짜
           </label>
-          <input
+          <DatePickerField
             id="event-date"
-            type="date"
+            label="날짜"
             value={draft.date}
-            disabled={isSaving}
-            aria-invalid={Boolean(errors.date)}
-            aria-describedby={errors.date ? "event-date-error" : undefined}
-            onChange={(event) => updateField("date", event.target.value)}
+            isDisabled={isSaving}
+            isInvalid={Boolean(errors.date)}
+            describedBy={errors.date ? "event-date-error" : undefined}
+            onChange={(date) => updateField("date", date)}
             className={inputClassName}
           />
           {errors.date && (
@@ -334,14 +336,17 @@ export const EventForm = ({
               <label htmlFor="event-repeat-until" className={`${labelClassName} mt-3`}>
                 끝나는 날 <span className="text-ink-placeholder">(선택)</span>
               </label>
-              <input
+              <DatePickerField
                 id="event-repeat-until"
-                type="date"
+                label="끝나는 날"
+                min={getMinRepeatUntil(draft.date)}
                 value={draft.repeatUntil}
-                disabled={isSaving}
-                aria-invalid={Boolean(errors.repeatUntil)}
-                aria-describedby={errors.repeatUntil ? "event-repeat-until-error" : undefined}
-                onChange={(event) => updateField("repeatUntil", event.target.value)}
+                openDate={draft.date}
+                isClearable
+                isDisabled={isSaving}
+                isInvalid={Boolean(errors.repeatUntil)}
+                describedBy={errors.repeatUntil ? "event-repeat-until-error" : undefined}
+                onChange={(date) => updateField("repeatUntil", date)}
                 className={inputClassName}
               />
               {errors.repeatUntil && (

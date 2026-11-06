@@ -9,6 +9,9 @@ export interface CalendarDay {
   isCurrentMonth: boolean;
 }
 
+/** 달력 머리글. 달력은 모두 일요일부터 시작한다 */
+export const WEEKDAYS = ["일", "월", "화", "수", "목", "금", "토"] as const;
+
 const MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -117,11 +120,18 @@ export const getGridRange = (month: string): { start: string; end: string } => {
 };
 
 /**
+ * 날짜를 며칠 앞뒤로 옮긴다. 달과 해가 바뀌어도 맞다.
+ *
+ * @example addDays("2026-11-30", 1) // "2026-12-01"
+ */
+export const addDays = (isoDate: string, days: number): string => toIsoDate(new Date(toUtc(isoDate).getTime() + days * DAY_MS));
+
+/**
  * 다음 날. 달과 해가 바뀌어도 맞다.
  *
  * @example toNextDay("2026-12-31") // "2027-01-01"
  */
-export const toNextDay = (isoDate: string): string => toIsoDate(new Date(toUtc(isoDate).getTime() + DAY_MS));
+export const toNextDay = (isoDate: string): string => addDays(isoDate, 1);
 
 /**
  * 날짜마다 묶는다. 끝 날짜가 있으면(기간 기록) 기간의 모든 날에 넣는다. 같은 날 안에서는 받은 순서를 지킨다.

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
+import { DatePickerField } from "@/components/DatePickerField";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { toKstDate } from "@/lib/anniversary";
@@ -327,15 +328,15 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
           <label htmlFor="date" className={labelClassName}>
             {isPeriod ? "시작 날짜" : "날짜"}
           </label>
-          <input
+          <DatePickerField
             id="date"
-            type="date"
+            label={isPeriod ? "시작 날짜" : "날짜"}
             max={today}
             value={draft.date}
-            disabled={isSaving}
-            aria-invalid={Boolean(errors.date)}
-            aria-describedby={errors.date ? "date-error" : undefined}
-            onChange={(event) => updateField("date", event.target.value)}
+            isDisabled={isSaving}
+            isInvalid={Boolean(errors.date)}
+            describedBy={errors.date ? "date-error" : undefined}
+            onChange={(date) => updateField("date", date)}
             className={inputClassName}
           />
           {errors.date && (
@@ -358,16 +359,17 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
               <label htmlFor="endDate" className={`${labelClassName} mt-2`}>
                 끝 날짜
               </label>
-              <input
+              <DatePickerField
                 id="endDate"
-                type="date"
+                label="끝 날짜"
                 min={getMinEndDate(draft.date, today)}
                 max={today}
-                value={draft.endDate}
-                disabled={isSaving}
-                aria-invalid={Boolean(errors.endDate)}
-                aria-describedby={errors.endDate ? "endDate-error" : undefined}
-                onChange={(event) => updateField("endDate", event.target.value)}
+                value={draft.endDate ?? ""}
+                openDate={draft.date}
+                isDisabled={isSaving}
+                isInvalid={Boolean(errors.endDate)}
+                describedBy={errors.endDate ? "endDate-error" : undefined}
+                onChange={(date) => updateField("endDate", date)}
                 className={inputClassName}
               />
               {errors.endDate && (
