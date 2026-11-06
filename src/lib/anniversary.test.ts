@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ANNIVERSARY_DATE, countDaysBetween, countDaysTogether, formatSinceLabel, getAnniversaryLabel, toKstDate } from "./anniversary";
+import { ANNIVERSARY_DATE, countDaysBetween, countDaysTogether, formatSinceLabel, getAnniversaryLabel, toKstDate, toKstNow } from "./anniversary";
 
 describe("formatSinceLabel", () => {
   it("YYYY-MM-DD를 SINCE YYMMDD로 바꾼다", () => {
@@ -15,6 +15,16 @@ describe("formatSinceLabel", () => {
   // 앱 아이콘·공유 이미지에는 날짜가 이미지로 새겨져 있어, 기념일을 바꾸면 이미지도 다시 만들어야 한다
   it("기념일 표기가 앱 아이콘·공유 이미지에 새긴 날짜와 같다", () => {
     expect(formatSinceLabel(ANNIVERSARY_DATE)).toBe("SINCE 261031");
+  });
+});
+
+describe("toKstNow", () => {
+  it("UTC 시각을 한국 날짜와 시각으로 바꾼다", () => {
+    expect(toKstNow(new Date("2026-11-01T10:30:05Z"))).toEqual({ date: "2026-11-01", time: "19:30:05" });
+  });
+
+  it("자정은 00시로 쓰고 날짜가 함께 넘어간다", () => {
+    expect(toKstNow(new Date("2026-11-01T15:00:00Z"))).toEqual({ date: "2026-11-02", time: "00:00:00" });
   });
 });
 

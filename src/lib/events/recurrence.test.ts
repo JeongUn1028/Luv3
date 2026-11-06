@@ -116,64 +116,114 @@ describe("expandEventRows", () => {
 
 describe("expandUpcomingEventRows", () => {
   const today = "2026-11-06";
+  const now = { date: today, time: "12:00:00" };
 
-  it("가장 가까운 날까지만 펼쳐 그날 일정만 돌려준다", () => {
+  it("일정 하나당 가장 가까운 날 한 줄을 날짜 → 종일 먼저 → 시간 → 만든 순서로 돌려준다", () => {
     // Arrange
     const rows = [
-      createRow({ id: "weekly", date: "2026-10-13", repeat_rule: "weekly" }),
-      createRow({ id: "single", date: "2026-11-09" }),
       createRow({ id: "far", date: "2040-01-01" }),
+      createRow({ id: "evening", date: today, start_time: "19:00:00" }),
+      createRow({ id: "tomorrow", date: "2026-11-07" }),
+      createRow({ id: "allDay", date: today }),
     ];
 
     // Act
-    const events = expandUpcomingEventRows(rows, today);
+    const events = expandUpcomingEventRows(rows, now);
 
     // Assert
-    expect(events.map(({ id, date }) => [id, date])).toEqual([["single", "2026-11-09"]]);
-  });
-
-  it("오늘 오는 반복 일정과 한 번짜리 일정을 함께 돌려준다", () => {
-    // Arrange
-    const rows = [createRow({ id: "weekly", date: "2026-10-30", repeat_rule: "weekly" }), createRow({ id: "single", date: today })];
-
-    // Act
-    const events = expandUpcomingEventRows(rows, today);
-
-    // Assert
-    expect(events.map(({ id, date }) => [id, date]).toSorted()).toEqual([
-      ["single", today],
-      ["weekly", today],
+    expect(events.map(({ id, date }) => [id, date])).toEqual([
+      ["allDay", today],
+      ["evening", today],
+      ["tomorrow", "2026-11-07"],
+      ["far", "2040-01-01"],
     ]);
   });
 
-  it("1년보다 뒤에 시작하는 반복 일정도 돌려준다", () => {
+  it("반복 일정은 하나당 가장 가까운 날 한 번만 돌려준다", () => {
+    // Arrange
+    const rows = [createRow({ id: "weekly", date: "2026-10-30", repeat_rule: "weekly" }), createRow({ id: "single", date: "2026-11-09" })];
+
     // Act
-    const events = expandUpcomingEventRows([createRow({ date: "2030-03-01", repeat_rule: "weekly" })], today);
+    const events = expandUpcomingEventRows(rows, now);
 
     // Assert
+    expect(events.map(({ id, date }) => [id, date])).toEqual([
+      ["weekly", today],
+      ["single", "2026-11-09"],
+    ]);
+  });
+
+  it("오늘 시작 시간이 지난 일정은 빼고, 지나지 않았거나 종일이면 남긴다", () => {
+    const rows = [
+      createRow({ id: "past", date: today, start_time: "11:59:59" }),
+      createRow({ id: "coming", date: today, start_time: "12:00:01" }),
+      createRow({ id: "allDay", date: today }),
+    ];
+
+    expect(expandUpcomingEventRows(rows, now).map(({ id }) => id)).toEqual(["allDay", "coming"]);
+  });
+
+  it("오늘 시작 시간이 지난 반복 일정은 다음에 오는 날을 돌려준다", () => {
+    const row = createRow({ date: "2026-10-30", start_time: "09:00:00", repeat_rule: "weekly" });
+
+    expect(expandUpcomingEventRows([row], now).map(({ date }) => date)).toEqual(["2026-11-13"]);
+  });
+
+  it("오늘 시작 시간이 지났고 오늘 끝나는 반복 일정은 뺀다", () => {
+    const row = createRow({ date: "2026-10-30", start_time: "09:00:00", repeat_rule: "weekly", repeat_until: today });
+
+    expect(expandUpcomingEventRows([row], now)).toEqual([]);
+  });
+
+  it("1년보다 뒤에 시작하는 반복 일정도 돌려준다", () => {
+    const events = expandUpcomingEventRows([createRow({ date: "2030-03-01", repeat_rule: "weekly" })], now);
+
     expect(events.map(({ date }) => date)).toEqual(["2030-03-01"]);
   });
 
   it("매년 일정의 다음 날을 건너뛰면 그다음 해의 날을 돌려준다", () => {
-    // Arrange
     const row = createRow({ date: "2020-12-25", repeat_rule: "yearly", exceptions: [{ date: "2026-12-25" }] });
 
-    // Act
-    const events = expandUpcomingEventRows([row], today);
-
-    // Assert
-    expect(events.map(({ date }) => date)).toEqual(["2027-12-25"]);
+    expect(expandUpcomingEventRows([row], now).map(({ date }) => date)).toEqual(["2027-12-25"]);
   });
 
   it("끝난 반복 일정과 지난 한 번짜리 일정만 있으면 빈 목록을 돌려준다", () => {
-    // Arrange
     const rows = [
       createRow({ id: "ended", date: "2026-01-02", repeat_rule: "weekly", repeat_until: "2026-11-05" }),
       createRow({ id: "past", date: "2026-11-05" }),
     ];
 
-    // Act & Assert
-    expect(expandUpcomingEventRows(rows, today)).toEqual([]);
+    expect(expandUpcomingEventRows(rows, now)).toEqual([]);
+  });
+
+  describe("기간 일정", () => {
+    it("진행 중이면 오늘 한 줄이고 기간의 다른 날은 돌려주지 않는다", () => {
+      const events = expandUpcomingEventRows([createRow({ id: "trip", date: "2026-11-05", end_date: "2026-11-07" })], now);
+
+      expect(events.map(({ id, date }) => [id, date])).toEqual([["trip", today]]);
+    });
+
+    it("첫날 시작 시간이 지나도 끝나기 전까지 남는다", () => {
+      const events = expandUpcomingEventRows([createRow({ date: today, end_date: "2026-11-07", start_time: "09:00:00" })], now);
+
+      expect(events.map(({ date }) => date)).toEqual([today]);
+    });
+
+    it("끝나는 날에는 어제 시작한 시간과 상관없이 종일로 남는다", () => {
+      const events = expandUpcomingEventRows([createRow({ date: "2026-11-05", end_date: today, start_time: "23:00:00" })], now);
+
+      expect(events.map(({ date, startTime }) => [date, startTime])).toEqual([[today, null]]);
+    });
+
+    it("끝났으면 나오지 않는다", () => {
+      expect(expandUpcomingEventRows([createRow({ date: "2026-11-01", end_date: "2026-11-05" })], now)).toEqual([]);
+    });
+
+    it("앞으로 시작하면 시작하는 날에 나온다", () => {
+      const events = expandUpcomingEventRows([createRow({ date: "2026-11-10", end_date: "2026-11-12" })], now);
+
+      expect(events.map(({ date }) => date)).toEqual(["2026-11-10"]);
+    });
   });
 });
 
@@ -224,25 +274,6 @@ describe("기간 일정 펼치기", () => {
 
   it("범위와 겹치지 않는 기간은 뺀다", () => {
     expect(expandEventRows([createRow({ date: "2026-10-01", end_date: "2026-10-03" })], range)).toEqual([]);
-  });
-
-  it("진행 중인 기간 일정은 홈에서 오늘 일정이다", () => {
-    const events = expandUpcomingEventRows(
-      [createRow({ id: "trip", date: "2026-11-05", end_date: "2026-11-07" }), createRow({ id: "later", date: "2026-11-20" })],
-      "2026-11-06",
-    );
-
-    expect(events.map(({ id, date }) => [id, date])).toEqual([["trip", "2026-11-06"]]);
-  });
-
-  it("끝난 기간 일정은 홈에 나오지 않는다", () => {
-    expect(expandUpcomingEventRows([createRow({ date: "2026-11-01", end_date: "2026-11-05" })], "2026-11-06")).toEqual([]);
-  });
-
-  it("앞으로 시작하는 기간 일정은 시작하는 날에 나온다", () => {
-    const events = expandUpcomingEventRows([createRow({ date: "2026-11-10", end_date: "2026-11-12" })], "2026-11-06");
-
-    expect(events.map(({ date }) => date)).toEqual(["2026-11-10"]);
   });
 });
 

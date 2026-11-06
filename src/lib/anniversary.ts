@@ -32,6 +32,29 @@ const KST_DATE_FORMAT = new Intl.DateTimeFormat("en-CA", {
  */
 export const toKstDate = (date: Date): string => KST_DATE_FORMAT.format(date);
 
+const KST_TIME_FORMAT = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Seoul",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+/** 한국 시간으로 지금 */
+export interface KstNow {
+  /** YYYY-MM-DD */
+  date: string;
+  /** HH:MM:SS. DB의 시간 칸과 글자로 비교할 수 있다 */
+  time: string;
+}
+
+/**
+ * 시각을 한국 날짜와 시간으로 바꾼다. 둘을 같은 시각에서 만들어 자정 무렵에도 어긋나지 않는다.
+ *
+ * @example toKstNow(new Date("2026-11-01T10:30:05Z")) // { date: "2026-11-01", time: "19:30:05" }
+ */
+export const toKstNow = (date: Date): KstNow => ({ date: toKstDate(date), time: KST_TIME_FORMAT.format(date) });
+
 const toUtcMidnight = (isoDate: string): number => {
   const match = ISO_DATE_PATTERN.exec(isoDate);
   if (!match) throw new Error(`날짜는 YYYY-MM-DD 형식이어야 합니다: ${isoDate}`);
