@@ -52,6 +52,26 @@ export const createDisposableRecord = async ({ id, title }: { id: string; title:
 };
 
 /**
+ * 기록의 태그를 바꾼다.
+ *
+ * @example await setRecordTags(id, ["카페"])
+ */
+export const setRecordTags = async (id: string, tags: string[]): Promise<void> => {
+  assertNoError(await createAdminClient().from("dates").update({ tags }).eq("id", id), "기록 태그");
+};
+
+/**
+ * 화면에서 저장한 기록의 id를 제목으로 찾는다.
+ *
+ * @example for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id)
+ */
+export const getRecordIdsByTitle = async (title: string): Promise<string[]> => {
+  const { data, error } = await createAdminClient().from("dates").select("id").eq("title", title);
+  if (error) throw new Error(`기록 찾기 실패: ${error.message}`);
+  return data.map(({ id }) => id);
+};
+
+/**
  * 상대가 고친 것처럼 기록 제목을 바꾼다.
  *
  * @example await renameRecord(id, "상대가 고친 제목")

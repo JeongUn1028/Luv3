@@ -1,6 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { Locator } from "@playwright/test";
 import { PHOTO_FIXTURE_PATH } from "./support/constants";
+import { createDisposableRecord, setRecordTags } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
 const TAP_TARGET_SIZE = 44;
@@ -32,6 +34,32 @@ const getMissedPoints = async (target: Locator): Promise<string[]> => {
 };
 
 test.describe("누름 영역", () => {
+  test("기록 작성의 태그 추가와 한 글자 태그 버튼도 44px 영역을 눌러도 눌린다", async ({ page }) => {
+    // Arrange
+    const id = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id, title: "E2E 한 글자 태그" });
+    await setRecordTags(id, ["집"]);
+
+    try {
+      await openScreen(page, "/dates/new", page.locator("#memo"));
+
+      // Act & Assert: 태그 추가
+      const openButton = page.getByRole("button", { name: "태그 추가" });
+      expect(await getMissedPoints(openButton)).toEqual([]);
+
+      // Act & Assert: 전에 쓴 태그
+      await openButton.click();
+      expect(await getMissedPoints(page.getByRole("button", { name: "집 태그 붙이기" }))).toEqual([]);
+
+      // Act & Assert: 붙인 태그
+      await page.locator("#tag-input").fill("숲");
+      await page.getByRole("button", { name: "추가", exact: true }).click();
+      expect(await getMissedPoints(page.getByRole("button", { name: "숲 태그 빼기" }))).toEqual([]);
+    } finally {
+      await deleteRecord();
+    }
+  });
+
   test("기록 작성의 사진 칸 버튼과 한마디 칸은 44px 영역을 눌러도 눌리고 서로 겹치지 않는다", async ({ page }) => {
     // Arrange: 앞으로·뒤로 버튼이 모두 켜지도록 사진 3장을 고른다
     await openScreen(page, "/dates/new", page.locator("#memo"));

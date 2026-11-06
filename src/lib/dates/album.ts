@@ -97,3 +97,21 @@ export const formatTileLabel = ({ date, endDate, place }: Pick<AlbumTile, "date"
   const period = formatPeriodMonthDay({ date, endDate });
   return place ? `${period} · ${place}` : period;
 };
+
+/**
+ * 기록들의 태그를 많이 쓴 순서로 줄 세운다. 수가 같으면 가나다순이다.
+ * 태그를 더할 때 대소문자를 가리지 않으므로 대소문자만 다른 태그는 하나로 세고, 먼저 나온 글자를 쓴다.
+ *
+ * @example toTagSuggestions([["카페"], ["여행", "카페"]]) // ["카페", "여행"]
+ */
+export const toTagSuggestions = (tagLists: string[][]): string[] => {
+  const counts = new Map<string, { tag: string; count: number }>();
+  for (const tag of tagLists.flat()) {
+    const key = tag.toLowerCase();
+    const found = counts.get(key);
+    counts.set(key, { tag: found?.tag ?? tag, count: (found?.count ?? 0) + 1 });
+  }
+  return [...counts.values()]
+    .toSorted((left, right) => right.count - left.count || left.tag.localeCompare(right.tag, "ko"))
+    .map(({ tag }) => tag);
+};

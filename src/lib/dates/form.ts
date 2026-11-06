@@ -7,6 +7,11 @@ export const TITLE_MAX_LENGTH = 100;
 export const PLACE_MAX_LENGTH = 100;
 export const MEMO_MAX_LENGTH = 10_000;
 export const CAPTION_MAX_LENGTH = 100;
+export const TAG_MAX_LENGTH = 10;
+/** 기록 하나에 붙일 수 있는 태그 수 */
+export const MAX_TAGS = 5;
+/** 작성 화면에 추천할 태그 수 */
+const TAG_SUGGESTION_LIMIT = 12;
 /** 기록 하나에 올릴 수 있는 사진 수(create_date_record와 같다) */
 export const MAX_PHOTOS = 10;
 
@@ -26,10 +31,11 @@ export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
   memo: string;
   photos: Photo[];
   coverPhotoId: string | undefined;
+  tags: string[];
 }
 
 /** 칸 이름 → 화면에 보여 줄 에러 문구. 사진 한마디는 `caption:<사진 id>` */
-export type DraftErrors = Partial<Record<"date" | "endDate" | "title" | "place" | "memo" | "photos" | `caption:${string}`, string>>;
+export type DraftErrors = Partial<Record<"date" | "endDate" | "title" | "place" | "memo" | "photos" | "tags" | `caption:${string}`, string>>;
 
 export type CreateDateRecordArgs = Database["public"]["Functions"]["create_date_record"]["Args"];
 
@@ -163,6 +169,48 @@ export const movePhoto = <Photo>(photos: Photo[], index: number, offset: -1 | 1)
 };
 
 /**
+ * 적은 태그를 다듬는다. 앞의 #은 습관처럼 붙이므로 지운다.
+ *
+ * @example normalizeTag(" #카페 ") // "카페"
+ */
+export const normalizeTag = (text: string): string => text.trim().replace(/^[#\s]+/, "").replace(/\s+/g, " ");
+
+const addOneTag = (tags: string[], text: string): { tags: string[]; error?: string } => {
+  const tag = normalizeTag(text);
+  const isSameTag = (existing: string): boolean => existing.toLowerCase() === tag.toLowerCase();
+  if (tag === "" || tags.some(isSameTag)) return { tags };
+  if (countChars(tag) > TAG_MAX_LENGTH) return { tags, error: `태그는 ${TAG_MAX_LENGTH}자까지 적을 수 있어요.` };
+  if (tags.length >= MAX_TAGS) return { tags, error: `태그는 ${MAX_TAGS}개까지 붙일 수 있어요.` };
+  return { tags: [...tags, tag] };
+};
+
+/**
+ * 태그를 더한다. 습관대로 `#카페 #여행`처럼 적으면 각각 더한다.
+ * 이미 있으면 그대로 두고, 글자 수나 개수를 넘으면 하나도 더하지 않고 이유를 함께 돌려준다.
+ *
+ * @example addTag(["카페"], "#여행") // { tags: ["카페", "여행"] }
+ */
+export const addTag = (tags: string[], text: string): { tags: string[]; error?: string } => {
+  let nextTags = tags;
+  for (const part of text.split("#")) {
+    const { tags: added, error } = addOneTag(nextTags, part);
+    if (error) return { tags, error };
+    nextTags = added;
+  }
+  return { tags: nextTags };
+};
+
+/**
+ * 전에 쓴 태그에서 보여 줄 것을 고른다. 이미 붙인 태그를 뺀 뒤에 잘라, 붙인 만큼 추천이 줄지 않게 한다.
+ *
+ * @example pickTagSuggestions(["cafe", "여행"], ["Cafe"]) // ["여행"]
+ */
+export const pickTagSuggestions = (suggestions: string[], tags: string[]): string[] => {
+  const used = new Set(tags.map((tag) => tag.toLowerCase()));
+  return suggestions.filter((suggestion) => !used.has(suggestion.toLowerCase())).slice(0, TAG_SUGGESTION_LIMIT);
+};
+
+/**
  * 입력값을 기록 작성 함수(`create_date_record`) 인자로 바꾼다. 빈 장소·글·한마디와 넘기지 않은 끝 날짜는 DB 함수가 null로 저장한다.
  *
  * @throws {Error} 대표 사진이 없으면(검증을 거치지 않은 코드 실수)
@@ -179,5 +227,6 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_memo: draft.memo.trim(),
     p_photos: draft.photos.map(({ id, caption }) => ({ id, caption: caption.trim() })),
     p_cover_photo_id: draft.coverPhotoId,
+    p_tags: draft.tags,
   };
 };

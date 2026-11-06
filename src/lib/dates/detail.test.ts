@@ -9,6 +9,7 @@ const row: DetailRow = {
   place: null,
   memo: "오래 걸었다",
   cover_photo_id: "p2",
+  tags: ["카페", "여행"],
   author: { nickname: "진아" },
   photos: [
     { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1 },
@@ -38,6 +39,7 @@ describe("toDateRecordDetail", () => {
       title: "산책",
       place: undefined,
       memo: "오래 걸었다",
+      tags: ["카페", "여행"],
       authorNickname: "진아",
       photos: [
         { id: "p1", url: "https://example.test/p1", caption: "카페" },
@@ -73,6 +75,7 @@ describe("toEditableRecord", () => {
       place: "",
       memo: "오래 걸었다",
       coverPhotoId: "p2",
+      tags: ["카페", "여행"],
       photos: [
         { id: "p1", caption: "카페", previewUrl: "https://example.test/t1" },
         { id: "p2", caption: "", previewUrl: undefined },

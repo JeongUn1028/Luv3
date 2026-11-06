@@ -19,6 +19,7 @@ export interface DateRecordDetail {
   title: string;
   place: string | undefined;
   memo: string | undefined;
+  tags: string[];
   /** 작성자 닉네임. 읽지 못했으면 작성자 표시를 그리지 않는다 */
   authorNickname: string | undefined;
   /** sort_order 순서 */
@@ -36,6 +37,7 @@ export interface EditableRecord {
   place: string;
   memo: string;
   coverPhotoId: string | undefined;
+  tags: string[];
   /** 이미 저장된 사진. 미리보기는 썸네일 서명 URL */
   photos: { id: string; caption: string; previewUrl: string | undefined }[];
 }
@@ -49,6 +51,7 @@ export interface DetailRow {
   place: string | null;
   memo: string | null;
   cover_photo_id: string | null;
+  tags: string[];
   author: AuthorRow;
   photos: { id: string; path: string; thumb_path: string; caption: string | null; sort_order: number }[];
 }
@@ -84,6 +87,7 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): D
     title: row.title,
     place: row.place ?? undefined,
     memo: row.memo ?? undefined,
+    tags: row.tags,
     authorNickname: row.author?.nickname,
     photos: photos.map(({ id, path, caption }) => ({ id, url: urlByPath.get(path), caption: caption ?? undefined })),
     filePaths: photos.flatMap(({ path, thumb_path }) => [path, thumb_path]),
@@ -106,6 +110,7 @@ export const toEditableRecord = (row: DetailRow, signedThumbs: SignedUrl[]): Edi
     place: row.place ?? "",
     memo: row.memo ?? "",
     coverPhotoId: row.cover_photo_id ?? photos[0]?.id,
+    tags: row.tags,
     photos: photos.map(({ id, caption, thumb_path }) => ({
       id,
       caption: caption ?? "",
