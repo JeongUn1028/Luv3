@@ -14,6 +14,9 @@ export interface AlbumTile {
   place: string | undefined;
   /** 대표 사진 썸네일의 서명 URL. 받지 못했으면 빈 칸으로 그린다 */
   thumbUrl: string | undefined;
+  tags: string[];
+  /** 찾을 때 비교하는 글자: 제목·장소·정리 글·사진 한마디·태그를 소문자로 모은 것 */
+  searchText: string;
 }
 
 /** 한 달치 묶음 */
@@ -32,8 +35,17 @@ export interface AlbumRow {
   end_date: string | null;
   title: string;
   place: string | null;
+  memo: string | null;
+  tags: string[];
   cover: { thumb_path: string } | null;
+  photos: { caption: string | null }[];
 }
+
+const toSearchText = ({ title, place, memo, tags, photos }: AlbumRow): string =>
+  [title, place, memo, ...photos.map(({ caption }) => caption), ...tags]
+    .filter(Boolean)
+    .join("\n")
+    .toLowerCase();
 
 /**
  * 조회한 기록 행에 썸네일 서명 URL을 붙여 그리드 칸으로 바꾼다. DB의 null은 화면 경계에서 undefined로 바꾼다.
@@ -44,13 +56,15 @@ export const toAlbumTiles = (rows: AlbumRow[], signedThumbs: SignedUrl[]): Album
   const urlByPath = new Map(
     signedThumbs.flatMap(({ path, signedUrl }) => (path && signedUrl ? [[path, signedUrl] as const] : [])),
   );
-  return rows.map(({ id, date, end_date, title, place, cover }) => ({
-    id,
-    date,
-    endDate: end_date ?? undefined,
-    title,
-    place: place ?? undefined,
-    thumbUrl: cover ? urlByPath.get(cover.thumb_path) : undefined,
+  return rows.map((row) => ({
+    id: row.id,
+    date: row.date,
+    endDate: row.end_date ?? undefined,
+    title: row.title,
+    place: row.place ?? undefined,
+    thumbUrl: row.cover ? urlByPath.get(row.cover.thumb_path) : undefined,
+    tags: row.tags,
+    searchText: toSearchText(row),
   }));
 };
 

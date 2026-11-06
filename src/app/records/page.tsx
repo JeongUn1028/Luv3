@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
-import { AlbumGrid } from "@/components/dates/AlbumGrid";
 import { AlbumGridSkeleton } from "@/components/dates/AlbumGridSkeleton";
+import { RecordsBrowser } from "@/components/dates/RecordsBrowser";
+import { RecordsSearchButton } from "@/components/dates/RecordsSearchButton";
 import { PlusIcon } from "@/components/icons";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
@@ -19,7 +20,7 @@ const RecordsContent = async () => {
   const tiles = await catchLoadError(getAlbumTiles, AlbumLoadError);
 
   if (tiles instanceof AlbumLoadError) return <LoadErrorMessage message={tiles.message} />;
-  return <AlbumGrid tiles={tiles} />;
+  return <RecordsBrowser tiles={tiles} />;
 };
 
 const RecordsPage = () => (
@@ -27,9 +28,12 @@ const RecordsPage = () => (
     tab="records"
     title="기록"
     actions={
-      <ScreenHeaderLink href="/dates/new" label="기록 남기기">
-        <PlusIcon className="size-6" />
-      </ScreenHeaderLink>
+      <>
+        <RecordsSearchButton />
+        <ScreenHeaderLink href="/dates/new" label="기록 남기기">
+          <PlusIcon className="size-6" />
+        </ScreenHeaderLink>
+      </>
     }
     className="px-4"
   >

@@ -9,6 +9,7 @@ import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { RecordDetailSkeleton } from "@/components/dates/RecordDetailSkeleton";
+import { RecordTagLink } from "@/components/dates/RecordTagLink";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { getCurrentMember } from "@/lib/auth/member";
 import { RECORDS_PATH } from "@/lib/dates/album";
@@ -69,10 +70,10 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
           </div>
           <h1 className="mt-1.5 font-display text-[22px] leading-[1.4] break-words text-ink">{record.title}</h1>
           {record.tags.length > 0 && (
-            <ul aria-label="태그" className="mt-3 flex flex-wrap gap-1.5">
+            <ul aria-label="태그" className="mt-3 flex flex-wrap gap-x-1.5 gap-y-[18px]">
               {record.tags.map((tag) => (
-                <li key={tag} className="h-[26px] rounded-[4px] bg-highlight/16 px-2 text-[13px] leading-[26px] text-highlight">
-                  {tag}
+                <li key={tag}>
+                  <RecordTagLink tag={tag} />
                 </li>
               ))}
             </ul>

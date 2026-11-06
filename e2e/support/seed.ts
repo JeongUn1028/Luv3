@@ -61,6 +61,17 @@ export const setRecordTags = async (id: string, tags: string[]): Promise<void> =
 };
 
 /**
+ * 기록의 장소·정리 글과 사진 한마디를 채운다(찾기 테스트).
+ *
+ * @example await setRecordSearchFields(id, { place: "성수동", memo: "오래 걸었다", caption: "노을" })
+ */
+export const setRecordSearchFields = async (id: string, { place, memo, caption }: { place: string; memo: string; caption: string }): Promise<void> => {
+  const admin = createAdminClient();
+  assertNoError(await admin.from("dates").update({ place, memo }).eq("id", id), "기록 장소·글");
+  assertNoError(await admin.from("photos").update({ caption }).eq("date_id", id), "사진 한마디");
+};
+
+/**
  * 화면에서 저장한 기록의 id를 제목으로 찾는다.
  *
  * @example for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id)

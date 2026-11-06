@@ -60,6 +60,35 @@ test.describe("누름 영역", () => {
     }
   });
 
+  test("기록 찾기의 돋보기와 태그 줄, 상세의 태그는 44px 영역을 눌러도 눌린다", async ({ page }) => {
+    // Arrange
+    const id = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id, title: "E2E 찾기 누름" });
+    await setRecordTags(id, ["책"]);
+
+    try {
+      await openScreen(page, "/records", page.getByRole("button", { name: "기록 찾기" }));
+
+      // Act & Assert: 돋보기
+      const searchButton = page.getByRole("button", { name: "기록 찾기" });
+      expect(await getMissedPoints(searchButton)).toEqual([]);
+
+      // Act & Assert: 고르지 않은 태그와 고른 태그
+      await searchButton.click();
+      const tagButton = page.getByRole("button", { name: "책", exact: true });
+      expect(await getMissedPoints(tagButton)).toEqual([]);
+      await tagButton.click();
+      await expect(tagButton).toHaveAttribute("aria-pressed", "true");
+      expect(await getMissedPoints(tagButton)).toEqual([]);
+
+      // Act & Assert: 상세의 태그
+      await openScreen(page, `/dates/${id}`, page.getByRole("list", { name: "태그" }));
+      expect(await getMissedPoints(page.getByRole("link", { name: "책" }))).toEqual([]);
+    } finally {
+      await deleteRecord();
+    }
+  });
+
   test("기록 작성의 사진 칸 버튼과 한마디 칸은 44px 영역을 눌러도 눌리고 서로 겹치지 않는다", async ({ page }) => {
     // Arrange: 앞으로·뒤로 버튼이 모두 켜지도록 사진 3장을 고른다
     await openScreen(page, "/dates/new", page.locator("#memo"));
