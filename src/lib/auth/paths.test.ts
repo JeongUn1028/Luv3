@@ -29,12 +29,36 @@ describe("getSafeNextPath", () => {
     "/\t/evil.com",
     "/\n/evil.com",
     "javascript:alert(1)",
+    "/.//evil.com",
+    "/..//evil.com",
+    "/a/..//evil.com",
+    "/%2e//evil.com",
+    "/.//",
+    "/%2f/evil.com",
+    "/%2F%2Fevil.com",
+    "/%5c/evil.com",
+    "//localhost/dates",
+    "/.\\/evil.com",
   ])("외부로 나가는 값 %j는 홈으로 바꾼다", (next) => {
     expect(getSafeNextPath(next)).toBe("/");
   });
 
-  it("로그인·인증 경로로 돌아가면 반복되므로 홈으로 바꾼다", () => {
-    expect(getSafeNextPath("/login")).toBe("/");
-    expect(getSafeNextPath("/auth/signout")).toBe("/");
+  it.each(["//", "///", "//[", "/%zz"])("주소로 읽을 수 없는 값 %j도 예외 없이 홈으로 바꾼다", (next) => {
+    expect(getSafeNextPath(next)).toBe("/");
   });
+
+  it("경로 중간의 겹친 슬래시는 외부로 나가지 않으므로 그대로 둔다", () => {
+    expect(getSafeNextPath("/dates//1")).toBe("/dates//1");
+  });
+
+  it("한글 경로처럼 인코딩된 같은 사이트 경로는 그대로 돌려준다", () => {
+    expect(getSafeNextPath("/dates/%ED%95%9C")).toBe("/dates/%ED%95%9C");
+  });
+
+  it.each(["/login", "/auth/signout", "/%6cogin", "/%61uth/signout", "/api/keepalive", "/api/keepalive/"])(
+    "돌아갈 화면이 아닌 %s는 홈으로 바꾼다",
+    (next) => {
+      expect(getSafeNextPath(next)).toBe("/");
+    },
+  );
 });
