@@ -74,7 +74,7 @@ test.describe("닉네임 변경", () => {
     await expect(todoRow.getByTitle("예전이름")).toBeHidden();
 
     await openScreen(page, "/calendar", page.getByText(`${label} 일정`));
-    await expect(page.getByRole("link", { name: new RegExp(`${label} 일정.*작성자 새이름`) })).toBeVisible();
+    await expect(page.getByRole("link", { name: new RegExp(`${label} 일정.*새이름 일정`) })).toBeVisible();
 
     await openScreen(page, `/dates/${recordId}`, page.getByRole("heading", { name: `${label} 기록` }));
     expect(await page.locator("article").ariaSnapshot()).toContain("작성자 새이름");

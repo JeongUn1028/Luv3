@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useState, type ReactElement } from "react";
 import { AuthorTag } from "@/components/AuthorTag";
-import { EventTimeLabel } from "@/components/events/EventTimeLabel";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/icons";
 import { ANNIVERSARY_DATE, countDaysTogether, getAnniversaryLabel } from "@/lib/anniversary";
 import {
@@ -17,6 +16,7 @@ import {
   buildMonthGrid,
   canLeaveRecord,
   formatDayHeading,
+  formatEventTime,
   formatMonthTitle,
   getDefaultSelectedDate,
   groupByDate,
@@ -25,7 +25,7 @@ import {
   WEEKDAYS,
 } from "@/lib/calendar/month";
 import { toNewRecordHref } from "@/lib/dates/form";
-import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
+import { toOwnerLabel, type CalendarEvent, type CalendarRecord } from "@/lib/events/calendar";
 import { formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
@@ -209,7 +209,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                   transitionTypes={FORWARD_TRANSITION}
                   className="flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
                 >
-                  <EventTimeLabel event={event} />
+                  <span className="w-11 shrink-0 text-[12px] text-ink-sub">{formatEventTime(event.startTime)}</span>
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-[15px] text-ink">{event.title}</span>
                     {(event.repeatRule || event.place) && (
@@ -218,7 +218,11 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                       </span>
                     )}
                   </span>
-                  {event.authorNickname && <AuthorTag nickname={event.authorNickname} />}
+                  {event.isTogether ? (
+                    event.authorNickname && <AuthorTag nickname={event.authorNickname} />
+                  ) : (
+                    <AuthorTag nickname={toOwnerLabel(event.authorNickname)} isOwner />
+                  )}
                 </Link>
                 {/* 지난 일정(오늘 포함)은 그날의 데이트 기록으로 이어 쓸 수 있다. 이미 남긴 일정은 다시 권하지 않는다 */}
                 {canLeaveRecord(event, today, selectedRecords) && (

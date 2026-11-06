@@ -33,7 +33,7 @@ describe("일정 주인 표시", () => {
     expect(readSource("app/calendar/page.tsx")).not.toMatch(/nickname/i);
   });
 
-  it("캘린더 일정 줄은 작성자 닉네임을 쓴다", () => {
-    expect(readSource("components/events/EventTimeLabel.tsx")).toContain("toOwnerLabel(event.authorNickname)");
+  it("캘린더 일정 줄의 주인 이름표는 작성자를 몰라도 한 사람 일정임을 보여 준다", () => {
+    expect(readSource("components/calendar/CalendarView.tsx")).toContain("<AuthorTag nickname={toOwnerLabel(event.authorNickname)} isOwner />");
   });
 });
