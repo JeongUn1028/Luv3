@@ -19,7 +19,7 @@ const loadLatestTiles = async (limit?: number): Promise<AlbumTile[]> => {
   const supabase = await createClient();
   const query = supabase
     .from("dates")
-    .select("id, date, end_date, title, place, cover:photos!dates_cover_photo_id_fkey(thumb_path)")
+    .select("id, date, end_date, title, place, memo, tags, cover:photos!dates_cover_photo_id_fkey(thumb_path), photos!photos_date_id_fkey(caption)")
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
   const { data: rows, error } = await (limit === undefined ? query : query.limit(limit));

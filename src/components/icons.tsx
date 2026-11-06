@@ -21,6 +21,22 @@ const LineIcon = ({ className, children }: IconProps & { children: ReactNode }):
   </svg>
 );
 
+/** 돋보기(기록 찾기) */
+export const SearchIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <circle cx="11" cy="11" r="6.5" />
+    <path d="m20 20-4.4-4.4" />
+  </LineIcon>
+);
+
+/** 닫기(찾기 닫기) */
+export const CloseIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M6 6l12 12" />
+    <path d="M18 6 6 18" />
+  </LineIcon>
+);
+
 /** 홈 탭 아이콘 */
 export const HomeIcon = ({ className }: IconProps): ReactElement => (
   <LineIcon className={className}>
