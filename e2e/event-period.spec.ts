@@ -106,7 +106,7 @@ test.describe("기간 일정", () => {
     await expect(page).toHaveURL(/\/events\/new/);
   });
 
-  test("진행 중인 기간 일정은 홈의 오늘 일정에 들어가고 아직 기록을 권하지 않는다", async ({ page }, testInfo) => {
+  test("진행 중인 기간 일정은 홈 칸의 오늘 일정으로 세고 아직 기록을 권하지 않는다", async ({ page }, testInfo) => {
     // Arrange: 오늘의 공통 일정 2개가 칸을 채우므로 수로 확인한다. 만든 순서가 뒤라 다른 테스트의 공통 일정을 밀어내지 않는다
     const now = Date.now();
     const today = toKstDate(new Date(now));

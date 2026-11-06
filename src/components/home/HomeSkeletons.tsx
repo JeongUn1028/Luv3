@@ -38,14 +38,13 @@ export const LatestRecordSkeleton = (): ReactElement => (
 );
 
 /**
- * 일정 칸: 제목·날짜와 첫 일정 두 줄(HomeTile·UpcomingEventList와 같은 자리).
+ * 일정 칸: 제목과 첫 일정 두 줄(HomeTile·UpcomingEventList와 같은 자리).
  *
  * @example <LoadingSuspense fallback={<UpcomingEventSkeleton />}><HomeUpcomingEvents /></LoadingSuspense>
  */
 export const UpcomingEventSkeleton = (): ReactElement => (
   <div aria-hidden="true" className="flex aspect-square flex-col rounded-[16px] bg-surface px-3.5 py-3">
     <SkeletonBlock tone="line" className="h-5 w-16 rounded-[4px]" />
-    <SkeletonBlock tone="line" className="h-4 w-2/3 rounded-[4px]" />
     <SkeletonBlock tone="line" className="mt-2.5 h-5 w-3/4 rounded-[4px]" />
     <SkeletonBlock tone="line" className="h-4 w-full rounded-[4px]" />
   </div>

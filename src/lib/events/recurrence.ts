@@ -1,3 +1,4 @@
+import type { KstNow } from "@/lib/anniversary";
 import { toIsoDate, toNextDay } from "@/lib/calendar/month";
 import { formatPeriodMonthDay } from "@/lib/dates/album";
 import { isIsoDate } from "@/lib/form";
@@ -108,34 +109,44 @@ const toSortKey = (row: CalendarEventRow, date: string, startTime: string | null
 // 기간 일정의 시작 시간은 첫날의 것이다. 이어지는 날은 시작이 지났으므로 종일로 본다
 const getStartTimeOn = (row: CalendarEventRow, date: string): string | null => (row.end_date && date !== row.date ? null : row.start_time);
 
+// 일정과 날의 짝을 날짜 → 종일 먼저 → 시간 → 만든 순서로 줄 세운다
+const toSortedEvents = (entries: { row: CalendarEventRow; date: string }[]): CalendarEvent[] =>
+  entries
+    .map(({ row, date }) => {
+      const startTime = getStartTimeOn(row, date);
+      return { event: { ...toCalendarEvent(row), date, startTime }, key: toSortKey(row, date, startTime) };
+    })
+    .toSorted((left, right) => (left.key < right.key ? -1 : left.key > right.key ? 1 : 0))
+    .map(({ event }) => event);
+
 /**
  * 조회한 일정 행을 범위 안의 날마다(반복은 오는 날마다, 기간은 기간의 모든 날마다) 한 줄씩 펼쳐 날짜 → 종일 먼저 → 시간 → 만든 순서로 돌려준다.
  *
  * @example expandEventRows(data, getGridRange("2026-11"))
  */
 export const expandEventRows = (rows: CalendarEventRow[], range: DateRange): CalendarEvent[] =>
-  rows
-    .flatMap((row) => {
-      const event = toCalendarEvent(row);
-      return listRowDates(row, range).map((date) => {
-        const startTime = getStartTimeOn(row, date);
-        return { event: { ...event, date, startTime }, key: toSortKey(row, date, startTime) };
-      });
-    })
-    .toSorted((left, right) => (left.key < right.key ? -1 : left.key > right.key ? 1 : 0))
-    .map(({ event }) => event);
+  toSortedEvents(rows.flatMap((row) => listRowDates(row, range).map((date) => ({ row, date }))));
+
+// 끝나는 시간이 없어 시작 시간이 지나면 끝난 것으로 본다. 기간 일정은 끝 날짜까지 남는다
+const hasTimePassed = ({ start_time, end_date }: CalendarEventRow, time: string): boolean =>
+  end_date === null && start_time !== null && start_time < time;
+
+const getNextUpcomingDate = (row: CalendarEventRow, { date: today, time }: KstNow): string | undefined =>
+  getNextRowDate(row, hasTimePassed(row, time) ? toNextDay(today) : today);
 
 /**
- * 오늘 또는 그 뒤로 가장 가까운 날의 일정만 펼쳐 돌려준다(홈). 일정이 얼마나 먼 날에 있어도 찾고, 그 뒤의 날은 계산하지 않는다.
+ * 일정 하나당 앞으로 가장 가까운 날 한 줄을 날짜 → 종일 먼저 → 시간 → 만든 순서로 돌려준다(홈).
+ * 오늘 시작 시간이 지난 일정은 빼고, 반복 일정이면 다음에 오는 날로 넘어간다. 얼마나 먼 날이어도 찾는다.
  *
- * @example expandUpcomingEventRows(data, "2026-11-06")
+ * @example expandUpcomingEventRows(data, toKstNow(new Date()))
  */
-export const expandUpcomingEventRows = (rows: CalendarEventRow[], today: string): CalendarEvent[] => {
-  const nearestDate = rows
-    .map((row) => getNextRowDate(row, today))
-    .reduce<string | undefined>((nearest, date) => (date && (!nearest || date < nearest) ? date : nearest), undefined);
-  return nearestDate ? expandEventRows(rows, { start: today, end: nearestDate }) : [];
-};
+export const expandUpcomingEventRows = (rows: CalendarEventRow[], now: KstNow): CalendarEvent[] =>
+  toSortedEvents(
+    rows.flatMap((row) => {
+      const date = getNextUpcomingDate(row, now);
+      return date ? [{ row, date }] : [];
+    }),
+  );
 
 /**
  * 고치기 주소의 날이 반복 일정이 실제로 오는 날이면 그날을 돌려준다. 건너뛰었거나 없는 날이면 undefined다.

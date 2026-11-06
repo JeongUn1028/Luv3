@@ -1,4 +1,5 @@
 import "server-only";
+import type { KstNow } from "@/lib/anniversary";
 import { getGridRange } from "@/lib/calendar/month";
 import { isRecordId } from "@/lib/dates/detail";
 import { createClient } from "@/lib/supabase/server";
@@ -52,17 +53,18 @@ export const getCalendarMonth = async (
   return { events: expandEventRows(eventsResult.data, { start, end }), records: recordsResult.data.map(toCalendarRecord) };
 };
 
-/** 홈 일정 칸에 읽을 한 번짜리 일정 수. 가장 가까운 날의 일정이 이보다 많으면 앞쪽만 보인다 */
+/** 홈 일정 칸에 읽을 한 번짜리 일정 수. 칸에는 2개와 그날 못 넣은 수만 쓰므로 이만큼이면 넉넉하다 */
 const UPCOMING_EVENTS_LIMIT = 50;
 
 /**
- * 오늘(한국 날짜) 또는 그 뒤로 가장 가까운 날의 일정을 종일 먼저 → 시간 → 만든 순서로 읽는다(홈).
- * 날을 묶어 칸에 그릴 값으로 바꾸는 일은 `pickUpcomingDay`가 한다.
+ * 앞으로의 일정을 하나당 가장 가까운 날 한 줄씩 날짜 → 종일 먼저 → 시간 → 만든 순서로 읽는다(홈).
+ * 칸에 넣을 만큼 고르는 일은 `previewUpcomingEvents`가 한다.
  *
  * @throws {EventLoadError} 조회가 실패했을 때
- * @example const day = pickUpcomingDay(await getUpcomingEvents(today), today)
+ * @example const events = await getUpcomingEvents(toKstNow(new Date()))
  */
-export const getUpcomingEvents = async (today: string): Promise<CalendarEvent[]> => {
+export const getUpcomingEvents = async (now: KstNow): Promise<CalendarEvent[]> => {
+  const today = now.date;
   const supabase = await createClient();
   const [singleResult, repeatingResult] = await Promise.all([
     supabase
@@ -80,7 +82,7 @@ export const getUpcomingEvents = async (today: string): Promise<CalendarEvent[]>
   if (singleResult.error) throw new EventLoadError({ cause: singleResult.error });
   if (repeatingResult.error) throw new EventLoadError({ cause: repeatingResult.error });
 
-  return expandUpcomingEventRows([...singleResult.data, ...repeatingResult.data], today);
+  return expandUpcomingEventRows([...singleResult.data, ...repeatingResult.data], now);
 };
 
 /**
