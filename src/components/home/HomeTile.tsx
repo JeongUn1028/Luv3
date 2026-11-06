@@ -4,8 +4,6 @@ import { FORWARD_TRANSITION, TAB_TRANSITION } from "@/lib/navigation/transition"
 
 interface HomeTileProps {
   title: string;
-  /** 제목 오른쪽 작은 글자(며칠 뒤) */
-  detail?: string;
   /** 칸 전체를 덮는 링크. 글자는 보이지 않고, 화면 읽기 프로그램에 "캘린더 모두 보기"처럼 읽힌다 */
   more?: { href: string; target: string };
   /** 내용이 없을 때의 점선 칸(빈 상태, 불러오기 실패) */
@@ -14,14 +12,14 @@ interface HomeTileProps {
 }
 
 /**
- * 홈 2열 그리드의 정사각형 칸: 제목(+며칠 뒤) + 내용. overflow를 걸지 않아, 폭이 좁은 화면에서는 내용이 잘리는 대신 칸이 길어진다.
+ * 홈 2열 그리드의 정사각형 칸: 제목 + 내용. overflow를 걸지 않아, 폭이 좁은 화면에서는 내용이 잘리는 대신 칸이 길어진다.
  *
  * @example
- * <HomeTile title="다음 일정" detail="11일 뒤" more={{ href: toCalendarHref({ date }), target: "캘린더" }}>
- *   <UpcomingEventList events={events} />
+ * <HomeTile title="다음 일정" more={{ href: toCalendarHref({ date }), target: "캘린더" }}>
+ *   <UpcomingEventList events={events} today={today} />
  * </HomeTile>
  */
-export const HomeTile = ({ title, detail, more, isOutlined = false, children }: HomeTileProps): ReactElement => {
+export const HomeTile = ({ title, more, isOutlined = false, children }: HomeTileProps): ReactElement => {
   const titleId = useId();
 
   return (
@@ -31,12 +29,9 @@ export const HomeTile = ({ title, detail, more, isOutlined = false, children }: 
         isOutlined ? "border border-dashed border-ink-sub/35" : "bg-surface"
       }`}
     >
-      <div className="flex items-baseline justify-between gap-1.5">
-        <h2 id={titleId} className="font-display text-[14px] leading-5 whitespace-nowrap text-ink">
-          {title}
-        </h2>
-        {detail && <p className="text-[12px] leading-4 whitespace-nowrap text-ink-sub">{detail}</p>}
-      </div>
+      <h2 id={titleId} className="font-display text-[14px] leading-5 whitespace-nowrap text-ink">
+        {title}
+      </h2>
       {children}
       {more && (
         <Link href={more.href} transitionTypes={TAB_TRANSITION} className="absolute inset-0 rounded-[16px]">

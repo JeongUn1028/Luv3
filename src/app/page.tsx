@@ -9,7 +9,7 @@ import { SettingsIcon } from "@/components/icons";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
-import { ANNIVERSARY_DATE, countDaysTogether, toKstDate } from "@/lib/anniversary";
+import { ANNIVERSARY_DATE, countDaysTogether, toKstDate, toKstNow } from "@/lib/anniversary";
 import { SETTINGS_PATH } from "@/lib/auth/paths";
 import { getCurrentMember } from "@/lib/auth/member";
 import { CALENDAR_PATH, toCalendarHref } from "@/lib/calendar/month";
@@ -17,7 +17,6 @@ import { CouplePhotoLoadError, getCouplePhotoUrl } from "@/lib/couple-photo/quer
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { AlbumLoadError, getLatestRecord } from "@/lib/dates/queries";
 import { EventLoadError, getUpcomingEvents } from "@/lib/events/queries";
-import { describeUpcomingDay, pickUpcomingDay } from "@/lib/events/upcoming";
 import { catchLoadError } from "@/lib/load";
 import { groupTodos } from "@/lib/todos/list";
 import { getTodos, TodoLoadError } from "@/lib/todos/queries";
@@ -72,8 +71,8 @@ const HomeLatestRecord = async () => {
 
 const HomeUpcomingEvents = async () => {
   await getCurrentMember();
-  const today = toKstDate(new Date());
-  const events = await catchLoadError(() => getUpcomingEvents(today), EventLoadError);
+  const now = toKstNow(new Date());
+  const events = await catchLoadError(() => getUpcomingEvents(now), EventLoadError);
 
   if (events instanceof EventLoadError) {
     return (
@@ -83,8 +82,8 @@ const HomeUpcomingEvents = async () => {
     );
   }
 
-  const day = pickUpcomingDay(events, today);
-  if (!day) {
+  const [firstEvent] = events;
+  if (!firstEvent) {
     return (
       <HomeTile title="일정" isOutlined>
         <HomeTileMessage text="다가오는 일정이 없어요" action={{ href: "/events/new", label: "일정 추가" }} />
@@ -92,11 +91,9 @@ const HomeUpcomingEvents = async () => {
     );
   }
 
-  const { title, dateLabel, relativeLabel } = describeUpcomingDay(day.date, today);
   return (
-    <HomeTile title={title} detail={relativeLabel} more={{ href: toCalendarHref({ date: day.date }), target: "캘린더" }}>
-      <p className="truncate text-[12px] leading-4 text-ink-sub">{dateLabel}</p>
-      <UpcomingEventList events={day.events} />
+    <HomeTile title="다음 일정" more={{ href: toCalendarHref({ date: firstEvent.date }), target: "캘린더" }}>
+      <UpcomingEventList events={events} today={now.date} />
     </HomeTile>
   );
 };

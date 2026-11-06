@@ -80,12 +80,11 @@ test.describe("홈 뼈대", () => {
         expect(Math.abs(skeletonTop - (await getOffsetTop(loaded.latest, target)))).toBeLessThanOrEqual(TOLERANCE);
       }
 
-      // Assert: 일정의 제목·날짜·일정 제목·설명 줄
+      // Assert: 일정의 제목·일정 제목·설명 줄
       const upcomingLines = skeleton.upcoming.locator(".bg-line");
-      await expect(upcomingLines).toHaveCount(4);
+      await expect(upcomingLines).toHaveCount(3);
       const upcomingTargets = [
         loaded.upcoming.getByRole("heading"),
-        loaded.upcoming.locator("> p").first(),
         loaded.upcoming.locator("li").first().locator("p").first(),
         loaded.upcoming.locator("li").first().locator("p").last(),
       ];
