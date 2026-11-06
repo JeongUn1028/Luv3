@@ -148,9 +148,15 @@ describe("누름 영역", () => {
 });
 
 describe("날짜·시간 칸", () => {
+  it("폼의 날짜 칸은 일요일부터 시작하는 앱 전용 창을 쓴다", () => {
+    // type="date"는 아이폰이 창을 그려 시작 요일을 정할 수 없다(#178)
+    expect(readSource("components/dates/DateRecordForm.tsx")).not.toContain(`type="date"`);
+    expect(readSource("components/events/EventForm.tsx")).not.toContain(`type="date"`);
+  });
+
   it("iOS 기본 모양을 꺼서 다른 칸과 같은 폭·높이를 따른다", () => {
-    // iOS의 기본 모양 날짜·시간 칸은 width·height를 따르지 않고 부모보다 커질 수 있다(#92)
-    const rule = readSource("app/globals.css").match(/input\[type="date"\],\s*input\[type="time"\]\s*\{[^}]*\}/)?.[0] ?? "";
+    // iOS의 기본 모양 시간 칸은 width·height를 따르지 않고 부모보다 커질 수 있다(#92)
+    const rule = readSource("app/globals.css").match(/input\[type="time"\]\s*\{[^}]*\}/)?.[0] ?? "";
 
     expect(rule).toContain("-webkit-appearance: none;");
     expect(rule).toContain("appearance: none;");
@@ -166,14 +172,14 @@ describe("날짜·시간 칸", () => {
     expect(rule).toContain("align-items: center;");
   });
 
-  it("다른 브라우저에서는 달력 아이콘이 칸 오른쪽에 남도록 block을 쓴다", () => {
-    // Chrome은 flex로 두면 달력·시계 아이콘이 값 바로 옆으로 붙는다(#96)
-    const rule = readSource("app/globals.css").match(/input\[type="date"\],\s*input\[type="time"\]\s*\{[^}]*\}/)?.[0] ?? "";
+  it("다른 브라우저에서는 시계 아이콘이 칸 오른쪽에 남도록 block을 쓴다", () => {
+    // Chrome은 flex로 두면 시계 아이콘이 값 바로 옆으로 붙는다(#96)
+    const rule = readSource("app/globals.css").match(/input\[type="time"\]\s*\{[^}]*\}/)?.[0] ?? "";
 
     expect(rule).toContain("display: block;");
   });
 
-  it("날짜 값은 다른 칸처럼 왼쪽에 놓인다", () => {
+  it("시간 값은 다른 칸처럼 왼쪽에 놓인다", () => {
     expect(readSource("app/globals.css")).toMatch(/::-webkit-date-and-time-value\s*\{[^}]*text-align: left;/);
   });
 

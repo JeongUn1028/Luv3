@@ -116,6 +116,20 @@ export const ChevronRightIcon = ({ className }: IconProps): ReactElement => (
   </LineIcon>
 );
 
+/** 왼쪽 두 겹 꺾쇠. 날짜 선택 창에서 이전 해로 옮기는 버튼에 쓴다 */
+export const ChevronsLeftIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M11.5 6l-6 6 6 6M18 6l-6 6 6 6" />
+  </LineIcon>
+);
+
+/** 오른쪽 두 겹 꺾쇠. 날짜 선택 창에서 다음 해로 옮기는 버튼에 쓴다 */
+export const ChevronsRightIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M6 6l6 6-6 6M12.5 6l6 6-6 6" />
+  </LineIcon>
+);
+
 /** 위쪽 꺾쇠. Todo 순서를 한 칸 위로 옮기는 버튼에 쓴다 */
 export const ChevronUpIcon = ({ className }: IconProps): ReactElement => (
   <LineIcon className={className}>

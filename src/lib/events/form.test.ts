@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getMinRepeatUntil,
   changeDraftScope,
   createEmptyEventDraft,
   toEditableEvent,
@@ -13,6 +14,17 @@ const draft = (overrides: Partial<EventDraft> = {}): EventDraft => ({
   ...createEmptyEventDraft("2026-11-14"),
   title: "전시 보기",
   ...overrides,
+});
+
+describe("getMinRepeatUntil", () => {
+  it("시작하는 날의 다음 날이다", () => {
+    expect(getMinRepeatUntil("2026-11-30")).toBe("2026-12-01");
+  });
+
+  it("시작하는 날이 비었거나 틀리면 제한을 두지 않는다", () => {
+    expect(getMinRepeatUntil("")).toBeUndefined();
+    expect(getMinRepeatUntil("2026-02-31")).toBeUndefined();
+  });
 });
 
 describe("validateEventDraft", () => {

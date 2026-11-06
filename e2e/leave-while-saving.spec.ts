@@ -6,6 +6,7 @@ import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { PHOTO_FIXTURE_PATH } from "./support/constants";
+import { pickDate } from "./support/date-picker";
 import { createDisposableEvent, createDisposableRecord, createDisposableTodo, deleteEventsByTitle, deleteRecordWithFiles, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
@@ -49,7 +50,7 @@ const fillNewRecord = async (page: Page, title: string): Promise<void> => {
   await page.getByLabel("사진 고르기").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer: readFileSync(PHOTO_FIXTURE_PATH) });
   await page.getByRole("button", { name: "1번째 사진 빼기" }).waitFor();
   // 오늘 날짜면 나란히 도는 홈 테스트의 "최근 기록" 자리를 잠깐 차지하므로 어제로 둔다
-  await page.locator("#date").fill(getYesterday());
+  await pickDate(page, "#date", getYesterday());
   await page.locator("#title").fill(title);
 };
 
