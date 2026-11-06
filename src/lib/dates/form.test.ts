@@ -207,6 +207,12 @@ describe("toNewRecordHref", () => {
       "/dates/new?date=2026-11-01&title=%EC%82%B0%EC%B1%85",
     );
   });
+
+  it("기간 일정이면 끝 날짜도 넘긴다", () => {
+    expect(toNewRecordHref({ date: "2026-10-30", endDate: "2026-11-01", title: "여행", place: "" })).toBe(
+      "/dates/new?date=2026-10-30&title=%EC%97%AC%ED%96%89&endDate=2026-11-01",
+    );
+  });
 });
 
 describe("parseRecordPrefill", () => {
@@ -236,6 +242,20 @@ describe("parseRecordPrefill", () => {
     const prefill = parseRecordPrefill({ title: "가".repeat(150), place: "😀".repeat(120) }, TODAY);
     expect(prefill?.title).toBe("가".repeat(100));
     expect(prefill?.place).toBe("😀".repeat(100));
+  });
+
+  it("끝 날짜 쿼리를 작성 폼 처음 값으로 읽는다", () => {
+    expect(parseRecordPrefill({ date: "2026-10-30", endDate: "2026-11-01", title: "여행" }, TODAY)?.endDate).toBe("2026-11-01");
+    expect(parseRecordPrefill({ date: "2026-10-30", title: "여행" }, TODAY)?.endDate).toBeUndefined();
+  });
+
+  it("쓸 수 없는 끝 날짜는 받지 않아 하루 기록으로 시작한다", () => {
+    const parseEndDate = (date: string, endDate: string | string[]) => parseRecordPrefill({ date, endDate, title: "a" }, TODAY)?.endDate;
+    expect(parseEndDate("2026-10-30", "2026-02-31")).toBeUndefined();
+    expect(parseEndDate("2026-10-30", "2026-11-03")).toBeUndefined();
+    expect(parseEndDate("2026-10-30", "2026-10-30")).toBeUndefined();
+    expect(parseEndDate("2026-11-03", "2026-11-02")).toBeUndefined();
+    expect(parseEndDate("2026-10-30", ["2026-11-01", "2026-11-02"])).toBeUndefined();
   });
 });
 

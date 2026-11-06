@@ -26,10 +26,12 @@ export interface EventDraft {
   repeatRule: RepeatRule | undefined;
   /** 반복이 끝나는 날(그날 포함). 비어 있으면 계속 반복한다 */
   repeatUntil: string;
+  /** 기간 일정의 끝 날짜. undefined면 하루 일정, 빈 문자열이면 기간을 켰지만 아직 고르지 않은 상태다 */
+  endDate: string | undefined;
 }
 
 /** 칸 이름 → 화면에 보여 줄 에러 문구 */
-export type EventDraftErrors = Partial<Record<"date" | "startTime" | "title" | "place" | "memo" | "repeatUntil", string>>;
+export type EventDraftErrors = Partial<Record<"date" | "startTime" | "title" | "place" | "memo" | "repeatUntil" | "endDate", string>>;
 
 /** `events` 행에 저장할 값 */
 export interface EventValues {
@@ -41,6 +43,7 @@ export interface EventValues {
   is_together: boolean;
   repeat_rule: RepeatRule | null;
   repeat_until: string | null;
+  end_date: string | null;
 }
 
 /** `events` 조회 결과 중 수정 화면에 쓰는 값 */
@@ -81,19 +84,27 @@ export const createEmptyEventDraft = (date: string): EventDraft => ({
   scope: "all",
   repeatRule: undefined,
   repeatUntil: "",
+  endDate: undefined,
 });
 
 /**
- * 끝나는 날 달력에서 고를 수 있는 첫날(시작 다음 날). 시작이 비어 있으면 제한을 두지 않고 저장할 때 알린다.
+ * 끝나는 날·끝 날짜 달력에서 고를 수 있는 첫날(시작 다음 날). 시작이 비어 있으면 제한을 두지 않고 저장할 때 알린다.
  *
- * @example getMinRepeatUntil("2026-11-01") // "2026-11-02"
+ * @example getMinDateAfterStart("2026-11-01") // "2026-11-02"
  */
-export const getMinRepeatUntil = (date: string): string | undefined => (isIsoDate(date) ? toNextDay(date) : undefined);
+export const getMinDateAfterStart = (date: string): string | undefined => (isIsoDate(date) ? toNextDay(date) : undefined);
 
 const validateRepeatUntil = ({ date, scope, repeatRule, repeatUntil }: EventDraft): string | undefined => {
   if (scope === "occurrence" || !repeatRule || repeatUntil === "") return undefined;
   if (!isIsoDate(repeatUntil)) return "끝나는 날을 다시 골라 주세요.";
   return repeatUntil > date ? undefined : "끝나는 날은 시작하는 날 뒤로 골라 주세요.";
+};
+
+const validateEndDate = ({ date, scope, repeatRule, endDate }: EventDraft): string | undefined => {
+  // 이 날만 고칠 때는 칸이 없고, 반복 일정에는 끝 날짜를 저장하지 않는다(toEventValues)
+  if (scope === "occurrence" || endDate === undefined || repeatRule) return undefined;
+  if (!isIsoDate(endDate)) return "끝 날짜를 골라 주세요.";
+  return endDate > date ? undefined : "끝 날짜는 시작 날짜보다 뒤여야 해요.";
 };
 
 /**
@@ -105,6 +116,8 @@ export const validateEventDraft = (draft: EventDraft): EventDraftErrors => {
   const errors: EventDraftErrors = {};
   const repeatUntilError = validateRepeatUntil(draft);
   if (repeatUntilError) errors.repeatUntil = repeatUntilError;
+  const endDateError = validateEndDate(draft);
+  if (endDateError) errors.endDate = endDateError;
   if (!isIsoDate(draft.date)) errors.date = "날짜를 골라 주세요.";
   if (!draft.isAllDay && !TIME_PATTERN.test(draft.startTime)) errors.startTime = "시간을 골라 주세요.";
 
@@ -130,6 +143,8 @@ export const toEventValues = (draft: EventDraft): EventValues => ({
   is_together: draft.isTogether,
   repeat_rule: draft.repeatRule ?? null,
   repeat_until: draft.repeatRule && draft.repeatUntil !== "" ? draft.repeatUntil : null,
+  // 기간과 반복은 함께 쓰지 못한다(DB 제약 events_end_date_without_repeat)
+  end_date: draft.repeatRule ? null : (draft.endDate ?? null),
 });
 
 /**
@@ -149,6 +164,7 @@ export const toEventDraft = (row: EventRow, occurrenceDate?: string): EventDraft
   scope: occurrenceDate ? "occurrence" : "all",
   repeatRule: isRepeatRule(row.repeat_rule) ? row.repeat_rule : undefined,
   repeatUntil: row.repeat_until ?? "",
+  endDate: row.end_date ?? undefined,
 });
 
 /**
@@ -164,6 +180,30 @@ export const changeDraftScope = (
   isTogether: boolean,
 ): EventDraft =>
   scope === "occurrence" ? { ...draft, scope, date: occurrence.date, isTogether } : { ...draft, scope, date: occurrence.startDate };
+
+/**
+ * 고치기 주소의 날이 기간 일정 안이면 그날을 돌려준다(캘린더에서 누른 날). 하루 일정이거나 기간 밖이면 undefined다.
+ *
+ * @example findViewedPeriodDate({ date: "2026-10-30", end_date: "2026-11-02" }, "2026-11-01") // "2026-11-01"
+ */
+export const findViewedPeriodDate = (
+  { date, end_date }: Pick<EventRow, "date" | "end_date">,
+  requested: string | string[] | undefined,
+): string | undefined =>
+  end_date !== null && typeof requested === "string" && isIsoDate(requested) && date <= requested && requested <= end_date ? requested : undefined;
+
+/**
+ * 저장한 뒤 캘린더에서 고를 날. 시작하는 날이 다른 달이어도 보고 있던 날로 돌아가고, 그날에 일정이 더는 없으면 일정의 날짜로 돌아간다.
+ *
+ * @example getDateAfterSave(draft, { occurrenceDate: "2026-11-28" }) // "2026-11-28"
+ */
+export const getDateAfterSave = (
+  { date, endDate, scope }: EventDraft,
+  { occurrenceDate, viewedDate }: { occurrenceDate?: string | undefined; viewedDate?: string | undefined },
+): string => {
+  if (occurrenceDate && scope === "all") return occurrenceDate;
+  return viewedDate && date <= viewedDate && viewedDate <= (endDate || date) ? viewedDate : date;
+};
 
 /**
  * 수정 화면이 읽은 일정 행에서 작성자를 닉네임으로 바꾼다.
