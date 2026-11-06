@@ -40,7 +40,7 @@ export const LogoutForm = (): ReactElement => {
       <button
         type="submit"
         disabled={isPending}
-        className="h-[51px] w-full rounded-[10px] border border-line text-[15px] text-ink hover:bg-surface disabled:opacity-50"
+        className="press-wide h-[51px] w-full rounded-[10px] border border-line text-[15px] text-ink hover:bg-surface disabled:opacity-50"
       >
         {isPending ? "로그아웃하는 중…" : "로그아웃"}
       </button>

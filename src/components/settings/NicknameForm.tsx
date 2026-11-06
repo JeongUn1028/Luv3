@@ -113,7 +113,7 @@ export const NicknameForm = ({ memberId, initialNickname }: NicknameFormProps): 
           <button
             type="submit"
             disabled={isSaving}
-            className="h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
+            className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
           >
             {isSaving ? "저장 중…" : "저장"}
           </button>

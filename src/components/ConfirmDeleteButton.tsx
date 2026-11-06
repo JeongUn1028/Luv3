@@ -20,7 +20,7 @@ export const ConfirmDeleteButton = ({
   description,
   onConfirm,
   failureMessage,
-  className = "h-11 px-3 text-[14px] text-ink-sub hover:text-ink",
+  className = "press-icon h-11 px-3 text-[14px] text-ink-sub hover:text-ink",
 }: ConfirmDeleteButtonProps): ReactElement => {
   const modalRef = useRef<ModalDialogHandle>(null);
   const [isDeleting, setIsDeleting] = useState(false);

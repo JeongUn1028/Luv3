@@ -57,7 +57,7 @@ const PhotoPreview = ({ src, alt }: PhotoPreviewProps): ReactElement => {
 // 보이는 크기는 36px로 두고 누르는 영역만 44px로 넓힌다. 버튼 사이 간격(8px)을 반씩 나눠 가져 서로 겹치지 않는다(#105).
 // 가상 요소는 테두리 안쪽을 기준으로 놓이므로 테두리 1px을 더해 5px 넓힌다
 const smallButtonClassName =
-  "relative h-9 min-w-9 rounded-[8px] border border-line px-2 text-[12px] text-ink-sub after:absolute after:-inset-[5px] hover:text-ink disabled:opacity-30";
+  "press-icon relative h-9 min-w-9 rounded-[8px] border border-line px-2 text-[12px] text-ink-sub after:absolute after:-inset-[5px] hover:text-ink disabled:opacity-30";
 
 /** 사진 고르기 + 고른 사진 목록(미리보기, 한마디, 대표 사진, 순서, 빼기) */
 export const PhotoPicker = ({
@@ -171,7 +171,7 @@ export const PhotoPicker = ({
         type="button"
         disabled={isDisabled || isFull}
         onClick={() => inputRef.current?.click()}
-        className="mt-2 h-[51px] w-full rounded-[10px] border border-dashed border-line text-[15px] text-ink-sub hover:text-ink disabled:opacity-40"
+        className="press-wide mt-2 h-[51px] w-full rounded-[10px] border border-dashed border-line text-[15px] text-ink-sub hover:text-ink disabled:opacity-40"
       >
         {isFull ? "사진은 10장까지 올릴 수 있어요" : "사진 고르기"}
       </button>

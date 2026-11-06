@@ -13,7 +13,7 @@ export const LatestRecordCard = ({ record }: LatestRecordCardProps): ReactElemen
   const titleId = useId();
 
   return (
-    <section aria-labelledby={titleId} className="relative aspect-square overflow-hidden rounded-[16px] bg-surface">
+    <section aria-labelledby={titleId} className="press-card-group relative aspect-square rounded-[16px] bg-surface">
       {/* 링크 위에 떠 있지만 눌러도 칸을 누른 것으로 친다 */}
       <h2
         id={titleId}
@@ -24,10 +24,10 @@ export const LatestRecordCard = ({ record }: LatestRecordCardProps): ReactElemen
       <Link href={`/dates/${record.id}`} transitionTypes={FORWARD_TRANSITION} className="absolute inset-0 rounded-[16px] -outline-offset-2">
         {record.thumbUrl && (
           // eslint-disable-next-line @next/next/no-img-element -- 업로드 때 이미 600px로 줄인 썸네일이라 next/image 최적화를 다시 거치지 않는다
-          <img src={record.thumbUrl} alt="" className="size-full object-cover" />
+          <img src={record.thumbUrl} alt="" className="size-full rounded-[16px] object-cover" />
         )}
         {/* 흰 사진 위에서도 두 줄 제목 윗줄까지 글자가 읽히도록(명암비 4.5:1) 글자 높이까지 진하게 깐다 */}
-        <span className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 bg-gradient-to-t from-background/90 via-background/70 via-60% to-transparent px-3 pt-9 pb-3">
+        <span className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 rounded-b-[16px] bg-gradient-to-t from-background/90 via-background/70 via-60% to-transparent px-3 pt-9 pb-3">
           <span className="line-clamp-2 font-display text-[15px] leading-5 text-ink">{record.title}</span>
           <span className="truncate text-[12px] leading-4 text-ink/80">
             {formatRecordShortDate(record)}

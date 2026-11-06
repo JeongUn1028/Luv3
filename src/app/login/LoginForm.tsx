@@ -86,7 +86,7 @@ const PasswordLoginForm = ({ nextPath, initialMessage }: PasswordLoginFormProps)
         <button
           type="submit"
           disabled={isPending}
-          className="mt-4 h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
+          className="press-wide mt-4 h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
         >
           {isPending ? "확인 중…" : "로그인"}
         </button>

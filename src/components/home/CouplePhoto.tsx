@@ -22,7 +22,7 @@ const toMessage = (error: unknown): string =>
     ? error.message
     : "사진을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
 
-const menuButtonClassName = "h-12 w-full rounded-[10px] border border-line text-[15px] hover:bg-background";
+const menuButtonClassName = "press-wide h-12 w-full rounded-[10px] border border-line text-[15px] hover:bg-background";
 
 interface CouplePhotoProps {
   /** 커플 사진 서명 URL. 없으면 추가 칸을 보여 준다 */
@@ -162,7 +162,7 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
               onClick={handleOpenMenu}
               aria-label="커플 사진 바꾸기"
               aria-haspopup="dialog"
-              className="absolute right-2.5 bottom-2.5 flex size-10 items-center justify-center rounded-full bg-background/70 text-ink after:absolute after:-inset-0.5"
+              className="press-icon absolute right-2.5 bottom-2.5 flex size-10 items-center justify-center rounded-full bg-background/70 text-ink after:absolute after:-inset-0.5"
             >
               <CameraIcon className="size-5" />
             </button>
@@ -179,7 +179,7 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
           type="button"
           onClick={handlePick}
           disabled={isBusy}
-          className="flex h-[120px] w-full items-center justify-center gap-1.5 rounded-[16px] border border-dashed border-ink-sub/50 text-[15px] text-ink-sub disabled:opacity-60"
+          className="press-card flex h-[120px] w-full items-center justify-center gap-1.5 rounded-[16px] border border-dashed border-ink-sub/50 text-[15px] text-ink-sub disabled:opacity-60"
         >
           {busyTask ? (
             BUSY_LABELS[busyTask]

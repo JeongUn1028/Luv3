@@ -122,7 +122,7 @@ export const PlaceField = ({ value, location, error, isDisabled, canSearch, labe
             aria-label="장소 찾기"
             disabled={isDisabled}
             onClick={() => void handleSearch()}
-            className="absolute top-1 right-1 flex size-11 items-center justify-center text-ink-sub disabled:opacity-50"
+            className="press-icon absolute top-1 right-1 flex size-11 items-center justify-center text-ink-sub disabled:opacity-50"
           >
             <SearchIcon className="size-5" />
           </button>
@@ -141,7 +141,7 @@ export const PlaceField = ({ value, location, error, isDisabled, canSearch, labe
             disabled={isDisabled}
             onClick={onClearLocation}
             // 글자 줄만큼만 차지하면서 44px을 누를 수 있게 넓힌다
-            className="relative after:absolute after:inset-x-0 after:-inset-y-[13px] disabled:opacity-50"
+            className="press-icon relative after:absolute after:inset-x-0 after:-inset-y-[13px] disabled:opacity-50"
           >
             위치 지우기
           </button>
@@ -161,7 +161,7 @@ export const PlaceField = ({ value, location, error, isDisabled, canSearch, labe
                   closeResults();
                   onSelect(place);
                 }}
-                className="flex min-h-11 w-full flex-col justify-center px-4 py-2 text-left disabled:opacity-50"
+                className="press-card flex min-h-11 w-full flex-col justify-center px-4 py-2 text-left disabled:opacity-50"
               >
                 <span className="text-[15px] break-words text-ink">{place.name}</span>
                 {place.address && <span className="text-[12px] break-words text-ink-sub">{place.address}</span>}

@@ -196,7 +196,7 @@ export const PasswordForm = ({ email }: PasswordFormProps): ReactElement => {
           <button
             type="submit"
             disabled={isPending}
-            className="h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
+            className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
           >
             {isPending ? "바꾸는 중…" : "비밀번호 바꾸기"}
           </button>

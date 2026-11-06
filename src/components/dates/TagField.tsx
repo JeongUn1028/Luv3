@@ -57,7 +57,7 @@ export const TagField = ({ inputRef, tags, suggestions, input, error, isDisabled
           type="button"
           disabled={isDisabled}
           onClick={() => onAdd(input)}
-          className="h-[51px] shrink-0 rounded-[10px] border border-line px-4 text-[15px] text-ink disabled:opacity-50"
+          className="press-wide h-[51px] shrink-0 rounded-[10px] border border-line px-4 text-[15px] text-ink disabled:opacity-50"
         >
           추가
         </button>

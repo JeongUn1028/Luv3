@@ -63,7 +63,7 @@ export const InstallHint = (): ReactElement | null => {
       <button
         type="button"
         onClick={handleClose}
-        className="h-11 shrink-0 px-3 text-[13px] text-ink-sub hover:text-ink"
+        className="press-icon h-11 shrink-0 px-3 text-[13px] text-ink-sub hover:text-ink"
       >
         닫기
       </button>
