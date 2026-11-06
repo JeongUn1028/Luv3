@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 import { toKstDate } from "@/lib/anniversary";
 import { PHOTO_FIXTURE_PATH } from "./support/constants";
+import { pickDate } from "./support/date-picker";
 import { createDisposableRecord, deleteRecordWithFiles, getRecordIdsByTitle, listRecordFiles } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
@@ -30,7 +31,7 @@ test.describe("저장은 됐는데 응답만 끊기면", () => {
     await openScreen(page, "/dates/new", page.locator("#memo").locator("visible=true"));
     await pickPhoto(page, 1);
     // 오늘 날짜면 나란히 도는 홈 테스트의 "최근 기록" 자리를 잠깐 차지한다
-    await page.locator("#date").locator("visible=true").fill(toKstDate(new Date(Date.now() - 24 * 60 * 60 * 1000)));
+    await pickDate(page, "#date", toKstDate(new Date(Date.now() - 24 * 60 * 60 * 1000)));
     await page.locator("#title").locator("visible=true").fill(title);
     const url = "**/rest/v1/rpc/create_date_record";
     await loseResponses(page, url);
