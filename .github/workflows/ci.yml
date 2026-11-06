@@ -46,7 +46,7 @@ jobs:
       - run: pnpm test:db
 
   e2e:
-    name: test:e2e (화면 높이)
+    name: test:e2e
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
