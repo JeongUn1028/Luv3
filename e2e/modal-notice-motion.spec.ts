@@ -87,9 +87,8 @@ test.describe("움직임을 켠 기기에서", () => {
       await expect(dialog).toBeVisible();
       await dialog.getByRole("button", { name: "삭제" }).focus();
 
-      // Act
-      await page.keyboard.press("Escape");
-      await page.keyboard.press("Enter");
+      // Act: 화면이 다시 그려지기 전에 두 키가 닿게 기다리지 않고 함께 보낸다
+      await Promise.all([page.keyboard.press("Escape"), page.keyboard.press("Enter")]);
 
       // Assert
       await expect(dialog).toBeHidden();

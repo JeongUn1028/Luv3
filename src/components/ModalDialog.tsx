@@ -37,7 +37,9 @@ const closeWithMotion = (dialog: HTMLDialogElement, timerRef: CloseTimerRef): vo
     return;
   }
   dialog.setAttribute(CLOSING_ATTRIBUTE, "");
-  // 닫히는 동안 뒤늦은 누름이나 Enter가 취소한 삭제를 실행하지 않게 막는다
+  // 닫히는 동안 뒤늦은 누름이나 Enter가 취소한 삭제를 실행하지 않게 막는다.
+  // inert는 초점을 다음 그리기 때에야 빼므로, 그 사이의 Enter가 버튼에 닿지 않게 초점을 바로 뺀다. 닫으면 브라우저가 연 버튼으로 되돌린다
+  if (document.activeElement instanceof HTMLElement && dialog.contains(document.activeElement)) document.activeElement.blur();
   dialog.inert = true;
   timerRef.current = setTimeout(() => dialog.close(), CLOSE_MOTION_MS);
 };
