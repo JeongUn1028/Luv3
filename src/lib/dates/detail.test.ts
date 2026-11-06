@@ -3,6 +3,7 @@ import { formatRecordDate, formatRecordMonthDay, formatRecordPeriod, formatRecor
 
 const row: DetailRow = {
   id: "r1",
+  revision: "30000000-0000-4000-8000-000000000001",
   date: "2026-11-02",
   end_date: null,
   title: "산책",
@@ -75,6 +76,7 @@ describe("toEditableRecord", () => {
   it("수정 화면 초기값으로 바꾼다: 사진은 순서대로 썸네일 미리보기, 빈 값은 빈 문자열", () => {
     const editable = toEditableRecord(row, [{ path: "r1/p1_thumb.jpg", signedUrl: "https://example.test/t1" }]);
     expect(editable).toEqual({
+      revision: "30000000-0000-4000-8000-000000000001",
       id: "r1",
       date: "2026-11-02",
       endDate: undefined,

@@ -26,6 +26,12 @@ export interface DraftPhoto {
 export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
   /** 앞선 저장이 실패로 끝났지만 저장됐을 수 있을 때의 기록 id. 실패 내용과 함께 보관해 다시 저장해도 기록이 둘이 되지 않게 한다 */
   uncertainSaveRecordId?: string;
+  /** 저장을 허용할 판 번호: 불러온 때의 판과, 저장됐을 수 있는 내 앞선 시도의 판. 새 기록이면 없다 */
+  expectedRevisions?: string[];
+  /** 이번 저장으로 바뀔 판 번호. 저장을 시도할 때마다 새로 정한다 */
+  nextRevision?: string;
+  /** 상대가 먼저 고쳐 저장이 거부됐는지. 다시 저장해도 거부되므로 최신 내용을 불러오게 한다 */
+  hasConflict?: boolean;
   date: string;
   /** 기간의 끝 날짜. undefined면 하루짜리, ""면 기간을 켰지만 아직 고르지 않은 상태 */
   endDate: string | undefined;
@@ -43,6 +49,13 @@ export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
 export type DraftErrors = Partial<Record<"date" | "endDate" | "title" | "place" | "memo" | "photos" | "tags" | `caption:${string}`, string>>;
 
 export type CreateDateRecordArgs = Database["public"]["Functions"]["create_date_record"]["Args"];
+
+/**
+ * `update_date_record`에 넘기는 값. 새 기록의 값에 판 번호가 더해진다.
+ *
+ * @example const args: UpdateDateRecordArgs = { ...toCreateRecordArgs(id, draft), p_expected_revisions: [revision], p_new_revision: next };
+ */
+export type UpdateDateRecordArgs = Database["public"]["Functions"]["update_date_record"]["Args"];
 
 const tooLong = (text: string, max: number): boolean => countChars(text) > max;
 

@@ -227,6 +227,20 @@ export const deleteTodosByContent = async (content: string): Promise<void> => {
 };
 
 /**
+ * 상대가 다른 기기에서 기록에 사진을 더해 저장한 상태를 만든다. 판 번호도 함께 바뀐다.
+ *
+ * @example await addPhotoAsPartner(recordId)
+ */
+export const addPhotoAsPartner = async (recordId: string): Promise<void> => {
+  const admin = createAdminClient();
+  const photoId = randomUUID();
+  const path = `${recordId}/${photoId}.jpg`;
+  await uploadPhoto(admin, path);
+  assertNoError(await admin.from("photos").insert({ id: photoId, date_id: recordId, path, thumb_path: path, sort_order: 1 }), "상대의 사진 행");
+  assertNoError(await admin.from("dates").update({ revision: randomUUID() }).eq("id", recordId), "판 번호");
+};
+
+/**
  * 테스트 하나에서만 쓰는 일정을 만든다. 돌려준 함수는 그 일정을 지운다.
  *
  * @example const deleteEvent = await createDisposableEvent({ id: randomUUID(), title: "고칠 일정" })
