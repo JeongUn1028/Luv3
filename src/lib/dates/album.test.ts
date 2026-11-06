@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPeriodMonthDay, formatTileLabel, groupByMonth, toAlbumTiles, type AlbumTile } from "./album";
+import { formatPeriodMonthDay, formatTileLabel, groupByMonth, toAlbumTiles, toTagSuggestions, type AlbumTile } from "./album";
 
 const tile = (overrides: Partial<AlbumTile>): AlbumTile => ({
   id: "r",
@@ -84,5 +84,19 @@ describe("toAlbumTiles", () => {
       [{ path: "a/p_thumb.jpg", signedUrl: null }],
     );
     expect(first?.thumbUrl).toBeUndefined();
+  });
+});
+
+describe("toTagSuggestions", () => {
+  it("많이 쓴 순서로, 수가 같으면 가나다순으로 줄 세운다", () => {
+    expect(toTagSuggestions([["카페"], ["여행", "카페"], ["산책"]])).toEqual(["카페", "산책", "여행"]);
+  });
+
+  it("태그가 없으면 빈 목록이다", () => {
+    expect(toTagSuggestions([])).toEqual([]);
+  });
+
+  it("대소문자만 다른 태그는 하나로 세고 먼저 나온 글자를 쓴다", () => {
+    expect(toTagSuggestions([["여행"], ["Cafe"], ["cafe"]])).toEqual(["Cafe", "여행"]);
   });
 });

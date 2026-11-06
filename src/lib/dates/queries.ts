@@ -1,8 +1,9 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
+import { catchLoadError } from "@/lib/load";
 import { getSignedUrls } from "@/lib/photos/signed-urls";
-import { toAlbumTiles, type AlbumTile } from "./album";
+import { toAlbumTiles, toTagSuggestions, type AlbumTile } from "./album";
 import { isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
 
 /** 앨범 그리드를 불러오지 못했을 때 */
@@ -48,6 +49,31 @@ export const getAlbumTiles = async (): Promise<AlbumTile[]> => loadLatestTiles()
  */
 export const getLatestRecord = async (): Promise<AlbumTile | undefined> => (await loadLatestTiles(1))[0];
 
+class TagSuggestionLoadError extends Error {
+  constructor(options?: ErrorOptions) {
+    super("전에 쓴 태그를 불러오지 못했어요.", options);
+    this.name = "TagSuggestionLoadError";
+  }
+}
+
+const loadTagSuggestions = async (): Promise<string[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("dates").select("tags");
+  if (error) throw new TagSuggestionLoadError({ cause: error });
+  return toTagSuggestions(data.map(({ tags }) => tags));
+};
+
+/**
+ * 전에 쓴 태그를 많이 쓴 순서로 읽는다(작성 화면의 추천).
+ * 추천을 못 읽어도 기록은 쓸 수 있어, 실패하면 로그만 남기고 빈 목록을 돌려준다.
+ *
+ * @example const suggestions = await getTagSuggestions()
+ */
+export const getTagSuggestions = async (): Promise<string[]> => {
+  const suggestions = await catchLoadError(loadTagSuggestions, TagSuggestionLoadError);
+  return suggestions instanceof TagSuggestionLoadError ? [] : suggestions;
+};
+
 /** 기록 상세를 불러오지 못했을 때(없는 기록은 이 에러가 아니라 undefined) */
 export class DateRecordLoadError extends Error {
   constructor(options?: ErrorOptions) {
@@ -57,7 +83,7 @@ export class DateRecordLoadError extends Error {
 }
 
 const DETAIL_COLUMNS =
-  "id, date, end_date, title, place, memo, cover_photo_id, author:members!dates_author_id_fkey(nickname), photos!photos_date_id_fkey(id, path, thumb_path, caption, sort_order)";
+  "id, date, end_date, title, place, memo, cover_photo_id, tags, author:members!dates_author_id_fkey(nickname), photos!photos_date_id_fkey(id, path, thumb_path, caption, sort_order)";
 
 /** 기록 행 하나를 읽는다. id 형식이 틀리거나 없는 기록이면 undefined */
 const getDetailRow = async (

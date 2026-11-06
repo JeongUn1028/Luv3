@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
+import { flushSync } from "react-dom";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { toKstDate } from "@/lib/anniversary";
@@ -11,6 +12,7 @@ import {
   PLACE_MAX_LENGTH,
   TITLE_MAX_LENGTH,
   addPhotos,
+  addTag,
   getMinEndDate,
   movePhoto,
   removePhoto,
@@ -30,6 +32,7 @@ import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
 import { createClient } from "@/lib/supabase/client";
 import { PhotoPicker, type PickedPhoto } from "./PhotoPicker";
+import { TagField } from "./TagField";
 
 const labelClassName = "text-[13px] text-ink-sub";
 const inputClassName =
@@ -55,15 +58,17 @@ const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto>
   memo: "",
   photos: [],
   coverPhotoId: undefined,
+  tags: [],
 });
 
-const toEditDraft = ({ date, endDate, title, place, memo, coverPhotoId, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
+const toEditDraft = ({ date, endDate, title, place, memo, coverPhotoId, tags, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
   date,
   endDate,
   title,
   place,
   memo,
   coverPhotoId,
+  tags,
   photos: photos.map((photo) => ({ ...photo, file: undefined })),
 });
 
@@ -82,10 +87,12 @@ interface DateRecordFormProps {
   record?: EditableRecord;
   /** 새 기록에 미리 채울 값(지난 일정에서 넘어온 경우) */
   prefill?: RecordPrefill;
+  /** 전에 쓴 태그 */
+  tagSuggestions: string[];
 }
 
 /** 데이트 기록 작성·수정 폼. 새로 고른 사진을 줄여 올린 뒤 기록과 사진 행을 한 번에 저장한다. */
-export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactElement => {
+export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFormProps): ReactElement => {
   const router = useRouter();
   // 지난 일정에서 넘어온 새 기록은 일정마다 다른 폼이다. 다른 일정의 실패한 내용이 채워지지 않게 값까지 구분한다
   const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.title ?? ""}:${prefill?.place ?? ""}`}`;
@@ -95,6 +102,10 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
     return record ? toEditDraft(record) : createEmptyDraft(prefill);
   });
   const [errors, setErrors] = useState<DraftErrors>({});
+  const [tagInput, setTagInput] = useState("");
+  // 칸을 늘 열어 두면 빈 작성 화면에 스크롤이 생긴다(#52). 태그가 있는 기록은 열어 둔다
+  const [isTagFieldOpen, setIsTagFieldOpen] = useState(draft.tags.length > 0);
+  const tagInputRef = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState(failedSave?.message);
   const [isRecordGone, setIsRecordGone] = useState(false);
   const [progress, setProgress] = useState<SaveProgress>();
@@ -158,11 +169,31 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
     setDraft(removePhoto(draft, photoId));
   };
 
+  const handleOpenTagField = () => {
+    // iOS는 누르는 동작 안에서 초점을 줘야 키보드를 연다. 칸을 먼저 그려야 초점을 줄 수 있다
+    flushSync(() => setIsTagFieldOpen(true));
+    tagInputRef.current?.focus();
+  };
+
+  const handleAddTag = (text: string) => {
+    const { tags, error } = addTag(draft.tags, text);
+    setDraft({ ...draft, tags });
+    setErrors((current) => (error ? { ...current, tags: error } : clearError(current, "tags")));
+    // 전에 쓴 태그를 눌렀을 때는 적던 글자를 그대로 둔다
+    if (!error && text === tagInput) setTagInput("");
+  };
+
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSaving) return;
 
-    const nextErrors = validateDraft(draft, today);
+    // 적어 두고 추가를 누르지 않은 태그를 잃지 않게 함께 저장한다
+    const { tags, error: tagError } = addTag(draft.tags, tagInput);
+    const nextDraft = { ...draft, tags };
+    setDraft(nextDraft);
+    if (!tagError) setTagInput("");
+
+    const nextErrors: DraftErrors = { ...validateDraft(nextDraft, today), ...(tagError && { tags: tagError }) };
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
       setNotice("입력한 내용을 확인해 주세요.");
@@ -175,11 +206,11 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
     try {
       const supabase = createClient();
       const storage = supabase.storage.from(ALBUM_BUCKET);
-      const files = new Map(draft.photos.flatMap(({ id, file }) => (file ? [[id, file] as const] : [])));
+      const files = new Map(nextDraft.photos.flatMap(({ id, file }) => (file ? [[id, file] as const] : [])));
       if (record) {
         await updateDateRecord({
           recordId: record.id,
-          draft,
+          draft: nextDraft,
           files,
           storage,
           resize: resizePhoto,
@@ -189,7 +220,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
       } else {
         await saveDateRecord({
           recordId: crypto.randomUUID(),
-          draft,
+          draft: nextDraft,
           files,
           storage,
           resize: resizePhoto,
@@ -207,6 +238,8 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
         href: record ? `/dates/${record.id}` : RECORDS_PATH,
         reset: () => {
           setDraft(record ? toEditDraft(record) : createEmptyDraft());
+          setTagInput("");
+          setIsTagFieldOpen(Boolean(record?.tags.length));
           setErrors({});
           setNotice(undefined);
           setProgress(undefined);
@@ -220,7 +253,7 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
       setNotice(message);
       setIsSaving(false);
       setProgress(undefined);
-      finishFailed({ draft, message, isGone });
+      finishFailed({ draft: nextDraft, message, isGone });
     }
   };
 
@@ -344,9 +377,22 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
         </div>
 
         <div className="flex flex-col">
-          <label htmlFor="place" className={labelClassName}>
-            장소 <span className="text-ink-placeholder">(선택)</span>
-          </label>
+          <div className="flex items-baseline justify-between">
+            <label htmlFor="place" className={labelClassName}>
+              장소 <span className="text-ink-placeholder">(선택)</span>
+            </label>
+            {!isTagFieldOpen && (
+              <button
+                type="button"
+                disabled={isSaving}
+                onClick={handleOpenTagField}
+                // 글자 줄만큼만 차지하면서 44px을 누를 수 있게 넓힌다. 아래 입력 칸의 오른쪽 위 끝이 조금 겹친다
+                className="relative text-[13px] leading-[19px] text-ink-sub after:absolute after:-inset-y-[12.5px] after:inset-x-0 disabled:opacity-50"
+              >
+                태그 추가
+              </button>
+            )}
+          </div>
           <input
             id="place"
             value={draft.place}
@@ -364,6 +410,26 @@ export const DateRecordForm = ({ record, prefill }: DateRecordFormProps): ReactE
             </p>
           )}
         </div>
+
+        {isTagFieldOpen && (
+          <TagField
+            inputRef={tagInputRef}
+            tags={draft.tags}
+            suggestions={tagSuggestions}
+            input={tagInput}
+            error={errors.tags}
+            isDisabled={isSaving}
+            onInputChange={(value) => {
+              setTagInput(value);
+              setErrors((current) => clearError(current, "tags"));
+            }}
+            onAdd={handleAddTag}
+            onRemove={(tag) => {
+              setDraft({ ...draft, tags: draft.tags.filter((existing) => existing !== tag) });
+              setErrors((current) => clearError(current, "tags"));
+            }}
+          />
+        )}
 
         <div className="flex grow flex-col">
           <div className="flex items-baseline justify-between">
