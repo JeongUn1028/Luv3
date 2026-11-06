@@ -47,7 +47,9 @@ E2E는 대상 기기 두 크기(아이폰 15 Pro, 아이폰 17)에서 앱을 빌
 
 로컬 Supabase는 워크트리가 달라도 하나이고 E2E는 시작할 때 전용 계정을 지우므로, 포트를 바꿔도 두 실행을 동시에 돌리면 서로 깨진다.
 
-PR과 main push마다 GitHub Actions(`.github/workflows/ci.yml`)가 같은 검사와 `pnpm build`를 실행한다.
+PR과 main push마다 GitHub Actions(`.github/workflows/ci.yml`)가 같은 검사와 `pnpm build`를 실행한다. PR에는 운영 DB 반영 체크를 보는 검사(`.github/workflows/db-apply.yml`)도 함께 돈다.
+
+main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보호의 필수 상태 검사: `lint · type-check · test · build`, `test:db (pgTAP RLS)`, `test:e2e`, `운영 DB 반영 확인`). 필수 검사는 잡 이름으로 등록하므로, 잡 이름을 바꾸면 보호 설정도 같이 고쳐야 PR이 "기다리는 중"에 멈추지 않는다. 그때 이미 열려 있던 PR은 main을 받아 push해야 새 이름으로 다시 검사된다. 긴급 수정은 관리자만 `gh pr merge --admin`으로 검사를 건너뛸 수 있다.
 
 스키마를 바꾸면 `supabase/migrations/`에 새 파일을 추가하고 `pnpm db:reset && pnpm db:types`로 타입을 다시 만든다.
 
@@ -83,7 +85,13 @@ main에 머지하면 Vercel이 바로 배포하므로, 새 칸이나 함수를 �
    pnpm exec supabase db push --linked
    ```
 
-3. `pnpm exec supabase migration list --linked`로 로컬과 운영이 같은지 확인한 뒤 머지한다.
+3. `pnpm exec supabase migration list --linked`로 로컬과 운영이 같은지 확인한다.
+4. PR 본문에 아래 칸을 넣어 반영했다고 표시한 뒤 머지한다. 바뀐 마이그레이션 파일마다 체크된 줄이 있어야 `운영 DB 반영 확인` 검사가 통과하고, 본문을 고치면 다시 확인한다. 이 검사는 체크만 볼 뿐 운영 DB를 직접 들여다보지는 않으므로, 체크는 실제로 반영한 뒤에 한다. 이미 반영한 파일은 고쳐도 `db push`가 다시 실행하지 않고 이 검사도 잡지 못하므로, 고칠 내용은 새 파일로 추가한다.
+
+   ```markdown
+   ## 운영 반영
+   - [x] 머지 전에 `pnpm exec supabase db push --linked`로 `20261106050000_date_record_revision.sql` 반영
+   ```
 
 워크트리에서 실행하면 연결 정보가 없으므로, 원본 클론의 `supabase/.temp` 내용을 워크트리의 같은 폴더로 복사한다. 이 폴더는 커밋되지 않는다.
 
