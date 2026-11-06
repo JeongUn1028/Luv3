@@ -60,6 +60,7 @@ PR과 main push마다 GitHub Actions(`.github/workflows/ci.yml`)가 같은 검�
 5. Vercel 환경 변수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `CRON_SECRET`(무작위 32자 이상, `.env.example`의 명령으로 만든다)
    - `CRON_SECRET`은 `vercel.json`의 Cron이 하루 한 번(UTC 03:00) `/api/keepalive`를 부를 때 쓴다. 무료 플랜이 7일 동안 요청이 없어 일시정지되지 않게 한다. 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
    - `KAKAO_REST_API_KEY`(선택)는 기록 폼의 장소 찾기에 쓴다. 없으면 오류 없이 돋보기만 나오지 않는다. 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
+   - `NEXT_PUBLIC_KAKAO_MAP_KEY`(선택)는 기록 지도에 쓰는 JavaScript 키다. 없으면 오류 없이 지도 버튼만 나오지 않는다. 브라우저에 보이는 값이므로 카카오 콘솔의 SDK 도메인에 운영 주소를 등록해 제한한다. 빌드할 때 값이 들어가므로 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
 
 로그인 메일을 쓰지 않으므로 SMTP 설정은 필요 없다.
 

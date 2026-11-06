@@ -43,6 +43,12 @@ interface Screen {
 const SCREENS: Screen[] = [
   { name: "홈", path: "/", ready: (page) => page.getByText(TODO.content) },
   { name: "기록", path: "/records", ready: (page) => page.locator(`a[href="/dates/${PHOTO_RECORD.id}"]`) },
+  {
+    name: "지도",
+    path: "/records/map",
+    // 나란히 도는 다른 테스트가 좌표를 넣으면 빈 안내 대신 지도가 나온다
+    ready: (page) => page.getByText("아직 지도에 표시할 기록이 없어요").or(page.getByRole("list", { name: "지도에 있는 기록" })),
+  },
   { name: "캘린더", path: "/calendar", ready: (page) => page.locator('button[aria-pressed="true"]') },
   { name: "Todo", path: "/todos", ready: (page) => page.getByText(TODO.content) },
   { name: "설정", path: "/settings", ready: (page) => page.getByText(E2E_MEMBER.nickname, { exact: true }) },
@@ -59,6 +65,11 @@ const SCREENS: Screen[] = [
 ];
 
 test.describe("화면 높이", () => {
+  // 지도 화면이 실제 카카오를 부르지 않게 막는다. 지도를 못 불러온 안내로 높이를 잰다
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/dapi.kakao.com/**", (route) => route.abort());
+  });
+
   for (const { name, path, ready } of SCREENS) {
     test(`${name} 화면을 열면 문서가 화면 높이를 넘지 않는다`, async ({ page }) => {
       await openScreen(page, path, ready(page));
