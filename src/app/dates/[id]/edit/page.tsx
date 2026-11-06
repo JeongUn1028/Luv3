@@ -6,7 +6,7 @@ import { LoadErrorScreen } from "@/components/LoadErrorScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { getCurrentMember } from "@/lib/auth/member";
 import { RECORDS_PATH } from "@/lib/dates/album";
-import { DateRecordLoadError, getEditableRecord } from "@/lib/dates/queries";
+import { DateRecordLoadError, getEditableRecord, getTagSuggestions } from "@/lib/dates/queries";
 import { catchLoadError } from "@/lib/load";
 
 export const metadata: Metadata = { title: "기록 고치기 · Luv3" };
@@ -15,7 +15,10 @@ const EditForm = async ({ params }: { params: Promise<{ id: string }> }) => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
   await getCurrentMember();
   const { id } = await params;
-  const record = await catchLoadError(() => getEditableRecord(id), DateRecordLoadError);
+  const [record, tagSuggestions] = await Promise.all([
+    catchLoadError(() => getEditableRecord(id), DateRecordLoadError),
+    getTagSuggestions(),
+  ]);
 
   if (record instanceof DateRecordLoadError) {
     return <LoadErrorScreen title="기록을 불러오지 못했어요" backHref={RECORDS_PATH} backLabel="기록 목록으로" />;
@@ -24,7 +27,13 @@ const EditForm = async ({ params }: { params: Promise<{ id: string }> }) => {
 
   // cacheComponents는 다녀온 화면의 상태를 보존해, 저장 뒤 다시 열면 예전 입력값이 남는다.
   // 요청마다 새 key를 줘 최신 기록 값으로 폼을 다시 만든다
-  return <DateRecordForm key={crypto.randomUUID()} record={record} />;
+  return (
+    <DateRecordForm
+      key={crypto.randomUUID()}
+      record={record}
+      tagSuggestions={tagSuggestions}
+    />
+  );
 };
 
 const EditDateRecordPage = ({ params }: PageProps<"/dates/[id]/edit">) => (

@@ -68,6 +68,15 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
             {record.authorNickname && <AuthorTag nickname={record.authorNickname} />}
           </div>
           <h1 className="mt-1.5 font-display text-[22px] leading-[1.4] break-words text-ink">{record.title}</h1>
+          {record.tags.length > 0 && (
+            <ul aria-label="태그" className="mt-3 flex flex-wrap gap-1.5">
+              {record.tags.map((tag) => (
+                <li key={tag} className="h-[26px] rounded-[4px] bg-highlight/16 px-2 text-[13px] leading-[26px] text-highlight">
+                  {tag}
+                </li>
+              ))}
+            </ul>
+          )}
           {record.memo && (
             <p className="mt-5 text-[15px] leading-[1.75] break-words whitespace-pre-wrap text-ink">{record.memo}</p>
           )}
