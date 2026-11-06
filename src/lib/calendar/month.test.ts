@@ -174,6 +174,33 @@ describe("canLeaveRecord", () => {
   it("한 사람 일정은 데이트 기록으로 권하지 않는다", () => {
     expect(canLeaveRecord({ date: "2026-11-01", title: "치과", isTogether: false }, today, [])).toBe(false);
   });
+
+  describe("기간 일정", () => {
+    const trip = { title: "제주 여행", isTogether: true, period: { start: "2026-10-30", end: "2026-11-01" } };
+
+    it("끝나는 날부터 기록으로 이어 쓸 수 있다", () => {
+      expect(canLeaveRecord({ ...trip, date: "2026-10-30" }, "2026-11-01", [])).toBe(true);
+      expect(canLeaveRecord({ ...trip, date: "2026-11-01" }, "2026-11-05", [])).toBe(true);
+    });
+
+    it("진행 중이면 아직 권하지 않는다", () => {
+      expect(canLeaveRecord({ ...trip, date: "2026-10-30" }, "2026-10-31", [])).toBe(false);
+    });
+
+    it("기간과 겹치는 같은 제목의 기록이 있으면 기간의 어느 날에서도 권하지 않는다", () => {
+      const records = [{ date: "2026-10-30", endDate: "2026-10-31", title: "제주 여행" }];
+      expect(canLeaveRecord({ ...trip, date: "2026-11-01" }, today, records)).toBe(false);
+      expect(canLeaveRecord({ ...trip, date: "2026-10-30" }, today, records)).toBe(false);
+    });
+
+    it("기간과 겹치지 않는 기록이나 다른 제목의 기록은 상관없다", () => {
+      const records = [
+        { date: "2026-10-29", title: "제주 여행" },
+        { date: "2026-10-31", title: "저녁" },
+      ];
+      expect(canLeaveRecord({ ...trip, date: "2026-11-01" }, today, records)).toBe(true);
+    });
+  });
 });
 
 describe("toCalendarHref", () => {

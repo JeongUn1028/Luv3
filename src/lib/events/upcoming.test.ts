@@ -106,6 +106,12 @@ describe("formatEventMeta", () => {
     expect(formatEventMeta({ startTime: "19:00:00", place: undefined })).toBe("19:00");
     expect(formatEventMeta({ startTime: null, place: undefined })).toBe("종일");
   });
+
+  it("기간 일정은 시간 대신 기간을 쓴다", () => {
+    const period = { start: "2026-10-30", end: "2026-11-01" };
+    expect(formatEventMeta({ startTime: "10:00:00", place: "제주", period })).toBe("10.30–11.01 · 제주");
+    expect(formatEventMeta({ startTime: null, place: undefined, period })).toBe("10.30–11.01");
+  });
 });
 
 describe("formatEventOwner", () => {

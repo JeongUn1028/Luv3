@@ -15,7 +15,7 @@ export class EventLoadError extends Error {
 }
 
 const EVENT_COLUMNS =
-  "id, date, start_time, title, place, is_together, repeat_rule, repeat_until, created_at, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date)";
+  "id, date, start_time, title, place, is_together, repeat_rule, repeat_until, end_date, created_at, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date)";
 
 /**
  * 달력에 그릴 한 달(앞뒤 주 포함)의 일정과 데이트 기록을 함께 읽는다. 기록은 기간이 이 범위와 겹치면 읽는다.
@@ -34,8 +34,8 @@ export const getCalendarMonth = async (
       .from("events")
       .select(EVENT_COLUMNS)
       .lte("date", end)
-      // 한 번짜리는 범위 안의 날만, 반복 일정은 범위 앞에 시작했어도 끝나지 않았으면 읽는다. 한 번짜리의 끝나는 날은 늘 비어 있다
-      .or(`date.gte.${start},repeat_rule.not.is.null`)
+      // 하루 일정은 범위 안의 날만, 반복·기간 일정은 범위 앞에 시작했어도 끝나지 않았으면 읽는다. 반복이 아니면 끝나는 날은 늘 비어 있다
+      .or(`date.gte.${start},repeat_rule.not.is.null,end_date.gte.${start}`)
       .or(`repeat_until.is.null,repeat_until.gte.${start}`),
     supabase
       .from("dates")
@@ -69,7 +69,8 @@ export const getUpcomingEvents = async (today: string): Promise<CalendarEvent[]>
       .from("events")
       .select(EVENT_COLUMNS)
       .is("repeat_rule", null)
-      .gte("date", today)
+      // 이미 시작한 기간 일정도 끝나기 전까지 읽는다
+      .or(`date.gte.${today},end_date.gte.${today}`)
       .order("date")
       .order("start_time", { nullsFirst: true })
       .order("created_at")
@@ -95,7 +96,7 @@ export const getEvent = async (id: string): Promise<EditableEvent | undefined> =
   const { data, error } = await supabase
     .from("events")
     .select(
-      "id, date, start_time, title, place, memo, is_together, repeat_rule, repeat_until, repeat_parent_id, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date)",
+      "id, date, start_time, title, place, memo, is_together, repeat_rule, repeat_until, end_date, repeat_parent_id, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date)",
     )
     .eq("id", id)
     .maybeSingle();

@@ -105,18 +105,21 @@ export const getMinEndDate = (date: string, today: string): string | undefined =
 /** 일정에서 기록 작성으로 넘어갈 때 작성 폼에 미리 채울 값 */
 export interface RecordPrefill {
   date: string;
+  /** 기간 일정에서 넘어오면 끝 날짜 */
+  endDate?: string | undefined;
   title: string;
   place: string;
 }
 
 /**
- * 지난 일정으로 기록을 남기는 작성 화면 주소. 날짜·제목·장소를 쿼리로 넘긴다.
+ * 지난 일정으로 기록을 남기는 작성 화면 주소. 날짜(기간이면 끝 날짜까지)·제목·장소를 쿼리로 넘긴다.
  *
  * @example toNewRecordHref({ date: "2026-11-01", title: "산책", place: "" }) // "/dates/new?date=2026-11-01&title=%EC%82%B0%EC%B1%85"
  */
-export const toNewRecordHref = ({ date, title, place }: RecordPrefill): string => {
+export const toNewRecordHref = ({ date, endDate, title, place }: RecordPrefill): string => {
   const query = new URLSearchParams({ date, title });
   if (place) query.set("place", place);
+  if (endDate) query.set("endDate", endDate);
   return `/dates/new?${query.toString()}`;
 };
 
@@ -137,11 +140,14 @@ export const parseRecordPrefill = (
   params: Record<string, string | string[] | undefined>,
   today: string,
 ): RecordPrefill | undefined => {
-  const { date, title, place } = params;
+  const { date, endDate, title, place } = params;
   if (date === undefined && title === undefined && place === undefined) return undefined;
+  // 날짜를 받았는데 쓸 수 없으면 오늘로 바꾸지 않고 비워 둔다: 일정과 다른 날로 저장되지 않게 직접 고르게 한다
+  const startDate = date === undefined ? today : typeof date === "string" && isIsoDate(date) && date <= today ? date : "";
   return {
-    // 날짜를 받았는데 쓸 수 없으면 오늘로 바꾸지 않고 비워 둔다: 일정과 다른 날로 저장되지 않게 직접 고르게 한다
-    date: date === undefined ? today : typeof date === "string" && isIsoDate(date) && date <= today ? date : "",
+    date: startDate,
+    // 쓸 수 없는 끝 날짜는 받지 않아 하루 기록으로 시작한다
+    endDate: typeof endDate === "string" && isIsoDate(endDate) && startDate !== "" && startDate < endDate && endDate <= today ? endDate : undefined,
     title: typeof title === "string" ? takeChars(title, TITLE_MAX_LENGTH) : "",
     place: typeof place === "string" ? takeChars(place, PLACE_MAX_LENGTH) : "",
   };

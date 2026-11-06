@@ -56,7 +56,7 @@ const toSaveErrorMessage = (error: unknown): string => {
 
 const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto> => ({
   date: prefill?.date ?? toKstDate(new Date()),
-  endDate: undefined,
+  endDate: prefill?.endDate,
   title: prefill?.title ?? "",
   place: prefill?.place ?? "",
   memo: "",
@@ -104,7 +104,7 @@ interface DateRecordFormProps {
 export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace }: DateRecordFormProps): ReactElement => {
   const router = useRouter();
   // 지난 일정에서 넘어온 새 기록은 일정마다 다른 폼이다. 다른 일정의 실패한 내용이 채워지지 않게 값까지 구분한다
-  const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.title ?? ""}:${prefill?.place ?? ""}`}`;
+  const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.endDate ?? ""}:${prefill?.title ?? ""}:${prefill?.place ?? ""}`}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "기록을", failedSaves });
   const [draft, setDraft] = useState(() => {
     if (failedSave) return withNewPreviews(failedSave.draft);

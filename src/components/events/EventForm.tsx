@@ -15,13 +15,14 @@ import {
   EVENT_PLACE_MAX_LENGTH,
   EVENT_TITLE_MAX_LENGTH,
   changeDraftScope,
-  getMinRepeatUntil,
+  getDateAfterSave,
+  getMinDateAfterStart,
   validateEventDraft,
   type EventDraft,
   type EventDraftErrors,
   type EventEditScope,
 } from "@/lib/events/form";
-import { formatRepeatRule, REPEAT_RULES } from "@/lib/events/recurrence";
+import { formatEventPeriod, formatRepeatRule, REPEAT_RULES } from "@/lib/events/recurrence";
 import { deleteEvent, saveEvent } from "@/lib/events/save";
 import { clearError } from "@/lib/form";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
@@ -39,7 +40,7 @@ const EDIT_SCOPES: { scope: EventEditScope; label: string }[] = [
   { scope: "all", label: "전체" },
 ];
 
-type TextField = "date" | "startTime" | "title" | "place" | "memo" | "repeatUntil";
+type TextField = "date" | "startTime" | "title" | "place" | "memo" | "repeatUntil" | "endDate";
 
 const failedSaves = new Map<string, FailedSave<EventDraft>>();
 
@@ -53,13 +54,15 @@ interface EventFormProps {
   ownerNickname: string;
   /** 반복 일정의 어느 날을 눌렀는지. 있으면 "이 날만 / 전체"를 고른다 */
   occurrence?: { date: string; startDate: string };
+  /** 기간 일정의 어느 날을 눌렀는지. 돌아갈 때 그날을 고른다 */
+  viewedDate?: string | undefined;
   /** 반복 중 하루만 고쳐 따로 나온 일정인지. 다시 반복으로 바꾸지 않는다 */
   isDetached?: boolean;
 }
 
 /** 삭제 확인 창의 문구 */
 const toDeleteDialog = (
-  { title, repeatRule }: EventDraft,
+  { date, endDate, title, repeatRule }: EventDraft,
   occurrenceDate: string | undefined,
 ): { title: string; description: string } => {
   if (occurrenceDate) {
@@ -74,6 +77,12 @@ const toDeleteDialog = (
       description: `"${title}" 일정의 모든 날이 두 사람 캘린더에서 지워져요. 따로 고친 날도 함께 지워져요.`,
     };
   }
+  if (endDate) {
+    return {
+      title: "기간 일정을 지울까요?",
+      description: `"${title}" 일정의 ${formatEventPeriod({ start: date, end: endDate })} 모든 날이 두 사람 캘린더에서 지워져요.`,
+    };
+  }
   return { title: "이 일정을 지울까요?", description: `"${title}" 일정이 두 사람 캘린더에서 모두 지워져요.` };
 };
 
@@ -84,6 +93,7 @@ export const EventForm = ({
   authorNickname,
   ownerNickname,
   occurrence,
+  viewedDate,
   isDetached = false,
 }: EventFormProps): ReactElement => {
   const router = useRouter();
@@ -95,21 +105,33 @@ export const EventForm = ({
   const [notice, setNotice] = useState(failedSave?.message);
   const [isSaving, setIsSaving] = useState(false);
   // 캘린더로 돌아가면 일정 날짜가 속한 달을 열고 그날을 고른다
-  const backHref = toCalendarHref({ date: initialDraft.date });
+  const backDate = viewedDate ?? initialDraft.date;
+  const backHref = toCalendarHref({ date: backDate });
   const isOccurrenceScope = draft.scope === "occurrence";
-  // 이 날만 고칠 때는 반복을 바꾸지 않는다
-  const canEditRepeat = !isOccurrenceScope && !isDetached;
+  // 이 날만 고칠 때와 따로 나온 일정은 반복과 기간을 바꾸지 않는다
+  const canEditSpan = !isOccurrenceScope && !isDetached;
+  const isPeriod = draft.endDate !== undefined;
+  const dateLabel = isPeriod ? "시작 날짜" : "날짜";
   const deleteOccurrenceDate = isOccurrenceScope ? occurrence?.date : undefined;
 
   const updateField = (field: TextField, value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
-    setErrors((current) => clearError(current, field));
+    setErrors((current) => {
+      const cleared = clearError(current, field);
+      // 끝 날짜 에러는 시작 날짜에 따라 달라지므로, 시작 날짜를 고치면 함께 지우고 저장할 때 다시 확인한다
+      return field === "date" ? clearError(cleared, "endDate") : cleared;
+    });
+  };
+
+  const handlePeriodChange = (isChecked: boolean) => {
+    setDraft((current) => ({ ...current, endDate: isChecked ? "" : undefined }));
+    setErrors((current) => clearError(current, "endDate"));
   };
 
   const changeScope = (scope: EventEditScope) => {
     if (!occurrence) return;
     setDraft((current) => changeDraftScope(current, scope, occurrence, initialDraft.isTogether));
-    setErrors((current) => clearError(clearError(current, "date"), "repeatUntil"));
+    setErrors((current) => clearError(clearError(clearError(current, "date"), "repeatUntil"), "endDate"));
   };
 
   const goToCalendar = (date: string) => {
@@ -141,8 +163,7 @@ export const EventForm = ({
       return;
     }
     finishSaved({
-      // 전체를 고쳤으면 시작하는 날이 아니라 보고 있던 날로 돌아간다
-      href: toCalendarHref({ date: occurrence && draft.scope === "all" ? occurrence.date : draft.date }),
+      href: toCalendarHref({ date: getDateAfterSave(draft, { occurrenceDate: occurrence?.date, viewedDate }) }),
       reset: () => {
         setDraft(initialDraft);
         setIsSaving(false);
@@ -153,7 +174,7 @@ export const EventForm = ({
   const handleDelete = async () => {
     if (!eventId) return;
     await deleteEvent({ eventId, occurrenceDate: deleteOccurrenceDate });
-    goToCalendar(initialDraft.date);
+    goToCalendar(backDate);
   };
 
   return (
@@ -249,11 +270,11 @@ export const EventForm = ({
 
         <div className="flex flex-col">
           <label htmlFor="event-date" className={labelClassName}>
-            날짜
+            {dateLabel}
           </label>
           <DatePickerField
             id="event-date"
-            label="날짜"
+            label={dateLabel}
             value={draft.date}
             isDisabled={isSaving}
             isInvalid={Boolean(errors.date)}
@@ -269,29 +290,43 @@ export const EventForm = ({
         </div>
 
         <div className="flex flex-col">
-          {/* 반복을 같은 줄에 두어 폼 높이가 늘지 않게 한다. 일정 폼은 높이 여유가 거의 없다(#57) */}
+          {/* 기간과 반복을 같은 줄에 두어 폼 높이가 늘지 않게 한다. 일정 폼은 높이 여유가 거의 없다(#57) */}
           <div className="flex h-11 items-center justify-between gap-3">
-            <label className="flex h-11 items-center gap-2 text-[15px] text-ink">
-              <input
-                type="checkbox"
-                checked={draft.isAllDay}
-                disabled={isSaving}
-                onChange={(event) => {
-                  const isAllDay = event.target.checked;
-                  setDraft((current) => ({ ...current, isAllDay }));
-                  setErrors((current) => clearError(current, "startTime"));
-                }}
-                className="size-5 accent-accent"
-              />
-              종일
-            </label>
-            {canEditRepeat && (
-              <label htmlFor="event-repeat" className="flex h-11 min-w-0 items-center gap-2 text-[13px] text-ink-sub">
+            <div className="flex items-center gap-4">
+              <label className="flex h-11 items-center gap-2 text-[15px] text-ink">
+                <input
+                  type="checkbox"
+                  checked={draft.isAllDay}
+                  disabled={isSaving}
+                  onChange={(event) => {
+                    const isAllDay = event.target.checked;
+                    setDraft((current) => ({ ...current, isAllDay }));
+                    setErrors((current) => clearError(current, "startTime"));
+                  }}
+                  className="size-5 accent-accent"
+                />
+                종일
+              </label>
+              {canEditSpan && (
+                <label className="flex h-11 items-center gap-2 text-[15px] text-ink has-disabled:opacity-50">
+                  <input
+                    type="checkbox"
+                    checked={isPeriod}
+                    disabled={isSaving || Boolean(draft.repeatRule)}
+                    onChange={(event) => handlePeriodChange(event.target.checked)}
+                    className="size-5 accent-accent"
+                  />
+                  기간
+                </label>
+              )}
+            </div>
+            {canEditSpan && (
+              <label htmlFor="event-repeat" className="flex h-11 min-w-0 items-center gap-2 text-[13px] text-ink-sub has-disabled:opacity-50">
                 반복
                 <select
                   id="event-repeat"
                   value={draft.repeatRule ?? ""}
-                  disabled={isSaving}
+                  disabled={isSaving || isPeriod}
                   onChange={(event) => {
                     const { value } = event.target;
                     setDraft((current) => ({ ...current, repeatRule: isRepeatRule(value) ? value : undefined }));
@@ -309,6 +344,33 @@ export const EventForm = ({
               </label>
             )}
           </div>
+          {canEditSpan && (isPeriod || draft.repeatRule) && (
+            <p className={labelClassName}>기간과 반복은 함께 쓸 수 없어요.</p>
+          )}
+          {canEditSpan && isPeriod && (
+            <>
+              <label htmlFor="event-end-date" className={`${labelClassName} mt-3`}>
+                끝 날짜
+              </label>
+              <DatePickerField
+                id="event-end-date"
+                label="끝 날짜"
+                min={getMinDateAfterStart(draft.date)}
+                value={draft.endDate ?? ""}
+                openDate={draft.date}
+                isDisabled={isSaving}
+                isInvalid={Boolean(errors.endDate)}
+                describedBy={errors.endDate ? "event-end-date-error" : undefined}
+                onChange={(date) => updateField("endDate", date)}
+                className={inputClassName}
+              />
+              {errors.endDate && (
+                <p id="event-end-date-error" className={errorClassName}>
+                  {errors.endDate}
+                </p>
+              )}
+            </>
+          )}
           {!draft.isAllDay && (
             <>
               <label htmlFor="event-time" className={`${labelClassName} mt-3`}>
@@ -331,7 +393,7 @@ export const EventForm = ({
               )}
             </>
           )}
-          {canEditRepeat && draft.repeatRule && (
+          {canEditSpan && draft.repeatRule && (
             <>
               <label htmlFor="event-repeat-until" className={`${labelClassName} mt-3`}>
                 끝나는 날 <span className="text-ink-placeholder">(선택)</span>
@@ -339,7 +401,7 @@ export const EventForm = ({
               <DatePickerField
                 id="event-repeat-until"
                 label="끝나는 날"
-                min={getMinRepeatUntil(draft.date)}
+                min={getMinDateAfterStart(draft.date)}
                 value={draft.repeatUntil}
                 openDate={draft.date}
                 isClearable
