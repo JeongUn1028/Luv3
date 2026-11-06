@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(20);
+select plan(22);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@repeat.test', 'authenticated', 'authenticated'),
@@ -70,7 +70,7 @@ select throws_ok(
 
 -- 하루만 고치기: b가 a의 일정을 고쳐도 작성자와 함께 여부는 반복 일정을 따른다
 select lives_ok(
-  $$select public.detach_event_occurrence('40000000-0000-0000-0000-000000000001', '2027-01-06', '2027-01-07', '19:00', '수영(옮김)', '수영장', null)$$,
+  $$select public.detach_event_occurrence('40000000-0000-0000-0000-000000000001', '2027-01-06', '2027-01-07', '수영(옮김)', '19:00', '수영장', null)$$,
   '하루만 고치면 일정이 따로 나온다'
 );
 
@@ -86,9 +86,20 @@ select results_eq(
   '하루만 고친 날은 반복에서 건너뛴다'
 );
 
+select lives_ok(
+  $$select public.detach_event_occurrence('40000000-0000-0000-0000-000000000001', '2027-01-13', '2027-01-13', '종일로')$$,
+  '날짜와 제목만 넘겨도 하루만 고친다'
+);
+
+select results_eq(
+  $$select start_time, place, memo from public.events where title = '종일로'$$,
+  $$values (null::time, null::text, null::text)$$,
+  '시간·장소·메모를 넘기지 않으면 비워 둔다'
+);
+
 -- 응답을 못 받아 다시 저장하거나 둘이 같은 날을 고쳐도 일정이 두 줄 생기지 않는다
 select throws_ok(
-  $$select public.detach_event_occurrence('40000000-0000-0000-0000-000000000001', '2027-01-06', '2027-01-07', '19:00', '수영(옮김)', '수영장', null)$$,
+  $$select public.detach_event_occurrence('40000000-0000-0000-0000-000000000001', '2027-01-06', '2027-01-07', '수영(옮김)', '19:00', '수영장', null)$$,
   'P0002', null, '이미 건너뛴 날은 다시 고칠 수 없다'
 );
 
@@ -99,7 +110,7 @@ select results_eq(
 );
 
 select throws_ok(
-  $$select public.detach_event_occurrence('40000000-0000-0000-0000-000000000002', '2026-11-06', '2026-11-07', null, '한 번', null, null)$$,
+  $$select public.detach_event_occurrence('40000000-0000-0000-0000-000000000002', '2026-11-06', '2026-11-07', '한 번')$$,
   'P0002', null, '반복 일정이 아니면 하루만 고칠 수 없다'
 );
 
@@ -113,7 +124,7 @@ select results_eq(
 );
 
 select throws_ok(
-  $$select public.detach_event_occurrence('40000000-0000-0000-0000-000000000001', '2027-02-06', '2027-02-06', null, '침입', null, null)$$,
+  $$select public.detach_event_occurrence('40000000-0000-0000-0000-000000000001', '2027-02-06', '2027-02-06', '침입')$$,
   '42501', null, '허용목록 밖 사용자는 하루만 고칠 수 없다'
 );
 

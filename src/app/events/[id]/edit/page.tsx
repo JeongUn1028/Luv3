@@ -6,17 +6,19 @@ import { StatusLink, StatusScreen } from "@/components/StatusScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { getCurrentMember } from "@/lib/auth/member";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
-import { toOwnerLabel } from "@/lib/events/calendar";
+import { isRepeatRule, toOwnerLabel } from "@/lib/events/calendar";
 import { toEventDraft } from "@/lib/events/form";
 import { EventLoadError, getEvent } from "@/lib/events/queries";
+import { findOccurrenceDate } from "@/lib/events/recurrence";
 import { catchLoadError } from "@/lib/load";
 
 export const metadata: Metadata = { title: "일정 고치기 · Luv3" };
 
-const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) => {
+const EditEventForm = async ({ params, searchParams }: Pick<PageProps<"/events/[id]/edit">, "params" | "searchParams">) => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
   await getCurrentMember();
   const { id } = await params;
+  const { date } = await searchParams;
 
   const event = await catchLoadError(() => getEvent(id), EventLoadError);
 
@@ -32,6 +34,18 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
     );
   }
 
+  // 캘린더에서 누른 날이 오는 날이면 그날을 고칠지 전체를 고칠지 고르게 한다
+  const occurrenceDate = findOccurrenceDate(event, date);
+
+  // 낡은 캘린더에서 이미 고치거나 지운 날을 누른 경우다. 그대로 열면 그날만 고치려다 반복 전체를 고치게 된다
+  if (isRepeatRule(event.repeat_rule) && date !== undefined && !occurrenceDate) {
+    return (
+      <StatusScreen title="이 날 일정은 이미 고쳤거나 지웠어요" description="캘린더에서 다시 확인해 주세요.">
+        <StatusLink href={CALENDAR_PATH}>캘린더로</StatusLink>
+      </StatusScreen>
+    );
+  }
+
   // cacheComponents는 다녀온 화면의 상태를 보존해, 다시 열면 예전 입력값이 남는다. 요청마다 새 key로 최신 값을 채운다
   return (
     <EventForm
@@ -39,15 +53,17 @@ const EditEventForm = async ({ params }: { params: Promise<{ id: string }> }) =>
       eventId={event.id}
       authorNickname={event.authorNickname}
       ownerNickname={toOwnerLabel(event.authorNickname)}
-      initialDraft={toEventDraft(event)}
+      initialDraft={toEventDraft(event, occurrenceDate)}
+      occurrence={occurrenceDate ? { date: occurrenceDate, startDate: event.date } : undefined}
+      isDetached={event.repeat_parent_id !== null}
     />
   );
 };
 
-const EditEventPage = ({ params }: PageProps<"/events/[id]/edit">) => (
-  // 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
+const EditEventPage = ({ params, searchParams }: PageProps<"/events/[id]/edit">) => (
+  // 주소의 id·쿼리와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
   <LoadingSuspense fallback={<FormSkeleton back={{ href: CALENDAR_PATH }} title="일정 고치기" fieldCount={5} />}>
-    <EditEventForm params={params} />
+    <EditEventForm params={params} searchParams={searchParams} />
   </LoadingSuspense>
 );
 

@@ -232,6 +232,33 @@ export const createDisposableRepeatingEvent = async ({
 };
 
 /**
+ * 상대가 그날을 고치거나 지운 상황을 만든다.
+ *
+ * @example await skipEventDate(id, "2044-03-09")
+ */
+export const skipEventDate = async (id: string, date: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("event_exceptions").insert({ event_id: id, date }), "건너뛰는 날");
+};
+
+/**
+ * 상대가 일정을 지운 상황을 만든다.
+ *
+ * @example await deleteEventById(id)
+ */
+export const deleteEventById = async (id: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("events").delete().eq("id", id), "일정 지우기");
+};
+
+/**
+ * 상대가 반복을 끈 상황을 만든다.
+ *
+ * @example await stopEventRepeat(id)
+ */
+export const stopEventRepeat = async (id: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("events").update({ repeat_rule: null, repeat_until: null }).eq("id", id), "반복 끄기");
+};
+
+/**
  * 화면에서 저장한 일정을 제목으로 찾아 지운다.
  *
  * @example await deleteEventsByTitle("저장한 일정")

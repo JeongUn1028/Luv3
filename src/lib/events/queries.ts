@@ -94,7 +94,9 @@ export const getEvent = async (id: string): Promise<EditableEvent | undefined> =
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")
-    .select("id, date, start_time, title, place, memo, is_together, author:members!events_author_id_fkey(nickname)")
+    .select(
+      "id, date, start_time, title, place, memo, is_together, repeat_rule, repeat_until, repeat_parent_id, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date)",
+    )
     .eq("id", id)
     .maybeSingle();
   if (error) throw new EventLoadError({ cause: error });
