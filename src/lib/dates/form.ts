@@ -1,3 +1,4 @@
+import type { PlaceLocation } from "@/lib/places/search";
 import { toNextDay } from "@/lib/calendar/month";
 import { countChars, isIsoDate } from "@/lib/form";
 import type { Database } from "@/lib/supabase/database.types";
@@ -32,6 +33,8 @@ export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
   photos: Photo[];
   coverPhotoId: string | undefined;
   tags: string[];
+  /** 장소의 지도 좌표. 찾아서 고른 장소에만 있고, 이름을 직접 고치면 지운다 */
+  location: PlaceLocation | undefined;
 }
 
 /** 칸 이름 → 화면에 보여 줄 에러 문구. 사진 한마디는 `caption:<사진 id>` */
@@ -102,7 +105,12 @@ export const toNewRecordHref = ({ date, title, place }: RecordPrefill): string =
   return `/dates/new?${query.toString()}`;
 };
 
-const takeChars = (text: string, max: number): string => Array.from(text.trim()).slice(0, max).join("");
+/**
+ * 앞에서부터 글자 수만큼 자른다.
+ *
+ * @example takeChars(" 성수동 ", 2) // "성수"
+ */
+export const takeChars = (text: string, max: number): string => Array.from(text.trim()).slice(0, max).join("");
 
 /**
  * 작성 화면 주소 쿼리를 폼 처음 값으로 읽는다. 쿼리가 없으면 undefined.
@@ -228,5 +236,7 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_photos: draft.photos.map(({ id, caption }) => ({ id, caption: caption.trim() })),
     p_cover_photo_id: draft.coverPhotoId,
     p_tags: draft.tags,
+    // 빈 객체는 좌표를 지우라는 뜻이다. 넘기지 않으면 고칠 때 있던 좌표가 남는다
+    p_place_location: draft.location ? { lat: draft.location.lat, lng: draft.location.lng } : {},
   };
 };

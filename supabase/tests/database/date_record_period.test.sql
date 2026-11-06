@@ -13,7 +13,7 @@ insert into public.members (id, email, nickname) values
 -- 예전 시그니처가 남으면 인자 수에 따라 다른 함수를 부르게 되므로 하나만 있어야 한다
 select has_function(
   'public', 'create_date_record',
-  array['uuid', 'date', 'text', 'text', 'text', 'jsonb', 'uuid', 'date', 'text[]'],
+  array['uuid', 'date', 'text', 'text', 'text', 'jsonb', 'uuid', 'date', 'text[]', 'jsonb'],
   '기록 작성 함수가 끝 날짜를 받는다'
 );
 select hasnt_function(
@@ -23,7 +23,7 @@ select hasnt_function(
 );
 select has_function(
   'public', 'update_date_record',
-  array['uuid', 'date', 'text', 'text', 'text', 'jsonb', 'uuid', 'date', 'text[]'],
+  array['uuid', 'date', 'text', 'text', 'text', 'jsonb', 'uuid', 'date', 'text[]', 'jsonb'],
   '기록 수정 함수가 끝 날짜를 받는다'
 );
 select hasnt_function(

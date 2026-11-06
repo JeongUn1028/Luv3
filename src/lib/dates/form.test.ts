@@ -26,6 +26,7 @@ const draft = (overrides: Partial<DateRecordDraft> = {}): DateRecordDraft => ({
   photos: [photo("p1")],
   coverPhotoId: "p1",
   tags: [],
+  location: undefined,
   ...overrides,
 });
 
@@ -167,12 +168,18 @@ describe("toCreateRecordArgs", () => {
       ],
       p_cover_photo_id: "b",
       p_tags: [],
+      p_place_location: {},
     });
   });
 
   it("태그를 넘겨 다 지운 기록도 빈 목록으로 저장한다", () => {
     expect(toCreateRecordArgs("r1", draft({ tags: ["카페", "여행"] })).p_tags).toEqual(["카페", "여행"]);
     expect(toCreateRecordArgs("r1", draft()).p_tags).toEqual([]);
+  });
+
+  it("좌표가 있으면 넘기고, 없으면 지우라는 빈 객체를 넘긴다", () => {
+    expect(toCreateRecordArgs("r1", draft({ location: { lat: 37.5, lng: 127 } })).p_place_location).toEqual({ lat: 37.5, lng: 127 });
+    expect(toCreateRecordArgs("r1", draft()).p_place_location).toEqual({});
   });
 
   it("기간이면 끝 날짜를 넘기고, 하루짜리면 넘기지 않아 DB 함수가 비워 둔다", () => {

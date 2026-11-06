@@ -1,3 +1,4 @@
+import type { PlaceLocation } from "@/lib/places/search";
 import type { AuthorRow } from "@/lib/author";
 import type { SignedUrl } from "@/lib/photos/signed-urls";
 import { formatPeriodMonthDay, toMonthDay, type RecordPeriod } from "./album";
@@ -38,6 +39,7 @@ export interface EditableRecord {
   memo: string;
   coverPhotoId: string | undefined;
   tags: string[];
+  location: PlaceLocation | undefined;
   /** 이미 저장된 사진. 미리보기는 썸네일 서명 URL */
   photos: { id: string; caption: string; previewUrl: string | undefined }[];
 }
@@ -52,6 +54,8 @@ export interface DetailRow {
   memo: string | null;
   cover_photo_id: string | null;
   tags: string[];
+  place_lat: number | null;
+  place_lng: number | null;
   author: AuthorRow;
   photos: { id: string; path: string; thumb_path: string; caption: string | null; sort_order: number }[];
 }
@@ -111,6 +115,7 @@ export const toEditableRecord = (row: DetailRow, signedThumbs: SignedUrl[]): Edi
     memo: row.memo ?? "",
     coverPhotoId: row.cover_photo_id ?? photos[0]?.id,
     tags: row.tags,
+    location: row.place_lat !== null && row.place_lng !== null ? { lat: row.place_lat, lng: row.place_lng } : undefined,
     photos: photos.map(({ id, caption, thumb_path }) => ({
       id,
       caption: caption ?? "",

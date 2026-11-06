@@ -10,6 +10,8 @@ const row: DetailRow = {
   memo: "오래 걸었다",
   cover_photo_id: "p2",
   tags: ["카페", "여행"],
+  place_lat: null,
+  place_lng: null,
   author: { nickname: "진아" },
   photos: [
     { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1 },
@@ -65,6 +67,11 @@ describe("toDateRecordDetail", () => {
 });
 
 describe("toEditableRecord", () => {
+  it("저장된 좌표를 읽고, 하나라도 없으면 없는 것으로 본다", () => {
+    expect(toEditableRecord({ ...row, place_lat: 37.5, place_lng: 127 }, []).location).toEqual({ lat: 37.5, lng: 127 });
+    expect(toEditableRecord({ ...row, place_lat: 37.5, place_lng: null }, []).location).toBeUndefined();
+  });
+
   it("수정 화면 초기값으로 바꾼다: 사진은 순서대로 썸네일 미리보기, 빈 값은 빈 문자열", () => {
     const editable = toEditableRecord(row, [{ path: "r1/p1_thumb.jpg", signedUrl: "https://example.test/t1" }]);
     expect(editable).toEqual({
@@ -76,6 +83,7 @@ describe("toEditableRecord", () => {
       memo: "오래 걸었다",
       coverPhotoId: "p2",
       tags: ["카페", "여행"],
+      location: undefined,
       photos: [
         { id: "p1", caption: "카페", previewUrl: "https://example.test/t1" },
         { id: "p2", caption: "", previewUrl: undefined },

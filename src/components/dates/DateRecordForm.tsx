@@ -10,6 +10,7 @@ import { RECORDS_PATH } from "@/lib/dates/album";
 import {
   MEMO_MAX_LENGTH,
   PLACE_MAX_LENGTH,
+  takeChars,
   TITLE_MAX_LENGTH,
   addPhotos,
   addTag,
@@ -32,6 +33,7 @@ import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
 import { createClient } from "@/lib/supabase/client";
 import { PhotoPicker, type PickedPhoto } from "./PhotoPicker";
+import { PlaceField } from "@/components/dates/PlaceField";
 import { TagField } from "./TagField";
 
 const labelClassName = "text-[13px] text-ink-sub";
@@ -59,9 +61,10 @@ const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto>
   photos: [],
   coverPhotoId: undefined,
   tags: [],
+  location: undefined,
 });
 
-const toEditDraft = ({ date, endDate, title, place, memo, coverPhotoId, tags, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
+const toEditDraft = ({ date, endDate, title, place, memo, coverPhotoId, tags, location, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
   date,
   endDate,
   title,
@@ -69,6 +72,7 @@ const toEditDraft = ({ date, endDate, title, place, memo, coverPhotoId, tags, ph
   memo,
   coverPhotoId,
   tags,
+  location,
   photos: photos.map((photo) => ({ ...photo, file: undefined })),
 });
 
@@ -89,10 +93,12 @@ interface DateRecordFormProps {
   prefill?: RecordPrefill;
   /** 전에 쓴 태그 */
   tagSuggestions: string[];
+  /** 장소 찾기를 쓸 수 있는지(서버에 키가 있는지) */
+  canSearchPlace: boolean;
 }
 
 /** 데이트 기록 작성·수정 폼. 새로 고른 사진을 줄여 올린 뒤 기록과 사진 행을 한 번에 저장한다. */
-export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFormProps): ReactElement => {
+export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace }: DateRecordFormProps): ReactElement => {
   const router = useRouter();
   // 지난 일정에서 넘어온 새 기록은 일정마다 다른 폼이다. 다른 일정의 실패한 내용이 채워지지 않게 값까지 구분한다
   const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.title ?? ""}:${prefill?.place ?? ""}`}`;
@@ -103,6 +109,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
   });
   const [errors, setErrors] = useState<DraftErrors>({});
   const [tagInput, setTagInput] = useState("");
+  // 찾기 결과는 PlaceField 안에 있어, 저장 뒤 숨겨진 폼을 되돌릴 때 key를 바꿔 함께 비운다
+  const [placeFieldKey, setPlaceFieldKey] = useState(0);
   // 칸을 늘 열어 두면 빈 작성 화면에 스크롤이 생긴다(#52). 태그가 있는 기록은 열어 둔다
   const [isTagFieldOpen, setIsTagFieldOpen] = useState(draft.tags.length > 0);
   const tagInputRef = useRef<HTMLInputElement>(null);
@@ -127,7 +135,12 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
     previewUrlsRef.current.delete(url);
   };
 
-  const updateField = (field: "date" | "endDate" | "title" | "place" | "memo", value: string) => {
+  const updatePlace = (changes: Partial<Pick<RecordDraft, "place" | "location">>) => {
+    setDraft((current) => ({ ...current, ...changes }));
+    setErrors((current) => clearError(current, "place"));
+  };
+
+  const updateField = (field: "date" | "endDate" | "title" | "memo", value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
     setErrors((current) => {
       const cleared = clearError(current, field);
@@ -239,6 +252,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
         reset: () => {
           setDraft(record ? toEditDraft(record) : createEmptyDraft());
           setTagInput("");
+          setPlaceFieldKey((key) => key + 1);
           setIsTagFieldOpen(Boolean(record?.tags.length));
           setErrors({});
           setNotice(undefined);
@@ -376,40 +390,31 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
           )}
         </div>
 
-        <div className="flex flex-col">
-          <div className="flex items-baseline justify-between">
-            <label htmlFor="place" className={labelClassName}>
-              장소 <span className="text-ink-placeholder">(선택)</span>
-            </label>
-            {!isTagFieldOpen && (
+        <PlaceField
+          key={placeFieldKey}
+          value={draft.place}
+          location={draft.location}
+          error={errors.place}
+          isDisabled={isSaving}
+          canSearch={canSearchPlace}
+          labelAction={
+            !isTagFieldOpen && (
               <button
                 type="button"
                 disabled={isSaving}
                 onClick={handleOpenTagField}
-                // 글자 줄만큼만 차지하면서 44px을 누를 수 있게 넓힌다. 아래 입력 칸의 오른쪽 위 끝이 조금 겹친다
-                className="relative text-[13px] leading-[19px] text-ink-sub after:absolute after:-inset-y-[12.5px] after:inset-x-0 disabled:opacity-50"
+                // 글자 줄만큼만 차지하면서 44px을 누를 수 있게 넓힌다. 아래 입력 칸의 오른쪽 위 끝이 조금 겹치므로 칸보다 위에 둔다
+                className="relative z-10 text-[13px] leading-[19px] text-ink-sub after:absolute after:-inset-y-[12.5px] after:inset-x-0 disabled:opacity-50"
               >
                 태그 추가
               </button>
-            )}
-          </div>
-          <input
-            id="place"
-            value={draft.place}
-            placeholder="성수동"
-            maxLength={PLACE_MAX_LENGTH * 2}
-            disabled={isSaving}
-            aria-invalid={Boolean(errors.place)}
-            aria-describedby={errors.place ? "place-error" : undefined}
-            onChange={(event) => updateField("place", event.target.value)}
-            className={inputClassName}
-          />
-          {errors.place && (
-            <p id="place-error" className={errorClassName}>
-              {errors.place}
-            </p>
-          )}
-        </div>
+            )
+          }
+          // 이름을 고치면 좌표가 다른 곳을 가리킬 수 있어 함께 지운다
+          onChange={(value) => updatePlace({ place: value, location: undefined })}
+          onSelect={({ name, lat, lng }) => updatePlace({ place: takeChars(name, PLACE_MAX_LENGTH), location: { lat, lng } })}
+          onClearLocation={() => updatePlace({ location: undefined })}
+        />
 
         {isTagFieldOpen && (
           <TagField

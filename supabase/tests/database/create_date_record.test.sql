@@ -13,7 +13,7 @@ insert into public.members (id, email, nickname) values
 
 select has_function(
   'public', 'create_date_record',
-  array['uuid', 'date', 'text', 'text', 'text', 'jsonb', 'uuid', 'date', 'text[]'],
+  array['uuid', 'date', 'text', 'text', 'text', 'jsonb', 'uuid', 'date', 'text[]', 'jsonb'],
   '기록 작성 함수가 있다'
 );
 
