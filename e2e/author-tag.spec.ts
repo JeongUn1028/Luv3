@@ -34,6 +34,24 @@ test.describe("작성자 이름표", () => {
     await expect(page.getByRole("link", { name: new RegExp(`${E2E_EVENTS[0].title}.*${AUTHOR_NAME}`) })).toBeVisible();
   });
 
+  test("캘린더 아래 목록의 한 사람 일정 줄은 이름을 주인 이름표에 한 번만 보여 준다", async ({ page }, testInfo) => {
+    // Arrange
+    const title = `한 사람 일정 줄 ${testInfo.project.name}`;
+    const deleteEvent = await createDisposableEvent({ id: randomUUID(), title, isTogether: false });
+
+    try {
+      // Act
+      await openScreen(page, "/calendar", page.getByText(title));
+      const row = page.getByRole("link", { name: new RegExp(title) });
+
+      // Assert
+      await expect(row.getByText(E2E_MEMBER.nickname, { exact: true })).toHaveCount(1);
+      await expect(row.getByRole("img", { name: `${E2E_MEMBER.nickname} 일정` })).toBeVisible();
+    } finally {
+      await deleteEvent();
+    }
+  });
+
   test("기록 상세는 화면 읽기 프로그램이 작성자 이름을 읽는다", async ({ page }) => {
     // Act
     await openScreen(page, `/dates/${PHOTO_RECORD.id}`, page.getByRole("heading", { name: PHOTO_RECORD.title }));
