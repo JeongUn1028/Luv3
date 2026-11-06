@@ -24,20 +24,36 @@ export const isPublicPath = (pathname: string): boolean =>
   PUBLIC_EXACT_PATHS.includes(pathname) ||
   PUBLIC_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 
-const PARSE_BASE = "http://localhost";
+// 실제로 쓰지 않는 예약 도메인이라 `//localhost/...` 같은 입력이 같은 사이트로 읽히지 않는다
+const PARSE_BASE = "http://parse-base.invalid";
+
+const toDecodedPath = (pathname: string): string | undefined => {
+  try {
+    return decodeURIComponent(pathname);
+  } catch {
+    return undefined;
+  }
+};
+
+/** 앞단이나 라우터가 인코딩을 풀어 읽어도 외부 주소, 공개 경로가 되지 않는지 본다 */
+const isSafeTargetPath = (decodedPath: string): boolean =>
+  !decodedPath.startsWith("//") && !decodedPath.startsWith("/\\") && !isPublicPath(decodedPath.replace(/\/+$/, ""));
 
 /**
  * 로그인 후 돌아갈 경로를 같은 사이트 안의 경로로만 제한한다(오픈 리다이렉트 방지).
  * 외부 주소, 프로토콜 상대 주소(`//evil.com`), 로그인·인증 경로는 홈으로 바꾼다.
+ * 읽을 수 없는 값(`//`)과 정리하거나 인코딩을 풀면 프로토콜 상대 주소가 되는 값(`/.//evil.com`, `/%2f/evil.com`)도 홈으로 바꾼다.
  * URL 파서가 탭·줄바꿈을 지운 결과로 판단해야 `/	/evil.com` 같은 우회를 막을 수 있다.
  *
  * @example getSafeNextPath("https://evil.com") // "/"
  */
 export const getSafeNextPath = (next: string | null | undefined): string => {
-  if (!next || !next.startsWith("/")) return HOME_PATH;
+  if (!next?.startsWith("/") || !URL.canParse(next, PARSE_BASE)) return HOME_PATH;
 
   const parsed = new URL(next, PARSE_BASE);
-  if (parsed.origin !== PARSE_BASE || isPublicPath(parsed.pathname)) return HOME_PATH;
+  // `/.//evil.com`은 같은 사이트로 읽히지만 정리한 경로 `//evil.com`을 브라우저가 외부 주소로 읽는다
+  const decodedPath = toDecodedPath(parsed.pathname);
+  if (parsed.origin !== PARSE_BASE || decodedPath === undefined || !isSafeTargetPath(decodedPath)) return HOME_PATH;
 
   return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 };
