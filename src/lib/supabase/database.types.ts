@@ -45,16 +45,36 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
-                },"events": {
+                },"event_exceptions": {
                   Row: {
-                    "author_id": string,"created_at": string,"date": string,"id": string,"is_together": boolean,"memo": string | null,"place": string | null,"start_time": string | null,"title": string
+                    "date": string,"event_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string,"created_at"?: string,"date": string,"id"?: string,"is_together"?: boolean,"memo"?: string | null,"place"?: string | null,"start_time"?: string | null,"title": string
+                    "date": string,"event_id": string
                   }
                   Update: {
-                    "author_id"?: string,"created_at"?: string,"date"?: string,"id"?: string,"is_together"?: boolean,"memo"?: string | null,"place"?: string | null,"start_time"?: string | null,"title"?: string
+                    "date"?: string,"event_id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "event_exceptions_event_id_fkey"
+      columns: ["event_id"]
+isOneToOne: false
+      referencedRelation: "events"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"events": {
+                  Row: {
+                    "author_id": string,"created_at": string,"date": string,"id": string,"is_together": boolean,"memo": string | null,"place": string | null,"repeat_parent_id": string | null,"repeat_rule": string | null,"repeat_until": string | null,"start_time": string | null,"title": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id"?: string,"created_at"?: string,"date": string,"id"?: string,"is_together"?: boolean,"memo"?: string | null,"place"?: string | null,"repeat_parent_id"?: string | null,"repeat_rule"?: string | null,"repeat_until"?: string | null,"start_time"?: string | null,"title": string
+                  }
+                  Update: {
+                    "author_id"?: string,"created_at"?: string,"date"?: string,"id"?: string,"is_together"?: boolean,"memo"?: string | null,"place"?: string | null,"repeat_parent_id"?: string | null,"repeat_rule"?: string | null,"repeat_until"?: string | null,"start_time"?: string | null,"title"?: string
                   }
                   Relationships: [
                     {
@@ -62,6 +82,12 @@ isOneToOne: false
       columns: ["author_id"]
 isOneToOne: false
       referencedRelation: "members"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "events_repeat_parent_id_fkey"
+      columns: ["repeat_parent_id"]
+isOneToOne: false
+      referencedRelation: "events"
       referencedColumns: ["id"]
     }
                   ]
@@ -130,6 +156,9 @@ isOneToOne: false
                            },
 "create_date_record":
 { Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_title": string }; Returns: string
+                           },
+"detach_event_occurrence":
+{ Args: { "p_date": string,"p_event_id": string,"p_memo": string,"p_occurrence_date": string,"p_place": string,"p_start_time": string,"p_title": string }; Returns: string
                            },
 "is_member":
 { Args: Record<PropertyKey, never>; Returns: boolean

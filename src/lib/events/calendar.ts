@@ -1,9 +1,14 @@
 import type { AuthorRow } from "@/lib/author";
 
-/** 달력에 그리는 일정 */
+/** 일정의 반복 규칙. 값은 DB check 제약(마이그레이션)과 같아야 한다 */
+export type RepeatRule = "weekly" | "monthly" | "yearly";
+
+/** 달력에 그리는 일정. 반복 일정은 오는 날마다 한 줄이고 id는 같다 */
 export interface CalendarEvent {
   id: string;
   date: string;
+  /** 반복 일정이면 규칙, 한 번짜리면 undefined */
+  repeatRule: RepeatRule | undefined;
   /** HH:MM:SS. null이면 종일 */
   startTime: string | null;
   title: string;
@@ -40,7 +45,12 @@ export interface CalendarEventRow {
   title: string;
   place: string | null;
   is_together: boolean;
+  repeat_rule: string | null;
+  repeat_until: string | null;
+  created_at: string;
   author: AuthorRow;
+  /** 반복 중 건너뛰는 날 */
+  exceptions: { date: string }[];
 }
 
 /** `dates` 조회 결과 한 행 */
@@ -51,6 +61,14 @@ export interface CalendarRecordRow {
   title: string;
   author: AuthorRow;
 }
+
+/**
+ * DB의 반복 규칙 값인지 확인한다.
+ *
+ * @example isRepeatRule("weekly") // true
+ */
+export const isRepeatRule = (value: string | null): value is RepeatRule =>
+  value === "weekly" || value === "monthly" || value === "yearly";
 
 /**
  * 일정 행을 달력 값으로 바꾼다. DB의 null은 화면 경계에서 undefined로 바꾼다(시작 시간의 null은 "종일"이라 그대로 둔다).
@@ -64,10 +82,12 @@ export const toCalendarEvent = ({
   title,
   place,
   is_together,
+  repeat_rule,
   author,
 }: CalendarEventRow): CalendarEvent => ({
   id,
   date,
+  repeatRule: isRepeatRule(repeat_rule) ? repeat_rule : undefined,
   startTime: start_time,
   title,
   place: place ?? undefined,
