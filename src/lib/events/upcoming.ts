@@ -1,81 +1,32 @@
 import { countDaysBetween } from "@/lib/anniversary";
-import { formatDayHeading, formatEventTime } from "@/lib/calendar/month";
+import { formatEventTime } from "@/lib/calendar/month";
 import { toOwnerLabel, type EventPeriod } from "./calendar";
 import { formatEventPeriod } from "./recurrence";
 
 /** 홈 일정 칸에 보여 줄 일정 수. 칸이 정사각형이라 더 넣으면 넘친다 */
 const UPCOMING_PREVIEW_COUNT = 2;
 
-/** 홈에 보여 줄 하루치 일정 */
-export interface UpcomingDay<Event> {
-  /** YYYY-MM-DD */
-  date: string;
-  /** 오늘(한국 날짜) 일정이면 true, 다음 일정이면 false */
-  isToday: boolean;
-  /** 그날 일정 전부. 종일 먼저, 시간 일정은 이른 시간부터 */
-  events: Event[];
-}
-
-type UpcomingEvent = { date: string; startTime: string | null };
-
-// 종일(null)을 맨 앞에 두고, HH:MM:SS는 글자 순서가 곧 시간 순서다
-const compareStartTime = (left: UpcomingEvent, right: UpcomingEvent): number => {
-  if (left.startTime === right.startTime) return 0;
-  if (left.startTime === null) return -1;
-  if (right.startTime === null) return 1;
-  return left.startTime < right.startTime ? -1 : 1;
-};
-
 /**
- * 홈의 일정 칸에 보여 줄 날을 고른다. 오늘 일정이 있으면 오늘(이미 지난 시간 일정 포함), 없으면 가장 가까운 다음 날이다.
- * 누가 만든 일정이든, 함께 일정이든 한 사람 일정이든 모두 센다. 같은 시간 일정은 받은 순서(만든 순서)를 지킨다.
+ * 일정이 언제인지 오늘 기준으로 쓴다.
  *
- * @param today 한국 날짜 YYYY-MM-DD(`toKstDate(new Date())`)
- * @returns 오늘과 그 뒤에 일정이 없으면 undefined
- * @example pickUpcomingDay(events, "2026-11-03") // { date: "2026-11-14", isToday: false, events: [...] }
+ * @example formatUpcomingDay("2026-11-14", "2026-11-03") // "11일 뒤"
  */
-export const pickUpcomingDay = <Event extends UpcomingEvent>(
-  events: Event[],
-  today: string,
-): UpcomingDay<Event> | undefined => {
-  const upcoming = events.filter((event) => event.date >= today);
-  if (upcoming.length === 0) return undefined;
-
-  const date = upcoming.reduce((nearest, event) => (event.date < nearest ? event.date : nearest), upcoming[0].date);
-  return {
-    date,
-    isToday: date === today,
-    events: upcoming.filter((event) => event.date === date).toSorted(compareStartTime),
-  };
-};
-
-/**
- * 일정 칸의 제목, 날짜, 며칠 뒤인지. 오늘 일정이면 며칠 뒤인지는 없다.
- *
- * @example describeUpcomingDay("2026-11-14", "2026-11-03") // { title: "다음 일정", dateLabel: "11월 14일 토요일", relativeLabel: "11일 뒤" }
- */
-export const describeUpcomingDay = (
-  date: string,
-  today: string,
-): { title: string; dateLabel: string; relativeLabel: string | undefined } => {
-  const dateLabel = formatDayHeading(date);
-  if (date === today) return { title: "오늘 일정", dateLabel, relativeLabel: undefined };
-
+export const formatUpcomingDay = (date: string, today: string): string => {
   const days = countDaysBetween(today, date);
-  return { title: "다음 일정", dateLabel, relativeLabel: days === 1 ? "내일" : `${days}일 뒤` };
+  if (days === 0) return "오늘";
+  return days === 1 ? "내일" : `${days}일 뒤`;
 };
 
 /**
- * 일정 칸에 보여 줄 일정과, 칸에 못 넣은 일정 수 문구.
+ * 일정 칸에 보여 줄 일정과, 보여 준 마지막 날에 못 넣은 일정 수 문구. 더 먼 날의 일정은 세지 않는다.
  *
- * @example previewUpcomingEvents(["전시", "저녁", "영화"]) // { shown: ["전시", "저녁"], moreLabel: "외 1개" }
+ * @example previewUpcomingEvents(events) // { shown: [전시, 저녁], moreLabel: "외 1개" }
  */
-export const previewUpcomingEvents = <Event>(events: Event[]): { shown: Event[]; moreLabel: string | undefined } => {
-  const hiddenCount = events.length - UPCOMING_PREVIEW_COUNT;
-  return {
-    shown: events.slice(0, UPCOMING_PREVIEW_COUNT),
-    moreLabel: hiddenCount > 0 ? `외 ${hiddenCount}개` : undefined,
-  };
+export const previewUpcomingEvents = <Event extends { date: string }>(events: Event[]): { shown: Event[]; moreLabel: string | undefined } => {
+  const shown = events.slice(0, UPCOMING_PREVIEW_COUNT);
+  const lastDate = shown.at(-1)?.date;
+  const hiddenCount = events.slice(UPCOMING_PREVIEW_COUNT).filter((event) => event.date === lastDate).length;
+  return { shown, moreLabel: hiddenCount > 0 ? `외 ${hiddenCount}개` : undefined };
 };
 
 /**
