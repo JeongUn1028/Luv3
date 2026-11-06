@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactElement, type SubmitEvent } from "react";
+import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
 import { getSignInErrorMessage, NOT_MEMBER_MESSAGE, SIGN_IN_UNAVAILABLE_MESSAGE } from "@/lib/auth/login-messages";
 import { isSessionLostError, SESSION_LOST_EVENT } from "@/lib/auth/session-lost";
 import { createClient } from "@/lib/supabase/client";
@@ -77,28 +78,8 @@ const SessionLostForm = ({ isPending, onPendingChange, onClose }: SessionLostFor
         onChange={(event) => setPassword(event.target.value)}
         className={inputClassName}
       />
-      {message && (
-        <p role="alert" className="mt-3 text-[13px] text-accent">
-          {message}
-        </p>
-      )}
-      <div className="mt-5 flex gap-2">
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={onClose}
-          className="h-12 flex-1 rounded-[10px] border border-line text-[15px] text-ink hover:bg-background disabled:opacity-50"
-        >
-          닫기
-        </button>
-        <button
-          type="submit"
-          disabled={isPending}
-          className="h-12 flex-1 rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-        >
-          {isPending ? "확인 중…" : "로그인"}
-        </button>
-      </div>
+      {message && <ModalMessage>{message}</ModalMessage>}
+      <ModalActions cancelLabel="닫기" onCancel={onClose} confirmLabel={isPending ? "확인 중…" : "로그인"} isSubmit isDisabled={isPending} />
     </form>
   );
 };
@@ -110,9 +91,7 @@ const SessionLostForm = ({ isPending, onPendingChange, onClose }: SessionLostFor
  * @example <SessionLostDialog />
  */
 export const SessionLostDialog = (): ReactElement => {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const titleId = useId();
-  const descriptionId = useId();
+  const modalRef = useRef<ModalDialogHandle>(null);
   // 닫혀 있을 때 입력 칸을 그리지 않는다. 로그인 화면에서 비밀번호 자동 채우기가 숨은 칸을 고르지 않게 하고, 입력값도 남기지 않는다
   const [isOpen, setIsOpen] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -121,34 +100,24 @@ export const SessionLostDialog = (): ReactElement => {
     const handleSessionLost = async () => {
       // 거절 응답만으로 단정하지 않고 세션이 정말 사라졌는지 확인해, 다시 로그인해도 풀리지 않는 문제에는 창을 띄우지 않는다
       const { data, error } = await createClient().auth.getUser();
-      const dialog = dialogRef.current;
-      if (data.user || !isSessionLostError(error) || !dialog || dialog.open) return;
+      const modal = modalRef.current;
+      if (data.user || !isSessionLostError(error) || !modal || modal.isOpen()) return;
       setIsOpen(true);
-      dialog.showModal();
+      modal.open();
     };
     window.addEventListener(SESSION_LOST_EVENT, handleSessionLost);
     return () => window.removeEventListener(SESSION_LOST_EVENT, handleSessionLost);
   }, []);
 
   return (
-    <dialog
-      ref={dialogRef}
-      aria-labelledby={titleId}
-      aria-describedby={descriptionId}
-      // 확인하는 중에 Esc로 닫혀 결과를 놓치지 않게 한다
-      onCancel={(event) => {
-        if (isPending) event.preventDefault();
-      }}
+    <ModalDialog
+      ref={modalRef}
+      title="다시 로그인해 주세요"
+      description="로그인이 풀렸어요. 적어 둔 내용은 그대로 있으니, 로그인한 뒤 다시 저장해 주세요."
+      isBusy={isPending}
       onClose={() => setIsOpen(false)}
-      className="m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
     >
-      <h2 id={titleId} className="font-display text-[17px]">
-        다시 로그인해 주세요
-      </h2>
-      <p id={descriptionId} className="mt-2 text-[14px] leading-[1.6] text-ink-sub">
-        로그인이 풀렸어요. 적어 둔 내용은 그대로 있으니, 로그인한 뒤 다시 저장해 주세요.
-      </p>
-      {isOpen && <SessionLostForm isPending={isPending} onPendingChange={setIsPending} onClose={() => dialogRef.current?.close()} />}
-    </dialog>
+      {isOpen && <SessionLostForm isPending={isPending} onPendingChange={setIsPending} onClose={() => modalRef.current?.close()} />}
+    </ModalDialog>
   );
 };
