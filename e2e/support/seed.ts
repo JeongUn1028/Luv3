@@ -231,10 +231,18 @@ export const deleteTodosByContent = async (content: string): Promise<void> => {
  *
  * @example const deleteEvent = await createDisposableEvent({ id: randomUUID(), title: "고칠 일정" })
  */
-export const createDisposableEvent = async ({ id, title }: { id: string; title: string }): Promise<() => Promise<void>> => {
+export const createDisposableEvent = async ({
+  id,
+  title,
+  isTogether = true,
+}: {
+  id: string;
+  title: string;
+  isTogether?: boolean;
+}): Promise<() => Promise<void>> => {
   const admin = createAdminClient();
   const date = toKstDate(new Date());
-  assertNoError(await admin.from("events").insert({ id, title, date, author_id: await getMemberId(admin) }), "일정");
+  assertNoError(await admin.from("events").insert({ id, title, date, is_together: isTogether, author_id: await getMemberId(admin) }), "일정");
   return async () => assertNoError(await admin.from("events").delete().eq("id", id), "일정 지우기");
 };
 
