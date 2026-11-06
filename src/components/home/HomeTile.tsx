@@ -27,7 +27,7 @@ export const HomeTile = ({ title, detail, more, isOutlined = false, children }: 
   return (
     <section
       aria-labelledby={titleId}
-      className={`relative flex aspect-square flex-col rounded-[16px] px-3.5 py-3 ${
+      className={`press-card-group relative flex aspect-square flex-col rounded-[16px] px-3.5 py-3 ${
         isOutlined ? "border border-dashed border-ink-sub/35" : "bg-surface"
       }`}
     >
@@ -67,7 +67,7 @@ export const HomeTileMessage = ({ text, isError = false, action }: HomeTileMessa
       {text}
     </p>
     {action && (
-      <Link href={action.href} transitionTypes={FORWARD_TRANSITION} className="flex h-11 items-center px-2 text-[14px] text-accent hover:underline">
+      <Link href={action.href} transitionTypes={FORWARD_TRANSITION} className="press-icon flex h-11 items-center px-2 text-[14px] text-accent hover:underline">
         {action.label}
       </Link>
     )}

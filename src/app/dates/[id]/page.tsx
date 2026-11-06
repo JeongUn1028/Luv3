@@ -50,7 +50,7 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
             <Link
               href={`/dates/${record.id}/edit`}
               transitionTypes={FORWARD_TRANSITION}
-              className="flex h-11 items-center px-3 text-[14px] text-ink-sub hover:text-ink"
+              className="press-icon flex h-11 items-center px-3 text-[14px] text-ink-sub hover:text-ink"
             >
               수정
             </Link>
