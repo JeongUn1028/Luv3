@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { isScreenStale, markAllScreensLoaded, markAllScreensStale, markScreenLoaded, STALE_AFTER_MS } from "./screen-freshness";
+import { copyScreenLoaded, isScreenStale, markAllScreensLoaded, markAllScreensStale, markScreenLoaded, STALE_AFTER_MS } from "./screen-freshness";
 
 const BASE_URL = "https://luv3.test/somewhere";
 const LOADED_AT = 1_000_000;
@@ -11,6 +11,21 @@ describe("isScreenStale", () => {
 
   it("언제 받았는지 모르는 화면은 오래된 것으로 본다", () => {
     expect(isScreenStale("/records", BASE_URL, LOADED_AT)).toBe(true);
+  });
+
+  it("주소만 바꾼 화면은 처음 받은 때를 이어 받는다", () => {
+    markScreenLoaded("/records", BASE_URL, LOADED_AT);
+
+    copyScreenLoaded("/records", "/records?search=1", BASE_URL);
+
+    expect(isScreenStale("/records?search=1", BASE_URL, LOADED_AT + STALE_AFTER_MS - 1)).toBe(false);
+    expect(isScreenStale("/records?search=1", BASE_URL, LOADED_AT + STALE_AFTER_MS)).toBe(true);
+  });
+
+  it("언제 받았는지 모르는 화면의 주소를 바꿔도 오래된 것으로 본다", () => {
+    copyScreenLoaded("/records", "/records?search=1", BASE_URL);
+
+    expect(isScreenStale("/records?search=1", BASE_URL, LOADED_AT)).toBe(true);
   });
 
   it("받은 지 30초가 안 됐으면 새로 불러오지 않는다", () => {

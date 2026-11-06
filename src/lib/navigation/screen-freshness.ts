@@ -19,6 +19,16 @@ export const markScreenLoaded = (url: string, baseUrl: string, now: number = Dat
 };
 
 /**
+ * 서버를 부르지 않고 주소만 바꾼 화면은 내용이 그대로이므로 처음 받은 때를 이어 받는다.
+ *
+ * @example copyScreenLoaded("/records", "/records?search=1", window.location.href);
+ */
+export const copyScreenLoaded = (fromUrl: string, toUrl: string, baseUrl: string): void => {
+  const loadedAt = loadedAtByScreen.get(toScreenKey(fromUrl, baseUrl));
+  if (loadedAt !== undefined) loadedAtByScreen.set(toScreenKey(toUrl, baseUrl), loadedAt);
+};
+
+/**
  * 지금까지 본 화면을 모두 방금 받은 것으로 친다. `router.refresh()`는 숨겨 둔 화면의 내용까지 지워, 돌아갈 때 Next가 새로 받기 때문이다.
  * 여기서 또 불러오면 같은 요청과 사진을 두 번 받는다.
  *

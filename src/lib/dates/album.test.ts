@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPeriodMonthDay, formatTileLabel, groupByMonth, toAlbumTiles, toTagSuggestions, type AlbumTile } from "./album";
+import { formatPeriodMonthDay, formatTileLabel, groupByMonth, toAlbumTiles, toTagSuggestions, type AlbumRow, type AlbumTile } from "./album";
 
 const tile = (overrides: Partial<AlbumTile>): AlbumTile => ({
   id: "r",
@@ -8,6 +8,8 @@ const tile = (overrides: Partial<AlbumTile>): AlbumTile => ({
   title: "기록",
   place: undefined,
   thumbUrl: undefined,
+  tags: [],
+  searchText: "",
   ...overrides,
 });
 
@@ -64,26 +66,47 @@ describe("formatTileLabel", () => {
 });
 
 describe("toAlbumTiles", () => {
+  const row: AlbumRow = {
+    id: "a",
+    date: "2026-11-02",
+    end_date: null,
+    title: "산책",
+    place: null,
+    memo: null,
+    tags: [],
+    cover: null,
+    photos: [],
+  };
+
   it("대표 사진 썸네일 경로에 서명 URL을 붙이고, 빈 장소는 undefined로 바꾼다", () => {
     const tiles = toAlbumTiles(
       [
-        { id: "a", date: "2026-11-02", end_date: "2026-11-03", title: "산책", place: "성수동", cover: { thumb_path: "a/p_thumb.jpg" } },
-        { id: "b", date: "2026-11-01", end_date: null, title: "카페", place: null, cover: null },
+        { ...row, id: "a", date: "2026-11-02", end_date: "2026-11-03", title: "산책", place: "성수동", cover: { thumb_path: "a/p_thumb.jpg" } },
+        { ...row, id: "b", date: "2026-11-01", title: "카페" },
       ],
       [{ path: "a/p_thumb.jpg", signedUrl: "https://example.test/a" }],
     );
     expect(tiles).toEqual([
-      { id: "a", date: "2026-11-02", endDate: "2026-11-03", title: "산책", place: "성수동", thumbUrl: "https://example.test/a" },
-      { id: "b", date: "2026-11-01", endDate: undefined, title: "카페", place: undefined, thumbUrl: undefined },
+      { id: "a", date: "2026-11-02", endDate: "2026-11-03", title: "산책", place: "성수동", thumbUrl: "https://example.test/a", tags: [], searchText: "산책\n성수동" },
+      { id: "b", date: "2026-11-01", endDate: undefined, title: "카페", place: undefined, thumbUrl: undefined, tags: [], searchText: "카페" },
     ]);
   });
 
   it("서명 URL을 받지 못한 사진은 썸네일 없이 둔다", () => {
     const [first] = toAlbumTiles(
-      [{ id: "a", date: "2026-11-02", end_date: null, title: "산책", place: null, cover: { thumb_path: "a/p_thumb.jpg" } }],
+      [{ ...row, cover: { thumb_path: "a/p_thumb.jpg" } }],
       [{ path: "a/p_thumb.jpg", signedUrl: null }],
     );
     expect(first?.thumbUrl).toBeUndefined();
+  });
+
+  it("제목·장소·글·한마디·태그를 소문자로 모아 찾을 글자를 만들고, 빈 칸은 뺀다", () => {
+    const [first] = toAlbumTiles(
+      [{ ...row, title: "Han River", place: "한강", memo: "오래 걸었다", tags: ["피크닉"], photos: [{ caption: "노을" }, { caption: null }] }],
+      [],
+    );
+    expect(first?.tags).toEqual(["피크닉"]);
+    expect(first?.searchText).toBe("han river\n한강\n오래 걸었다\n노을\n피크닉");
   });
 });
 

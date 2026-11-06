@@ -1,4 +1,5 @@
 import type { KeyboardEvent, ReactElement, RefObject } from "react";
+import { FILLED_TAG_CHIP_CLASS_NAME, OUTLINED_TAG_CHIP_CLASS_NAME } from "@/components/dates/tagChip";
 import { MAX_TAGS, TAG_MAX_LENGTH, pickTagSuggestions } from "@/lib/dates/form";
 
 interface TagFieldProps {
@@ -15,11 +16,6 @@ interface TagFieldProps {
   onAdd: (text: string) => void;
   onRemove: (tag: string) => void;
 }
-
-// 44px 누름 영역을 위아래로 넓히고 한 글자 태그도 가로 44px을 지켜, 작게 그린 태그도 쉽게 누른다. 줄 사이는 넓힌 영역이 겹치지 않게 벌린다.
-// 넓히는 기준이 테두리 안쪽이라 테두리가 있는 태그는 그 두께만큼 더 넓힌다
-const chipClassName =
-  "relative flex h-[26px] min-w-11 items-center justify-center rounded-[4px] px-2 text-[13px] after:absolute disabled:opacity-50";
 
 /**
  * 기록의 태그 칸. 글자를 적어 더하거나 전에 쓴 태그를 눌러 더한다.
@@ -80,7 +76,7 @@ export const TagField = ({ inputRef, tags, suggestions, input, error, isDisabled
                 disabled={isDisabled}
                 aria-label={`${tag} 태그 빼기`}
                 onClick={() => onRemove(tag)}
-                className={`${chipClassName} gap-1 bg-highlight/16 text-highlight after:inset-x-0 after:-inset-y-[9px]`}
+                className={`${FILLED_TAG_CHIP_CLASS_NAME} gap-1`}
               >
                 {tag}
                 <span aria-hidden="true">×</span>
@@ -100,7 +96,7 @@ export const TagField = ({ inputRef, tags, suggestions, input, error, isDisabled
                   disabled={isDisabled}
                   aria-label={`${suggestion} 태그 붙이기`}
                   onClick={() => onAdd(suggestion)}
-                  className={`${chipClassName} border border-line text-ink-sub after:-inset-x-px after:-inset-y-[10px]`}
+                  className={OUTLINED_TAG_CHIP_CLASS_NAME}
                 >
                   {suggestion}
                 </button>

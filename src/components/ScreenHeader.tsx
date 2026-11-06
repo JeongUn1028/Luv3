@@ -4,7 +4,8 @@ import { BackLink } from "@/components/BackLink";
 import { BackIcon } from "@/components/icons";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
-const ICON_BUTTON_CLASS_NAME = "flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink";
+/** 머리글의 44px 아이콘 버튼 모양 */
+export const SCREEN_HEADER_ICON_CLASS_NAME = "flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink";
 
 interface ScreenHeaderProps {
   /**
@@ -36,7 +37,7 @@ export const ScreenHeader = ({ back, title, isTitleHidden = false, titleAddon, a
   <header className="relative flex min-h-11 shrink-0 items-center justify-between px-2">
     <div className="flex min-w-0 items-center">
       {back && (
-        <BackLink href={back.href} skipsHistory={back.skipsHistory} className={ICON_BUTTON_CLASS_NAME}>
+        <BackLink href={back.href} skipsHistory={back.skipsHistory} className={SCREEN_HEADER_ICON_CLASS_NAME}>
           <BackIcon className="size-[22px]" />
         </BackLink>
       )}
@@ -63,7 +64,7 @@ interface ScreenHeaderLinkProps {
  * @example <ScreenHeaderLink href="/settings" label="설정"><SettingsIcon className="size-[22px]" /></ScreenHeaderLink>
  */
 export const ScreenHeaderLink = ({ href, label, children }: ScreenHeaderLinkProps): ReactElement => (
-  <Link href={href} transitionTypes={FORWARD_TRANSITION} aria-label={label} className={ICON_BUTTON_CLASS_NAME}>
+  <Link href={href} transitionTypes={FORWARD_TRANSITION} aria-label={label} className={SCREEN_HEADER_ICON_CLASS_NAME}>
     {children}
   </Link>
 );
