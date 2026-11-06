@@ -72,6 +72,26 @@ export const setRecordSearchFields = async (id: string, { place, memo, caption }
 };
 
 /**
+ * 찾기로 고른 것처럼 기록의 장소와 좌표를 넣는다.
+ *
+ * @example await setRecordLocation(id, { place: "성수", lat: 37.54, lng: 127.05 })
+ */
+export const setRecordLocation = async (id: string, { place, lat, lng }: { place: string; lat: number; lng: number }): Promise<void> => {
+  assertNoError(await createAdminClient().from("dates").update({ place, place_lat: lat, place_lng: lng }).eq("id", id), "기록 좌표");
+};
+
+/**
+ * 기록에 저장된 좌표를 읽는다.
+ *
+ * @example expect(await getRecordLocation(id)).toEqual({ place_lat: null, place_lng: null })
+ */
+export const getRecordLocation = async (id: string): Promise<{ place_lat: number | null; place_lng: number | null }> => {
+  const { data, error } = await createAdminClient().from("dates").select("place_lat, place_lng").eq("id", id).single();
+  if (error) throw new Error(`기록 좌표 읽기 실패: ${error.message}`);
+  return data;
+};
+
+/**
  * 화면에서 저장한 기록의 id를 제목으로 찾는다.
  *
  * @example for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id)

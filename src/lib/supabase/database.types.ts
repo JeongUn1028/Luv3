@@ -21,14 +21,14 @@ export type Database = {
                   ]
                 },"dates": {
                   Row: {
-                    "author_id": string,"cover_photo_id": string | null,"created_at": string,"date": string,"end_date": string | null,"id": string,"memo": string | null,"place": string | null,"tags": (string)[],"title": string
+                    "author_id": string,"cover_photo_id": string | null,"created_at": string,"date": string,"end_date": string | null,"id": string,"memo": string | null,"place": string | null,"place_lat": number | null,"place_lng": number | null,"tags": (string)[],"title": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string,"cover_photo_id"?: string | null,"created_at"?: string,"date": string,"end_date"?: string | null,"id"?: string,"memo"?: string | null,"place"?: string | null,"tags"?: (string)[],"title": string
+                    "author_id"?: string,"cover_photo_id"?: string | null,"created_at"?: string,"date": string,"end_date"?: string | null,"id"?: string,"memo"?: string | null,"place"?: string | null,"place_lat"?: number | null,"place_lng"?: number | null,"tags"?: (string)[],"title": string
                   }
                   Update: {
-                    "author_id"?: string,"cover_photo_id"?: string | null,"created_at"?: string,"date"?: string,"end_date"?: string | null,"id"?: string,"memo"?: string | null,"place"?: string | null,"tags"?: (string)[],"title"?: string
+                    "author_id"?: string,"cover_photo_id"?: string | null,"created_at"?: string,"date"?: string,"end_date"?: string | null,"id"?: string,"memo"?: string | null,"place"?: string | null,"place_lat"?: number | null,"place_lng"?: number | null,"tags"?: (string)[],"title"?: string
                   }
                   Relationships: [
                     {
@@ -158,7 +158,7 @@ isOneToOne: false
 { Args: Record<PropertyKey, never>; Returns: string
                            },
 "create_date_record":
-{ Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_tags"?: (string)[],"p_title": string }; Returns: string
+{ Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_place_location"?: Json,"p_tags"?: (string)[],"p_title": string }; Returns: string
                            },
 "detach_event_occurrence":
 { Args: { "p_date": string,"p_event_id": string,"p_memo"?: string,"p_occurrence_date": string,"p_place"?: string,"p_start_time"?: string,"p_title": string }; Returns: string
@@ -179,7 +179,7 @@ isOneToOne: false
 { Args: { "p_path": string }; Returns: string
                            },
 "update_date_record":
-{ Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_tags"?: (string)[],"p_title": string }; Returns: (string)[]
+{ Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_place_location"?: Json,"p_tags"?: (string)[],"p_title": string }; Returns: (string)[]
                            }
           }
           Enums: {

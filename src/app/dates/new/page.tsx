@@ -23,6 +23,7 @@ const MemberOnlyForm = async ({ searchParams }: Pick<PageProps<"/dates/new">, "s
       key={prefill ? crypto.randomUUID() : "empty"}
       prefill={prefill}
       tagSuggestions={tagSuggestions}
+      canSearchPlace={Boolean(process.env.KAKAO_REST_API_KEY)}
     />
   );
 };
