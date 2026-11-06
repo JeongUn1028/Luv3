@@ -146,6 +146,27 @@ describe("uploadPhotos", () => {
     expect(storage.upload).toHaveBeenCalledTimes(1);
   });
 
+  it("앞선 저장 시도가 올렸을 수 있으면 처음부터 이미 있어도 성공으로 본다", async () => {
+    const { storage } = createFakeStorage({
+      failures: { [`${DATE_ID}/${PHOTO_A}.jpg`]: Infinity, [`${DATE_ID}/${PHOTO_A}_thumb.jpg`]: Infinity },
+      failWith: { message: "The resource already exists", status: 400, statusCode: "409" },
+    });
+
+    await expect(uploadPhotos({ storage, dateId: DATE_ID, photos: [photo(PHOTO_A)], mayAlreadyExist: true })).resolves.toHaveLength(1);
+
+    expect(storage.upload).toHaveBeenCalledTimes(2);
+    expect(storage.remove).not.toHaveBeenCalled();
+  });
+
+  it("앞선 저장 시도가 올렸을 수 있으면 올리지 못해도 파일을 지우지 않는다", async () => {
+    // 저장된 기록이 이 파일을 가리키고 있을 수 있다
+    const { storage } = createFakeStorage({ failures: { [`${DATE_ID}/${PHOTO_A}.jpg`]: Infinity } });
+
+    await expect(uploadPhotos({ storage, dateId: DATE_ID, photos: [photo(PHOTO_A)], mayAlreadyExist: true })).rejects.toBeInstanceOf(PhotoError);
+
+    expect(storage.remove).not.toHaveBeenCalled();
+  });
+
   // id 형식 오류는 코드 실수라, 일부를 올린 뒤 "다시 시도해 주세요"로 감추지 않고 올리기 전에 드러낸다
   it("사진 id가 UUID가 아니면 아무것도 올리지 않고 에러를 그대로 낸다", async () => {
     const { storage } = createFakeStorage();

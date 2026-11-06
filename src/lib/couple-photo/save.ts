@@ -98,7 +98,7 @@ export const replaceCouplePhoto = async ({
   const discardNewFile = () => storage.remove([path]).catch(() => undefined);
 
   try {
-    await uploadPhotoFile(storage, path, photo);
+    await uploadPhotoFile({ storage, path, body: photo });
   } catch (error) {
     await discardNewFile();
     throw error;

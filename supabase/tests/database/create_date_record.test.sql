@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(12);
+select plan(13);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@create.test', 'authenticated', 'authenticated'),
@@ -106,6 +106,18 @@ select throws_ok(
 select is_empty(
   $$select id from public.dates where id = '10000000-0000-0000-0000-000000000002'$$,
   '사진 저장이 실패하면 기록 행도 남지 않는다'
+);
+
+-- 저장을 다시 시도할 때 앞선 저장이 됐는지 이 오류로 안다
+select public.create_date_record('10000000-0000-0000-0000-000000000009', '2026-11-01', '재시도', null, null,
+  '[{"id":"20000000-0000-0000-0000-000000000009"}]', '20000000-0000-0000-0000-000000000009');
+
+select throws_ok(
+  $$select public.create_date_record('10000000-0000-0000-0000-000000000009', '2026-11-01', '재시도', null, null,
+      '[{"id":"20000000-0000-0000-0000-000000000009"}]', '20000000-0000-0000-0000-000000000009')$$,
+  '23505',
+  null,
+  '같은 기록 id로 다시 저장하면 중복 오류를 돌려준다'
 );
 
 -- 허용목록 밖의 사용자

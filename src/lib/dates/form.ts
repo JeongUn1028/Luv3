@@ -24,6 +24,8 @@ export interface DraftPhoto {
 
 /** 작성 화면의 입력값. 날짜는 YYYY-MM-DD 문자열(input type="date" 값) */
 export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
+  /** 앞선 저장이 실패로 끝났지만 저장됐을 수 있을 때의 기록 id. 실패 내용과 함께 보관해 다시 저장해도 기록이 둘이 되지 않게 한다 */
+  uncertainSaveRecordId?: string;
   date: string;
   /** 기간의 끝 날짜. undefined면 하루짜리, ""면 기간을 켰지만 아직 고르지 않은 상태 */
   endDate: string | undefined;
