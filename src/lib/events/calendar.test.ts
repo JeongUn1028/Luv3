@@ -10,7 +10,11 @@ describe("toCalendarEvent", () => {
       title: "저녁",
       place: "성수",
       is_together: false,
+      repeat_rule: null,
+      repeat_until: null,
+      created_at: "2026-11-01T00:00:00+00:00",
       author: { nickname: "정운" },
+      exceptions: [],
     });
     expect(event).toEqual({
       id: "e1",
@@ -24,7 +28,7 @@ describe("toCalendarEvent", () => {
   });
 
   it("장소·작성자가 비어 있으면 undefined로 둔다", () => {
-    const event = toCalendarEvent({ id: "e1", date: "2026-11-14", start_time: null, title: "저녁", place: null, is_together: true, author: null });
+    const event = toCalendarEvent({ id: "e1", date: "2026-11-14", start_time: null, title: "저녁", place: null, is_together: true, repeat_rule: null, repeat_until: null, created_at: "2026-11-01T00:00:00+00:00", author: null, exceptions: [] });
     expect(event.place).toBeUndefined();
     expect(event.authorNickname).toBeUndefined();
   });

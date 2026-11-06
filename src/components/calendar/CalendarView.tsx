@@ -25,6 +25,7 @@ import {
 } from "@/lib/calendar/month";
 import { toNewRecordHref } from "@/lib/dates/form";
 import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
+import { formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 interface CalendarViewProps {
@@ -205,14 +206,18 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
             {selectedEvents.map((event) => (
               <li key={event.id} className="flex gap-2">
                 <Link
-                  href={`/events/${event.id}/edit`}
+                  href={toEventEditHref(event)}
                   transitionTypes={FORWARD_TRANSITION}
                   className="flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
                 >
                   <EventTimeLabel event={event} />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-[15px] text-ink">{event.title}</span>
-                    {event.place && <span className="truncate text-[12px] text-ink-sub">{event.place}</span>}
+                    {(event.repeatRule || event.place) && (
+                      <span className="truncate text-[12px] text-ink-sub">
+                        {[event.repeatRule && formatRepeatRule(event.repeatRule), event.place].filter(Boolean).join(" · ")}
+                      </span>
+                    )}
                   </span>
                   {event.authorNickname && <AuthorTag nickname={event.authorNickname} />}
                 </Link>

@@ -14,7 +14,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 // 날짜만 다루므로 시간대 영향을 받지 않게 UTC 자정으로 계산한다
 const toUtc = (isoDate: string): Date => new Date(`${isoDate}T00:00:00Z`);
-const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
+
+/**
+ * UTC 자정으로 계산한 날짜를 YYYY-MM-DD로 바꾼다.
+ *
+ * @example toIsoDate(new Date(Date.UTC(2026, 10, 2))) // "2026-11-02"
+ */
+export const toIsoDate = (date: Date): string => date.toISOString().slice(0, 10);
 
 /**
  * 주소의 `month` 값(YYYY-MM)을 읽는다. 없거나 형식이 틀리면 오늘(한국 날짜)이 속한 달로 본다.
