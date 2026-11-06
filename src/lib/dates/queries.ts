@@ -5,6 +5,7 @@ import { catchLoadError } from "@/lib/load";
 import { getSignedUrls } from "@/lib/photos/signed-urls";
 import { toAlbumTiles, toTagSuggestions, type AlbumTile } from "./album";
 import { isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
+import { toMapPins, type MapPin } from "./map";
 
 /** 앨범 그리드를 불러오지 못했을 때 */
 export class AlbumLoadError extends Error {
@@ -48,6 +49,32 @@ export const getAlbumTiles = async (): Promise<AlbumTile[]> => loadLatestTiles()
  * @example const latest = await getLatestRecord()
  */
 export const getLatestRecord = async (): Promise<AlbumTile | undefined> => (await loadLatestTiles(1))[0];
+
+/** 지도의 핀을 불러오지 못했을 때 */
+export class MapPinLoadError extends Error {
+  constructor(options?: ErrorOptions) {
+    super("지도에 표시할 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", options);
+    this.name = "MapPinLoadError";
+  }
+}
+
+/**
+ * 좌표가 있는 기록을 최신순으로 읽어 지도의 핀으로 묶는다.
+ *
+ * @throws {MapPinLoadError} 조회가 실패했을 때
+ * @example const pins = await getMapPins()
+ */
+export const getMapPins = async (): Promise<MapPin[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("dates")
+    .select("id, title, date, end_date, place, place_lat, place_lng")
+    .not("place_lat", "is", null)
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) throw new MapPinLoadError({ cause: error });
+  return toMapPins(data);
+};
 
 class TagSuggestionLoadError extends Error {
   constructor(options?: ErrorOptions) {

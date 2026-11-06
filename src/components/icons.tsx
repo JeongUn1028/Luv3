@@ -87,6 +87,14 @@ export const BackIcon = ({ className }: IconProps): ReactElement => (
   </LineIcon>
 );
 
+/** 지도 핀 아이콘. 기록 탭의 지도 버튼에 쓴다 */
+export const MapPinIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className}>
+    <path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" />
+    <circle cx="12" cy="9.5" r="2.5" />
+  </LineIcon>
+);
+
 /** 더하기 아이콘. 탭 오른쪽 위의 추가 버튼(기록 남기기·일정 추가)에 쓴다 */
 export const PlusIcon = ({ className }: IconProps): ReactElement => (
   <LineIcon className={className}>

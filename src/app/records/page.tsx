@@ -2,12 +2,13 @@ import type { Metadata } from "next";
 import { AlbumGridSkeleton } from "@/components/dates/AlbumGridSkeleton";
 import { RecordsBrowser } from "@/components/dates/RecordsBrowser";
 import { RecordsSearchButton } from "@/components/dates/RecordsSearchButton";
-import { PlusIcon } from "@/components/icons";
+import { MapPinIcon, PlusIcon } from "@/components/icons";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
 import { getCurrentMember } from "@/lib/auth/member";
+import { RECORDS_MAP_PATH } from "@/lib/dates/map";
 import { AlbumLoadError, getAlbumTiles } from "@/lib/dates/queries";
 import { catchLoadError } from "@/lib/load";
 
@@ -30,6 +31,11 @@ const RecordsPage = () => (
     actions={
       <>
         <RecordsSearchButton />
+        {process.env.NEXT_PUBLIC_KAKAO_MAP_KEY && (
+          <ScreenHeaderLink href={RECORDS_MAP_PATH} label="지도로 보기">
+            <MapPinIcon className="size-[22px]" />
+          </ScreenHeaderLink>
+        )}
         <ScreenHeaderLink href="/dates/new" label="기록 남기기">
           <PlusIcon className="size-6" />
         </ScreenHeaderLink>
