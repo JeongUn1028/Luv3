@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
+import { startTransition, useTransition, useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -28,7 +28,7 @@ import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import type { EditableRecord } from "@/lib/dates/detail";
-import { DateRecordGoneError, SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
+import { DateRecordConflictError, DateRecordGoneError, SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
@@ -65,7 +65,8 @@ const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto>
   location: undefined,
 });
 
-const toEditDraft = ({ date, endDate, title, place, memo, coverPhotoId, tags, location, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
+const toEditDraft = ({ revision, date, endDate, title, place, memo, coverPhotoId, tags, location, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
+  expectedRevisions: [revision],
   date,
   endDate,
   title,
@@ -108,6 +109,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
     if (failedSave) return withNewPreviews(failedSave.draft);
     return record ? toEditDraft(record) : createEmptyDraft(prefill);
   });
+  const [isReloading, startReloading] = useTransition();
   const [errors, setErrors] = useState<DraftErrors>({});
   const [tagInput, setTagInput] = useState("");
   // 찾기 결과는 PlaceField 안에 있어, 저장 뒤 숨겨진 폼을 되돌릴 때 key를 바꿔 함께 비운다
@@ -203,7 +205,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
 
     // 적어 두고 추가를 누르지 않은 태그를 잃지 않게 함께 저장한다
     const { tags, error: tagError } = addTag(draft.tags, tagInput);
-    const nextDraft = { ...draft, tags };
+    // 시도마다 새 판 번호를 쓴다. 내용이 바뀌면 판 번호도 바뀌어야 열어 둔 상대의 화면이 알아챈다
+    const nextDraft = { ...draft, tags, ...(record && { nextRevision: crypto.randomUUID() }) };
     setDraft(nextDraft);
     if (!tagError) setTagInput("");
 
@@ -269,17 +272,30 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
     } catch (error) {
       const message = toSaveErrorMessage(error);
       const isGone = error instanceof DateRecordGoneError;
+      const hasConflict = error instanceof DateRecordConflictError;
       const mayHaveSaved = error instanceof SaveDateRecordError && error.mayHaveSaved;
-      const uncertainSaveRecordId = mayHaveSaved ? recordId : nextDraft.uncertainSaveRecordId;
-      setDraft((current) => ({ ...current, uncertainSaveRecordId }));
-      // 저장됐다면 숨겨 둔 목록·상세가 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
-      if (mayHaveSaved) markAllScreensStale();
+      const failedFields = {
+        hasConflict,
+        uncertainSaveRecordId: mayHaveSaved ? recordId : nextDraft.uncertainSaveRecordId,
+        // 저장됐을 수 있는 내 판은 다음 시도에서 상대의 저장으로 오해하지 않게 허용한다
+        expectedRevisions: mayHaveSaved && nextDraft.nextRevision ? [...(nextDraft.expectedRevisions ?? []), nextDraft.nextRevision] : nextDraft.expectedRevisions,
+      };
+      setDraft((current) => ({ ...current, ...failedFields }));
+      // 저장됐거나 상대가 고쳤다면 숨겨 둔 목록·상세가 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
+      if (mayHaveSaved || hasConflict) markAllScreensStale();
       setIsRecordGone(isGone);
       setNotice(message);
       setIsSaving(false);
       setProgress(undefined);
-      finishFailed({ draft: { ...nextDraft, uncertainSaveRecordId }, message, isGone });
+      finishFailed({ draft: { ...nextDraft, ...failedFields }, message, isGone });
     }
+  };
+
+  // 페이지가 다시 불러올 때마다 폼을 새로 만들므로, 최신 기록으로 다시 고칠 수 있다
+  const handleReloadLatest = () => {
+    startReloading(() => {
+      router.refresh();
+    });
   };
 
   // 기록을 지웠을 때(DeleteRecordButton)와 같이 옮기면서 다시 불러온다
@@ -489,6 +505,16 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
               className="h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background"
             >
               기록 목록으로
+            </button>
+          ) : draft.hasConflict ? (
+            // 다시 저장해도 거부되므로 저장 버튼 대신 최신 내용을 불러오는 길을 준다
+            <button
+              type="button"
+              disabled={isReloading}
+              onClick={handleReloadLatest}
+              className="h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
+            >
+              {isReloading ? "불러오는 중…" : "최신 내용 불러오기"}
             </button>
           ) : (
             <button
