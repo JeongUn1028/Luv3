@@ -157,6 +157,9 @@ export const isInsideGitWorkTree = (target: string): boolean => {
   while (!existsSync(directory) && path.dirname(directory) !== directory) directory = path.dirname(directory);
 
   const result = spawnSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: directory, encoding: "utf8" });
+  if (result.error) {
+    throw new Error(`백업 폴더를 확인하지 못했습니다: ${target}\n드라이브와 폴더가 있는지, Git이 설치되어 있는지 확인하세요. (${result.error.message})`);
+  }
   return result.stdout.trim() === "true";
 };
 
