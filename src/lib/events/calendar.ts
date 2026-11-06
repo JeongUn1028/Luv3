@@ -3,12 +3,20 @@ import type { AuthorRow } from "@/lib/author";
 /** 일정의 반복 규칙. 값은 DB check 제약(마이그레이션)과 같아야 한다 */
 export type RepeatRule = "weekly" | "monthly" | "yearly";
 
+/** 기간 일정의 시작일과 끝 날짜(YYYY-MM-DD) */
+export interface EventPeriod {
+  start: string;
+  end: string;
+}
+
 /** 달력에 그리는 일정. 반복 일정은 오는 날마다 한 줄이고 id는 같다 */
 export interface CalendarEvent {
   id: string;
   date: string;
   /** 반복 일정이면 규칙, 한 번짜리면 undefined */
   repeatRule: RepeatRule | undefined;
+  /** 기간 일정이면 시작일과 끝 날짜(양 끝 포함), 하루 일정이면 undefined. `date`는 기간 중 이 줄이 나오는 날이다 */
+  period: EventPeriod | undefined;
   /** HH:MM:SS. null이면 종일 */
   startTime: string | null;
   title: string;
@@ -47,6 +55,7 @@ export interface CalendarEventRow {
   is_together: boolean;
   repeat_rule: string | null;
   repeat_until: string | null;
+  end_date: string | null;
   created_at: string;
   author: AuthorRow;
   /** 반복 중 건너뛰는 날 */
@@ -83,11 +92,13 @@ export const toCalendarEvent = ({
   place,
   is_together,
   repeat_rule,
+  end_date,
   author,
 }: CalendarEventRow): CalendarEvent => ({
   id,
   date,
   repeatRule: isRepeatRule(repeat_rule) ? repeat_rule : undefined,
+  period: end_date ? { start: date, end: end_date } : undefined,
   startTime: start_time,
   title,
   place: place ?? undefined,

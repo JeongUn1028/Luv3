@@ -26,7 +26,7 @@ import {
 } from "@/lib/calendar/month";
 import { toNewRecordHref } from "@/lib/dates/form";
 import { toOwnerLabel, type CalendarEvent, type CalendarRecord } from "@/lib/events/calendar";
-import { formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
+import { formatEventPeriod, formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 interface CalendarViewProps {
@@ -212,9 +212,11 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                   <span className="w-11 shrink-0 text-[12px] text-ink-sub">{formatEventTime(event.startTime)}</span>
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-[15px] text-ink">{event.title}</span>
-                    {(event.repeatRule || event.place) && (
+                    {(event.repeatRule || event.period || event.place) && (
                       <span className="truncate text-[12px] text-ink-sub">
-                        {[event.repeatRule && formatRepeatRule(event.repeatRule), event.place].filter(Boolean).join(" · ")}
+                        {[event.repeatRule && formatRepeatRule(event.repeatRule), event.period && formatEventPeriod(event.period), event.place]
+                          .filter(Boolean)
+                          .join(" · ")}
                       </span>
                     )}
                   </span>
@@ -224,10 +226,15 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                     <AuthorTag nickname={toOwnerLabel(event.authorNickname)} isOwner />
                   )}
                 </Link>
-                {/* 지난 일정(오늘 포함)은 그날의 데이트 기록으로 이어 쓸 수 있다. 이미 남긴 일정은 다시 권하지 않는다 */}
-                {canLeaveRecord(event, today, selectedRecords) && (
+                {/* 지난 일정(오늘 포함)은 데이트 기록으로 이어 쓸 수 있다. 이미 남긴 일정은 다시 권하지 않는다. 기간 일정은 다른 날의 기록과도 겹칠 수 있어 읽어 온 기록 전체를 본다 */}
+                {canLeaveRecord(event, today, records) && (
                   <Link
-                    href={toNewRecordHref({ date: event.date, title: event.title, place: event.place ?? "" })}
+                    href={toNewRecordHref({
+                      date: event.period?.start ?? event.date,
+                      endDate: event.period?.end,
+                      title: event.title,
+                      place: event.place ?? "",
+                    })}
                     transitionTypes={FORWARD_TRANSITION}
                     aria-label={`${event.title} 기록 남기기`}
                     className="flex shrink-0 items-center rounded-[10px] border border-line px-3 text-[12px] text-ink-sub hover:text-ink"

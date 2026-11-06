@@ -1,6 +1,7 @@
 import { countDaysBetween } from "@/lib/anniversary";
 import { formatDayHeading, formatEventTime } from "@/lib/calendar/month";
-import { toOwnerLabel } from "./calendar";
+import { toOwnerLabel, type EventPeriod } from "./calendar";
+import { formatEventPeriod } from "./recurrence";
 
 /** 홈 일정 칸에 보여 줄 일정 수. 칸이 정사각형이라 더 넣으면 넘친다 */
 const UPCOMING_PREVIEW_COUNT = 2;
@@ -78,13 +79,21 @@ export const previewUpcomingEvents = <Event>(events: Event[]): { shown: Event[];
 };
 
 /**
- * 일정 칸의 일정 제목 아래 줄: 시간(또는 종일)과 장소.
+ * 일정 칸의 일정 제목 아래 줄: 시간(또는 종일)과 장소. 기간 일정은 칸이 좁아 시간 대신 기간을 쓴다.
  *
  * @example formatEventMeta({ startTime: "19:00:00", place: "성수" }) // "19:00 · 성수"
  */
-export const formatEventMeta = ({ startTime, place }: { startTime: string | null; place: string | undefined }): string => {
-  const time = formatEventTime(startTime);
-  return place ? `${time} · ${place}` : time;
+export const formatEventMeta = ({
+  startTime,
+  place,
+  period,
+}: {
+  startTime: string | null;
+  place: string | undefined;
+  period?: EventPeriod | undefined;
+}): string => {
+  const when = period ? formatEventPeriod(period) : formatEventTime(startTime);
+  return place ? `${when} · ${place}` : when;
 };
 
 /**
