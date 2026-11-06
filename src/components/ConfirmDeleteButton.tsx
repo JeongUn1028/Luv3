@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState, type ReactElement } from "react";
+import { useCloseDialogOnHide } from "@/lib/navigation/use-close-dialog-on-hide";
 
 interface ConfirmDeleteButtonProps {
   /** 확인 창 제목. 예: "이 기록을 지울까요?" */
@@ -27,6 +28,7 @@ export const ConfirmDeleteButton = ({
   const descriptionId = useId();
   const [isDeleting, setIsDeleting] = useState(false);
   const [message, setMessage] = useState<string>();
+  useCloseDialogOnHide(dialogRef);
 
   const handleOpen = () => {
     setMessage(undefined);
