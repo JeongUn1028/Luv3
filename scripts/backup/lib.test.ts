@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   compareCounts,
   countRowsByTable,
+  describeBackupVersion,
   filterDump,
   findFilesToDownload,
   findLatestSnapshot,
@@ -13,6 +14,7 @@ import {
   isInsideGitWorkTree,
   listPublicTables,
   listReferencedPaths,
+  parseLastMigration,
   pickServiceKey,
   toBackupFile,
   toContentType,
@@ -269,5 +271,37 @@ describe("compareCounts", () => {
 
   it("모두 같으면 빈 목록을 돌려준다", () => {
     expect(compareCounts({ "public.dates": 1 }, { "public.dates": 1 })).toEqual([]);
+  });
+});
+
+describe("parseLastMigration", () => {
+  it("rows로 감싼 조회 결과에서 마지막 마이그레이션을 읽는다", () => {
+    const output = JSON.stringify({ boundary: "b", rows: [{ version: "20261106050000" }], warning: "w" });
+
+    expect(parseLastMigration(output)).toBe("20261106050000");
+  });
+
+  it("목록만 있는 조회 결과에서도 읽는다", () => {
+    expect(parseLastMigration('[{"version":"20261106050000"}]')).toBe("20261106050000");
+  });
+
+  it.each([
+    ["JSON이 아니면", "연결 실패"],
+    ["행이 없으면", '{"rows":[]}'],
+    ["적용된 마이그레이션이 없으면", '{"rows":[{"version":null}]}'],
+  ])("%s undefined를 돌려준다", (_name, output) => {
+    expect(parseLastMigration(output)).toBeUndefined();
+  });
+});
+
+describe("describeBackupVersion", () => {
+  it("커밋과 마지막 마이그레이션을 함께 보여 준다", () => {
+    expect(describeBackupVersion({ commit: "abc123", lastMigration: "20261106050000" })).toBe(
+      "커밋 abc123, 마지막 마이그레이션 20261106050000",
+    );
+  });
+
+  it("두 칸을 넣기 전에 받은 시점이면 기록 없음으로 보여 준다", () => {
+    expect(describeBackupVersion({})).toBe("커밋 기록 없음, 마지막 마이그레이션 기록 없음");
   });
 });
