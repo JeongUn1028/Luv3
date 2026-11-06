@@ -158,7 +158,7 @@ isOneToOne: false
 { Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_title": string }; Returns: string
                            },
 "detach_event_occurrence":
-{ Args: { "p_date": string,"p_event_id": string,"p_memo": string,"p_occurrence_date": string,"p_place": string,"p_start_time": string,"p_title": string }; Returns: string
+{ Args: { "p_date": string,"p_event_id": string,"p_memo"?: string,"p_occurrence_date": string,"p_place"?: string,"p_start_time"?: string,"p_title": string }; Returns: string
                            },
 "is_member":
 { Args: Record<PropertyKey, never>; Returns: boolean

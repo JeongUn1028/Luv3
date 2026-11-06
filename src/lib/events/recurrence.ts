@@ -1,4 +1,5 @@
 import { toIsoDate } from "@/lib/calendar/month";
+import { isIsoDate } from "@/lib/form";
 import { isRepeatRule, toCalendarEvent, type CalendarEvent, type CalendarEventRow, type RepeatRule } from "./calendar";
 
 /** 날짜 범위. 양 끝을 포함한다(YYYY-MM-DD) */
@@ -18,6 +19,9 @@ interface RepeatSeries {
 }
 
 const REPEAT_RULE_LABELS: Record<RepeatRule, string> = { weekly: "매주", monthly: "매달", yearly: "매년" };
+
+/** 고를 수 있는 반복 규칙(선택지 순서) */
+export const REPEAT_RULES = ["weekly", "monthly", "yearly"] as const satisfies readonly RepeatRule[];
 
 const DAYS_PER_WEEK = 7;
 const MONTHS_PER_YEAR = 12;
@@ -51,22 +55,28 @@ export const listOccurrenceDates = (
   const dates: string[] = [];
   for (let index = 0; ; index += 1) {
     const occurrence = getNthOccurrence(date, repeatRule, index);
-    if (occurrence > lastDate) return dates;
+    if (occurrence > lastDate || isBeyondCalendar(occurrence)) return dates;
     if (occurrence >= start && !skipped.has(occurrence)) dates.push(occurrence);
   }
 };
+
+// 9999년 뒤의 날짜는 "+010000-..."로 쓰여 글자 비교로는 앞선 날로 보이므로 따로 끝낸다
+const isBeyondCalendar = (isoDate: string): boolean => isoDate.startsWith("+");
 
 // 건너뛰는 날은 정해진 수뿐이므로, 끝나는 날이 없는 반복도 언젠가 다음 날을 찾아 끝난다
 const getNextOccurrenceDate = ({ date, repeatRule, repeatUntil, exceptionDates }: RepeatSeries, from: string): string | undefined => {
   const skipped = new Set(exceptionDates);
   for (let index = 0; ; index += 1) {
     const occurrence = getNthOccurrence(date, repeatRule, index);
-    if (repeatUntil !== null && occurrence > repeatUntil) return undefined;
+    if ((repeatUntil !== null && occurrence > repeatUntil) || isBeyondCalendar(occurrence)) return undefined;
     if (occurrence >= from && !skipped.has(occurrence)) return occurrence;
   }
 };
 
-const toRepeatSeries = ({ date, repeat_until, exceptions }: CalendarEventRow, repeatRule: RepeatRule): RepeatSeries => ({
+const toRepeatSeries = (
+  { date, repeat_until, exceptions }: Pick<CalendarEventRow, "date" | "repeat_until" | "exceptions">,
+  repeatRule: RepeatRule,
+): RepeatSeries => ({
   date,
   repeatRule,
   repeatUntil: repeat_until,
@@ -110,6 +120,19 @@ export const expandUpcomingEventRows = (rows: CalendarEventRow[], today: string)
     .map((row) => getNextRowDate(row, today))
     .reduce<string | undefined>((nearest, date) => (date && (!nearest || date < nearest) ? date : nearest), undefined);
   return nearestDate ? expandEventRows(rows, { start: today, end: nearestDate }) : [];
+};
+
+/**
+ * 고치기 주소의 날이 반복 일정이 실제로 오는 날이면 그날을 돌려준다. 건너뛰었거나 없는 날이면 undefined다.
+ *
+ * @example findOccurrenceDate(event, searchParams.date) // "2026-11-13"
+ */
+export const findOccurrenceDate = (
+  event: Pick<CalendarEventRow, "date" | "repeat_rule" | "repeat_until" | "exceptions">,
+  requested: string | string[] | undefined,
+): string | undefined => {
+  if (!isRepeatRule(event.repeat_rule) || typeof requested !== "string" || !isIsoDate(requested)) return undefined;
+  return listOccurrenceDates(toRepeatSeries(event, event.repeat_rule), { start: requested, end: requested })[0];
 };
 
 /**
