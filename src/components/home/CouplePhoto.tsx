@@ -114,7 +114,8 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
   const handleCloseMenu = () => modalRef.current?.close();
 
   const handleChangeClick = () => {
-    handleCloseMenu();
+    // 창이 닫히기 전이면 고르기 칸이 창 뒤에 막혀 있다. 움직임을 기다리지 않고 닫은 뒤 바로 연다
+    modalRef.current?.closeImmediately();
     handlePick();
   };
 
@@ -129,7 +130,8 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
         clearPath: () => supabase.rpc("clear_couple_photo"),
         onCleanupError: console.error,
       });
-      handleCloseMenu();
+      // 움직임을 기다리면 창이 열린 채로 초점을 옮기려다 실패하고, 사라지는 창의 버튼이 "지우기"로 되돌아 보인다
+      modalRef.current?.closeImmediately();
       refreshAfter("clear");
     } catch (error) {
       console.error(error);

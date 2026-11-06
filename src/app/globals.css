@@ -244,9 +244,36 @@ input[type="time"] {
   }
 }
 
+/* 알림이 사라진 뒤 아래 알림이 올라오도록 칸 높이만 접는다. 평소에는 그림자가 잘리지 않게 overflow를 걸지 않는다 */
+.save-notice-slot {
+  display: grid;
+  grid-template-rows: 1fr;
+}
+
+.save-notice-slot > div {
+  min-height: 0;
+}
+
+.save-notice-slot[data-phase="collapsing"] {
+  grid-template-rows: 0fr;
+}
+
+.save-notice-slot[data-phase="collapsing"] > div {
+  overflow: hidden;
+}
+
+.save-notice-slot[data-phase="collapsing"] [data-save-notice] {
+  opacity: 0;
+}
+
+.save-notice-slot:not([data-phase="shown"]) [data-save-notice] {
+  pointer-events: none;
+}
+
 /*
-  누름 반응(#175). 값은 이슈에 적힌 시안 값이다.
+  누름 반응과 창·알림 움직임(#175). 값은 이슈에 적힌 시안 값이다.
   이 블록 밖에는 움직임을 두지 않아 기기의 "동작 줄이기"가 켜져 있으면 아무것도 움직이지 않는다.
+  창·알림 시간을 바꾸면 ModalDialog·SaveNotices의 *_MS도 함께 바꾼다.
 */
 @media (prefers-reduced-motion: no-preference) {
   .press-wide,
@@ -339,6 +366,86 @@ input[type="time"] {
   @keyframes tab-color-out {
     from {
       color: var(--color-highlight);
+    }
+  }
+
+  .modal-dialog[open] {
+    animation: modal-sheet-in 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .modal-dialog[open]::backdrop {
+    animation: modal-backdrop-in 220ms ease-out;
+  }
+
+  .modal-dialog[data-closing] {
+    animation: modal-sheet-out 150ms ease-in forwards;
+  }
+
+  .modal-dialog[data-closing]::backdrop {
+    animation: modal-backdrop-out 150ms ease-in forwards;
+  }
+
+  .modal-step-in {
+    animation: modal-step-in 160ms ease-out;
+  }
+
+  @keyframes modal-sheet-in {
+    from {
+      opacity: 0;
+      translate: 0 16px;
+      scale: 0.96;
+    }
+  }
+
+  @keyframes modal-sheet-out {
+    to {
+      opacity: 0;
+      translate: 0 8px;
+      scale: 0.97;
+    }
+  }
+
+  @keyframes modal-backdrop-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes modal-backdrop-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes modal-step-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  .save-notice-slot[data-phase="shown"] [data-save-notice] {
+    animation: save-notice-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .save-notice-slot[data-phase="leaving"] [data-save-notice] {
+    animation: save-notice-out 170ms ease-in forwards;
+  }
+
+  .save-notice-slot {
+    transition: grid-template-rows 170ms ease-out;
+  }
+
+  @keyframes save-notice-in {
+    from {
+      opacity: 0;
+      translate: 0 -20px;
+    }
+  }
+
+  @keyframes save-notice-out {
+    to {
+      opacity: 0;
+      translate: 0 -12px;
     }
   }
 }
