@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PhotoError } from "@/lib/photos/errors";
 import type { PhotoStorage } from "@/lib/photos/upload";
 import type { DateRecordDraft } from "./form";
-import { DateRecordGoneError, SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "./save";
+import { DateRecordConflictError, DateRecordGoneError, SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "./save";
 
 const RECORD_ID = "10000000-0000-4000-8000-000000000001";
 const PHOTO_A = "20000000-0000-4000-8000-00000000000a";
@@ -322,6 +322,44 @@ describe("updateDateRecord", () => {
       mayHaveSaved: true,
     });
 
+    expect(storage.remove).not.toHaveBeenCalled();
+  });
+
+  it("불러온 판 번호와 새 판 번호를 함께 보낸다", async () => {
+    const { storage } = createFakeStorage();
+    const updateRecord = vi.fn(async () => ({ data: [], error: null }));
+
+    await updateDateRecord({
+      recordId: RECORD_ID,
+      draft: { ...draft, expectedRevisions: ["판-1"], nextRevision: "판-2" },
+      files: new Map(),
+      storage,
+      resize,
+      updateRecord,
+    });
+
+    expect(updateRecord).toHaveBeenCalledWith(expect.objectContaining({ p_expected_revisions: ["판-1"], p_new_revision: "판-2" }));
+  });
+
+  it("상대가 먼저 고쳤으면 새로 올린 사진을 지우고 다시 시도하라고 하지 않는다", async () => {
+    const { storage, stored } = createFakeStorage();
+    const updateRecord = vi.fn(async () => ({ data: null, error: { message: "화면을 연 뒤 기록이 바뀌었습니다", code: "P0409" } }));
+
+    const failure = updateDateRecord({ recordId: RECORD_ID, draft, files, storage, resize, updateRecord });
+
+    await expect(failure).rejects.toBeInstanceOf(DateRecordConflictError);
+    await expect(failure).rejects.toMatchObject({ mayHaveSaved: false });
+    expect(stored.size).toBe(0);
+  });
+
+  it("내 앞선 저장이 됐을 수 있으면 상대가 고쳤다고 해도 사진을 지우지 않는다", async () => {
+    const { storage } = createFakeStorage();
+    const updateRecord = vi.fn(async () => ({ data: null, error: { message: "바뀜", code: "P0409" } }));
+
+    const failure = updateDateRecord({ recordId: RECORD_ID, draft: { ...draft, uncertainSaveRecordId: RECORD_ID }, files, storage, resize, updateRecord });
+
+    await expect(failure).rejects.toBeInstanceOf(DateRecordConflictError);
+    await expect(failure).rejects.toMatchObject({ message: expect.stringContaining("반영됐을 수 있어요") });
     expect(storage.remove).not.toHaveBeenCalled();
   });
 

@@ -32,6 +32,8 @@ export interface DateRecordDetail {
 /** 수정 화면 초기값. 글은 입력칸에 바로 넣도록 빈 값을 빈 문자열로 둔다 */
 export interface EditableRecord {
   id: string;
+  /** 불러온 때의 판 번호. 저장할 때 보내 그사이 바뀌었는지 확인한다 */
+  revision: string;
   date: string;
   endDate: string | undefined;
   title: string;
@@ -46,6 +48,7 @@ export interface EditableRecord {
 
 /** `dates` + `photos` 조회 결과 한 행 */
 export interface DetailRow {
+  revision: string;
   id: string;
   date: string;
   end_date: string | null;
@@ -108,6 +111,7 @@ export const toEditableRecord = (row: DetailRow, signedThumbs: SignedUrl[]): Edi
   const photos = sortPhotos(row.photos);
   return {
     id: row.id,
+    revision: row.revision,
     date: row.date,
     endDate: row.end_date ?? undefined,
     title: row.title,
