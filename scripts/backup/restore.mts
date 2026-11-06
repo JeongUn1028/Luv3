@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "smol-toml";
 import { ALBUM_BUCKET } from "../../src/lib/photos/limits.ts";
-import { compareCounts, findLatestSnapshot, listPublicTables, toContentType, type BackupManifest } from "./lib.mts";
+import { compareCounts, describeBackupVersion, findLatestSnapshot, listPublicTables, toContentType, type BackupManifest } from "./lib.mts";
 import { getLocalConnection, readLocalSizes, REPO_ROOT, runSupabase, runWithLimit } from "./supabase.mts";
 
 const UPLOAD_CONCURRENCY = 4;
@@ -79,6 +79,7 @@ const main = async (): Promise<void> => {
   const snapshotDirectory = selectSnapshot(root, requestedSnapshot);
   const manifest = JSON.parse(readFileSync(path.join(snapshotDirectory, "manifest.json"), "utf8")) as BackupManifest;
   console.log(`되살릴 시점: ${path.basename(snapshotDirectory)} (${manifest.source === "linked" ? "운영" : "로컬 시험"} 데이터)`);
+  console.log(`백업할 때: ${describeBackupVersion(manifest)}`);
 
   // 로컬 DB를 지우기 전에 되살릴 수 있는 백업인지 먼저 확인한다
   const albumDirectory = path.join(root, "album");

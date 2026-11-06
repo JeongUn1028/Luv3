@@ -12,6 +12,10 @@ export interface BackupFile {
 export interface BackupManifest {
   createdAt: string;
   source: "linked" | "local";
+  /** 백업할 때의 리포 커밋. 스키마가 달라 되살리지 못하면 이 커밋으로 돌아간다. 이 칸을 넣기 전에 받은 시점에는 없다 */
+  commit?: string;
+  /** 백업한 DB에 적용된 마지막 마이그레이션. 이 칸을 넣기 전에 받은 시점에는 없다 */
+  lastMigration?: string;
   tables: Record<string, number>;
   files: BackupFile[];
   totalBytes: number;
@@ -261,3 +265,36 @@ export const compareCounts = (expected: Record<string, number>, actual: Record<s
   Object.entries(expected)
     .map(([name, count]) => ({ name, expected: count, actual: actual[name] ?? 0 }))
     .filter((entry) => entry.expected !== entry.actual);
+
+const toQueryRows = (parsed: unknown): unknown[] => {
+  if (Array.isArray(parsed)) return parsed;
+  if (typeof parsed === "object" && parsed !== null && "rows" in parsed && Array.isArray(parsed.rows)) return parsed.rows;
+  return [];
+};
+
+/**
+ * `supabase db query -o json`의 출력에서 마지막 마이그레이션 번호를 읽는다. 읽지 못하면 undefined를 돌려준다.
+ *
+ * @example parseLastMigration('{"rows":[{"version":"20261106050000"}]}') // "20261106050000"
+ */
+export const parseLastMigration = (output: string): string | undefined => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(output);
+  } catch {
+    // 형식이 달라 못 읽어도 백업 자체는 남겨야 하므로 호출한 쪽에서 경고만 한다
+    return undefined;
+  }
+
+  const [row] = toQueryRows(parsed);
+  if (typeof row !== "object" || row === null || !("version" in row)) return undefined;
+  return typeof row.version === "string" ? row.version : undefined;
+};
+
+/**
+ * 그 시점을 받을 때의 코드와 스키마 위치를 문구로 만든다.
+ *
+ * @example describeBackupVersion({ commit: "abc123", lastMigration: "20261106050000" }) // "커밋 abc123, 마지막 마이그레이션 20261106050000"
+ */
+export const describeBackupVersion = ({ commit, lastMigration }: Pick<BackupManifest, "commit" | "lastMigration">): string =>
+  `커밋 ${commit ?? "기록 없음"}, 마지막 마이그레이션 ${lastMigration ?? "기록 없음"}`;

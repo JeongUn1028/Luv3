@@ -4,6 +4,7 @@ import path from "node:path";
 import { ALBUM_BUCKET } from "../../src/lib/photos/limits.ts";
 import {
   countRowsByTable,
+  describeBackupVersion,
   filterDump,
   findFilesToDownload,
   formatStorageUsage,
@@ -17,6 +18,8 @@ import {
   getLinkedConnection,
   getLocalConnection,
   listAlbumFiles,
+  readCommit,
+  readLastMigration,
   readLocalSizes,
   runSupabase,
   runWithLimit,
@@ -73,6 +76,11 @@ const main = async (): Promise<void> => {
   const connection = isLocal ? getLocalConnection() : getLinkedConnection();
   console.log(`대상: ${connection.url}`);
 
+  // 스키마가 달라 되살리지 못할 때 돌아갈 곳을 알아야 한다. 내보내기 전에 읽어 그사이 바뀐 스키마가 더 오래된 번호로 남지 않게 한다
+  const commit = readCommit();
+  const lastMigration = readLastMigration(connection.dumpTarget);
+  console.log(describeBackupVersion({ commit, lastMigration }));
+
   console.log("DB 내보내는 중...");
   const dump = filterDump(
     runSupabase(["db", "dump", ...connection.dumpTarget, "--data-only", "--use-copy", "--schema", "public,auth"]),
@@ -104,6 +112,8 @@ const main = async (): Promise<void> => {
   const manifest: BackupManifest = {
     createdAt: createdAt.toISOString(),
     source,
+    commit,
+    lastMigration,
     tables,
     files,
     totalBytes,
@@ -122,6 +132,7 @@ const main = async (): Promise<void> => {
   if (unlinked.length > 0) {
     console.warn(`경고: 기록이 가리키는데 받지 못한 파일이 ${unlinked.length}개 있습니다. 앨범을 쓰지 않을 때 다시 받아 보고, 그래도 나오면 운영 DB를 확인하세요.\n${unlinked.join("\n")}`);
   }
+  if (!commit || !lastMigration) console.warn("경고: 백업 때의 커밋이나 마지막 마이그레이션을 읽지 못해 기록에 빠졌습니다. 백업 자체는 정상입니다.");
   if (usage.isNearLimit) console.warn("경고: 무료 저장 용량의 80%를 넘었습니다. 업로드가 막히기 전에 대책을 정하세요.");
 };
 
