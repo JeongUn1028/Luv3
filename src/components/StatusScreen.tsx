@@ -5,7 +5,7 @@ import { BACK_TRANSITION } from "@/lib/navigation/transition";
 
 /** 안내 화면의 "돌아가기" 모양. 문서를 새로 받는 `<a>`도 같은 모양을 쓴다 */
 export const STATUS_LINK_CLASS_NAME =
-  "flex h-[51px] w-full items-center justify-center rounded-[10px] border border-line text-[15px] text-ink hover:bg-surface";
+  "press-wide flex h-[51px] w-full items-center justify-center rounded-[10px] border border-line text-[15px] text-ink hover:bg-surface";
 
 interface StatusScreenProps {
   title: string;

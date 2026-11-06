@@ -5,7 +5,7 @@ import { BackIcon } from "@/components/icons";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 /** 머리글의 44px 아이콘 버튼 모양 */
-export const SCREEN_HEADER_ICON_CLASS_NAME = "flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink";
+export const SCREEN_HEADER_ICON_CLASS_NAME = "press-icon flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink";
 
 interface ScreenHeaderProps {
   /**

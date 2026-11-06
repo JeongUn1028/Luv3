@@ -28,10 +28,10 @@ export const AlbumGrid = ({ tiles }: AlbumGridProps): ReactElement => {
           <ul className="mt-2 grid grid-cols-2 gap-1">
             {monthTiles.map((tile) => (
               <li key={tile.id}>
-                <Link href={`/dates/${tile.id}`} transitionTypes={FORWARD_TRANSITION} className="relative block aspect-[4/5] overflow-hidden bg-surface">
+                <Link href={`/dates/${tile.id}`} transitionTypes={FORWARD_TRANSITION} className="press-card relative block aspect-[4/5] bg-surface">
                   {tile.thumbUrl && (
                     // eslint-disable-next-line @next/next/no-img-element -- 업로드 때 이미 600px로 줄인 썸네일이라 next/image 최적화를 다시 거치지 않는다
-                    <img src={tile.thumbUrl} alt={tile.title} loading="lazy" className="size-full object-cover" />
+                    <img src={tile.thumbUrl} alt={tile.title} loading="lazy" className="absolute inset-0 size-full object-cover" />
                   )}
                   {/* 밝은 사진 위에서도 글자가 읽히도록 아래쪽만 어둡게 깐다 */}
                   <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-background/80 to-transparent px-2.5 pt-6 pb-2.5 text-[12px] text-ink">
