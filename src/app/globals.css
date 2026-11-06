@@ -170,3 +170,78 @@ input[type="time"] {
     animation-delay: 0s !important;
   }
 }
+
+/*
+  앱 시작 화면(#131, StartupSplash). 전체 1.3초: 하트 0~0.55초, 선 0.5~0.62초, 문구 0.58~0.9초, 멈춤 ~1.05초, 사라짐 ~1.3초.
+  화면 코드가 오기 전에도 돌고 끝나도록 CSS로만 움직인다. 끝나면 visibility로 숨겨, 화면 코드가 없어도 보이지 않는다.
+*/
+[data-startup-splash] {
+  animation: startup-splash-out 250ms ease-out 1050ms both;
+  /* 이름이 없으면 도중에 탭을 눌렀을 때 전환되는 화면이 시작 화면 위로 올라왔다가 사라진다 */
+  view-transition-name: startup-splash;
+}
+
+/* 새로 생긴 화면은 전환 층에서 뒤쪽 순서로 쌓이므로 z-index로 시작 화면을 위에 둔다 */
+::view-transition-group(startup-splash) {
+  z-index: 1;
+  animation: none;
+}
+
+::view-transition-new(startup-splash) {
+  animation: none;
+}
+
+[data-startup-splash] path {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  animation: startup-heart-draw 550ms cubic-bezier(0.45, 0.05, 0.35, 1) both;
+}
+
+[data-startup-splash] > div {
+  animation: startup-line-in 120ms ease-out 500ms both;
+}
+
+/* 글자마다 시작 시각은 StartupSplash가 정한다 */
+[data-startup-splash] span {
+  animation: startup-letter-in 120ms ease-out both;
+}
+
+@keyframes startup-splash-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* 시작 전에는 둥근 선 끝이 점으로 보이므로 첫 움직임까지 숨긴다 */
+@keyframes startup-heart-draw {
+  from {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  1% {
+    opacity: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+}
+
+@keyframes startup-line-in {
+  from {
+    scale: 0 1;
+  }
+}
+
+@keyframes startup-letter-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-startup-splash] {
+    display: none;
+  }
+}
