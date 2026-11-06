@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState, useTransition, type ChangeEvent, type ReactElement } from "react";
+import { useEffect, useRef, useState, useTransition, type ChangeEvent, type ReactElement } from "react";
 import { CameraIcon, PlusIcon } from "@/components/icons";
+import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
 import { clearCouplePhoto, CouplePhotoError, replaceCouplePhoto } from "@/lib/couple-photo/save";
-import { useCloseDialogOnHide } from "@/lib/navigation/use-close-dialog-on-hide";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { isAcceptedPhoto, PHOTO_INPUT_ACCEPT, resizePhoto } from "@/lib/photos/resize";
@@ -37,14 +37,11 @@ interface CouplePhotoProps {
 export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  useCloseDialogOnHide(dialogRef);
+  const modalRef = useRef<ModalDialogHandle>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const changeButtonRef = useRef<HTMLButtonElement>(null);
   // 올리는 동안·지운 뒤에는 누른 버튼이 사라지거나 비활성이 되므로, 작업이 끝나면(실패 포함) 그 자리의 버튼으로 초점을 옮긴다
   const shouldMoveFocusRef = useRef(false);
-  const titleId = useId();
-  const descriptionId = useId();
 
   const [task, setTask] = useState<Task>();
   // 저장은 끝났고 새 사진을 받아 오는 중인 작업. 받아 오는 동안에도 같은 표시를 이어 간다
@@ -111,10 +108,10 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
     setMessage(undefined);
     // 지우는 중에 화면을 벗어나면 닫힌 뒤에 실패 문구가 들어올 수 있다
     setDialogMessage(undefined);
-    dialogRef.current?.showModal();
+    modalRef.current?.open();
   };
 
-  const handleCloseMenu = () => dialogRef.current?.close();
+  const handleCloseMenu = () => modalRef.current?.close();
 
   const handleChangeClick = () => {
     handleCloseMenu();
@@ -203,73 +200,43 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
         {busyTask ? BUSY_LABELS[busyTask] : ""}
       </p>
 
-      <dialog
-        ref={dialogRef}
-        aria-labelledby={titleId}
-        aria-describedby={isConfirmingClear ? descriptionId : undefined}
-        // 지우는 중에 Esc로 닫혀 결과를 놓치지 않게 한다
-        onCancel={(event) => {
-          if (task === "clear") event.preventDefault();
-        }}
+      <ModalDialog
+        ref={modalRef}
+        title={isConfirmingClear ? "커플 사진을 지울까요?" : "커플 사진"}
+        description={isConfirmingClear ? "두 사람 모두의 홈에서 사라지고 되돌릴 수 없어요." : undefined}
+        isBusy={task === "clear"}
         onClose={() => {
           setIsConfirmingClear(false);
           setDialogMessage(undefined);
         }}
-        className="m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
       >
         {isConfirmingClear ? (
           <>
-            <h2 id={titleId} className="font-display text-[17px]">
-              커플 사진을 지울까요?
-            </h2>
-            <p id={descriptionId} className="mt-2 text-[14px] leading-[1.6] text-ink-sub">
-              두 사람 모두의 홈에서 사라지고 되돌릴 수 없어요.
-            </p>
-            {dialogMessage && (
-              <p role="alert" className="mt-3 text-[13px] text-accent">
-                {dialogMessage}
-              </p>
-            )}
-            <div className="mt-5 flex gap-2">
-              <button
-                type="button"
-                // 누른 "사진 지우기" 버튼이 사라지므로 확인 단계의 첫 버튼으로 초점을 옮긴다
-                autoFocus
-                disabled={task === "clear"}
-                onClick={handleCloseMenu}
-                className="h-12 flex-1 rounded-[10px] border border-line text-[15px] text-ink hover:bg-background disabled:opacity-50"
-              >
-                취소
-              </button>
-              <button
-                type="button"
-                disabled={task === "clear"}
-                onClick={handleClear}
-                className="h-12 flex-1 rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-              >
-                {task === "clear" ? "지우는 중…" : "지우기"}
-              </button>
-            </div>
+            {dialogMessage && <ModalMessage>{dialogMessage}</ModalMessage>}
+            {/* 누른 "사진 지우기" 버튼이 사라지므로 확인 단계의 첫 버튼으로 초점을 옮긴다 */}
+            <ModalActions
+              cancelLabel="취소"
+              onCancel={handleCloseMenu}
+              confirmLabel={task === "clear" ? "지우는 중…" : "지우기"}
+              onConfirm={handleClear}
+              isDisabled={task === "clear"}
+              shouldFocusCancel
+            />
           </>
         ) : (
-          <>
-            <h2 id={titleId} className="font-display text-[17px]">
-              커플 사진
-            </h2>
-            <div className="mt-4 flex flex-col gap-2">
-              <button type="button" onClick={handleChangeClick} className={`${menuButtonClassName} text-ink`}>
-                사진 바꾸기
-              </button>
-              <button type="button" onClick={() => setIsConfirmingClear(true)} className={`${menuButtonClassName} text-ink`}>
-                사진 지우기
-              </button>
-              <button type="button" onClick={handleCloseMenu} className={`${menuButtonClassName} text-ink-sub`}>
-                취소
-              </button>
-            </div>
-          </>
+          <div className="mt-4 flex flex-col gap-2">
+            <button type="button" onClick={handleChangeClick} className={`${menuButtonClassName} text-ink`}>
+              사진 바꾸기
+            </button>
+            <button type="button" onClick={() => setIsConfirmingClear(true)} className={`${menuButtonClassName} text-ink`}>
+              사진 지우기
+            </button>
+            <button type="button" onClick={handleCloseMenu} className={`${menuButtonClassName} text-ink-sub`}>
+              취소
+            </button>
+          </div>
         )}
-      </dialog>
+      </ModalDialog>
     </section>
   );
 };
