@@ -144,7 +144,8 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await expect(page.locator("#title").locator("visible=true")).toHaveValue(title);
     await expect(page.locator("#memo").locator("visible=true")).toHaveValue("지워지면 안 되는 글");
     await expect(page.getByRole("button", { name: "1번째 사진 빼기" })).toBeVisible();
-    await expect(page.locator("main").getByRole("alert").locator("visible=true")).toContainText("저장하지 못했어요");
+    // 코드 없는 500이라 서버가 처리했는지 알 수 없는 실패다
+    await expect(page.locator("main").getByRole("alert").locator("visible=true")).toContainText("저장됐는지 확인하지 못했어요");
 
     // Act: 다시 저장한다
     await page.unrouteAll({ behavior: "wait" });
