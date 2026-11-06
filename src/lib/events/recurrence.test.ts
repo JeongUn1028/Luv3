@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expandEventRows, expandUpcomingEventRows, formatRepeatRule, listOccurrenceDates, toEventEditHref } from "./recurrence";
+import { expandEventRows, expandUpcomingEventRows, findOccurrenceDate, formatRepeatRule, listOccurrenceDates, toEventEditHref } from "./recurrence";
 import type { CalendarEventRow } from "./calendar";
 
 const series = { date: "2026-11-06", repeatUntil: null, exceptionDates: [] };
@@ -173,6 +173,37 @@ describe("expandUpcomingEventRows", () => {
 
     // Act & Assert
     expect(expandUpcomingEventRows(rows, today)).toEqual([]);
+  });
+});
+
+describe("findOccurrenceDate", () => {
+  const event = { date: "2026-11-06", repeat_rule: "weekly", repeat_until: "2026-12-31", exceptions: [{ date: "2026-11-20" }] };
+
+  it("주소의 날이 실제로 오는 날이면 그날을 돌려준다", () => {
+    expect(findOccurrenceDate(event, "2026-11-13")).toBe("2026-11-13");
+    expect(findOccurrenceDate(event, "2026-11-06")).toBe("2026-11-06");
+  });
+
+  it.each([
+    ["요일이 다른 날", "2026-11-14"],
+    ["시작 전", "2026-10-30"],
+    ["끝난 뒤", "2027-01-01"],
+    ["건너뛰는 날", "2026-11-20"],
+    ["틀린 날짜", "2026-02-31"],
+    ["여러 값", ["2026-11-13", "2026-11-27"]],
+    ["없는 값", undefined],
+  ])("%s이면 undefined를 돌려준다", (_, requested) => {
+    expect(findOccurrenceDate(event, requested)).toBeUndefined();
+  });
+
+  it("반복하지 않는 일정이면 undefined를 돌려준다", () => {
+    expect(findOccurrenceDate({ ...event, repeat_rule: null }, "2026-11-13")).toBeUndefined();
+  });
+
+  it("주소에 달력이 끝나는 해의 날을 넣어도 오류 없이 끝난다", () => {
+    const endless = { ...event, repeat_until: null };
+    expect(() => findOccurrenceDate(endless, "9999-12-31")).not.toThrow();
+    expect(() => findOccurrenceDate({ ...endless, repeat_rule: "monthly" }, "9999-12-31")).not.toThrow();
   });
 });
 
