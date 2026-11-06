@@ -187,6 +187,50 @@ export const createDisposableEvent = async ({ id, title }: { id: string; title: 
   return async () => assertNoError(await admin.from("events").delete().eq("id", id), "일정 지우기");
 };
 
+/** 테스트 하나에서만 쓰는 반복 일정 */
+interface DisposableRepeatingEvent {
+  id: string;
+  title: string;
+  date: string;
+  repeatRule: "weekly" | "monthly" | "yearly";
+  repeatUntil?: string;
+  exceptionDates?: string[];
+}
+
+/**
+ * 테스트 하나에서만 쓰는 반복 일정을 만든다. 돌려준 함수는 일정과 건너뛰는 날을 함께 지운다.
+ *
+ * @example const deleteEvent = await createDisposableRepeatingEvent({ id: randomUUID(), title: "수영", date: "2031-01-08", repeatRule: "weekly" })
+ */
+export const createDisposableRepeatingEvent = async ({
+  id,
+  title,
+  date,
+  repeatRule,
+  repeatUntil,
+  exceptionDates = [],
+}: DisposableRepeatingEvent): Promise<() => Promise<void>> => {
+  const admin = createAdminClient();
+  assertNoError(
+    await admin.from("events").insert({
+      id,
+      title,
+      date,
+      repeat_rule: repeatRule,
+      repeat_until: repeatUntil,
+      author_id: await getMemberId(admin),
+    }),
+    "반복 일정",
+  );
+  if (exceptionDates.length > 0) {
+    assertNoError(
+      await admin.from("event_exceptions").insert(exceptionDates.map((exceptionDate) => ({ event_id: id, date: exceptionDate }))),
+      "건너뛰는 날",
+    );
+  }
+  return async () => assertNoError(await admin.from("events").delete().eq("id", id), "반복 일정 지우기");
+};
+
 /**
  * 화면에서 저장한 일정을 제목으로 찾아 지운다.
  *
