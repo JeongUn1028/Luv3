@@ -23,8 +23,12 @@ const toLoggedEntry = (key: string, value: unknown): [string, string | number][]
   return typeof value === "string" && value !== "" ? [[key, value.slice(0, MAX_LOGGED_TEXT_LENGTH)]] : [];
 };
 
-/** 잡힌 오류의 원인에서 로그에 남겨도 되는 항목만 꺼낸다. Error의 name·message는 객체 펼치기로 옮겨지지 않아 하나씩 읽는다 */
-const toLoggedCause = (cause: unknown): Record<string, string | number> => {
+/**
+ * 잡힌 오류의 원인에서 로그에 남겨도 되는 항목만 꺼낸다. Error의 name·message는 객체 펼치기로 옮겨지지 않아 하나씩 읽는다.
+ *
+ * @example console.error("장소 찾기 실패", toLoggedCause(error.cause))
+ */
+export const toLoggedCause = (cause: unknown): Record<string, string | number> => {
   if (typeof cause !== "object" || cause === null) return {};
 
   return Object.fromEntries([

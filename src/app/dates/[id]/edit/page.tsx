@@ -32,6 +32,7 @@ const EditForm = async ({ params }: { params: Promise<{ id: string }> }) => {
       key={crypto.randomUUID()}
       record={record}
       tagSuggestions={tagSuggestions}
+      canSearchPlace={Boolean(process.env.KAKAO_REST_API_KEY)}
     />
   );
 };

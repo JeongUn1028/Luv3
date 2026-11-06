@@ -15,6 +15,7 @@ const draft: DateRecordDraft = {
   place: "성수",
   memo: "",
   tags: [],
+  location: undefined,
   photos: [
     { id: PHOTO_A, caption: "카페" },
     { id: PHOTO_B, caption: "" },
