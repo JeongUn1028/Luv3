@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useRef, useState, useTransition, type ChangeEvent, type ReactElement } from "react";
 import { CameraIcon, PlusIcon } from "@/components/icons";
 import { clearCouplePhoto, CouplePhotoError, replaceCouplePhoto } from "@/lib/couple-photo/save";
+import { useCloseDialogOnHide } from "@/lib/navigation/use-close-dialog-on-hide";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { isAcceptedPhoto, PHOTO_INPUT_ACCEPT, resizePhoto } from "@/lib/photos/resize";
@@ -37,6 +38,7 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  useCloseDialogOnHide(dialogRef);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const changeButtonRef = useRef<HTMLButtonElement>(null);
   // 올리는 동안·지운 뒤에는 누른 버튼이 사라지거나 비활성이 되므로, 작업이 끝나면(실패 포함) 그 자리의 버튼으로 초점을 옮긴다
@@ -107,6 +109,8 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
 
   const handleOpenMenu = () => {
     setMessage(undefined);
+    // 지우는 중에 화면을 벗어나면 닫힌 뒤에 실패 문구가 들어올 수 있다
+    setDialogMessage(undefined);
     dialogRef.current?.showModal();
   };
 
