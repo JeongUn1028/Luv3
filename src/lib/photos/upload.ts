@@ -35,6 +35,8 @@ export interface UploadPhotosParams {
   /** 사진이 속할 기록의 id. `dates.id`에도 같은 값을 쓴다 */
   dateId: string;
   photos: PhotoToUpload[];
+  /** 앞선 저장 시도가 올렸을 수 있으면 true. 이미 있어도 성공으로 보고, 저장된 기록이 가리킬 수 있어 실패해도 지우지 않는다 */
+  mayAlreadyExist?: boolean;
   /** 사진 한 장(원본+썸네일)을 올릴 때마다 (올린 장수, 전체 장수)로 불린다 */
   onProgress?: (uploadedCount: number, totalCount: number) => void;
 }
@@ -64,14 +66,23 @@ const isRetryable = (error: unknown): boolean => {
 const toPhotoError = (error: unknown): PhotoError =>
   new PhotoError(hasStatusCode(error, 413) ? "too-large" : "upload-failed", { cause: error });
 
+interface UploadPhotoFileParams {
+  storage: PhotoStorage;
+  /** album 버킷 안의 경로 */
+  path: string;
+  body: Blob;
+  /** 앞선 저장 시도가 같은 경로에 올렸을 수 있으면 true. 사진 id를 그대로 쓰므로 같은 파일이다 */
+  mayAlreadyExist?: boolean;
+}
+
 /**
  * 파일 하나를 album 버킷의 `path`에 올린다(덮어쓰지 않음). 일시적인 실패면 한 번 더 시도한다.
  * 실패해도 이 함수는 파일을 지우지 않으므로, 응답만 끊기고 저장됐을 수 있는 `path`는 호출한 쪽이 정리한다.
  *
  * @throws {PhotoError} `upload-failed` 또는 버킷 용량 제한에 걸리면 `too-large`
- * @example await uploadPhotoFile(supabase.storage.from(ALBUM_BUCKET), buildCouplePhotoPath(photoId), original)
+ * @example await uploadPhotoFile({ storage: supabase.storage.from(ALBUM_BUCKET), path: buildCouplePhotoPath(photoId), body: original })
  */
-export const uploadPhotoFile = async (storage: PhotoStorage, path: string, body: Blob): Promise<void> => {
+export const uploadPhotoFile = async ({ storage, path, body, mayAlreadyExist = false }: UploadPhotoFileParams): Promise<void> => {
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
@@ -83,7 +94,7 @@ export const uploadPhotoFile = async (storage: PhotoStorage, path: string, body:
       lastError = error;
     }
     // 사진 id는 새로 만든 UUID라, 다시 보냈을 때의 중복은 응답만 끊기고 첫 요청이 저장됐다는 뜻이다
-    if (attempt > 1 && hasStatusCode(lastError, 409)) return;
+    if ((attempt > 1 || mayAlreadyExist) && hasStatusCode(lastError, 409)) return;
     if (!isRetryable(lastError)) break;
   }
 
@@ -93,6 +104,7 @@ export const uploadPhotoFile = async (storage: PhotoStorage, path: string, body:
 /**
  * 줄인 사진들을 album 버킷의 `{date_id}/{photo_id}.jpg`, `{date_id}/{photo_id}_thumb.jpg`에 차례로 올린다.
  * 파일마다 한 번 더 시도하고, 그래도 실패하면 이번에 올리려던 파일을 모두 지운 뒤 에러를 낸다.
+ * 앞선 저장 시도가 올렸을 수 있으면(`mayAlreadyExist`) 저장된 기록이 가리킬 수 있어 지우지 않는다.
  * 사진이 빠진 기록이 생기지 않도록, DB 행은 이 함수가 끝난 뒤에 만들고 행 저장이 실패하면 `removeUploadedPhotos`로 지운다.
  *
  * @throws {PhotoError} `upload-failed` 또는 버킷 용량 제한에 걸리면 `too-large`
@@ -109,6 +121,7 @@ export const uploadPhotos = async ({
   storage,
   dateId,
   photos,
+  mayAlreadyExist = false,
   onProgress,
 }: UploadPhotosParams): Promise<UploadedPhoto[]> => {
   // id 형식 오류는 코드 실수라, 일부를 올린 뒤 "다시 시도해 주세요"로 감추지 않도록 올리기 전에 모두 확인한다
@@ -120,15 +133,15 @@ export const uploadPhotos = async ({
   try {
     for (const { photoId, original, thumb, path, thumbPath } of targets) {
       attemptedPaths.push(path);
-      await uploadPhotoFile(storage, path, original);
+      await uploadPhotoFile({ storage, path, body: original, mayAlreadyExist });
       attemptedPaths.push(thumbPath);
-      await uploadPhotoFile(storage, thumbPath, thumb);
+      await uploadPhotoFile({ storage, path: thumbPath, body: thumb, mayAlreadyExist });
 
       uploaded.push({ photoId, path, thumbPath });
       onProgress?.(uploaded.length, targets.length);
     }
   } catch (error) {
-    if (attemptedPaths.length > 0) {
+    if (attemptedPaths.length > 0 && !mayAlreadyExist) {
       // 정리가 실패하면 파일이 남지만, 사용자에게는 원래 실패 이유를 알리는 게 맞아 여기서는 삼킨다
       await storage.remove(attemptedPaths).catch(() => undefined);
     }

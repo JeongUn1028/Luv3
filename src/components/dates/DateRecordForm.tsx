@@ -23,6 +23,7 @@ import {
   type RecordPrefill,
 } from "@/lib/dates/form";
 import { clearError, countChars } from "@/lib/form";
+import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
@@ -213,6 +214,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       return;
     }
 
+    const recordId = record?.id ?? nextDraft.uncertainSaveRecordId ?? crypto.randomUUID();
+
     beginSave();
     setNotice(undefined);
     setIsSaving(true);
@@ -220,9 +223,10 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       const supabase = createClient();
       const storage = supabase.storage.from(ALBUM_BUCKET);
       const files = new Map(nextDraft.photos.flatMap(({ id, file }) => (file ? [[id, file] as const] : [])));
+      let savedHref = record ? `/dates/${record.id}` : RECORDS_PATH;
       if (record) {
         await updateDateRecord({
-          recordId: record.id,
+          recordId,
           draft: nextDraft,
           files,
           storage,
@@ -231,8 +235,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
           onProgress: setProgress,
         });
       } else {
-        await saveDateRecord({
-          recordId: crypto.randomUUID(),
+        const result = await saveDateRecord({
+          recordId,
           draft: nextDraft,
           files,
           storage,
@@ -240,6 +244,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
           createRecord: (args) => supabase.rpc("create_date_record", args),
           onProgress: setProgress,
         });
+        // 앞서 저장된 기록이 있어 이번 내용은 반영되지 않았으니, 저장된 내용을 바로 확인하게 한다
+        if (result === "already-saved") savedHref = `/dates/${recordId}`;
       }
       // cacheComponents는 다녀온 화면을 Activity로 숨겨 상태를 보존한다. 다시 열었을 때 처음 상태가 되도록
       // 이동과 같은 transition에서 되돌린다(이동이 끝날 때 함께 반영돼 빈 폼이 잠깐 보이지 않는다)
@@ -248,7 +254,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       // 목록은 날짜 내림차순이라 새 기록은 맨 위에 있다. 보던 위치로 돌아가면 저장되지 않은 것처럼 보인다
       if (!record) forgetScrollPosition("records");
       finishSaved({
-        href: record ? `/dates/${record.id}` : RECORDS_PATH,
+        href: savedHref,
         reset: () => {
           setDraft(record ? toEditDraft(record) : createEmptyDraft());
           setTagInput("");
@@ -263,11 +269,16 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
     } catch (error) {
       const message = toSaveErrorMessage(error);
       const isGone = error instanceof DateRecordGoneError;
+      const mayHaveSaved = error instanceof SaveDateRecordError && error.mayHaveSaved;
+      const uncertainSaveRecordId = mayHaveSaved ? recordId : nextDraft.uncertainSaveRecordId;
+      setDraft((current) => ({ ...current, uncertainSaveRecordId }));
+      // 저장됐다면 숨겨 둔 목록·상세가 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
+      if (mayHaveSaved) markAllScreensStale();
       setIsRecordGone(isGone);
       setNotice(message);
       setIsSaving(false);
       setProgress(undefined);
-      finishFailed({ draft: nextDraft, message, isGone });
+      finishFailed({ draft: { ...nextDraft, uncertainSaveRecordId }, message, isGone });
     }
   };
 
