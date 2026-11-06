@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { ALBUM_BUCKET } from "../../src/lib/photos/limits.ts";
-import { pickServiceKey, toBackupFile, type BackupFile, type ProjectApiKey } from "./lib.mts";
+import { parseLastMigration, pickServiceKey, toBackupFile, type BackupFile, type ProjectApiKey } from "./lib.mts";
 
 export const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
 
@@ -20,6 +20,7 @@ const LIST_PAGE_SIZE = 1000;
 const FOLDER_PLACEHOLDER = ".emptyFolderPlaceholder";
 // 글자만 담긴 덤프라 이 크기를 넘을 일은 없다. 넘으면 잘린 파일을 남기지 않고 실패한다
 const MAX_DUMP_BYTES = 512 * 1024 ** 2;
+const LAST_MIGRATION_QUERY = "select max(version) as version from supabase_migrations.schema_migrations";
 
 /**
  * Supabase CLI를 실행하고 표준 출력을 돌려준다. 셸을 거치지 않아 인자를 따옴표로 감쌀 일이 없다.
@@ -39,6 +40,30 @@ export const runSupabase = (args: string[]): string => {
     throw new Error(`supabase ${args.slice(0, 2).join(" ")} 실행에 실패했습니다(종료 코드 ${result.status}).`);
   }
   return result.stdout;
+};
+
+/**
+ * 지금 리포의 커밋을 돌려준다. 읽지 못하면 undefined를 돌려준다.
+ *
+ * @example readCommit() // "eb7445f..."
+ */
+export const readCommit = (): string | undefined => {
+  const result = spawnSync("git", ["rev-parse", "HEAD"], { cwd: REPO_ROOT, encoding: "utf8" });
+  const commit = result.stdout?.trim();
+  return result.status === 0 && commit ? commit : undefined;
+};
+
+/**
+ * 접속한 DB에 적용된 마지막 마이그레이션을 돌려준다. 기록용 값이라 읽지 못해도 백업을 멈추지 않고 undefined를 돌려준다.
+ *
+ * @example readLastMigration(["--linked"]) // "20261106050000"
+ */
+export const readLastMigration = (dumpTarget: string[]): string | undefined => {
+  try {
+    return parseLastMigration(runSupabase(["db", "query", ...dumpTarget, "-o", "json", LAST_MIGRATION_QUERY]));
+  } catch {
+    return undefined;
+  }
 };
 
 const toClient = (url: string, serviceKey: string): SupabaseClient =>
