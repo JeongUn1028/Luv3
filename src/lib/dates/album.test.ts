@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatPeriodMonthDay, formatTileLabel, groupByMonth, toAlbumTiles, toTagSuggestions, type AlbumRow, type AlbumTile } from "./album";
+import { formatPeriodMonthDay, formatTileLabel, groupByMonth, toAlbumTiles, toLatestRecord, toTagSuggestions, type AlbumRow, type AlbumTile } from "./album";
 
 const tile = (overrides: Partial<AlbumTile>): AlbumTile => ({
   id: "r",
@@ -121,5 +121,32 @@ describe("toTagSuggestions", () => {
 
   it("대소문자만 다른 태그는 하나로 세고 먼저 나온 글자를 쓴다", () => {
     expect(toTagSuggestions([["여행"], ["Cafe"], ["cafe"]])).toEqual(["Cafe", "여행"]);
+  });
+});
+
+describe("toLatestRecord", () => {
+  const latestRow: AlbumRow = {
+    id: "a",
+    date: "2026-11-02",
+    end_date: null,
+    title: "산책",
+    place: null,
+    memo: null,
+    tags: [],
+    cover: { thumb_path: "a/p_thumb.jpg" },
+    photos: [],
+  };
+
+  // 홈은 휴대폰이 썸네일 주소를 경로로 기억해 다시 쓴다(#219)
+  it("가장 최근 기록에 썸네일의 경로·주소·만료 시각을 붙인다", () => {
+    const record = toLatestRecord([latestRow], [{ path: "a/p_thumb.jpg", signedUrl: "https://example.test/a", expiresAt: 1000 }]);
+
+    expect(record).toMatchObject({ id: "a", title: "산책", thumb: { path: "a/p_thumb.jpg", url: "https://example.test/a", expiresAt: 1000 } });
+  });
+
+  it("대표 사진이 없거나 서명하지 못했으면 썸네일이 없고, 기록이 없으면 undefined다", () => {
+    expect(toLatestRecord([{ ...latestRow, cover: null }], [])?.thumb).toBeUndefined();
+    expect(toLatestRecord([latestRow], [{ path: "a/p_thumb.jpg", signedUrl: null, expiresAt: undefined }])?.thumb).toBeUndefined();
+    expect(toLatestRecord([], [])).toBeUndefined();
   });
 });

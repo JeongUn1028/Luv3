@@ -7,17 +7,24 @@ const MEDIUM_PATH = "couple/a_medium.jpg";
 const BUCKET: SigningBucket = { createSignedUrls: vi.fn() };
 
 /** 있는 파일만 서명하는 가짜 서명 함수 */
+const EXPIRES_AT = 1_000_000;
+
 const createFakeGetSignedUrls = (existingPaths: string[]) =>
   vi.fn<GetSignedUrls>(async (_bucket, paths) => ({
-    data: paths.map((path) => ({ path, signedUrl: existingPaths.includes(path) ? `https://storage.test/${path}` : null })),
+    data: paths.map((path) =>
+      existingPaths.includes(path) ? { path, signedUrl: `https://storage.test/${path}`, expiresAt: EXPIRES_AT } : { path, signedUrl: null, expiresAt: undefined },
+    ),
     error: null,
   }));
 
+/** 휴대폰이 경로로 기억할 수 있게 경로·주소·만료 시각을 함께 준다(#219) */
+const photoOf = (path: string) => ({ photo: { path, url: `https://storage.test/${path}`, expiresAt: EXPIRES_AT } });
+
 describe("createCouplePhotoSigner", () => {
-  it("홈 카드용 중간 크기가 있으면 그 주소를 쓴다", async () => {
+  it("홈 카드용 중간 크기가 있으면 그 경로·주소·만료 시각을 준다", async () => {
     const signCouplePhoto = createCouplePhotoSigner(createFakeGetSignedUrls([PATH, MEDIUM_PATH]));
 
-    await expect(signCouplePhoto(BUCKET, PATH)).resolves.toEqual({ signedUrl: `https://storage.test/${MEDIUM_PATH}` });
+    await expect(signCouplePhoto(BUCKET, PATH)).resolves.toEqual(photoOf(MEDIUM_PATH));
   });
 
   // 중간 크기를 만들기 전(#218)에 올린 사진은 원본만 있다
@@ -30,7 +37,7 @@ describe("createCouplePhotoSigner", () => {
     const results = [await signCouplePhoto(BUCKET, PATH), await signCouplePhoto(BUCKET, PATH)];
 
     // Assert
-    expect(results).toEqual([{ signedUrl: `https://storage.test/${PATH}` }, { signedUrl: `https://storage.test/${PATH}` }]);
+    expect(results).toEqual([photoOf(PATH), photoOf(PATH)]);
     expect(getSignedUrls.mock.calls.map(([, paths]) => paths)).toEqual([[MEDIUM_PATH, PATH], [PATH]]);
   });
 
@@ -43,7 +50,7 @@ describe("createCouplePhotoSigner", () => {
     const results = [await signCouplePhoto(BUCKET, PATH), await signCouplePhoto(BUCKET, PATH)];
 
     // Assert
-    expect(results).toEqual([{ signedUrl: undefined }, { signedUrl: undefined }]);
+    expect(results).toEqual([{ photo: undefined }, { photo: undefined }]);
     expect(getSignedUrls.mock.calls.map(([, paths]) => paths)).toEqual([[MEDIUM_PATH, PATH], [MEDIUM_PATH, PATH]]);
   });
 

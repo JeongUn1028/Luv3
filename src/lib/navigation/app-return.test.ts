@@ -55,10 +55,17 @@ describe("앱 복귀 연결", () => {
   });
 
   it("서명 주소로 받는 사진은 실패하면 다시 받는다", () => {
-    for (const at of ["components/dates/AlbumGrid.tsx", "components/dates/PhotoCarousel.tsx", "components/home/CouplePhoto.tsx", "components/home/LatestRecordCard.tsx"]) {
+    for (const at of ["components/dates/AlbumGrid.tsx", "components/dates/PhotoCarousel.tsx", "components/RememberedPhoto.tsx"]) {
       const source = readSource(at);
 
       expect(source, at).toContain("<SignedPhoto");
+      expect(source, at).not.toContain("<img");
+    }
+    // 홈 사진은 휴대폰이 기억한 주소로 그리고(#219), 그 주소로 받지 못하면 서버 주소로 다시 받는다
+    for (const at of ["components/home/CouplePhoto.tsx", "components/home/LatestRecordCard.tsx"]) {
+      const source = readSource(at);
+
+      expect(source, at).toContain("<RememberedPhoto");
       expect(source, at).not.toContain("<img");
     }
   });
