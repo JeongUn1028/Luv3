@@ -238,7 +238,7 @@ MVP는 로그인, 기록 작성, 앨범 목록, 기록 상세, D-day와 공유 �
 | 이미지 처리 | browser-image-compression, heic2any | 업로드 전 리사이즈, HEIC를 JPEG로 변환 |
 | 사진 넘기기 | Embla Carousel | 상세 화면 스와이프 |
 | 장소·지도 | 카카오 로컬 API, 카카오맵 JavaScript SDK(둘 다 선택) | 한국 장소 검색과 지도. 키가 없으면 버튼만 나오지 않는다 |
-| 테스트 | Vitest(로직), pgTAP(`supabase test db`, RLS), Playwright(대상 기기 두 크기의 화면과 주요 흐름) | RLS가 실제로 막는지, 화면이 실제로 동작하는지 자동으로 확인 |
+| 테스트 | Vitest(로직), pgTAP(`supabase test db`, RLS), Playwright(대상 기기 두 크기의 화면과 주요 흐름. 평소에는 크기·배치를 재는 스펙만 두 기기에서, 나머지는 아이폰 15 Pro에서만 돌리고 main 머지 때 두 기기 전체) | RLS가 실제로 막는지, 화면이 실제로 동작하는지 자동으로 확인 |
 | 배포 | Vercel (Hobby) | Next.js 배포가 가장 간단 |
 
 처음 계획 (주말 + 평일 저녁 기준, 약 4주):

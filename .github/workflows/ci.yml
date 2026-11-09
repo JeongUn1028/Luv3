@@ -7,7 +7,8 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # main은 머지마다 두 기기 전체 E2E를 도는 유일한 실행이라, 다음 머지가 와도 취소하지 않는다(#194)
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -48,6 +49,9 @@ jobs:
   e2e:
     name: test:e2e
     runs-on: ubuntu-latest
+    env:
+      # PR에서는 아이폰 17에서 크기를 재는 스펙만 돌리고, main에 머지될 때 두 기기 전체를 돌린다(e2e/support/devices.ts)
+      E2E_ALL_DEVICES: ${{ github.event_name == 'push' && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

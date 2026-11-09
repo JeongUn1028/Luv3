@@ -1,5 +1,6 @@
 import { defineConfig } from "@playwright/test";
 import { BASE_URL, MEMBER_STATE_PATH } from "./e2e/support/constants";
+import { DEVICE_SIZE_SPECS, isAllDevicesRun } from "./e2e/support/devices";
 import { readLocalSupabase } from "./e2e/support/local-supabase";
 import type { DeviceOptions } from "./e2e/support/test";
 
@@ -19,6 +20,8 @@ const createDeviceUse = (width: number, height: number, safeAreaTop: number) => 
 
 export default defineConfig<DeviceOptions>({
   testDir: "./e2e",
+  // e2e/support의 *.test.ts는 Vitest가 돌리는 단위 테스트다
+  testMatch: "**/*.spec.ts",
   globalSetup: "./e2e/global-setup.ts",
   forbidOnly: Boolean(process.env.CI),
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
@@ -33,7 +36,12 @@ export default defineConfig<DeviceOptions>({
   },
   projects: [
     { name: "iphone-15-pro", use: createDeviceUse(393, 852, 59) },
-    { name: "iphone-17", use: createDeviceUse(402, 874, 62) },
+    {
+      name: "iphone-17",
+      use: createDeviceUse(402, 874, 62),
+      // 평소에는 크기·배치를 재는 스펙만 돌린다. main에 머지될 때는 전체를 돌려 놓친 차이를 잡는다(#194)
+      ...(isAllDevicesRun(process.env.E2E_ALL_DEVICES) ? {} : { testMatch: DEVICE_SIZE_SPECS.map((name) => `**/${name}.spec.ts`) }),
+    },
   ],
   webServer: {
     command: `pnpm build && pnpm start -p ${new URL(BASE_URL).port}`,
