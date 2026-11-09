@@ -2,6 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionClaims } from "@/lib/supabase/jwks";
 import { LOGIN_PATH, SIGN_OUT_PATH } from "@/lib/auth/paths";
 
 export interface Member {
@@ -22,7 +23,7 @@ export const NOT_MEMBER_SIGNOUT_PATH = `${SIGN_OUT_PATH}?reason=not_member`;
  */
 export const getCurrentMember = cache(async (): Promise<Member> => {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const { data } = await getSessionClaims(supabase.auth);
   const userId = data?.claims.sub;
   if (!userId) redirect(LOGIN_PATH);
 
@@ -47,7 +48,7 @@ export const getCurrentMember = cache(async (): Promise<Member> => {
  */
 export const getCurrentEmail = async (): Promise<string> => {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const { data } = await getSessionClaims(supabase.auth);
   const email = data?.claims.email;
   if (!email) throw new Error("세션에서 로그인 이메일을 찾지 못했습니다");
   return email;
