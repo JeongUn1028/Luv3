@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useOptimistic, useState, type ReactElement } from "react";
 import { AuthorTag } from "@/components/AuthorTag";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
+import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { createClient } from "@/lib/supabase/client";
 import { applyTodoAction, groupTodos, TODOS_PATH, type Todo, type TodoAction } from "@/lib/todos/list";
@@ -66,8 +67,9 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
       }
       // 저장에 실패하면 먼저 바꾼 화면은 저절로 되돌아간다. 세션이 끊겼을 때 다시 불러오면 로그인 화면으로 넘어가 다시 로그인 창이 소용없어진다(#102)
       if (failure === SAVE_FAILED_MESSAGE) return;
-      // await 뒤의 갱신은 다시 transition으로 감싸야 새 목록이 올 때까지 먼저 바꾼 화면이 유지된다
-      startTransition(() => router.refresh());
+      // await 뒤의 갱신은 다시 transition으로 감싸야 새 목록이 올 때까지 먼저 바꾼 화면이 유지된다.
+      // 지금은 저장하는 동안 화면 이동이 저장과 함께 기다리지만, 폼에서 다시 불러오면 쓰던 내용이 사라지므로 같은 확인을 거친다(#164)
+      refreshOutsideForm(() => startTransition(() => router.refresh()));
     });
   };
 
