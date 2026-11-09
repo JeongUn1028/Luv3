@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
 import type { Locator, Page } from "@playwright/test";
-import { E2E_EVENTS, E2E_MEMBER, E2E_TODOS, PHOTO_FIXTURE_PATH, PHOTO_RECORD, TOP_BLANK_SPACE } from "./support/constants";
+import { E2E_EVENTS, E2E_MEMBER, E2E_TODOS, PHOTO_RECORD, TOP_BLANK_SPACE } from "./support/constants";
+import { pickPhoto } from "./support/actions";
 import { expect, getDocumentOverflow, getScrollArea, getScrollAreaOverflow, openScreen, test } from "./support/test";
 
 const [EVENT] = E2E_EVENTS;
@@ -173,12 +173,7 @@ test.describe("내용 스크롤 영역", () => {
     await openScreen(page, "/dates/new", page.locator("#memo"));
 
     // Act
-    await page.getByLabel("사진 고르기").setInputFiles({
-      name: "photo.jpg",
-      mimeType: "image/jpeg",
-      buffer: readFileSync(PHOTO_FIXTURE_PATH),
-    });
-    await page.getByRole("button", { name: "1번째 사진 빼기" }).waitFor();
+    await pickPhoto(page, 1);
 
     // Assert
     const memo = await page.locator("#memo").boundingBox();
