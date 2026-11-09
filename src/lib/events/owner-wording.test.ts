@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readSource, readSourceLines } from "@/test-utils/source";
 
+// 일정 폼 선택지의 닉네임과 캘린더 범례 이름은 e2e/event-owner.spec.ts가 잰다
 describe("일정 주인 표시", () => {
   it("화면 문구에서 개인이라는 말은 캘린더 범례 한 곳에만 쓴다", () => {
     const sources = readSourceLines();
@@ -13,23 +14,8 @@ describe("일정 주인 표시", () => {
     expect(legendUsers).toEqual(["components/calendar/CalendarView.tsx", "lib/calendar/highlight.ts"]);
   });
 
-  it("일정 추가 폼의 선택지는 현재 사용자의 닉네임을 쓴다", () => {
-    expect(readSource("app/events/new/page.tsx")).toContain("ownerNickname={nickname}");
-  });
-
-  it("일정 고치기 폼의 선택지는 그 일정 작성자의 닉네임을 쓴다", () => {
-    // 상대가 만든 일정에 내 이름을 붙이면 사실과 달라진다. 작성자를 모를 때도 내 닉네임으로 대신하지 않는다
+  it("작성자를 모르는 일정을 고칠 때도 선택지를 내 닉네임으로 대신하지 않는다", () => {
+    // 상대 일정에 내 이름을 붙이면 사실과 달라진다. 작성자를 모르는 일정은 E2E 데이터로 만들 수 없어 여기서 고정한다
     expect(readSource("app/events/[id]/edit/page.tsx")).toContain("ownerNickname={toOwnerLabel(event.authorNickname)}");
-  });
-
-  it("캘린더 범례는 닉네임을 받지 않고 고정된 이름을 쓴다", () => {
-    // 크림색은 두 사람 일정에 모두 칠해져서, 보는 사람 닉네임을 쓰면 상대 일정까지 내 일정처럼 읽힌다
-    const calendarView = readSource("components/calendar/CalendarView.tsx");
-
-    expect(calendarView).toContain("LEGEND_EVENT_KINDS.map");
-    expect(calendarView).toContain("{label} 일정");
-    expect(calendarView).not.toContain("getEventKinds");
-    expect(calendarView).not.toContain("memberNickname");
-    expect(readSource("app/calendar/page.tsx")).not.toMatch(/nickname/i);
   });
 });

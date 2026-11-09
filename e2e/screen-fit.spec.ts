@@ -132,6 +132,29 @@ test.describe("화면 높이", () => {
   });
 });
 
+test.describe("하단 탭", () => {
+  const TAB_PATHS = ["/", "/records", "/calendar", "/todos"];
+
+  for (const { name, path, ready } of SCREENS.filter((screen) => TAB_PATHS.includes(screen.path))) {
+    test(`${name} 탭 화면은 하단 탭을 화면 맨 아래, 스크롤 영역 바로 아래에 두고 지금 탭을 알린다`, async ({ page, safeArea }) => {
+      // Act
+      await openScreen(page, path, ready(page));
+
+      // Assert: fixed로 띄우면 홈 화면 앱 첫 실행 때 위로 뜨고, 스크롤 영역이 하단 탭 아래까지 이어진다(#51)
+      const tabBar = page.getByRole("navigation", { name: "주요 화면" }).locator("visible=true");
+      const scrollArea = getScrollArea(page).locator("visible=true");
+      const tabBox = await tabBar.boundingBox();
+      const scrollBox = await scrollArea.boundingBox();
+      expect(tabBox?.y ?? 0).toBeGreaterThan(0);
+      expect((tabBox?.y ?? 0) + (tabBox?.height ?? 0)).toBeCloseTo(page.viewportSize()?.height ?? 0, 0);
+      expect((scrollBox?.y ?? 0) + (scrollBox?.height ?? 0)).toBeCloseTo(tabBox?.y ?? 0, 0);
+      // 아래 safe-area는 하단 탭이 채우므로 내용 아래에 같은 여백을 또 두지 않는다
+      expect(await scrollArea.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingBottom))).toBeLessThan(safeArea.bottom);
+      await expect(tabBar.locator('a[aria-current="page"]')).toHaveAttribute("href", path);
+    });
+  }
+});
+
 test.describe("내용 스크롤 영역", () => {
   test("내용이 다 있는 홈을 열면 스크롤 영역이 넘치지 않는다", async ({ page }) => {
     await openScreen(page, "/", page.getByText(TODO.content));
