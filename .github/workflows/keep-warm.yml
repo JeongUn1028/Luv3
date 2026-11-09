@@ -1,0 +1,45 @@
+name: 서버 깨워 두기
+
+# 오래 쉬었다 앱을 켜면 서버 인스턴스가 새로 떠 검은 화면이 3초까지 길어졌다(#202 측정).
+# 5분마다 운영 주소를 불러 proxy와 서버 함수를 깨워 둔다. 비밀 값 없이 불러 401을 받으므로 DB는 조회하지 않는다.
+# DB 일시정지 막기와 실패 알림은 keepalive.yml(하루 1회, CRON_SECRET)이 맡는다.
+#
+# 이 작업은 실패로 끝내지 않는다. 예약 실행의 실패 메일은 schedule을 마지막으로 고친 계정에 가서,
+# 서버가 잠깐 실패할 때마다 실패로 끝내면 5분마다 메일이 쌓인다.
+# GitHub 예약 실행은 몇 분씩 늦거나 빠질 수 있고, 공개 리포는 60일 동안 활동이 없으면 예약이 꺼진다(README 월 1회 점검).
+on:
+  schedule:
+    # GitHub 예약은 5분 간격이 가장 짧다. 정각은 예약이 몰려 늦거나 빠지기 쉬워 2분씩 비켜 둔다
+    - cron: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+# 앞 실행이 늦어져 겹치면 기다리는 실행 하나만 남긴다
+concurrency:
+  group: keep-warm
+
+jobs:
+  keep-warm:
+    name: 서버 깨우기
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      # 운영 주소(docs/plan.md의 도메인 결정). 바꾸면 여기와 keepalive.yml을 함께 고친다
+      KEEP_WARM_URL: https://luv3.vercel.app/api/keepalive
+    steps:
+      - name: 운영 주소 부르기
+        # 401이 정상이다. 결과(상태 코드·첫 응답 시간·Server-Timing)는 실행 기록에만 남기고, 연결이 안 되거나 다른 상태 코드여도 경고만 남긴다.
+        # Vercel 로그에서 Vercel Cron(vercel-cron)·keepalive 확인(curl) 요청과 가릴 수 있게 이름을 달아 보낸다
+        run: |
+          curl_exit=0
+          status=$(curl --silent --show-error --output /dev/null --dump-header headers.txt \
+            --connect-timeout 10 --max-time 30 --user-agent "luv3-keep-warm" \
+            --write-out "%{http_code} %{time_starttransfer}" "$KEEP_WARM_URL") || curl_exit=$?
+          echo "응답: HTTP ${status% *}, 첫 응답 ${status#* }초"
+          grep -i "^server-timing:" headers.txt || true
+          if [ "$curl_exit" != "0" ]; then
+            echo "::warning::운영 주소에서 응답을 받지 못했습니다(curl 종료 코드 $curl_exit). 이 작업은 실패로 끝내지 않습니다. 계속되면 keepalive 확인 작업이 알립니다."
+          elif [ "${status% *}" != "401" ]; then
+            echo "::warning::401이 아닌 HTTP ${status% *}을 받았습니다. 404면 KEEP_WARM_URL, 307이면 로그인 없이 여는 경로 목록, 403·429면 Vercel의 봇 차단을 확인해 주세요."
+          fi
