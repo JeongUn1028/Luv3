@@ -43,8 +43,9 @@ const signIn = async (page: Page, email: string, password: string): Promise<void
   await page.getByRole("button", { name: "로그인" }).click();
 };
 
+// 로그인 화면은 시작 화면을 건너뛰고 자기 로고를 그리므로(#198) 시작 화면은 로그인한 상태의 화면에서 잰다
 test.describe("앱 시작 화면", () => {
-  test.use({ contextOptions: { reducedMotion: "no-preference" }, storageState: NO_SESSION });
+  test.use({ contextOptions: { reducedMotion: "no-preference" } });
 
   test("예전 시작 그림과 같은 자리에 같은 크기로 그린다", async ({ page, viewport }) => {
     // Arrange
@@ -54,7 +55,7 @@ test.describe("앱 시작 화면", () => {
     const heartTop = (height - SPLASH_CONTENT_HEIGHT) / 2;
 
     // Act
-    await page.goto("/login");
+    await page.goto("/");
 
     // Assert
     const splash = getSplash(page);
@@ -70,25 +71,24 @@ test.describe("앱 시작 화면", () => {
   test("돌아가는 동안에도 아래 화면을 누를 수 있고 끝나면 화면에서 없앤다", async ({ page }) => {
     // Arrange
     await holdSplash(page);
-    await page.goto("/login");
+    await page.goto("/", { waitUntil: "networkidle" });
     await expect(getSplash(page)).toBeVisible();
 
     // Act
-    const emailInput = page.getByLabel("이메일");
-    await emailInput.click();
+    await page.locator('nav a[href="/records"]').locator("visible=true").click();
 
     // Assert
-    await expect(emailInput).toBeFocused();
+    await page.waitForURL(`${BASE_URL}/records`);
     await finishSplash(page);
   });
 
   test("화면 코드가 오지 않아도 CSS만으로 끝나 누르기를 막지 않는다", async ({ browser, baseURL }) => {
     // Arrange
-    const context = await browser.newContext({ baseURL, javaScriptEnabled: false, reducedMotion: "no-preference", storageState: NO_SESSION });
+    const context = await browser.newContext({ baseURL, javaScriptEnabled: false, reducedMotion: "no-preference", storageState: MEMBER_STATE_PATH });
     const page = await context.newPage();
 
     // Act
-    await page.goto("/login");
+    await page.goto("/");
 
     // Assert
     const splash = getSplash(page);
@@ -98,40 +98,57 @@ test.describe("앱 시작 화면", () => {
     await context.close();
   });
 
-  test("로그인과 로그아웃으로 문서를 새로 받아도 다시 나오지 않고, 새로 열면 다시 나온다", async ({ page }) => {
-    // Arrange
-    const password = randomUUID();
-    const { email, remove } = await createDisposableMember(password);
-    await holdSplash(page);
-    await page.goto("/login", { waitUntil: "networkidle" });
+  test.describe("로그인하지 않은 상태에서", () => {
+    test.use({ storageState: NO_SESSION });
 
-    try {
-      // Act: 로그인해 홈으로 옮긴다
-      await signIn(page, email, password);
-      await page.waitForURL(`${BASE_URL}/`);
+    test("앱을 새로 켜면 로그인 화면으로 가고, 로그인 로고만 그려 하트가 한 번만 나온다", async ({ page }) => {
+      // Arrange
+      await holdSplash(page);
 
-      // Assert
-      await expect(getSplash(page)).toBeHidden();
-
-      // Act: 앱을 새로 연다
-      await page.reload();
-
-      // Assert
-      await expect(getSplash(page)).toBeVisible();
-
-      // Act: 로그아웃해 로그인 화면으로 옮긴다
-      await finishSplash(page);
-      await page.goto("/settings", { waitUntil: "networkidle" });
-      await finishSplash(page);
-      await page.getByRole("button", { name: "로그아웃" }).click();
+      // Act
+      await page.goto("/");
       await page.waitForURL(/\/login/);
 
       // Assert
-      await expect(page.getByLabel("이메일")).toBeVisible();
+      await expect(page.locator("main [data-drawn-logo]")).toBeVisible();
       await expect(getSplash(page)).toBeHidden();
-    } finally {
-      await remove();
-    }
+    });
+
+    test("로그인과 로그아웃으로 문서를 새로 받아도 다시 나오지 않고, 새로 열면 다시 나온다", async ({ page }) => {
+      // Arrange
+      const password = randomUUID();
+      const { email, remove } = await createDisposableMember(password);
+      await holdSplash(page);
+      await page.goto("/login", { waitUntil: "networkidle" });
+
+      try {
+        // Act: 로그인해 홈으로 옮긴다
+        await signIn(page, email, password);
+        await page.waitForURL(`${BASE_URL}/`);
+
+        // Assert
+        await expect(getSplash(page)).toBeHidden();
+
+        // Act: 앱을 새로 연다
+        await page.reload();
+
+        // Assert
+        await expect(getSplash(page)).toBeVisible();
+
+        // Act: 로그아웃해 로그인 화면으로 옮긴다
+        await finishSplash(page);
+        await page.goto("/settings", { waitUntil: "networkidle" });
+        await finishSplash(page);
+        await page.getByRole("button", { name: "로그아웃" }).click();
+        await page.waitForURL(/\/login/);
+
+        // Assert
+        await expect(page.getByLabel("이메일")).toBeVisible();
+        await expect(getSplash(page)).toBeHidden();
+      } finally {
+        await remove();
+      }
+    });
   });
 
   test.describe("로그인한 상태에서", () => {
@@ -212,10 +229,10 @@ test.describe("앱 시작 화면", () => {
       await holdSplash(page);
 
       // Act
-      await page.goto("/login");
+      await page.goto("/");
 
       // Assert
-      await expect(page.getByLabel("이메일")).toBeVisible();
+      await expect(page.locator('nav a[href="/records"]').locator("visible=true")).toBeVisible();
       await expect(getSplash(page)).toBeHidden();
     });
   });

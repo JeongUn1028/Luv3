@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { HeartLogo } from "@/components/HeartLogo";
+import { DrawnLogo } from "@/components/DrawnLogo";
 import { InstallHint } from "@/components/InstallHint";
 import { PageShell } from "@/components/PageShell";
-import { ANNIVERSARY_DATE, formatSinceLabel } from "@/lib/anniversary";
 import { LoginForm } from "./LoginForm";
 
 export const metadata: Metadata = { title: "로그인 · Luv3" };
@@ -14,12 +13,8 @@ const LoginPage = () => (
     <InstallHint />
     <section className="flex flex-1 flex-col items-center justify-center py-12">
       <h1 className="sr-only">Luv3</h1>
-      <HeartLogo className="w-[120px] text-highlight" />
-      <div className="mt-10 h-px w-8 bg-ink-sub" />
-      {/* letter-spacing이 마지막 글자 뒤에도 붙어 가운데가 왼쪽으로 쏠리므로 같은 만큼 왼쪽을 띄운다 */}
-      <p className="mt-5 pl-[6px] font-logo text-[14px] tracking-[6px] text-label">
-        {formatSinceLabel(ANNIVERSARY_DATE)}
-      </p>
+      {/* 들어올 때 한 번 그린다(#198). 입력할 때 다시 그려지지 않도록 폼 상태와 상관없는 자리에 둔다 */}
+      <DrawnLogo />
     </section>
     {/* useSearchParams는 요청마다 달라지므로 Suspense 안에서 렌더링한다 */}
     <Suspense>
