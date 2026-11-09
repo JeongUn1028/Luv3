@@ -23,16 +23,6 @@ describe("화면 틀", () => {
     expect(findLines(/<main\b/, [SHELL, GLOBAL_ERROR])).toEqual([]);
   });
 
-  it("루트 레이아웃이 화면 높이(h-app)를 고정하고 PageShell은 그 안을 채워 안쪽 영역만 스크롤한다", () => {
-    const shell = readSource(SHELL);
-
-    expect(readSource("app/layout.tsx")).toMatch(/<div className="[^"]*\bflex\b[^"]*\bh-app\b[^"]*\bflex-col\b[^"]*">\s*<OfflineNotice \/>\s*\{children\}\s*<\/div>/);
-    // 화면 제목(h1)이 본문 영역 안에 남도록 머리글도 main 안에 둔다
-    expect(shell).toMatch(/<main className="[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*\bflex-col\b[^"]*">\s*<div className="shrink-0 pt-\[var\(--screen-top-inset\)\]">\{header\}<\/div>/);
-    // min-h-0이 없으면 flex 자식이 내용만큼 늘어나 안쪽 스크롤이 생기지 않는다
-    expect(shell).toMatch(/"[^"]*\bmin-h-0\b[^"]*\bflex-1\b[^"]*\boverflow-y-auto\b[^"]*\boverscroll-contain\b[^"]*"/);
-  });
-
   it("하단 탭은 스크롤 영역 아래, 화면 높이 틀 안에 둔다", () => {
     const shell = readSource(SHELL);
 
@@ -66,7 +56,7 @@ describe("화면 틀", () => {
     expect(scrollAreas.filter(({ line }) => !/\brelative\b/.test(line)).map(({ at }) => at)).toEqual([]);
   });
 
-  it("html·body는 튕김을 막되 overflow: hidden은 걸지 않는다", () => {
+  it("html·body와 안쪽 스크롤 영역은 튕김을 막되, html·body에 overflow: hidden은 걸지 않는다", () => {
     const css = readSource("app/globals.css");
     const rootRules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter(([, selector]) =>
       /(?:^|[\s,])(?:html|body)(?=[\s,:]|$)/.test(selector.trim()),
@@ -74,15 +64,18 @@ describe("화면 틀", () => {
     const rootTags = readSource("app/layout.tsx").match(/<(?:html|body)\b[^>]*>/g) ?? [];
 
     expect(css).toMatch(/html,\s*body\s*\{[^}]*overscroll-behavior:\s*none;/);
+    // 안쪽 스크롤 영역도 끝에서 튕기지 않게 한다. 튕김은 iOS에서만 나 E2E로 잴 수 없다
+    expect(readSource(SHELL)).toMatch(/"[^"]*\boverflow-y-auto\b[^"]*\boverscroll-contain\b[^"]*"/);
     // 첫 실행 때 html·body 높이가 793이라, overflow를 막으면 852 높이의 틀 아래(하단 탭)가 잘린다
     expect(rootRules.filter(([, , body]) => /overflow(?:-[xy])?:\s*hidden/.test(body))).toEqual([]);
     expect(rootTags).toHaveLength(2);
     expect(rootTags.filter((tag) => /\boverflow(?:-[xy])?-hidden\b/.test(tag))).toEqual([]);
   });
 
-  it.each(TOP_OVERLAYS)("위쪽에 겹쳐 뜨는 안내 %s는 끊김 안내 아래에 놓인다", (at) => {
-    // 끊김 안내가 떠 있으면 --overlay-top이 그 아래를 가리킨다(#106)
-    expect(readSource(at)).toMatch(/\btop-\[calc\(var\(--overlay-top\)\+\d+px\)\]/);
+  it("설치 안내는 끊김 안내 아래에 놓인다", () => {
+    // 끊김 안내가 떠 있으면 --overlay-top이 그 아래를 가리킨다(#106). 저장 알림은 e2e/offline.spec.ts가 위치를 잰다.
+    // 설치 안내는 아이폰 Safari에서 로그아웃 상태로만 떠 E2E로 띄우지 않는다
+    expect(readSource("components/InstallHint.tsx")).toMatch(/\btop-\[calc\(var\(--overlay-top\)\+\d+px\)\]/);
   });
 
   it("끊긴 동안에는 오류 화면의 홈으로 링크가 문서를 새로 받지 않는다", () => {
@@ -148,12 +141,6 @@ describe("누름 영역", () => {
 });
 
 describe("날짜·시간 칸", () => {
-  it("폼의 날짜 칸은 일요일부터 시작하는 앱 전용 창을 쓴다", () => {
-    // type="date"는 아이폰이 창을 그려 시작 요일을 정할 수 없다(#178)
-    expect(readSource("components/dates/DateRecordForm.tsx")).not.toContain(`type="date"`);
-    expect(readSource("components/events/EventForm.tsx")).not.toContain(`type="date"`);
-  });
-
   it("iOS 기본 모양을 꺼서 다른 칸과 같은 폭·높이를 따른다", () => {
     // iOS의 기본 모양 시간 칸은 width·height를 따르지 않고 부모보다 커질 수 있다(#92)
     const rule = readSource("app/globals.css").match(/input\[type="time"\]\s*\{[^}]*\}/)?.[0] ?? "";

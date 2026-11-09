@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readSource, readSourceLines } from "@/test-utils/source";
 
 // 화면 이동 방향(앞으로·뒤로·탭)은 링크마다 붙이지 않으면 조용히 애니메이션 없이 바뀐다(#53).
-// Vitest(node)로는 전환을 볼 수 없어 소스 규칙으로 고정하고, 실제 움직임은 영상으로 확인한다.
+// Vitest(node)로는 전환을 볼 수 없어 소스 규칙으로 고정한다. 뒤로 버튼 움직임과 스크롤 위치 기억은 e2e/back-navigation.spec.ts가 잰다.
 
 const findLinks = (at: string): string[] => readSource(at).match(/<Link\b[\s\S]*?>/g) ?? [];
 
@@ -21,12 +21,6 @@ describe("화면 전환", () => {
     const [headerLink] = findLinks("components/ScreenHeader.tsx");
     expect(backLink).toMatch(/transitionTypes=\{BACK_TRANSITION\}/);
     expect(headerLink).toMatch(/transitionTypes=\{FORWARD_TRANSITION\}/);
-  });
-
-  it("뒤로 버튼 움직임은 Next가 시작한 되돌아가기 안에서 붙이고, 그 전환이 건너뛰어지지 않게 Next보다 먼저 듣는다", () => {
-    // 움직임이 사라져도 Vitest로는 알 수 없으므로 실제 움직임은 e2e/back-navigation.spec.ts가 잰다
-    expect(readSource("instrumentation-client.ts")).toMatch(/onRouterTransitionStart[\s\S]*claimBackMotion\(\)[\s\S]*addTransitionType/);
-    expect(readSource("app/layout.tsx")).toContain("<HistoryReturn />");
   });
 
   it("화면을 옮기는 링크는 방향을 빠뜨리지 않는다", () => {
@@ -131,15 +125,7 @@ describe("로딩 표시", () => {
 });
 
 describe("스크롤 위치", () => {
-  it("탭 화면은 탭 이름으로 위치를 기억한다", () => {
-    expect(readSource("components/tabs/TabScreen.tsx")).toContain("scrollKey={tab}");
-  });
-
   it("새 기록을 저장하면 맨 위의 새 기록이 보이도록 기록 탭의 위치를 지운다", () => {
     expect(readSource("components/dates/DateRecordForm.tsx")).toMatch(/if \(!record\) forgetScrollPosition\("records"/);
-  });
-
-  it("화면 틀은 기억할 이름을 스크롤 영역에 넘긴다", () => {
-    expect(readSource("components/PageShell.tsx")).toMatch(/<ScrollArea\b[^>]*\bscrollKey=\{scrollKey\}/);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readSource, readSourceLines } from "@/test-utils/source";
+import { readSourceLines } from "@/test-utils/source";
 
 const MODAL_DIALOG_FILE = "components/ModalDialog.tsx";
 
@@ -21,8 +21,7 @@ describe("공통 모달", () => {
   });
 
   it("화면이 숨겨질 때 닫는 처리는 공통 모달이 맡아 창마다 부르지 않는다", () => {
-    // 빠뜨리면 숨겨진 화면의 창이 앱 전체를 막는다(#155)
-    expect(readSource(MODAL_DIALOG_FILE)).toContain("useCloseDialogOnHide(dialogRef)");
+    // 공통 모달이 빠뜨리면 숨겨진 화면의 창이 앱 전체를 막는다(#155). 그 경우는 e2e/modal-dialog.spec.ts의 뒤로 가기 테스트가 잡는다
     expect(findOutsideModalDialog(/\buseCloseDialogOnHide\(/)).toEqual([]);
   });
 });
