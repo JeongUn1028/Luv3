@@ -204,22 +204,65 @@ test.describe("내용 스크롤 영역", () => {
   });
 });
 
+/** 홈 머리글 가운데의 하트 + 숫자 묶음(화면 읽기 프로그램에는 숨긴 h2 제목만 읽힌다) */
+const getDdayGroup = (page: Page): Locator => page.locator("header section > [aria-hidden='true']").locator("visible=true");
+
+interface DdayShape {
+  top: number;
+  bottom: number;
+  middle: number;
+  height: number;
+}
+
+/**
+ * 하트·`+`는 그려진 선(중심선), 숫자는 글자 잉크(canvas로 잰 높이 + 글자 아랫선)의 위아래 범위를 화면 좌표로 잰다.
+ * 상자로 재면 글꼴 위아래 여백과 하트 상자 여백 때문에 실제로 보이는 모양과 어긋난다.
+ * 이렇게 잰 값도 화면 픽셀과 0.5px쯤 차이가 나서(선 끝 모양, 글자 다듬기) 가운데는 1px까지 같다고 본다
+ */
+const DDAY_MIDDLE_TOLERANCE = 1;
+const measureDdayShapes = (group: Locator): Promise<{ heart: DdayShape; plus: DdayShape; digits: DdayShape }> =>
+  group.evaluate((element) => {
+    const toShape = (top: number, bottom: number): DdayShape => ({ top, bottom, middle: (top + bottom) / 2, height: bottom - top });
+    const measurePath = (path: SVGPathElement | undefined): DdayShape => {
+      const toScreen = path?.getScreenCTM();
+      if (!path || !toScreen) throw new Error("D-day 그림을 찾지 못했다");
+      const { y, height } = path.getBBox();
+      return toShape(y * toScreen.d + toScreen.f, (y + height) * toScreen.d + toScreen.f);
+    };
+    const [heart, plus] = [...element.querySelectorAll("svg path")].filter((path) => path instanceof SVGPathElement);
+    const number = element.querySelector("p");
+    const context = document.createElement("canvas").getContext("2d");
+    if (!number || !context) throw new Error("D-day 숫자를 찾지 못했다");
+    const probe = document.createElement("span");
+    probe.style.cssText = "display:inline-block;width:0;height:0";
+    number.append(probe);
+    const baseline = probe.getBoundingClientRect().bottom;
+    probe.remove();
+    const { fontSize, fontFamily } = getComputedStyle(number);
+    context.font = `${fontSize} ${fontFamily}`;
+    const { actualBoundingBoxAscent, actualBoundingBoxDescent } = context.measureText(number.textContent ?? "");
+    return {
+      heart: measurePath(heart),
+      plus: measurePath(plus),
+      digits: toShape(baseline - actualBoundingBoxAscent, baseline + actualBoundingBoxDescent),
+    };
+  });
+
 test.describe("홈 맨 위", () => {
   test("로고가 설정 버튼과 같은 줄 가운데에 있고 제목은 화면 읽기 프로그램이 그대로 읽는다", async ({ page, viewport }) => {
     await openScreen(page, "/", page.getByText(TODO.content));
 
-    const logo = await page.locator("header").getByText("DAYS").boundingBox();
+    const group = await getDdayGroup(page).boundingBox();
     const settings = await page.getByRole("link", { name: "설정" }).boundingBox();
-    expect(logo).not.toBeNull();
+    expect(group).not.toBeNull();
     expect(settings).not.toBeNull();
-    const logoMiddle = (logo?.y ?? 0) + (logo?.height ?? 0) / 2;
-    expect(logoMiddle).toBeGreaterThanOrEqual(settings?.y ?? 0);
-    expect(logoMiddle).toBeLessThanOrEqual((settings?.y ?? 0) + (settings?.height ?? 0));
+    const groupMiddle = (group?.y ?? 0) + (group?.height ?? 0) / 2;
+    expect(groupMiddle).toBeGreaterThanOrEqual(settings?.y ?? 0);
+    expect(groupMiddle).toBeLessThanOrEqual((settings?.y ?? 0) + (settings?.height ?? 0));
     expect(settings?.width).toBeGreaterThanOrEqual(44);
     expect(settings?.height).toBeGreaterThanOrEqual(44);
 
-    // 하트·숫자·DAYS 묶음이 화면 가운데에 있고 설정 버튼과 겹치지 않는다
-    const group = await page.locator("header [aria-hidden='true']", { hasText: "DAYS" }).boundingBox();
+    // 하트·+·숫자 묶음이 화면 가운데에 있고 설정 버튼과 겹치지 않는다
     const groupCenter = (group?.x ?? 0) + (group?.width ?? 0) / 2;
     expect(Math.abs(groupCenter - (viewport?.width ?? 0) / 2)).toBeLessThanOrEqual(1);
     expect((group?.x ?? 0) + (group?.width ?? 0)).toBeLessThanOrEqual(settings?.x ?? 0);
@@ -236,35 +279,27 @@ test.describe("홈 맨 위", () => {
     expect(readOrder[readOrder.length - 1]).toMatch(/함께한 지/);
   });
 
-  test("하트 아래 끝이 DAYS 글자 아랫선에 맞고 숫자가 바뀌어도 그대로다", async ({ page }) => {
+  test("하트와 숫자의 높이, 하트·+·숫자의 위아래 가운데가 맞고 숫자가 네 자리가 되어도 그대로다", async ({ page }) => {
     await openScreen(page, "/", page.getByText(TODO.content));
-    const logo = page.locator("header [aria-hidden='true']", { hasText: "DAYS" });
+    const group = getDdayGroup(page);
 
-    // 하트는 선 두께의 절반만큼 도형 밖으로 그려지고, 글자 아랫선은 높이 없는 칸을 넣어 잰다
-    const measure = (): Promise<{ heartBottom: number; baseline: number }> =>
-      logo.evaluate((element) => {
-        const path = element.querySelector("path");
-        const toScreen = path?.getScreenCTM();
-        const days = element.querySelector("p:last-child");
-        if (!path || !toScreen || !days) throw new Error("로고 요소를 찾지 못했다");
-        const { y, height } = path.getBBox();
-        const heartBottom = (y + height + Number(path.getAttribute("stroke-width")) / 2) * toScreen.d + toScreen.f;
-        const probe = document.createElement("span");
-        probe.style.cssText = "display:inline-block;width:0;height:0";
-        days.append(probe);
-        const baseline = probe.getBoundingClientRect().bottom;
-        probe.remove();
-        return { heartBottom, baseline };
-      });
+    const before = await measureDdayShapes(group);
+    expect(Math.abs(before.heart.height - before.digits.height)).toBeLessThanOrEqual(1.5);
+    expect(Math.abs(before.heart.middle - before.digits.middle)).toBeLessThanOrEqual(DDAY_MIDDLE_TOLERANCE);
+    expect(Math.abs(before.plus.middle - before.digits.middle)).toBeLessThanOrEqual(DDAY_MIDDLE_TOLERANCE);
 
-    const before = await measure();
-    expect(Math.abs(before.heartBottom - before.baseline)).toBeLessThanOrEqual(0.5);
-
-    // 숫자마다 높이가 다른 글꼴이라, 다른 숫자로 바꿔도 하트가 위아래로 움직이지 않는지 본다
-    await logo.locator("p").first().evaluate((number) => {
+    // 숫자마다 높이가 다른 글꼴이라, 네 자리로 바꿔도 하트가 위아래로 움직이지 않고 가운데가 맞는지 본다
+    await group.locator("p").evaluate((number) => {
       number.textContent = "1208";
     });
-    expect((await measure()).heartBottom).toBeCloseTo(before.heartBottom, 1);
+    const after = await measureDdayShapes(group);
+    expect(after.heart.top).toBeCloseTo(before.heart.top, 1);
+    expect(Math.abs(after.heart.middle - after.digits.middle)).toBeLessThanOrEqual(DDAY_MIDDLE_TOLERANCE);
+
+    // 네 자리여도 설정 버튼과 겹치지 않는다
+    const groupBox = await group.boundingBox();
+    const settings = await page.getByRole("link", { name: "설정" }).boundingBox();
+    expect((groupBox?.x ?? 0) + (groupBox?.width ?? 0)).toBeLessThanOrEqual(settings?.x ?? 0);
   });
 });
 

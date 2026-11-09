@@ -17,7 +17,7 @@ const gowunDodum = Gowun_Dodum({
   preload: false,
 });
 
-// 제목, 숫자, 영문 표기(DAYS, 연·월), 탭, 주요 버튼용. 미리 불러오는 것은 영문·숫자 범위뿐이고 한글은 필요한 범위만 받는다
+// 제목, 숫자(D-day 등), 영문 표기(연·월), 탭, 주요 버튼용. 미리 불러오는 것은 영문·숫자 범위뿐이고 한글은 필요한 범위만 받는다
 const jua = Jua({
   weight: "400",
   subsets: ["latin"],

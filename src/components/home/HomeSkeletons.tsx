@@ -6,14 +6,14 @@ import { SkeletonBlock } from "@/components/Skeleton";
 
 /**
  * DdayHeader 자리(52px). 칸마다 알리면 시끄러워 맨 위 칸에서만 불러오는 중임을 알린다.
- * 날수는 그려 봐야 알 수 있어, 오래 머무는 두·세 자리의 폭(140~161px) 사이로 둔다
+ * 날수는 그려 봐야 알 수 있어, 두·세 자리의 하트 + 숫자 폭(확인용 서버에서 잰 137px·167px) 가운데로 둔다
  */
 export const DdaySkeleton = (): ReactElement => (
   <>
     <p role="status" className="sr-only">
       불러오는 중이에요
     </p>
-    <SkeletonBlock className="h-[52px] w-[150px] rounded-[10px]" />
+    <SkeletonBlock className="h-[52px] w-[152px] rounded-[10px]" />
   </>
 );
 
