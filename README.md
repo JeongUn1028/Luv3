@@ -83,6 +83,16 @@ Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패�
 - 실패 문구: 401이면 두 비밀 값이 다르고, 502면 Supabase를 깨우지 못한 것이다(아래 절). 비밀 값이 없으면 그렇다고 알린다.
 - 운영 주소를 바꾸면 워크플로의 `KEEPALIVE_URL`도 고친다.
 
+### 서버 깨워 두기
+
+오래 쉬었다 앱을 켜면 서버 인스턴스가 새로 떠 검은 화면이 3초까지 길어졌다(#202). 그래서 GitHub Actions(`.github/workflows/keep-warm.yml`)가 5분마다 `/api/keepalive`를 비밀 값 없이 부른다. `proxy`와 서버 함수만 깨우고 401을 받으므로 DB는 조회하지 않는다.
+
+- 이 작업은 서버가 응답하지 않아도 실패로 끝내지 않는다. 5분마다 실패 메일이 오지 않게 하려는 것이고, 실패 알림은 위 "keepalive 확인"이 맡는다. 결과(상태 코드, 첫 응답 시간, `Server-Timing`)는 실행 기록에서 보고, 연결이 안 되거나 401이 아니면 실행 기록에 경고가 남는다.
+- 요청 이름(User-Agent)이 `luv3-keep-warm`이라 Vercel 로그에서 Vercel Cron(`vercel-cron`)의 401과 가릴 수 있다.
+- GitHub 예약 실행은 몇 분씩 늦거나 빠질 수 있어 매번 깨어 있다고 보장하지는 않는다.
+- 공개 리포라 Actions 사용 시간은 들지 않는다. Vercel 함수 호출은 한 번 부를 때 `proxy`와 서버 함수가 함께 돌아 한 달 약 1만 7천 번, Edge 요청은 약 9천 번 늘어난다. Hobby 한도(각각 월 100만 번)에 비해 작지만 월 1회 점검의 사용량에서 함께 본다.
+- 운영 주소를 바꾸면 워크플로의 `KEEP_WARM_URL`도 고친다.
+
 ### 프로젝트가 일시정지됐을 때
 
 Cron이 멈춰 프로젝트가 일시정지되면 앱이 Supabase에 연결하지 못한다. Supabase 대시보드에서 프로젝트를 골라 Resume을 누르면 되살아난다([공식 문서](https://supabase.com/docs/guides/platform/free-project-pausing) 기준 일시정지 후 1년까지, 2026-11 확인). 되살린 뒤 Vercel 대시보드의 Cron Jobs 실행 기록과 `CRON_SECRET`을 확인해 멈춘 원인을 고친다. 기한이 지났으면 아래 "운영 프로젝트를 잃었을 때"를 따른다.
@@ -180,7 +190,7 @@ pnpm backup:restore "<백업 폴더>" <시점 이름> --yes  # 시점을 골라�
    - 패치 버전(예: 16.4.3 → 16.4.5)은 바로 PR로 올리고 E2E로 확인한다.
    - 마이너·메이저 버전은 변경 기록을 읽고 이슈로 따로 올린다. Next.js는 `node_modules/next/dist/docs/`의 안내도 본다.
 3. **보안 알림**: Dependabot 알림(Security > Dependabot)은 켜 두었고 새 알림은 GitHub 메일로 온다. 심각도 High 이상은 월 점검을 기다리지 않고 바로 올린다.
-4. **keepalive**: Actions의 "keepalive 확인" 기록이 매일 성공했는지 본다. 공개 리포는 60일 동안 활동이 없으면 GitHub이 예약을 끈다(끄기 전에 메일이 온다). 꺼져 있으면 Actions > keepalive 확인 > Enable workflow로 다시 켠다.
+4. **keepalive**: Actions의 "keepalive 확인" 기록이 매일 성공했는지, "서버 깨워 두기" 기록이 5분 간격으로 이어지는지 본다. 공개 리포는 60일 동안 활동이 없으면 GitHub이 예약을 끈다(끄기 전에 메일이 온다). 꺼져 있으면 Actions에서 해당 작업을 골라 Enable workflow로 다시 켠다.
 
 ### 운영 프로젝트를 잃었을 때
 
