@@ -59,12 +59,16 @@ const waitForDrawn = async (logo: Locator): Promise<void> => {
 };
 
 /** 하트 선, 가운데 선, 문구가 모두 다 그려진 모습인지 읽는다 */
-const readFinishedLook = (logo: Locator): Promise<{ dashOffsets: string[]; lineScale: string; letterOpacities: string[] }> =>
-  logo.evaluate((element) => ({
-    dashOffsets: [...element.querySelectorAll("path")].map((path) => getComputedStyle(path).strokeDashoffset),
-    lineScale: getComputedStyle(element.querySelector("svg + div") ?? element).scale,
-    letterOpacities: [...element.querySelectorAll("span")].map((letter) => getComputedStyle(letter).opacity),
-  }));
+const readFinishedLook = (logo: Locator): Promise<{ dashOffsets: string[]; isLineFullWidth: boolean; letterOpacities: string[] }> =>
+  logo.evaluate((element) => {
+    // 움직임 없이는 none, 늘어나는 움직임이 끝난 뒤에는 같은 뜻의 1로 읽힌다
+    const lineScale = getComputedStyle(element.querySelector("svg + div") ?? element).scale;
+    return {
+      dashOffsets: [...element.querySelectorAll("path")].map((path) => getComputedStyle(path).strokeDashoffset),
+      isLineFullWidth: lineScale === "none" || lineScale.split(" ").every((value) => value === "1"),
+      letterOpacities: [...element.querySelectorAll("span")].map((letter) => getComputedStyle(letter).opacity),
+    };
+  });
 
 test.describe("로그인 화면 로고", () => {
   test.use({ contextOptions: { reducedMotion: "no-preference" }, storageState: NO_SESSION });
@@ -110,7 +114,7 @@ test.describe("로그인 화면 로고", () => {
     await expect(logo).toHaveCSS("opacity", "1");
     const look = await readFinishedLook(logo);
     expect(look.dashOffsets.every((offset) => Number.parseFloat(offset) === 0)).toBe(true);
-    expect(look.lineScale).toBe("none");
+    expect(look.isLineFullWidth).toBe(true);
     expect(look.letterOpacities.every((opacity) => opacity === "1")).toBe(true);
   });
 
@@ -198,7 +202,7 @@ test.describe("로그인 화면 로고", () => {
       expect(await readDrawSteps(logo)).toEqual([]);
       const look = await readFinishedLook(logo);
       expect(look.dashOffsets.every((offset) => Number.parseFloat(offset) === 0)).toBe(true);
-      expect(look.lineScale).toBe("none");
+      expect(look.isLineFullWidth).toBe(true);
       expect(look.letterOpacities.every((opacity) => opacity === "1")).toBe(true);
     });
   });
