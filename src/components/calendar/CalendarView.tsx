@@ -14,7 +14,6 @@ import {
 } from "@/lib/calendar/highlight";
 import {
   buildMonthGrid,
-  canLeaveRecord,
   formatDayHeading,
   formatEventTime,
   formatMonthTitle,
@@ -24,8 +23,9 @@ import {
   toCalendarHref,
   WEEKDAYS,
 } from "@/lib/calendar/month";
-import { toNewRecordHref } from "@/lib/dates/form";
+import { EventRecordAction } from "@/components/events/EventRecordAction";
 import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
+import { getEventRecordLink } from "@/lib/events/record-link";
 import { formatEventPeriod, formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
@@ -202,44 +202,40 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                 </Link>
               </li>
             ))}
-            {selectedEvents.map((event) => (
-              <li key={event.id} className="flex gap-2">
-                <Link
-                  href={toEventEditHref(event)}
-                  transitionTypes={FORWARD_TRANSITION}
-                  className="press-card flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
-                >
-                  <span className="w-11 shrink-0 text-[12px] text-ink-sub">{formatEventTime(event.startTime)}</span>
-                  <span className="flex min-w-0 flex-1 flex-col">
-                    <span className="truncate text-[15px] text-ink">{event.title}</span>
-                    {(event.repeatRule || event.period || event.place) && (
-                      <span className="truncate text-[12px] text-ink-sub">
-                        {[event.repeatRule && formatRepeatRule(event.repeatRule), event.period && formatEventPeriod(event.period), event.place]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    )}
-                  </span>
-                  <EventOwnerTag isTogether={event.isTogether} authorNickname={event.authorNickname} />
-                </Link>
-                {/* 지난 일정(오늘 포함)은 데이트 기록으로 이어 쓸 수 있다. 이미 남긴 일정은 다시 권하지 않는다. 기간 일정은 다른 날의 기록과도 겹칠 수 있어 읽어 온 기록 전체를 본다 */}
-                {canLeaveRecord(event, today, records) && (
+            {selectedEvents.map((event) => {
+              const recordLink = getEventRecordLink(event, today);
+              return (
+                <li key={event.id} className="flex gap-2">
                   <Link
-                    href={toNewRecordHref({
-                      date: event.period?.start ?? event.date,
-                      endDate: event.period?.end,
-                      title: event.title,
-                      place: event.place ?? "",
-                    })}
+                    href={toEventEditHref(event)}
                     transitionTypes={FORWARD_TRANSITION}
-                    aria-label={`${event.title} 기록 남기기`}
-                    className="press-icon flex shrink-0 items-center rounded-[10px] border border-line px-3 text-[12px] text-ink-sub hover:text-ink"
+                    className="press-card flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
                   >
-                    기록 남기기
+                    <span className="w-11 shrink-0 text-[12px] text-ink-sub">{formatEventTime(event.startTime)}</span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span className="truncate text-[15px] text-ink">{event.title}</span>
+                      {(event.repeatRule || event.period || event.place) && (
+                        <span className="truncate text-[12px] text-ink-sub">
+                          {[event.repeatRule && formatRepeatRule(event.repeatRule), event.period && formatEventPeriod(event.period), event.place]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </span>
+                      )}
+                    </span>
+                    <EventOwnerTag isTogether={event.isTogether} authorNickname={event.authorNickname} />
                   </Link>
-                )}
-              </li>
-            ))}
+                  {/* 지난 함께 일정(오늘 포함)은 데이트 기록으로 이어 쓸 수 있고, 이미 남긴 일정은 그 기록을 연다(#227) */}
+                  {recordLink && (
+                    <EventRecordAction
+                      eventId={event.id}
+                      link={recordLink}
+                      eventTitle={event.title}
+                      className="press-icon flex shrink-0 items-center rounded-[10px] border border-line px-3 text-[12px] text-ink-sub hover:text-ink"
+                    />
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

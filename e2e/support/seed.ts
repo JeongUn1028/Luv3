@@ -33,9 +33,19 @@ const uploadPhoto = async (admin: AdminClient, path: string): Promise<void> => {
  * 테스트 하나에서만 쓰는 사진 1장짜리 기록을 만든다. 돌려준 함수는 상대가 기록을 지운 것처럼 행과 폴더의 파일을 모두 지운다.
  * 여러 번 불러도 되므로 테스트가 중간에 실패해도 남지 않게 마지막에 한 번 더 부른다.
  *
+ * `eventLink`를 주면 그 일정의 그날에서 남긴 기록으로 잇는다.
+ *
  * @example const deleteRecord = await createDisposableRecord({ id: randomUUID(), title: "지울 기록" })
  */
-export const createDisposableRecord = async ({ id, title }: { id: string; title: string }): Promise<() => Promise<void>> => {
+export const createDisposableRecord = async ({
+  id,
+  title,
+  eventLink,
+}: {
+  id: string;
+  title: string;
+  eventLink?: { eventId: string; eventDate: string };
+}): Promise<() => Promise<void>> => {
   const admin = createAdminClient();
   const authorId = await getMemberId(admin);
 
@@ -43,7 +53,10 @@ export const createDisposableRecord = async ({ id, title }: { id: string; title:
   await uploadPhoto(admin, path);
   // 오늘 날짜면 나란히 도는 홈 테스트의 "최근 기록" 자리를 잠깐 차지하므로 어제로 둔다
   const yesterday = toKstDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
-  assertNoError(await admin.from("dates").insert({ id, date: yesterday, title, author_id: authorId }), "기록");
+  assertNoError(
+    await admin.from("dates").insert({ id, date: yesterday, title, author_id: authorId, event_id: eventLink?.eventId, event_date: eventLink?.eventDate }),
+    "기록",
+  );
   const photoId = randomUUID();
   assertNoError(await admin.from("photos").insert({ id: photoId, date_id: id, path, thumb_path: path, sort_order: 0 }), "사진 행");
   assertNoError(await admin.from("dates").update({ cover_photo_id: photoId }).eq("id", id), "대표 사진");
@@ -254,7 +267,7 @@ export const addPhotoAsPartner = async (recordId: string): Promise<void> => {
 };
 
 /**
- * 테스트 하나에서만 쓰는 일정을 만든다. 돌려준 함수는 그 일정을 지운다.
+ * 테스트 하나에서만 쓰는 일정을 만든다. 날짜를 주지 않으면 오늘이다. 돌려준 함수는 그 일정을 지운다.
  *
  * @example const deleteEvent = await createDisposableEvent({ id: randomUUID(), title: "고칠 일정" })
  */
@@ -262,14 +275,17 @@ export const createDisposableEvent = async ({
   id,
   title,
   isTogether = true,
+  date = toKstDate(new Date()),
+  memo,
 }: {
   id: string;
   title: string;
   isTogether?: boolean;
+  date?: string;
+  memo?: string;
 }): Promise<() => Promise<void>> => {
   const admin = createAdminClient();
-  const date = toKstDate(new Date());
-  assertNoError(await admin.from("events").insert({ id, title, date, is_together: isTogether, author_id: await getMemberId(admin) }), "일정");
+  assertNoError(await admin.from("events").insert({ id, title, date, memo, is_together: isTogether, author_id: await getMemberId(admin) }), "일정");
   return async () => assertNoError(await admin.from("events").delete().eq("id", id), "일정 지우기");
 };
 

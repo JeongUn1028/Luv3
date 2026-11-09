@@ -4,11 +4,13 @@ import { FormSkeleton } from "@/components/FormSkeleton";
 import { LoadErrorScreen } from "@/components/LoadErrorScreen";
 import { StatusLink, StatusScreen } from "@/components/StatusScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
+import { toKstDate } from "@/lib/anniversary";
 import { getCurrentMember } from "@/lib/auth/member";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { isRepeatRule, toOwnerLabel } from "@/lib/events/calendar";
 import { findViewedPeriodDate, toEventDraft } from "@/lib/events/form";
 import { EventLoadError, getEvent } from "@/lib/events/queries";
+import { getEditEventRecordLink } from "@/lib/events/record-link";
 import { findOccurrenceDate } from "@/lib/events/recurrence";
 import { catchLoadError } from "@/lib/load";
 
@@ -57,6 +59,7 @@ const EditEventForm = async ({ params, searchParams }: Pick<PageProps<"/events/[
       occurrence={occurrenceDate ? { date: occurrenceDate, startDate: event.date } : undefined}
       viewedDate={findViewedPeriodDate(event, date)}
       isDetached={event.repeat_parent_id !== null}
+      recordLink={getEditEventRecordLink(event, occurrenceDate, toKstDate(new Date()))}
     />
   );
 };

@@ -149,27 +149,6 @@ export const groupByDate = <Item extends { date: string; endDate?: string | unde
   return grouped;
 };
 
-/**
- * 일정에 "기록 남기기"를 보여 줄지. 오늘까지의 함께 일정이고, 그날이 들어간 같은 제목의 기록이 아직 없을 때만 권한다(중복 기록 방지).
- * 데이트 기록은 둘이 함께 한 일을 남기는 곳이라 한 사람 일정에는 권하지 않는다(#61).
- * 기간 일정은 기간 전체로 판단한다. 기록의 끝 날짜는 오늘까지만 고를 수 있어서 끝나는 날부터 권한다.
- *
- * @example canLeaveRecord({ date: "2026-11-01", title: "산책", isTogether: true }, "2026-11-02", []) // true
- */
-export const canLeaveRecord = (
-  event: { date: string; title: string; isTogether: boolean; period?: { start: string; end: string } | undefined },
-  today: string,
-  records: readonly { date: string; endDate?: string | undefined; title: string }[],
-): boolean => {
-  const start = event.period?.start ?? event.date;
-  const end = event.period?.end ?? event.date;
-  return (
-    event.isTogether &&
-    end <= today &&
-    !records.some(({ date, endDate, title }) => title === event.title && date <= end && start <= (endDate ?? date))
-  );
-};
-
 /** 캘린더 탭 주소 */
 export const CALENDAR_PATH = "/calendar";
 

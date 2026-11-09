@@ -2,7 +2,15 @@ import { describe, expect, it, vi } from "vitest";
 import { PhotoError } from "@/lib/photos/errors";
 import type { PhotoStorage } from "@/lib/photos/upload";
 import type { DateRecordDraft } from "./form";
-import { DateRecordConflictError, DateRecordGoneError, SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "./save";
+import {
+  DateRecordAlreadyLinkedError,
+  DateRecordConflictError,
+  DateRecordGoneError,
+  SaveDateRecordError,
+  saveDateRecord,
+  updateDateRecord,
+  type SaveProgress,
+} from "./save";
 
 const RECORD_ID = "10000000-0000-4000-8000-000000000001";
 const PHOTO_A = "20000000-0000-4000-8000-00000000000a";
@@ -178,6 +186,18 @@ describe("saveDateRecord", () => {
     await expect(saveDateRecord({ recordId: RECORD_ID, draft, files, storage, resize, createRecord })).rejects.toMatchObject({ mayHaveSaved: false });
 
     expect(storage.remove).toHaveBeenCalled();
+  });
+
+  it("그 일정의 그날에 이미 기록이 있으면 올린 사진을 지우고 이미 남긴 기록을 알린다", async () => {
+    const { storage, stored } = createFakeStorage();
+    const linkedId = "10000000-0000-4000-8000-0000000000ff";
+    const createRecord = vi.fn(async () => ({ error: { message: "이미 기록이 있습니다", code: "P0410", details: linkedId } }));
+
+    const saving = saveDateRecord({ recordId: RECORD_ID, draft, files, storage, resize, createRecord });
+
+    await expect(saving).rejects.toThrow(DateRecordAlreadyLinkedError);
+    await expect(saving).rejects.toMatchObject({ recordId: linkedId, mayHaveSaved: false });
+    expect(stored.size).toBe(0);
   });
 
   it("사진을 줄이지 못하면 아무것도 올리지 않고 사진 에러를 그대로 알린다", async () => {

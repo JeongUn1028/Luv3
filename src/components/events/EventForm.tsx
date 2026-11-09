@@ -5,6 +5,7 @@ import { startTransition, useState, type ReactElement, type SubmitEvent } from "
 import { AuthorTag } from "@/components/AuthorTag";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { DatePickerField } from "@/components/DatePickerField";
+import { EventRecordAction } from "@/components/events/EventRecordAction";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { getEventKinds, getHighlightClassNames } from "@/lib/calendar/highlight";
@@ -22,6 +23,7 @@ import {
   type EventDraftErrors,
   type EventEditScope,
 } from "@/lib/events/form";
+import type { EventRecordLink } from "@/lib/events/record-link";
 import { formatEventPeriod, formatRepeatRule, REPEAT_RULES } from "@/lib/events/recurrence";
 import { deleteEvent, saveEvent } from "@/lib/events/save";
 import { clearError, isSameFormValue } from "@/lib/form";
@@ -58,6 +60,8 @@ interface EventFormProps {
   viewedDate?: string | undefined;
   /** 반복 중 하루만 고쳐 따로 나온 일정인지. 다시 반복으로 바꾸지 않는다 */
   isDetached?: boolean;
+  /** 고치는 날에 남긴 기록으로 가거나 그날로 기록을 남기는 버튼(#227). 없으면 버튼을 그리지 않는다 */
+  recordLink?: EventRecordLink | undefined;
 }
 
 /** 삭제 확인 창의 문구 */
@@ -95,6 +99,7 @@ export const EventForm = ({
   occurrence,
   viewedDate,
   isDetached = false,
+  recordLink,
 }: EventFormProps): ReactElement => {
   const router = useRouter();
   // 캘린더에서 고른 날마다 다른 폼이다. 다른 날의 실패한 내용이 채워지지 않게 날짜까지 구분한다
@@ -193,11 +198,20 @@ export const EventForm = ({
           titleAddon={authorNickname && <AuthorTag nickname={authorNickname} className="ml-2" />}
           actions={
             eventId && (
-              <ConfirmDeleteButton
-                {...toDeleteDialog(initialDraft, deleteOccurrenceDate)}
-                onConfirm={handleDelete}
-                failureMessage="일정을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
-              />
+              <>
+                {recordLink && (
+                  <EventRecordAction
+                    eventId={eventId}
+                    link={recordLink}
+                    className="press-icon flex h-11 shrink-0 items-center px-3 text-[14px] text-ink-sub hover:text-ink"
+                  />
+                )}
+                <ConfirmDeleteButton
+                  {...toDeleteDialog(initialDraft, deleteOccurrenceDate)}
+                  onConfirm={handleDelete}
+                  failureMessage="일정을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
+                />
+              </>
             )
           }
         />

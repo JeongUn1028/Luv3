@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEventOwner, toCalendarEvent, toCalendarRecord } from "@/lib/events/calendar";
+import { findLinkedRecordId, formatEventOwner, toCalendarEvent, toCalendarRecord } from "@/lib/events/calendar";
 
 describe("toCalendarEvent", () => {
   it("일정 행을 달력 값으로 바꾸고 작성자 닉네임을 붙인다", () => {
@@ -64,5 +64,32 @@ describe("formatEventOwner", () => {
 
   it("한 사람 일정인데 작성자를 모르면 한 사람이라고 쓴다", () => {
     expect(formatEventOwner({ isTogether: false, authorNickname: undefined })).toBe("한 사람");
+  });
+});
+
+describe("findLinkedRecordId", () => {
+  const records = [
+    { id: "r1", event_date: "2026-11-06" },
+    { id: "r2", event_date: "2026-11-13" },
+  ];
+
+  it("반복 일정은 그날에 이어진 기록만 찾는다", () => {
+    const swim = { date: "2026-11-06", repeat_rule: "weekly", records };
+    expect([findLinkedRecordId(swim, "2026-11-13"), findLinkedRecordId(swim, "2026-11-20")]).toEqual(["r2", undefined]);
+  });
+
+  // 반복이 아닌 일정은 날짜를 고쳐도 같은 일이라 남긴 기록을 그대로 잇는다
+  it("반복이 아닌 일정은 시작일의 기록을 먼저, 없으면 이어진 아무 기록이나 찾는다", () => {
+    expect(findLinkedRecordId({ date: "2026-11-13", repeat_rule: null, records }, "2026-11-13")).toBe("r2");
+    expect(findLinkedRecordId({ date: "2026-11-20", repeat_rule: null, records }, "2026-11-20")).toBe("r1");
+  });
+
+  it("반복을 꺼 여러 기록과 이어진 일정은 시작일의 기록이 없으면 가장 이른 날의 기록을 찾는다", () => {
+    expect(findLinkedRecordId({ date: "2026-11-20", repeat_rule: null, records: [...records].reverse() }, "2026-11-20")).toBe("r1");
+  });
+
+  it("이어진 기록을 읽지 않았거나 없으면 찾지 않는다", () => {
+    expect(findLinkedRecordId({ date: "2026-11-06", repeat_rule: null }, "2026-11-06")).toBeUndefined();
+    expect(findLinkedRecordId({ date: "2026-11-06", repeat_rule: null, records: [] }, "2026-11-06")).toBeUndefined();
   });
 });

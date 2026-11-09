@@ -14,6 +14,8 @@ const row: DetailRow = {
   place_lat: null,
   place_lng: null,
   author: { nickname: "진아" },
+  event_date: null,
+  event: null,
   photos: [
     { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1 },
     { id: "p1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", caption: "카페", sort_order: 0 },
@@ -50,6 +52,14 @@ describe("toDateRecordDetail", () => {
       ],
       filePaths: ["r1/p1.jpg", "r1/p1_thumb.jpg", "r1/p2.jpg", "r1/p2_thumb.jpg"],
     });
+  });
+
+  it("일정에서 남긴 기록이면 그 일정의 고치기 주소를 넘기고, 반복 일정은 그날을 함께 담는다", () => {
+    expect(toDateRecordDetail({ ...row, event_date: "2026-11-02", event: { id: "e1", repeat_rule: null } }, []).eventHref).toBe("/events/e1/edit");
+    expect(toDateRecordDetail({ ...row, event_date: "2026-11-02", event: { id: "e1", repeat_rule: "weekly" } }, []).eventHref).toBe(
+      "/events/e1/edit?date=2026-11-02",
+    );
+    expect(toDateRecordDetail(row, []).eventHref).toBeUndefined();
   });
 
   it("끝 날짜가 있으면 그대로 넘긴다", () => {
