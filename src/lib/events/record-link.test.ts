@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { getEditEventRecordLink, getEventRecordLink, toEventRecordHref, toEventRecordPrefill, type EventRecordPrefillRow } from "./record-link";
+import {
+  getEditEventRecordLink,
+  getEventRecordLink,
+  omitLinkedRecords,
+  toEventRecordHref,
+  toEventRecordPrefill,
+  type EventRecordPrefillRow,
+} from "./record-link";
 
 const today = "2026-11-09";
 
@@ -50,6 +57,21 @@ describe("getEditEventRecordLink", () => {
   it("기간 일정은 시작일로 남긴다", () => {
     const trip = { date: "2026-10-30", repeat_rule: null, end_date: "2026-11-01", is_together: true, records: [] };
     expect(getEditEventRecordLink(trip, undefined, today)).toEqual({ kind: "leave", eventDate: "2026-10-30" });
+  });
+});
+
+describe("omitLinkedRecords", () => {
+  const linked = { id: "r1", title: "전시" };
+  const written = { id: "r2", title: "산책" };
+
+  it("그날 보이는 일정에 이어진 기록은 빼고 직접 쓴 기록은 남긴다", () => {
+    expect(omitLinkedRecords([linked, written], [{ recordId: "r1" }, { recordId: undefined }])).toEqual([written]);
+  });
+
+  // 반복에서 빠진 날, 건너뛴 날, 날짜를 바꾼 일정처럼 이어진 일정이 그날 보이지 않으면 기록으로 갈 길이 없어진다
+  it("이어진 일정이 그날 보이지 않으면 기록을 그대로 남긴다", () => {
+    expect(omitLinkedRecords([linked, written], [])).toEqual([linked, written]);
+    expect(omitLinkedRecords([linked], [{ recordId: "r9" }])).toEqual([linked]);
   });
 });
 
