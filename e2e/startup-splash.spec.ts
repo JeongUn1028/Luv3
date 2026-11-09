@@ -4,6 +4,7 @@ import { ANNIVERSARY_DATE, formatSinceLabel } from "@/lib/anniversary";
 import { BASE_URL, MEMBER_STATE_PATH } from "./support/constants";
 import { createDisposableMember } from "./support/seed";
 import { expect, test } from "./support/test";
+import { submitSignIn } from "./support/actions";
 
 /** 하트 120 + 선까지 40 + 선 1 + 문구까지 20 + 문구 줄 21. 예전 시작 그림에서 잰 값과 같다 */
 const SPLASH_CONTENT_HEIGHT = 202;
@@ -35,12 +36,6 @@ const holdSplash = async (page: Page): Promise<void> => {
 const finishSplash = async (page: Page): Promise<void> => {
   await getSplash(page).evaluate((splash) => splash.getAnimations({ subtree: true }).forEach((animation) => animation.finish()));
   await expect(getSplash(page)).toHaveCount(0);
-};
-
-const signIn = async (page: Page, email: string, password: string): Promise<void> => {
-  await page.getByLabel("이메일").fill(email);
-  await page.getByLabel("비밀번호").fill(password);
-  await page.getByRole("button", { name: "로그인" }).click();
 };
 
 // 로그인 화면은 시작 화면을 건너뛰고 자기 로고를 그리므로(#198) 시작 화면은 로그인한 상태의 화면에서 잰다
@@ -123,7 +118,7 @@ test.describe("앱 시작 화면", () => {
 
       try {
         // Act: 로그인해 홈으로 옮긴다
-        await signIn(page, email, password);
+        await submitSignIn(page, email, password);
         await page.waitForURL(`${BASE_URL}/`);
 
         // Assert

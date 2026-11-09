@@ -9,14 +9,13 @@ import { PHOTO_FIXTURE_PATH } from "./support/constants";
 import { pickDate } from "./support/date-picker";
 import { createDisposableEvent, createDisposableRecord, createDisposableTodo, deleteEventsByTitle, deleteRecordWithFiles, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { getSubmitButton, getTab } from "./support/actions";
 
 const CREATE_RECORD_URL = "**/rest/v1/rpc/create_date_record";
 const UPDATE_RECORD_URL = "**/rest/v1/rpc/update_date_record";
 const EVENTS_URL = "**/rest/v1/events*";
 const TODOS_URL = "**/rest/v1/todos*";
 
-const getSaveButton = (page: Page): Locator => page.locator('main button[type="submit"]').locator("visible=true");
-const getTab = (page: Page, href: string): Locator => page.locator(`nav a[href="${href}"]`).locator("visible=true");
 const getNotice = (page: Page, role: "status" | "alert", name: string): Locator =>
   page.getByRole(role).filter({ hasText: name }).filter({ has: page.getByRole("button", { name: "닫기" }) });
 
@@ -72,7 +71,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     const title = `E2E 나가도 저장 ${testInfo.project.name}`;
     await fillNewRecord(page, title);
     const save = await holdSaveRequest(page, CREATE_RECORD_URL);
-    await getSaveButton(page).tap();
+    await getSubmitButton(page).tap();
     await save.requested;
     try {
       // Act
@@ -101,7 +100,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     const title = `E2E 뒤로 가기 ${testInfo.project.name}`;
     await fillNewRecord(page, title);
     const save = await holdSaveRequest(page, CREATE_RECORD_URL);
-    await getSaveButton(page).tap();
+    await getSubmitButton(page).tap();
     await save.requested;
     try {
       await leaveRecordFormToTodos(page);
@@ -125,7 +124,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await fillNewRecord(page, title);
     await page.locator("#memo").fill("지워지면 안 되는 글");
     const save = await holdSaveRequest(page, CREATE_RECORD_URL, failRequest);
-    await getSaveButton(page).tap();
+    await getSubmitButton(page).tap();
     await save.requested;
 
     // Act
@@ -151,7 +150,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     // Act: 다시 저장한다
     await page.unrouteAll({ behavior: "wait" });
     const retry = await holdSaveRequest(page, CREATE_RECORD_URL);
-    await getSaveButton(page).tap();
+    await getSubmitButton(page).tap();
     await retry.requested;
     retry.release();
     try {
@@ -167,7 +166,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     const title = `E2E 멀리 나가서 실패 ${testInfo.project.name}`;
     await fillNewRecord(page, title);
     const save = await holdSaveRequest(page, CREATE_RECORD_URL, failRequest);
-    await getSaveButton(page).tap();
+    await getSubmitButton(page).tap();
     await save.requested;
 
     // Act: 숨겨 두는 화면 수(3개)를 넘겨 폼을 밀어낸다
@@ -197,7 +196,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await openScreen(page, `/dates/${id}/edit`, page.locator("#memo").locator("visible=true"));
       await page.locator("#memo").fill("고친 글");
       const save = await holdSaveRequest(page, UPDATE_RECORD_URL, failRequest);
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await save.requested;
 
       // Act
@@ -219,7 +218,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     const title = `E2E 돌아와서 저장 ${testInfo.project.name}`;
     await fillNewRecord(page, title);
     const save = await holdSaveRequest(page, CREATE_RECORD_URL);
-    await getSaveButton(page).tap();
+    await getSubmitButton(page).tap();
     await save.requested;
     try {
       // Act
@@ -245,7 +244,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await openScreen(page, "/todos/new", page.locator("#todo-content"));
     await page.locator("#todo-content").fill(content);
     const save = await holdSaveRequest(page, TODOS_URL);
-    await getSaveButton(page).tap();
+    await getSubmitButton(page).tap();
     await save.requested;
     try {
       // Act: 다른 폼으로 옮겨 쓰는 중에 저장이 끝난다
@@ -280,7 +279,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await openScreen(page, `/todos/${id}/edit`, page.locator("#todo-content"));
       await page.locator("#todo-content").fill("고친 항목");
       const save = await holdSaveRequest(page, TODOS_URL, failRequest);
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await save.requested;
 
       await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
@@ -305,7 +304,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await openScreen(page, `/todos/${id}/edit`, page.locator("#todo-content"));
       await page.locator("#todo-content").fill("고쳐서 저장한 항목");
       const save = await holdSaveRequest(page, TODOS_URL);
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await save.requested;
       await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${TODOS_PATH}`);
@@ -329,7 +328,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await openScreen(page, "/todos/new", page.locator("#todo-content"));
     await page.locator("#todo-content").fill(content);
     const save = await holdSaveRequest(page, TODOS_URL);
-    await getSaveButton(page).tap();
+    await getSubmitButton(page).tap();
     await save.requested;
     try {
       await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
@@ -361,7 +360,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await openScreen(page, "/todos/new", page.locator("#todo-content"));
     await page.locator("#todo-content").fill(content);
     const save = await holdSaveRequest(page, TODOS_URL, failRequest);
-    await getSaveButton(page).tap();
+    await getSubmitButton(page).tap();
     await save.requested;
     await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
     await page.waitForURL(`**${TODOS_PATH}`);
@@ -394,7 +393,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await openScreen(page, `/todos/${id}/edit`, page.locator("#todo-content"));
       await page.locator("#todo-content").fill("고친 항목");
       const save = await holdSaveRequest(page, TODOS_URL);
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await save.requested;
       await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${TODOS_PATH}`);
@@ -417,7 +416,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await openScreen(page, "/events/new", page.locator("#event-memo"));
     await page.locator("#event-title").fill(title);
     const save = await holdSaveRequest(page, EVENTS_URL);
-    await getSaveButton(page).tap();
+    await getSubmitButton(page).tap();
     await save.requested;
     try {
       await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
@@ -443,7 +442,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await openScreen(page, `/events/${id}/edit`, page.locator("#event-memo"));
       await page.locator("#event-title").fill("고친 일정");
       const save = await holdSaveRequest(page, EVENTS_URL, failRequest);
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await save.requested;
 
       await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
