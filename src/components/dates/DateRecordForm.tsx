@@ -16,6 +16,7 @@ import {
   addPhotos,
   addTag,
   getMinEndDate,
+  hasRecordDraftChanges,
   movePhoto,
   removePhoto,
   validateDraft,
@@ -106,10 +107,9 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
   // 지난 일정에서 넘어온 새 기록은 일정마다 다른 폼이다. 다른 일정의 실패한 내용이 채워지지 않게 값까지 구분한다
   const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.endDate ?? ""}:${prefill?.title ?? ""}:${prefill?.place ?? ""}`}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "기록을", failedSaves });
-  const [draft, setDraft] = useState(() => {
-    if (failedSave) return withNewPreviews(failedSave.draft);
-    return record ? toEditDraft(record) : createEmptyDraft(prefill);
-  });
+  // 쓴 내용이 있는지 견줄 처음 내용. 실패해서 다시 채운 내용도 아직 저장되지 않았으므로 이것과 견준다
+  const [initialDraft, setInitialDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft(prefill)));
+  const [draft, setDraft] = useState(() => (failedSave ? withNewPreviews(failedSave.draft) : initialDraft));
   const [isReloading, startReloading] = useTransition();
   const [errors, setErrors] = useState<DraftErrors>({});
   const [tagInput, setTagInput] = useState("");
@@ -122,6 +122,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
   const [isRecordGone, setIsRecordGone] = useState(false);
   const [progress, setProgress] = useState<SaveProgress>();
   const [isSaving, setIsSaving] = useState(false);
+  // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알린다(#104). 지워진 기록은 저장할 곳이 없어 묻지 않는다
+  const shouldConfirmLeave = (hasRecordDraftChanges(initialDraft, draft) || tagInput.trim() !== "") && !isSaving && !isRecordGone;
   const today = toKstDate(new Date());
   const isPeriod = draft.endDate !== undefined;
 
@@ -260,7 +262,9 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       finishSaved({
         href: savedHref,
         reset: () => {
-          setDraft(record ? toEditDraft(record) : createEmptyDraft());
+          const emptyDraft = record ? toEditDraft(record) : createEmptyDraft();
+          setInitialDraft(emptyDraft);
+          setDraft(emptyDraft);
           setTagInput("");
           setPlaceFieldKey((key) => key + 1);
           setIsTagFieldOpen(Boolean(record?.tags.length));
@@ -315,7 +319,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       header={
         <ScreenHeader
           // 지워진 기록의 상세는 찾을 수 없음 화면이라 기록을 되돌아가지 않고 목록으로 간다
-          back={record && !isRecordGone ? { href: `/dates/${record.id}` } : { href: RECORDS_PATH, skipsHistory: isRecordGone }}
+          back={record && !isRecordGone ? { href: `/dates/${record.id}`, shouldConfirmLeave } : { href: RECORDS_PATH, skipsHistory: isRecordGone, shouldConfirmLeave }}
           title={record ? "기록 고치기" : "기록 남기기"}
         />
       }

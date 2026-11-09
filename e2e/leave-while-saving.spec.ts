@@ -373,8 +373,9 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await expect(page.locator("#todo-content").locator("visible=true")).toHaveValue(content);
     await expect(notice).toHaveCount(0);
 
-    // Act: 쓰지 않기로 하고 나갔다가 새로 연다
+    // Act: 쓰지 않기로 하고 나갔다가 새로 연다(채운 내용은 쓴 내용이라 버릴지 묻는다)
     await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
+    await page.getByRole("dialog", { name: "쓰던 내용을 버리고 나갈까요?" }).getByRole("button", { name: "나가기" }).tap();
     await page.waitForURL(`**${TODOS_PATH}`);
     await page.locator('main a[href="/todos/new"]').locator("visible=true").first().tap();
     await page.waitForURL("**/todos/new");

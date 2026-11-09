@@ -24,7 +24,7 @@ import {
 } from "@/lib/events/form";
 import { formatEventPeriod, formatRepeatRule, REPEAT_RULES } from "@/lib/events/recurrence";
 import { deleteEvent, saveEvent } from "@/lib/events/save";
-import { clearError } from "@/lib/form";
+import { clearError, isSameFormValue } from "@/lib/form";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 
@@ -101,9 +101,13 @@ export const EventForm = ({
   const formKey = `event:${eventId ? `${eventId}:${occurrence?.date ?? ""}` : `new:${initialDraft.date}`}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "일정을", failedSaves });
   const [draft, setDraft] = useState(failedSave?.draft ?? initialDraft);
+  // 쓴 내용이 있는지 견줄 처음 내용. 상대가 고쳐 화면을 새로 받아도 폼은 처음 내용 그대로라 이 값과 견준다
+  const [baseDraft, setBaseDraft] = useState(initialDraft);
   const [errors, setErrors] = useState<EventDraftErrors>({});
   const [notice, setNotice] = useState(failedSave?.message);
   const [isSaving, setIsSaving] = useState(false);
+  // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알리므로 묻지 않는다(#104)
+  const shouldConfirmLeave = !isSameFormValue(draft, baseDraft) && !isSaving;
   // 캘린더로 돌아가면 일정 날짜가 속한 달을 열고 그날을 고른다
   const backDate = viewedDate ?? initialDraft.date;
   const backHref = toCalendarHref({ date: backDate });
@@ -166,6 +170,7 @@ export const EventForm = ({
       href: toCalendarHref({ date: getDateAfterSave(draft, { occurrenceDate: occurrence?.date, viewedDate }) }),
       reset: () => {
         setDraft(initialDraft);
+        setBaseDraft(initialDraft);
         setIsSaving(false);
       },
     });
@@ -183,7 +188,7 @@ export const EventForm = ({
       className="px-4"
       header={
         <ScreenHeader
-          back={{ href: backHref }}
+          back={{ href: backHref, shouldConfirmLeave }}
           title={eventId ? "일정 고치기" : "일정 추가"}
           titleAddon={authorNickname && <AuthorTag nickname={authorNickname} className="ml-2" />}
           actions={

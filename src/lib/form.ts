@@ -42,3 +42,20 @@ export const clearError = <Errors extends Partial<Record<string, string>>>(error
   delete next[key];
   return next;
 };
+
+const isPlainRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * 폼 값이 같은지 안까지 비교한다. 글자·숫자·참거짓·배열·일반 객체만 다룬다.
+ * 폼은 칸을 펼쳐 고치므로 칸 순서는 보지 않고, 값이 undefined인 칸은 없는 칸과 같게 본다.
+ *
+ * @example isSameFormValue({ title: "산책", tags: [] }, { tags: [], title: "산책" }) // true
+ */
+export const isSameFormValue = (a: unknown, b: unknown): boolean => {
+  if (Object.is(a, b)) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((item, index) => isSameFormValue(item, b[index]));
+  }
+  if (!isPlainRecord(a) || !isPlainRecord(b)) return false;
+  return [...new Set([...Object.keys(a), ...Object.keys(b)])].every((key) => isSameFormValue(a[key], b[key]));
+};
