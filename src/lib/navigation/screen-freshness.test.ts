@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { copyScreenLoaded, isScreenStale, markAllScreensLoaded, markAllScreensStale, markScreenLoaded, STALE_AFTER_MS } from "./screen-freshness";
+import { copyScreenLoaded, getScreenLoadedAt, isScreenStale, markAllScreensLoaded, markAllScreensStale, markScreenLoaded, STALE_AFTER_MS } from "./screen-freshness";
 
 const BASE_URL = "https://luv3.test/somewhere";
 const LOADED_AT = 1_000_000;
@@ -67,6 +67,13 @@ describe("isScreenStale", () => {
 
     expect(isScreenStale("/records", BASE_URL, LOADED_AT + STALE_AFTER_MS + 1)).toBe(false);
     expect(isScreenStale("/dates/1", BASE_URL, LOADED_AT + STALE_AFTER_MS + 1)).toBe(false);
+  });
+
+  it("화면을 언제 받았는지 알려 주고, 모르면 알려 주지 않는다", () => {
+    markScreenLoaded("/records", BASE_URL, LOADED_AT);
+
+    expect(getScreenLoadedAt("https://luv3.test/records", BASE_URL)).toBe(LOADED_AT);
+    expect(getScreenLoadedAt("/calendar", BASE_URL)).toBeUndefined();
   });
 
   it("모두 오래된 것으로 치면 방금 받은 화면도 새로 불러온다", () => {

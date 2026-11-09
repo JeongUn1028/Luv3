@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Gowun_Dodum, Jua } from "next/font/google";
+import { AppReturn } from "@/components/AppReturn";
 import { HistoryReturn } from "@/components/HistoryReturn";
 import { OfflineNotice } from "@/components/OfflineNotice";
 import { SaveNotices } from "@/components/SaveNotices";
@@ -89,6 +90,7 @@ const RootLayout = ({ children }: LayoutProps<"/">) => (
       <SaveNotices />
       <SessionLostDialog />
       <HistoryReturn />
+      <AppReturn />
       <StartupTimingRecorder />
     </body>
   </html>

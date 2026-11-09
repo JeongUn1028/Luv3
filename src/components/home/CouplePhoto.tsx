@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ChangeEvent, type ReactElement } from "react";
 import { CameraIcon, PlusIcon } from "@/components/icons";
 import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
+import { SignedPhoto } from "@/components/SignedPhoto";
 import { clearCouplePhoto, CouplePhotoError, replaceCouplePhoto } from "@/lib/couple-photo/save";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { PhotoError } from "@/lib/photos/errors";
@@ -157,8 +158,7 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
       {photoUrl ? (
         // w-full: 늘어난 높이로 비율을 다시 계산해 폭까지 넓어지지 않게 폭을 고정한다
         <div className="relative aspect-[4/3] w-full shrink-0 grow overflow-hidden rounded-[16px] bg-surface">
-          {/* eslint-disable-next-line @next/next/no-img-element -- 업로드 때 이미 2000px JPEG로 줄였고, 서명 URL이라 next/image 캐시에 맞지 않는다 */}
-          <img src={photoUrl} alt="커플 사진" className="absolute inset-0 size-full object-cover" />
+          <SignedPhoto src={photoUrl} alt="커플 사진" className="absolute inset-0 size-full object-cover" />
           {!isBusy && (
             <button
               ref={changeButtonRef}

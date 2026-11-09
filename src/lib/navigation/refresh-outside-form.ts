@@ -22,8 +22,15 @@ export const markNavigationStart = (url: string, baseUrl: string): void => {
  * @returns 지금 새로 받았는지
  * @example refreshOutsideForm(() => router.refresh());
  */
+/**
+ * 지금 폼을 쓰거나 폼으로 옮기는 중인지. 주소창이 바뀌기 전이라도 가는 곳이 폼이면 true.
+ *
+ * @example if (isWritingNow()) return;
+ */
+export const isWritingNow = (): boolean => isWritingPath(navigatingPathname ?? window.location.pathname);
+
 export const refreshOutsideForm = (refresh: () => void): boolean => {
-  if (isWritingPath(navigatingPathname ?? window.location.pathname)) {
+  if (isWritingNow()) {
     markAllScreensStale();
     return false;
   }

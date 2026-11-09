@@ -3,6 +3,7 @@
 import useEmblaCarousel from "embla-carousel-react";
 import { useEffect, useState, type ReactElement } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+import { SignedPhoto } from "@/components/SignedPhoto";
 import type { DetailPhoto } from "@/lib/dates/detail";
 
 interface PhotoCarouselProps {
@@ -44,8 +45,7 @@ export const PhotoCarousel = ({ photos, title }: PhotoCarouselProps): ReactEleme
               className="aspect-[4/5] min-w-0 shrink-0 grow-0 basis-full bg-surface"
             >
               {photo.url && (
-                // eslint-disable-next-line @next/next/no-img-element -- 업로드 때 이미 줄인 원본이고 서명 URL이 시간이 지나면 바뀌어 next/image 최적화를 거치지 않는다
-                <img
+                <SignedPhoto
                   src={photo.url}
                   alt={photo.caption ?? `${title} 사진 ${index + 1}`}
                   // 첫 사진은 바로 보이므로 먼저 받고, 나머지는 넘길 때 받는다
