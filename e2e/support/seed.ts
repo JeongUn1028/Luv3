@@ -124,8 +124,8 @@ export const deleteRecordWithFiles = async (id: string): Promise<void> => {
 };
 
 const deleteAccountWithContent = async (admin: AdminClient, userId: string): Promise<void> => {
-  // 내용이 작성자(members)를 참조하므로 먼저 지운다. 사진 행은 기록과 함께 지워진다
-  for (const table of ["dates", "events", "todos"] as const) {
+  // 내용이 작성자(members)를 참조하므로 먼저 지운다. 사진 행과 남이 단 댓글은 기록과 함께 지워진다
+  for (const table of ["comments", "dates", "events", "todos"] as const) {
     assertNoError(await admin.from(table).delete().eq("author_id", userId), `${table} 지우기`);
   }
   // members는 계정을 지우면 함께 지워진다
@@ -137,6 +137,16 @@ const getMemberId = async (admin: AdminClient): Promise<string> => {
   assertNoError({ error }, "계정 조회");
   if (!data) throw new Error("E2E 데이터 준비 실패(계정 조회): 전용 계정이 없습니다");
   return data.id;
+};
+
+/**
+ * 기록에 댓글을 단다. `authorId`가 없으면 E2E 전용 계정이 단 댓글이 된다. 기록을 지우면 함께 지워진다.
+ *
+ * @example await createComment({ recordId, content: "또 가자", authorId: partnerId })
+ */
+export const createComment = async ({ recordId, content, authorId }: { recordId: string; content: string; authorId?: string }): Promise<void> => {
+  const admin = createAdminClient();
+  assertNoError(await admin.from("comments").insert({ date_id: recordId, content, author_id: authorId ?? (await getMemberId(admin)) }), "댓글");
 };
 
 /**

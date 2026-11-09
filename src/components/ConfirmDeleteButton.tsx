@@ -11,6 +11,10 @@ interface ConfirmDeleteButtonProps {
   onConfirm: () => Promise<void>;
   /** 실패했을 때 확인 창에 보여 줄 문구 */
   failureMessage: string;
+  /** 한 화면에 "삭제"가 여럿일 때 무엇을 지우는지 읽어 줄 이름. 예: "댓글 삭제" */
+  accessibleName?: string;
+  /** 지운 뒤 확인 창을 닫는다. 지워도 화면을 떠나지 않는 목록 안의 삭제에 쓴다(닫지 않으면 "지우는 중"에 멈춰 남는다) */
+  shouldCloseOnSuccess?: boolean;
   className?: string;
 }
 
@@ -20,6 +24,8 @@ export const ConfirmDeleteButton = ({
   description,
   onConfirm,
   failureMessage,
+  accessibleName,
+  shouldCloseOnSuccess = false,
   className = "press-icon h-11 px-3 text-[14px] text-ink-sub hover:text-ink",
 }: ConfirmDeleteButtonProps): ReactElement => {
   const modalRef = useRef<ModalDialogHandle>(null);
@@ -37,6 +43,10 @@ export const ConfirmDeleteButton = ({
     setMessage(undefined);
     try {
       await onConfirm();
+      if (shouldCloseOnSuccess) {
+        setIsDeleting(false);
+        modalRef.current?.close();
+      }
     } catch (error) {
       // 사용자에게는 다시 시도할 수 있다는 문구만 보여 주고, 원인은 개발자 도구에서 볼 수 있게 남긴다
       console.error(error);
@@ -47,7 +57,7 @@ export const ConfirmDeleteButton = ({
 
   return (
     <>
-      <button type="button" onClick={handleOpen} className={className}>
+      <button type="button" onClick={handleOpen} aria-label={accessibleName} className={className}>
         삭제
       </button>
       <ModalDialog ref={modalRef} title={title} description={description} isBusy={isDeleting}>

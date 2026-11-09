@@ -37,7 +37,7 @@ export const DeleteRecordButton = ({ recordId, filePaths, photoCount }: DeleteRe
   return (
     <ConfirmDeleteButton
       title="이 기록을 지울까요?"
-      description={`사진 ${photoCount}장과 글이 모두 지워지고 되돌릴 수 없어요.`}
+      description={`사진 ${photoCount}장과 글, 두 사람이 남긴 댓글이 모두 지워지고 되돌릴 수 없어요.`}
       onConfirm={handleConfirm}
       failureMessage="기록을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
     />
