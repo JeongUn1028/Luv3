@@ -3,7 +3,7 @@ import heic2any from "heic2any";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PhotoError } from "./errors";
 import { BUCKET_FILE_SIZE_LIMIT } from "./limits";
-import { isAcceptedPhoto, isHeic, resizePhoto } from "./resize";
+import { isAcceptedPhoto, isHeic, resizeCouplePhoto, resizePhoto } from "./resize";
 
 // 실제 리사이즈는 브라우저 canvas가 필요해 단위 테스트에서는 라이브러리를 대신하고,
 // 어떤 옵션으로 몇 번 부르는지와 결과 처리만 확인한다. 실제 크기는 브라우저 확인에서 본다.
@@ -57,6 +57,27 @@ describe("isHeic", () => {
 
   it("JPEG는 false다", () => {
     expect(isHeic(jpeg("a.jpg"))).toBe(false);
+  });
+});
+
+describe("resizeCouplePhoto", () => {
+  // 홈 카드는 폭 약 360px × 화면 배율 3이라 2000px 원본은 필요보다 크다(#218)
+  it("긴 변 2000px 원본용과, 그것에서 줄인 긴 변 1100px 홈 카드용을 JPEG로 만든다", async () => {
+    const result = await resizeCouplePhoto(jpeg("a.jpg"));
+
+    expect(compressMock).toHaveBeenCalledTimes(2);
+    const [originalOptions, mediumOptions] = compressMock.mock.calls.map(([, options]) => options);
+    expect(originalOptions).toMatchObject({ maxWidthOrHeight: 2000, fileType: "image/jpeg", maxIteration: 1, useWebWorker: false });
+    expect(mediumOptions).toMatchObject({ maxWidthOrHeight: 1100, fileType: "image/jpeg", maxIteration: 1, useWebWorker: false });
+    expect(result.original).toMatchObject({ name: "2000-a.jpg" });
+    expect(result.medium).toMatchObject({ name: "1100-2000-a.jpg" });
+  });
+
+  it("원본용이 버킷 제한을 넘으면 홈 카드용을 만들지 않고 에러를 낸다", async () => {
+    compressMock.mockImplementationOnce(async () => jpeg("big.jpg", BUCKET_FILE_SIZE_LIMIT + 1));
+
+    await expect(resizeCouplePhoto(jpeg("a.jpg"))).rejects.toThrow(new PhotoError("too-large"));
+    expect(compressMock).toHaveBeenCalledTimes(1);
   });
 });
 

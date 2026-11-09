@@ -1,5 +1,5 @@
 import { PhotoError } from "./errors";
-import { UPLOAD_CONTENT_TYPE } from "./limits";
+import { PHOTO_CACHE_CONTROL, UPLOAD_CONTENT_TYPE } from "./limits";
 import { buildPhotoPaths, type PhotoPaths } from "./paths";
 
 interface StorageResult {
@@ -14,7 +14,7 @@ export interface PhotoStorage {
   upload: (
     path: string,
     body: Blob,
-    options: { contentType: string; upsert: boolean },
+    options: { contentType: string; upsert: boolean; cacheControl: string },
   ) => Promise<StorageResult>;
   remove: (paths: string[]) => Promise<StorageResult>;
 }
@@ -87,7 +87,7 @@ export const uploadPhotoFile = async ({ storage, path, body, mayAlreadyExist = f
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
     try {
-      const { error } = await storage.upload(path, body, { contentType: UPLOAD_CONTENT_TYPE, upsert: false });
+      const { error } = await storage.upload(path, body, { contentType: UPLOAD_CONTENT_TYPE, upsert: false, cacheControl: PHOTO_CACHE_CONTROL });
       if (!error) return;
       lastError = error;
     } catch (error) {

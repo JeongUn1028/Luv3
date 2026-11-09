@@ -1,6 +1,6 @@
 import imageCompression, { type Options } from "browser-image-compression";
 import { PhotoError } from "./errors";
-import { BUCKET_FILE_SIZE_LIMIT, ORIGINAL_MAX_EDGE, THUMB_MAX_EDGE, UPLOAD_CONTENT_TYPE } from "./limits";
+import { BUCKET_FILE_SIZE_LIMIT, MEDIUM_MAX_EDGE, ORIGINAL_MAX_EDGE, THUMB_MAX_EDGE, UPLOAD_CONTENT_TYPE } from "./limits";
 
 // 기본값인 웹 워커는 jsdelivr CDN에서 스크립트를 받아 와, CDN이 막히거나 느리면 업로드가 멈춘다.
 // 메인 스레드에서 한 장씩 처리해도 휴대폰에서 한 장에 1초 안팎이라 끈다.
@@ -25,6 +25,12 @@ const THUMB_OPTIONS = {
   initialQuality: 0.8,
 } as const satisfies Options;
 
+const MEDIUM_OPTIONS = {
+  ...BASE_OPTIONS,
+  maxWidthOrHeight: MEDIUM_MAX_EDGE,
+  initialQuality: 0.85,
+} as const satisfies Options;
+
 const HEIC_TYPES = new Set(["image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence"]);
 const HEIC_EXTENSION = /\.(heic|heif)$/i;
 
@@ -40,6 +46,13 @@ export interface ResizedPhoto {
   original: Blob;
   /** 긴 변 600px JPEG(앨범 그리드용) */
   thumb: Blob;
+}
+
+export interface ResizedCouplePhoto {
+  /** 긴 변 2000px JPEG(원본 보관용) */
+  original: Blob;
+  /** 긴 변 1100px JPEG(홈 커플 사진 카드용) */
+  medium: Blob;
 }
 
 /**
@@ -85,6 +98,16 @@ const compress = async (file: File, options: Options): Promise<File> => {
   }
 };
 
+// 작은 사본은 원본용보다 클 수 없어 버킷 제한은 원본용만 확인한다
+const resizeOriginal = async (file: File): Promise<File> => {
+  if (!isAcceptedPhoto(file)) throw new PhotoError("unsupported-type");
+
+  const source = isHeic(file) ? await convertHeicToJpeg(file) : file;
+  const original = await compress(source, ORIGINAL_OPTIONS);
+  if (original.size > BUCKET_FILE_SIZE_LIMIT) throw new PhotoError("too-large");
+  return original;
+};
+
 /**
  * 고른 사진을 원본용(긴 변 2000px)·썸네일(긴 변 600px) JPEG 두 벌로 줄인다. 브라우저에서만 쓴다.
  * JPEG·PNG·WebP·HEIC를 받고, HEIC는 먼저 JPEG로 바꾼다. 원래 사진이 기준보다 작으면 키우지 않는다.
@@ -94,16 +117,24 @@ const compress = async (file: File, options: Options): Promise<File> => {
  * const { original, thumb } = await resizePhoto(input.files[0])
  */
 export const resizePhoto = async (file: File): Promise<ResizedPhoto> => {
-  if (!isAcceptedPhoto(file)) throw new PhotoError("unsupported-type");
-  const heic = isHeic(file);
-
-  const source = heic ? await convertHeicToJpeg(file) : file;
-  const original = await compress(source, ORIGINAL_OPTIONS);
-  // 600px 썸네일은 제한에 닿을 수 없어 원본용만 확인한다
-  if (original.size > BUCKET_FILE_SIZE_LIMIT) throw new PhotoError("too-large");
-
+  const original = await resizeOriginal(file);
   // 수천만 화소 원본을 다시 읽는 것보다 이미 줄인 원본용에서 만드는 편이 빠르다
   const thumb = await compress(original, THUMB_OPTIONS);
 
   return { original, thumb };
+};
+
+/**
+ * 고른 커플 사진을 원본용(긴 변 2000px)·홈 카드용(긴 변 1100px) JPEG 두 벌로 줄인다. 브라우저에서만 쓴다.
+ * 받는 형식과 HEIC 변환, 키우지 않는 것은 `resizePhoto`와 같다.
+ *
+ * @throws {PhotoError} 받지 않는 형식이거나(`unsupported-type`) 읽지 못했거나(`decode-failed`) 버킷 제한을 넘으면(`too-large`)
+ * @example
+ * const { original, medium } = await resizeCouplePhoto(input.files[0])
+ */
+export const resizeCouplePhoto = async (file: File): Promise<ResizedCouplePhoto> => {
+  const original = await resizeOriginal(file);
+  const medium = await compress(original, MEDIUM_OPTIONS);
+
+  return { original, medium };
 };
