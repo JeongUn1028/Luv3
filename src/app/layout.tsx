@@ -6,7 +6,6 @@ import { OfflineNotice } from "@/components/OfflineNotice";
 import { SaveNotices } from "@/components/SaveNotices";
 import { SessionLostDialog } from "@/components/SessionLostDialog";
 import { StartupSplash } from "@/components/StartupSplash";
-import { StartupTimingRecorder } from "@/components/StartupTimingRecorder";
 import { SKIP_STARTUP_SPLASH_SCRIPT } from "@/lib/pwa/startup-splash";
 import "./globals.css";
 
@@ -91,7 +90,6 @@ const RootLayout = ({ children }: LayoutProps<"/">) => (
       <SessionLostDialog />
       <HistoryReturn />
       <AppReturn />
-      <StartupTimingRecorder />
     </body>
   </html>
 );

@@ -29,15 +29,14 @@ jobs:
       KEEP_WARM_URL: https://luv3.vercel.app/api/keepalive
     steps:
       - name: 운영 주소 부르기
-        # 401이 정상이다. 결과(상태 코드·첫 응답 시간·Server-Timing)는 실행 기록에만 남기고, 연결이 안 되거나 다른 상태 코드여도 경고만 남긴다.
+        # 401이 정상이다. 결과(상태 코드·첫 응답 시간)는 실행 기록에만 남기고, 연결이 안 되거나 다른 상태 코드여도 경고만 남긴다.
         # Vercel 로그에서 Vercel Cron(vercel-cron)·keepalive 확인(curl) 요청과 가릴 수 있게 이름을 달아 보낸다
         run: |
           curl_exit=0
-          status=$(curl --silent --show-error --output /dev/null --dump-header headers.txt \
+          status=$(curl --silent --show-error --output /dev/null \
             --connect-timeout 10 --max-time 30 --user-agent "luv3-keep-warm" \
             --write-out "%{http_code} %{time_starttransfer}" "$KEEP_WARM_URL") || curl_exit=$?
           echo "응답: HTTP ${status% *}, 첫 응답 ${status#* }초"
-          grep -i "^server-timing:" headers.txt || true
           if [ "$curl_exit" != "0" ]; then
             echo "::warning::운영 주소에서 응답을 받지 못했습니다(curl 종료 코드 $curl_exit). 이 작업은 실패로 끝내지 않습니다. 계속되면 keepalive 확인 작업이 알립니다."
           elif [ "${status% *}" != "401" ]; then
