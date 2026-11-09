@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   appendStartupTiming,
+  describeServerSteps,
   describeStylesheets,
   formatMeasuredAt,
+  formatProxyServerTiming,
   formatSeconds,
   isAppLaunch,
   parseStartupTimings,
@@ -31,6 +33,10 @@ const createSource = (overrides: Partial<StartupTimingSource> = {}): StartupTimi
   measuredAt: "2026-11-09T01:00:00.000Z",
   path: "/",
   isStandalone: true,
+  serverTimings: [
+    { name: "proxy", duration: 120.4 },
+    { name: "proxy-auth", duration: 100.2 },
+  ],
   ...overrides,
 });
 
@@ -77,6 +83,11 @@ describe("toStartupTiming", () => {
       stylesheetEndMs: 1300,
       stylesheetDownloadCount: 1,
       stylesheetCount: 2,
+      // 서버가 알려 준 단계는 1ms 단위로 남긴다
+      serverSteps: [
+        { name: "proxy", durationMs: 120 },
+        { name: "proxy-auth", durationMs: 100 },
+      ],
     });
   });
 
@@ -207,5 +218,58 @@ describe("describeStylesheets", () => {
 
   it("CSS 기록이 없으면 없다고 쓴다", () => {
     expect(describeStylesheets({ stylesheetDownloadCount: 0, stylesheetCount: 0, stylesheetEndMs: undefined })).toBe("CSS 기록 없음");
+  });
+});
+
+describe("formatProxyServerTiming", () => {
+  it("proxy 전체 시간과 로그인 확인 시간을 0.1ms 단위로 쓴다", () => {
+    expect(formatProxyServerTiming({ totalMs: 120.44, authMs: 100.26, isRefreshed: false, isColdStart: false })).toBe("proxy;dur=120.4, proxy-auth;dur=100.3");
+  });
+
+  it("토큰을 갱신했거나 서버가 새로 떴으면 그 표시를 덧붙인다", () => {
+    expect(formatProxyServerTiming({ totalMs: 900, authMs: 850, isRefreshed: true, isColdStart: true })).toBe(
+      "proxy;dur=900.0, proxy-auth;dur=850.0, proxy-refresh, proxy-cold",
+    );
+  });
+});
+
+describe("서버 단계 기록", () => {
+  it("브라우저가 서버 단계를 알려 주지 않으면 비워 둔다", () => {
+    expect(toStartupTiming(createSource({ serverTimings: undefined })).serverSteps).toBeUndefined();
+  });
+
+  it("서버 단계가 없는 예전 기록도 읽고, 단계 모양이 다른 기록은 빼고 읽는다", () => {
+    const timing = createTiming("2026-11-09T01:00:00.000Z");
+    const oldTiming: StartupTiming = { ...timing };
+    delete oldTiming.serverSteps;
+
+    expect(parseStartupTimings(JSON.stringify([oldTiming, { ...timing, serverSteps: [{ name: 1 }] }]))).toEqual([oldTiming]);
+  });
+});
+
+describe("describeServerSteps", () => {
+  it("proxy 시간과 그 뒤 페이지까지 걸린 나머지 시간을 쓴다", () => {
+    const steps = [
+      { name: "proxy", durationMs: 120 },
+      { name: "proxy-auth", durationMs: 100 },
+    ];
+
+    expect(describeServerSteps({ serverMs: 2800, serverSteps: steps })).toBe("proxy 0.12초(로그인 확인 0.10초) · 나머지 2.68초");
+  });
+
+  it("토큰을 갱신했거나 서버가 새로 떴으면 함께 쓴다", () => {
+    const steps = [
+      { name: "proxy", durationMs: 900 },
+      { name: "proxy-auth", durationMs: 850 },
+      { name: "proxy-refresh", durationMs: 0 },
+      { name: "proxy-cold", durationMs: 0 },
+    ];
+
+    expect(describeServerSteps({ serverMs: 1000, serverSteps: steps })).toBe("proxy 0.90초(로그인 확인 0.85초, 토큰 갱신, 새로 뜸) · 나머지 0.10초");
+  });
+
+  it("브라우저가 알려 주지 않았거나 서버가 보내지 않았으면 그렇다고 쓴다", () => {
+    expect(describeServerSteps({ serverMs: 900, serverSteps: undefined })).toBe("서버 단계: 브라우저가 알려 주지 않음");
+    expect(describeServerSteps({ serverMs: 900, serverSteps: [] })).toBe("서버 단계: 받은 정보 없음");
   });
 });
