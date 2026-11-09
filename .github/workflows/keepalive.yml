@@ -1,0 +1,49 @@
+name: keepalive 확인
+
+# Vercel Cron이 부르는 /api/keepalive가 실패해도 Hobby 로그는 1시간 뒤 사라지고 알림이 없다(#167).
+# 하루 한 번 같은 경로를 따로 불러, 실패하면 이 작업이 실패해 GitHub이 메일을 보낸다.
+# 예약 실행의 실패 메일은 이 파일의 schedule을 마지막으로 고친 계정에 간다(실행 기록의 실행한 계정으로 확인한다).
+# 공개 리포는 60일 동안 활동이 없으면 GitHub이 예약을 끈다. 월 1회 점검에서 켜져 있는지 본다(README).
+on:
+  schedule:
+    # Vercel Cron(UTC 3시대)과 시간을 떨어뜨려, 한쪽이 멈춰도 다른 쪽이 7일 일시정지를 막는다. 한국 시간 밤 9시 17분.
+    # 정각은 GitHub 예약이 몰려 늦거나 빠지기 쉬워 피한다
+    - cron: "17 12 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  keepalive:
+    name: keepalive 확인
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      # 운영 주소(docs/plan.md의 도메인 결정). 바꾸면 여기도 고친다
+      KEEPALIVE_URL: https://luv3.vercel.app/api/keepalive
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
+    steps:
+      - name: 비밀 값 확인
+        run: |
+          if [ -z "$CRON_SECRET" ]; then
+            echo "::error::저장소 비밀 값 CRON_SECRET이 없습니다. Vercel의 CRON_SECRET과 같은 값을 Settings > Secrets and variables > Actions에 넣어 주세요."
+            exit 1
+          fi
+      - name: keepalive 부르기
+        # 서버와 DB가 함께 쉬다 깨어나면 첫 응답이 늦을 수 있어 응답은 60초까지 기다리고, 연결이 안 되면 세 번까지 다시 시도한다.
+        # 응답 본문은 원인을 보려고 남긴다
+        run: |
+          rm -f response.json
+          curl_exit=0
+          status=$(curl --silent --show-error --output response.json --write-out "%{http_code}" \
+            --retry 3 --retry-delay 10 --retry-all-errors --connect-timeout 10 --max-time 60 \
+            --header "Authorization: Bearer $CRON_SECRET" "$KEEPALIVE_URL") || curl_exit=$?
+          echo "응답: HTTP $status $(cat response.json 2>/dev/null)"
+          if [ "$curl_exit" != "0" ]; then
+            echo "::error::운영 주소에서 응답을 받지 못했습니다(curl 종료 코드 $curl_exit: 6 주소 찾기 실패, 7 연결 거부, 28 시간 초과, 35 암호화 연결 실패). Vercel 배포와 KEEPALIVE_URL을 확인해 주세요."
+            exit 1
+          fi
+          if [ "$status" != "200" ]; then
+            echo "::error::keepalive가 실패했습니다(HTTP $status). 401이면 CRON_SECRET이 Vercel 값과 다르고, 502면 Supabase를 깨우지 못한 것입니다(README의 '프로젝트가 일시정지됐을 때')."
+            exit 1
+          fi
