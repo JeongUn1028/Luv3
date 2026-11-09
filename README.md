@@ -45,6 +45,8 @@ pnpm test:e2e   # Playwright E2E 테스트 (로컬 Supabase 실행 중이어야 
 
 E2E는 대상 기기 두 크기(아이폰 15 Pro, 아이폰 17)에서 앱을 빌드해 3100번 포트로 띄우고 화면 높이와 주요 흐름(기록·일정·날짜 창·찾기·지도·저장 실패·세션 끊김·뒤로 가기 등)을 확인한다. `.env.local`과 상관없이 로컬 Supabase만 쓰고, 전용 계정(`e2e-member@example.com`)과 데이터를 만들었다가 끝나면 지운다. 커플 사진이 비어 있으면 실행하는 동안만 넣었다가 비운다.
 
+두 기기는 폭 9px, 높이 22px, 위 safe-area 3px만 달라서 평소(로컬·PR)에는 크기와 배치를 재는 스펙(`e2e/support/devices.ts`의 `DEVICE_SIZE_SPECS`)만 두 기기에서 돌리고, 나머지는 더 좁은 아이폰 15 Pro에서만 돌린다. main에 머지되면 CI가 두 기기 전체를 돌려 놓친 차이를 잡는다. 로컬에서 전체를 돌리려면 `E2E_ALL_DEVICES=1 pnpm test:e2e`. 기기의 `safeArea`를 읽는 스펙을 새로 만들면 이 목록에 넣는다(빠지면 단위 테스트가 실패한다).
+
 로컬 Supabase는 워크트리가 달라도 하나이고 E2E는 시작할 때 전용 계정을 지우므로, 포트를 바꿔도 두 실행을 동시에 돌리면 서로 깨진다.
 
 PR과 main push마다 GitHub Actions(`.github/workflows/ci.yml`)가 같은 검사와 `pnpm build`를 실행한다. PR에는 운영 DB 반영 체크를 보는 검사(`.github/workflows/db-apply.yml`)도 함께 돈다.
