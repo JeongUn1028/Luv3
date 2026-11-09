@@ -35,7 +35,6 @@ const EditTodoForm = async ({ params }: { params: Promise<{ id: string }> }) => 
     <TodoForm
       key={crypto.randomUUID()}
       todoId={todo.id}
-      authorNickname={todo.authorNickname}
       initialContent={todo.content}
     />
   );

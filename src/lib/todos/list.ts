@@ -1,15 +1,12 @@
-import type { AuthorRow } from "@/lib/author";
-
 /** Todo 탭 주소 */
 export const TODOS_PATH = "/todos";
 
-/** 목록 조회 때 읽는 `todos` 행(작성자 포함) */
+/** 목록 조회 때 읽는 `todos` 행. 둘이 함께 쓰는 목록이라 작성자는 읽지 않는다(#204) */
 export interface TodoRow {
   id: string;
   content: string;
   sort_order: number;
   completed_at: string | null;
-  author: AuthorRow;
 }
 
 /** 화면에 그리는 하고 싶은 것 하나 */
@@ -20,7 +17,6 @@ export interface Todo {
   sortOrder: number;
   /** 완료한 시각(ISO). 아직 하지 않았으면 undefined */
   completedAt: string | undefined;
-  authorNickname: string | undefined;
 }
 
 /** 목록에서 하는 동작. 저장이 끝나기 전에 화면에 먼저 반영할 때 쓴다 */
@@ -29,16 +25,15 @@ export type TodoAction =
   | { type: "complete"; id: string; completedAt: string | undefined };
 
 /**
- * 조회한 행을 화면용 값으로 바꾼다. 작성자는 닉네임만, DB의 null은 undefined로 바꾼다.
+ * 조회한 행을 화면용 값으로 바꾼다. DB의 null은 undefined로 바꾼다.
  *
  * @example const todos = data.map(toTodo)
  */
-export const toTodo = ({ id, content, sort_order, completed_at, author }: TodoRow): Todo => ({
+export const toTodo = ({ id, content, sort_order, completed_at }: TodoRow): Todo => ({
   id,
   content,
   sortOrder: sort_order,
   completedAt: completed_at ?? undefined,
-  authorNickname: author?.nickname,
 });
 
 const isOpen = (todo: Todo): boolean => todo.completedAt === undefined;
