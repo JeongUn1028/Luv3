@@ -3,7 +3,7 @@ import { readSource, readSourceLines } from "@/test-utils/source";
 
 const MODAL_DIALOG_FILE = "components/ModalDialog.tsx";
 
-// 실제 동작은 e2e/modal-dialog.spec.ts와 e2e/delete-dialog.spec.ts가 잰다. Vitest(node)로는 창을 열 수 없어 규칙만 고정한다
+// 실제 동작은 e2e/modal-dialog.spec.ts가 잰다. Vitest(node)로는 창을 열 수 없어 규칙만 고정한다
 
 /** 공통 모달 밖에서 이 글자가 나오는 곳 */
 const findOutsideModalDialog = (pattern: RegExp): string[] =>
