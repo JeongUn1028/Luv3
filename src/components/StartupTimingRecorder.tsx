@@ -64,6 +64,8 @@ const recordStartupTiming = async (): Promise<void> => {
     measuredAt: new Date().toISOString(),
     path: location.pathname,
     isStandalone: isStandaloneDisplay(),
+    // 서버 단계를 알려 주지 않는 브라우저는 이 값이 없다. 아이폰 Safari가 주는지도 이 기록으로 확인한다
+    serverTimings: "serverTiming" in navigation ? navigation.serverTiming.map(({ name, duration }) => ({ name, duration })) : undefined,
   });
   const saved = window.localStorage.getItem(STARTUP_TIMING_STORAGE_KEY);
   window.localStorage.setItem(STARTUP_TIMING_STORAGE_KEY, JSON.stringify(appendStartupTiming(parseStartupTimings(saved), timing)));
