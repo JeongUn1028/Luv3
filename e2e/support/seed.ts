@@ -40,12 +40,15 @@ const uploadPhoto = async (admin: AdminClient, path: string): Promise<void> => {
 export const createDisposableRecord = async ({
   id,
   title,
+  date,
+  endDate,
   eventLink,
 }: {
   id: string;
   title: string;
   eventLink?: { eventId: string; eventDate: string };
-}): Promise<() => Promise<void>> => {
+  // 날짜를 주지 않으면 어제다. 끝 날짜만 주면 시작일보다 앞설 수 있어 날짜와 함께만 받는다
+} & ({ date?: undefined; endDate?: undefined } | { date: string; endDate?: string })): Promise<() => Promise<void>> => {
   const admin = createAdminClient();
   const authorId = await getMemberId(admin);
 
@@ -54,7 +57,15 @@ export const createDisposableRecord = async ({
   // 오늘 날짜면 나란히 도는 홈 테스트의 "최근 기록" 자리를 잠깐 차지하므로 어제로 둔다
   const yesterday = toKstDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
   assertNoError(
-    await admin.from("dates").insert({ id, date: yesterday, title, author_id: authorId, event_id: eventLink?.eventId, event_date: eventLink?.eventDate }),
+    await admin.from("dates").insert({
+      id,
+      date: date ?? yesterday,
+      end_date: endDate,
+      title,
+      author_id: authorId,
+      event_id: eventLink?.eventId,
+      event_date: eventLink?.eventDate,
+    }),
     "기록",
   );
   const photoId = randomUUID();
