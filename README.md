@@ -73,7 +73,9 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 
 ### keepalive 실패 알림
 
-Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패해도 알림이 없다. 그래서 GitHub Actions(`.github/workflows/keepalive.yml`)가 매일 한국 시간 밤 9시에 같은 `/api/keepalive`를 따로 부른다. 실패하면 작업이 실패하고, GitHub이 이 파일의 예약 시간을 마지막으로 고친 사람에게 메일을 보낸다(GitHub 알림 설정의 Actions 메일이 켜져 있어야 한다). Vercel Cron과 시간을 떨어뜨려 두어 한쪽이 멈춰도 다른 쪽이 7일 일시정지를 막는다.
+Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패해도 알림이 없다. 그래서 GitHub Actions(`.github/workflows/keepalive.yml`)가 매일 한국 시간 밤 9시 17분에 같은 `/api/keepalive`를 따로 부른다. Vercel Cron과 시간을 떨어뜨려 두어 한쪽이 멈춰도 다른 쪽이 7일 일시정지를 막는다.
+
+실패하면 작업이 실패하고 GitHub이 메일을 보낸다(GitHub 알림 설정의 Actions 메일이 켜져 있어야 한다). 예약 실행의 메일은 이 파일의 예약 시간을 마지막으로 고친 계정에 간다. 실행 기록에서 예약 실행을 열어 실행한 계정이 메일을 받을 계정인지 확인하고, 다르면 받을 계정으로 예약 줄을 고쳐 다시 머지한다.
 
 - 저장소 비밀 값 `CRON_SECRET`(Settings > Secrets and variables > Actions)에 Vercel과 같은 값을 넣는다. Vercel에서 값을 바꾸면 여기도 바꾼다.
 - 손으로 돌리기: Actions > keepalive 확인 > Run workflow, 또는 `gh workflow run keepalive.yml`
@@ -177,7 +179,7 @@ pnpm backup:restore "<백업 폴더>" <시점 이름> --yes  # 시점을 골라�
    - 패치 버전(예: 16.4.3 → 16.4.5)은 바로 PR로 올리고 E2E로 확인한다.
    - 마이너·메이저 버전은 변경 기록을 읽고 이슈로 따로 올린다. Next.js는 `node_modules/next/dist/docs/`의 안내도 본다.
 3. **보안 알림**: Dependabot 알림(Security > Dependabot)은 켜 두었고 새 알림은 GitHub 메일로 온다. 심각도 High 이상은 월 점검을 기다리지 않고 바로 올린다.
-4. **keepalive**: Actions의 "keepalive 확인" 기록이 매일 성공했는지 본다.
+4. **keepalive**: Actions의 "keepalive 확인" 기록이 매일 성공했는지 본다. 공개 리포는 60일 동안 활동이 없으면 GitHub이 예약을 끈다(끄기 전에 메일이 온다). 꺼져 있으면 Actions > keepalive 확인 > Enable workflow로 다시 켠다.
 
 ### 운영 프로젝트를 잃었을 때
 

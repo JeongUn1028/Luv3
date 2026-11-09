@@ -219,7 +219,7 @@ MVP는 로그인, 기록 작성, 앨범 목록, 기록 상세, D-day와 공유 �
 
 ## 운영 시 주의
 
-- **Supabase 무료 플랜 일시정지**: 7일 동안 요청이 없으면 프로젝트가 일시정지된다. Vercel Cron이 하루 한 번(`0 3 * * *`, Hobby 플랜이라 UTC 3시대의 어느 때) `/api/keepalive`를 불러 데이터를 읽지 않는 `keepalive()` 함수만 실행한다. Vercel 환경 변수 `CRON_SECRET`이 없으면 이 경로가 모든 요청을 막으므로 Cron도 실패한다. Vercel 대시보드의 Cron Jobs에서 실행 기록을 볼 수 있지만 1시간 뒤 사라지고 실패 알림이 없어, GitHub Actions(`keepalive.yml`)가 매일 한국 시간 밤 9시에 같은 경로를 따로 불러 실패하면 메일로 알린다(저장소 비밀 값 `CRON_SECRET`). 일시정지되면 대시보드에서 되살린다(README "프로젝트가 일시정지됐을 때").
+- **Supabase 무료 플랜 일시정지**: 7일 동안 요청이 없으면 프로젝트가 일시정지된다. Vercel Cron이 하루 한 번(`0 3 * * *`, Hobby 플랜이라 UTC 3시대의 어느 때) `/api/keepalive`를 불러 데이터를 읽지 않는 `keepalive()` 함수만 실행한다. Vercel 환경 변수 `CRON_SECRET`이 없으면 이 경로가 모든 요청을 막으므로 Cron도 실패한다. Vercel 대시보드의 Cron Jobs에서 실행 기록을 볼 수 있지만 1시간 뒤 사라지고 실패 알림이 없어, GitHub Actions(`keepalive.yml`)가 매일 한국 시간 밤 9시 17분에 같은 경로를 따로 불러 실패하면 메일로 알린다(저장소 비밀 값 `CRON_SECRET`). 일시정지되면 대시보드에서 되살린다(README "프로젝트가 일시정지됐을 때").
 - **백업**: 무료 플랜은 자동 백업을 하지 않고, 사진 파일은 DB 백업에도 들어가지 않는다. 월 1회 `pnpm backup`을 직접 실행해 개인 클라우드 드라이브에 받는다. 마지막 백업 이후의 내용은 되살릴 수 없다(README "백업과 복구").
 - **DB를 바꾸는 배포**: main에 머지하면 바로 자동 배포되므로, 새 칸·함수를 쓰는 코드는 머지 전에 운영 DB에 먼저 반영한다(README "DB를 바꾸는 PR").
 - **Vercel Hobby**: 비상업용 개인 프로젝트라 조건에 맞는다.
