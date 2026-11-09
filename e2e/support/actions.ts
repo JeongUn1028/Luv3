@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import type { Locator, Page } from "@playwright/test";
-import { BASE_URL } from "./constants";
+import { BASE_URL, PHOTO_FIXTURE_PATH } from "./constants";
 
 // 여러 스펙이 함께 쓰는 화면 조작 도우미(#196). 화면은 숨긴 채 남아 있을 수 있어(Activity) 보이는 것만 고른다
 
@@ -9,6 +10,23 @@ import { BASE_URL } from "./constants";
  * @example await getTab(page, "/todos").click()
  */
 export const getTab = (page: Page, href: string): Locator => page.locator(`nav a[href="${href}"]`).locator("visible=true");
+
+/**
+ * 주소가 `href`인 보이는 링크.
+ *
+ * @example await getVisibleLink(page, `/dates/${id}`).tap()
+ */
+export const getVisibleLink = (page: Page, href: string): Locator => page.locator(`a[href="${href}"]`).locator("visible=true");
+
+/**
+ * 기록 폼에서 시험용 사진 한 장을 고르고, `order`번째 사진으로 목록에 붙을 때까지 기다린다.
+ *
+ * @example await pickPhoto(page, 1)
+ */
+export const pickPhoto = async (page: Page, order: number): Promise<void> => {
+  await page.getByLabel("사진 고르기").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer: readFileSync(PHOTO_FIXTURE_PATH) });
+  await page.getByRole("button", { name: `${order}번째 사진 빼기` }).waitFor();
+};
 
 /**
  * 폼의 "저장" 버튼. 누른 뒤 "저장 중…"으로 바뀌면 찾지 못하므로, 저장하는 동안의 버튼을 볼 때는 `getSubmitButton`을 쓴다.

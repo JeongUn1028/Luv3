@@ -1,15 +1,13 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 import type { Locator, Page, Route } from "@playwright/test";
 import { toKstDate } from "@/lib/anniversary";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { TODOS_PATH } from "@/lib/todos/list";
-import { PHOTO_FIXTURE_PATH } from "./support/constants";
 import { pickDate } from "./support/date-picker";
 import { createDisposableEvent, createDisposableRecord, createDisposableTodo, deleteEventsByTitle, deleteRecordWithFiles, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getSubmitButton, getTab } from "./support/actions";
+import { getSubmitButton, getTab, pickPhoto } from "./support/actions";
 
 const CREATE_RECORD_URL = "**/rest/v1/rpc/create_date_record";
 const UPDATE_RECORD_URL = "**/rest/v1/rpc/update_date_record";
@@ -46,8 +44,7 @@ const getYesterday = (): string => toKstDate(new Date(Date.now() - 24 * 60 * 60 
 
 const fillNewRecord = async (page: Page, title: string): Promise<void> => {
   await openScreen(page, "/dates/new", page.locator("#memo").locator("visible=true"));
-  await page.getByLabel("사진 고르기").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer: readFileSync(PHOTO_FIXTURE_PATH) });
-  await page.getByRole("button", { name: "1번째 사진 빼기" }).waitFor();
+  await pickPhoto(page, 1);
   // 오늘 날짜면 나란히 도는 홈 테스트의 "최근 기록" 자리를 잠깐 차지하므로 어제로 둔다
   await pickDate(page, "#date", getYesterday());
   await page.locator("#title").fill(title);

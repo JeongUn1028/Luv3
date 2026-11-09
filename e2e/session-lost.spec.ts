@@ -1,10 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 import type { Locator, Page } from "@playwright/test";
-import { E2E_EVENTS, E2E_MEMBER, E2E_TODOS, PHOTO_FIXTURE_PATH } from "./support/constants";
+import { E2E_EVENTS, E2E_MEMBER, E2E_TODOS } from "./support/constants";
 import { createNonMemberAccount } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getSaveButton } from "./support/actions";
+import { getSaveButton, pickPhoto } from "./support/actions";
 
 const [EVENT] = E2E_EVENTS;
 const [, , TODO] = E2E_TODOS;
@@ -66,12 +65,7 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
 
   test("사진이 있는 기록을 저장할 때 다시 로그인하면 고른 사진이 남아 있다", async ({ page }) => {
     await openScreen(page, "/dates/new", page.locator("#memo"));
-    await page.getByLabel("사진 고르기").setInputFiles({
-      name: "photo.jpg",
-      mimeType: "image/jpeg",
-      buffer: readFileSync(PHOTO_FIXTURE_PATH),
-    });
-    await page.getByRole("button", { name: "1번째 사진 빼기" }).waitFor();
+    await pickPhoto(page, 1);
     await page.locator("main").getByLabel("제목").fill("E2E 저장하지 않는 기록");
     await dropSession(page);
 
