@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { RecordMap } from "@/components/dates/RecordMap";
-import { LoadErrorMessage, ScreenMessage } from "@/components/LoadErrorMessage";
+import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenMessage } from "@/components/ScreenMessage";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
 import { getCurrentMember } from "@/lib/auth/member";
 import { RECORDS_PATH } from "@/lib/dates/album";
