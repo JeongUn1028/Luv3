@@ -1,6 +1,6 @@
 import { countDaysBetween } from "@/lib/anniversary";
 import { formatEventTime } from "@/lib/calendar/month";
-import { toOwnerLabel, type EventPeriod } from "./calendar";
+import type { EventPeriod } from "./calendar";
 import { formatEventPeriod } from "./recurrence";
 
 /** 홈 일정 칸에 보여 줄 일정 수. 칸이 정사각형이라 더 넣으면 넘친다 */
@@ -47,15 +47,3 @@ export const formatEventMeta = ({
   return place ? `${when} · ${place}` : when;
 };
 
-/**
- * 일정 칸에서 누구 일정인지 쓰는 글자: 함께 일정은 "함께", 한 사람 일정은 작성자 닉네임.
- *
- * @example formatEventOwner({ isTogether: false, authorNickname: "정운" }) // "정운"
- */
-export const formatEventOwner = ({
-  isTogether,
-  authorNickname,
-}: {
-  isTogether: boolean;
-  authorNickname: string | undefined;
-}): string => (isTogether ? "함께" : toOwnerLabel(authorNickname));

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toCalendarEvent, toCalendarRecord } from "@/lib/events/calendar";
+import { formatEventOwner, toCalendarEvent, toCalendarRecord } from "@/lib/events/calendar";
 
 describe("toCalendarEvent", () => {
   it("일정 행을 달력 값으로 바꾸고 작성자 닉네임을 붙인다", () => {
@@ -50,5 +50,19 @@ describe("toCalendarRecord", () => {
     const record = toCalendarRecord({ id: "r1", date: "2026-11-02", end_date: null, title: "산책", author: null });
     expect(record.authorNickname).toBeUndefined();
     expect(record.endDate).toBeUndefined();
+  });
+});
+
+describe("formatEventOwner", () => {
+  it("함께 일정이면 작성자와 상관없이 함께라고 쓴다", () => {
+    expect(formatEventOwner({ isTogether: true, authorNickname: "진아" })).toBe("함께");
+  });
+
+  it("한 사람 일정이면 작성자 닉네임을 쓴다", () => {
+    expect(formatEventOwner({ isTogether: false, authorNickname: "정운" })).toBe("정운");
+  });
+
+  it("한 사람 일정인데 작성자를 모르면 한 사람이라고 쓴다", () => {
+    expect(formatEventOwner({ isTogether: false, authorNickname: undefined })).toBe("한 사람");
   });
 });

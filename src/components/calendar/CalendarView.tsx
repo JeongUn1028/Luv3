@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactElement } from "react";
-import { AuthorTag } from "@/components/AuthorTag";
+import { AuthorTag, EventOwnerTag } from "@/components/AuthorTag";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/icons";
 import { ANNIVERSARY_DATE, countDaysTogether, getAnniversaryLabel } from "@/lib/anniversary";
 import {
@@ -25,7 +25,7 @@ import {
   WEEKDAYS,
 } from "@/lib/calendar/month";
 import { toNewRecordHref } from "@/lib/dates/form";
-import { toOwnerLabel, type CalendarEvent, type CalendarRecord } from "@/lib/events/calendar";
+import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
 import { formatEventPeriod, formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
@@ -220,11 +220,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                       </span>
                     )}
                   </span>
-                  {event.isTogether ? (
-                    event.authorNickname && <AuthorTag nickname={event.authorNickname} />
-                  ) : (
-                    <AuthorTag nickname={toOwnerLabel(event.authorNickname)} isOwner />
-                  )}
+                  <EventOwnerTag isTogether={event.isTogether} authorNickname={event.authorNickname} />
                 </Link>
                 {/* 지난 일정(오늘 포함)은 데이트 기록으로 이어 쓸 수 있다. 이미 남긴 일정은 다시 권하지 않는다. 기간 일정은 다른 날의 기록과도 겹칠 수 있어 읽어 온 기록 전체를 본다 */}
                 {canLeaveRecord(event, today, records) && (

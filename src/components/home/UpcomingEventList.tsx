@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import type { CalendarEvent } from "@/lib/events/calendar";
-import { formatEventMeta, formatEventOwner, formatUpcomingDay, previewUpcomingEvents } from "@/lib/events/upcoming";
+import { formatEventOwner } from "@/lib/events/calendar";
+import { formatEventMeta, formatUpcomingDay, previewUpcomingEvents } from "@/lib/events/upcoming";
 
 interface UpcomingEventListProps {
   /** 앞으로의 일정(`getUpcomingEvents`가 정렬한 순서) */
