@@ -5,10 +5,12 @@ import { startTransition, useEffect, useEffectEvent, useRef, useState, type Comp
 import { refreshSignedInScreen } from "@/lib/navigation/refresh-signed-in";
 import { photoRefreshGate } from "@/lib/photos/photo-retry";
 
-interface SignedPhotoProps extends Omit<ComponentPropsWithoutRef<"img">, "src" | "onError"> {
+export interface SignedPhotoProps extends Omit<ComponentPropsWithoutRef<"img">, "src" | "onError"> {
   /** 서명 주소. 유효 시간이 지나면 받지 못한다 */
   src: string;
   alt: string;
+  /** 받지 못했을 때 먼저 불린다. true를 돌려주면 부른 쪽이 다른 주소로 다시 그리므로 화면을 새로 받지 않는다 */
+  onLoadFailed?: () => boolean;
 }
 
 /**
@@ -19,14 +21,14 @@ interface SignedPhotoProps extends Omit<ComponentPropsWithoutRef<"img">, "src" |
  *
  * @example <SignedPhoto src={tile.thumbUrl} alt={tile.title} loading="lazy" className="size-full object-cover" />
  */
-export const SignedPhoto = ({ src, alt, ...props }: SignedPhotoProps): ReactElement => {
+export const SignedPhoto = ({ src, alt, onLoadFailed, ...props }: SignedPhotoProps): ReactElement => {
   const router = useRouter();
   const imageRef = useRef<HTMLImageElement>(null);
   const [retriedSrc, setRetriedSrc] = useState<string>();
   const isRetried = retriedSrc === src;
 
   const handleError = async () => {
-    if (isRetried || !photoRefreshGate.tryClaim()) return;
+    if (onLoadFailed?.() || isRetried || !photoRefreshGate.tryClaim()) return;
     // 새 화면이 올 때 함께 다시 그려, 새 주소면 그 주소로, 같은 주소면 새 요소로 다시 받는다
     await refreshSignedInScreen(() =>
       startTransition(() => {

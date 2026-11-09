@@ -13,7 +13,7 @@ import { ANNIVERSARY_DATE, countDaysTogether, toKstDate, toKstNow } from "@/lib/
 import { SETTINGS_PATH } from "@/lib/auth/paths";
 import { getCurrentMember } from "@/lib/auth/member";
 import { CALENDAR_PATH, toCalendarHref } from "@/lib/calendar/month";
-import { CouplePhotoLoadError, getCouplePhotoUrl } from "@/lib/couple-photo/queries";
+import { CouplePhotoLoadError, getCouplePhoto } from "@/lib/couple-photo/queries";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { AlbumLoadError, getLatestRecord } from "@/lib/dates/queries";
 import { EventLoadError, getUpcomingEvents } from "@/lib/events/queries";
@@ -36,16 +36,16 @@ const HomeDday = async () => {
 
 const HomeCouplePhoto = async () => {
   await getCurrentMember();
-  const photoUrl = await catchLoadError(getCouplePhotoUrl, CouplePhotoLoadError);
+  const photo = await catchLoadError(getCouplePhoto, CouplePhotoLoadError);
 
-  if (photoUrl instanceof CouplePhotoLoadError) {
+  if (photo instanceof CouplePhotoLoadError) {
     return (
       <p role="alert" className="flex h-[120px] shrink-0 items-center justify-center text-[13px] text-ink-sub">
-        {photoUrl.message}
+        {photo.message}
       </p>
     );
   }
-  return <CouplePhoto photoUrl={photoUrl} />;
+  return <CouplePhoto photo={photo} />;
 };
 
 const HomeLatestRecord = async () => {

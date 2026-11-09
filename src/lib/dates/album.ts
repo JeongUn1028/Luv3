@@ -1,10 +1,11 @@
-import type { SignedUrl } from "@/lib/photos/signed-urls";
+import { toRememberablePhoto, type RememberablePhoto } from "@/lib/photos/remembered-url";
+import type { SignedUrl, SignedUrlWithExpiry } from "@/lib/photos/signed-urls";
 
 /** 기록 탭(앨범 그리드) 주소 */
 export const RECORDS_PATH = "/records";
 
-/** 앨범 그리드 칸 하나 = 기록 하나(대표 사진 썸네일) */
-export interface AlbumTile {
+/** 기록 칸에 공통으로 그리는 내용(사진 주소 제외) */
+interface RecordTileBase {
   id: string;
   /** YYYY-MM-DD. 기간이면 시작일 */
   date: string;
@@ -12,11 +13,21 @@ export interface AlbumTile {
   endDate: string | undefined;
   title: string;
   place: string | undefined;
-  /** 대표 사진 썸네일의 서명 URL. 받지 못했으면 빈 칸으로 그린다 */
-  thumbUrl: string | undefined;
   tags: string[];
   /** 찾을 때 비교하는 글자: 제목·장소·정리 글·사진 한마디·태그를 소문자로 모은 것 */
   searchText: string;
+}
+
+/** 앨범 그리드 칸 하나 = 기록 하나(대표 사진 썸네일) */
+export interface AlbumTile extends RecordTileBase {
+  /** 대표 사진 썸네일의 서명 URL. 받지 못했으면 빈 칸으로 그린다 */
+  thumbUrl: string | undefined;
+}
+
+/** 홈의 최근 데이트 칸 */
+export interface LatestRecord extends RecordTileBase {
+  /** 대표 사진 썸네일. 휴대폰이 경로로 주소를 기억해 다시 쓴다(#219). 받지 못했으면 빈 칸으로 그린다 */
+  thumb: RememberablePhoto | undefined;
 }
 
 /** 한 달치 묶음 */
@@ -47,6 +58,17 @@ const toSearchText = ({ title, place, memo, tags, photos }: AlbumRow): string =>
     .join("\n")
     .toLowerCase();
 
+// DB의 null은 화면 경계에서 undefined로 바꾼다
+const toRecordTileBase = (row: AlbumRow): RecordTileBase => ({
+  id: row.id,
+  date: row.date,
+  endDate: row.end_date ?? undefined,
+  title: row.title,
+  place: row.place ?? undefined,
+  tags: row.tags,
+  searchText: toSearchText(row),
+});
+
 /**
  * 조회한 기록 행에 썸네일 서명 URL을 붙여 그리드 칸으로 바꾼다. DB의 null은 화면 경계에서 undefined로 바꾼다.
  *
@@ -56,16 +78,21 @@ export const toAlbumTiles = (rows: AlbumRow[], signedThumbs: SignedUrl[]): Album
   const urlByPath = new Map(
     signedThumbs.flatMap(({ path, signedUrl }) => (path && signedUrl ? [[path, signedUrl] as const] : [])),
   );
-  return rows.map((row) => ({
-    id: row.id,
-    date: row.date,
-    endDate: row.end_date ?? undefined,
-    title: row.title,
-    place: row.place ?? undefined,
-    thumbUrl: row.cover ? urlByPath.get(row.cover.thumb_path) : undefined,
-    tags: row.tags,
-    searchText: toSearchText(row),
-  }));
+  return rows.map((row) => ({ ...toRecordTileBase(row), thumbUrl: row.cover ? urlByPath.get(row.cover.thumb_path) : undefined }));
+};
+
+/**
+ * 가장 최근 기록 행을 홈의 최근 데이트 칸으로 바꾼다. 썸네일에는 경로와 만료 시각을 함께 붙인다.
+ *
+ * @returns 기록이 없으면 undefined
+ * @example toLatestRecord(rows, signedThumbs) // { id, title, thumb: { path, url, expiresAt }, ... }
+ */
+export const toLatestRecord = (rows: AlbumRow[], signedThumbs: SignedUrlWithExpiry[]): LatestRecord | undefined => {
+  const [row] = rows;
+  if (!row) return undefined;
+
+  const { cover } = row;
+  return { ...toRecordTileBase(row), thumb: cover ? toRememberablePhoto(signedThumbs.find(({ path }) => path === cover.thumb_path)) : undefined };
 };
 
 /**

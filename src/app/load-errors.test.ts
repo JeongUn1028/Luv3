@@ -3,7 +3,7 @@ import { readSourceLines } from "@/test-utils/source";
 
 // 조회 오류를 문구로 바꾸는 화면과, 그 화면이 값으로 받을 조회·오류 클래스 짝
 const LOAD_CALLS = [
-  { at: "app/page.tsx", query: "getCouplePhotoUrl", errorClass: "CouplePhotoLoadError" },
+  { at: "app/page.tsx", query: "getCouplePhoto", errorClass: "CouplePhotoLoadError" },
   { at: "app/page.tsx", query: "getLatestRecord", errorClass: "AlbumLoadError" },
   { at: "app/page.tsx", query: "getUpcomingEvents", errorClass: "EventLoadError" },
   { at: "app/page.tsx", query: "getTodos", errorClass: "TodoLoadError" },

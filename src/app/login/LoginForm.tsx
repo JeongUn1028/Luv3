@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type SubmitEvent } from "react";
+import { useEffect, useState, type SubmitEvent } from "react";
 import { useSearchParams } from "next/navigation";
+import { forgetAllPhotoUrls } from "@/components/RememberedPhoto";
 import { createClient } from "@/lib/supabase/client";
 import { getSafeNextPath } from "@/lib/auth/paths";
 import { getLoginErrorMessage, getSignInErrorMessage } from "@/lib/auth/login-messages";
@@ -16,6 +17,12 @@ const inputClassName =
  */
 export const LoginForm = () => {
   const searchParams = useSearchParams();
+
+  // 로그아웃하거나 로그인이 풀리면 이 화면으로 온다. 기억한 사진 주소는 7일 동안 쓸 수 있어 기기에 남기지 않는다(#219)
+  useEffect(() => {
+    forgetAllPhotoUrls();
+  }, []);
+
   return (
     <PasswordLoginForm
       key={searchParams.toString()}
