@@ -1,6 +1,8 @@
 import type { PlaceLocation } from "@/lib/places/search";
 import type { AuthorRow } from "@/lib/author";
 import type { SignedUrl } from "@/lib/photos/signed-urls";
+import { isRepeatRule } from "@/lib/events/calendar";
+import { toEventEditHref } from "@/lib/events/recurrence";
 import { formatPeriodMonthDay, toMonthDay, type RecordPeriod } from "./album";
 
 export interface DetailPhoto {
@@ -23,6 +25,8 @@ export interface DateRecordDetail {
   tags: string[];
   /** 작성자 닉네임. 읽지 못했으면 작성자 표시를 그리지 않는다 */
   authorNickname: string | undefined;
+  /** 일정에서 남긴 기록이면 그 일정의 고치기 주소(#227). 직접 쓴 기록이거나 일정이 지워졌으면 undefined */
+  eventHref: string | undefined;
   /** sort_order 순서 */
   photos: DetailPhoto[];
   /** 기록을 지울 때 함께 지울 Storage 파일(원본·썸네일) */
@@ -60,6 +64,10 @@ export interface DetailRow {
   place_lat: number | null;
   place_lng: number | null;
   author: AuthorRow;
+  /** 기록을 남긴 일정의 날(반복이면 그날). 직접 쓴 기록은 null */
+  event_date: string | null;
+  /** 기록을 남긴 일정. 직접 쓴 기록이거나 일정이 지워졌으면 null */
+  event: { id: string; repeat_rule: string | null } | null;
   photos: { id: string; path: string; thumb_path: string; caption: string | null; sort_order: number }[];
 }
 
@@ -96,6 +104,10 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): D
     memo: row.memo ?? undefined,
     tags: row.tags,
     authorNickname: row.author?.nickname,
+    eventHref:
+      row.event && row.event_date
+        ? toEventEditHref({ id: row.event.id, date: row.event_date, repeatRule: isRepeatRule(row.event.repeat_rule) ? row.event.repeat_rule : undefined, period: undefined })
+        : undefined,
     photos: photos.map(({ id, path, caption }) => ({ id, url: urlByPath.get(path), caption: caption ?? undefined })),
     filePaths: photos.flatMap(({ path, thumb_path }) => [path, thumb_path]),
   };

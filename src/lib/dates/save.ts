@@ -18,6 +18,9 @@ const RECORD_CONFLICT_CODE = "P0409";
 /** 같은 기록 id가 이미 있을 때. 다시 저장할 때는 기록 id를 그대로 쓰므로 앞선 시도가 저장했다는 뜻이다 */
 const DUPLICATE_KEY_CODE = "23505";
 
+/** 그 일정의 그날에 이미 남긴 기록이 있어 `create_date_record`가 거부했을 때. `details`에 그 기록 id가 온다 */
+const EVENT_LINK_TAKEN_CODE = "P0410";
+
 /**
  * 처리하지 않고 거절한 것이 분명한 오류: 데이터·제약(22, 23), 권한·문법(42), 함수의 raise(P0), PostgREST의 요청·인증 오류.
  * 나머지(네트워크, 앞단의 5xx, 연결 오류 08·57P·PGRST0)는 커밋됐는지 알 수 없다.
@@ -29,6 +32,7 @@ const UNCERTAIN_SAVE_MESSAGE = "저장됐는지 확인하지 못했어요. 다�
 interface RecordRpcError {
   message: string;
   code?: string;
+  details?: string;
 }
 
 /** 처리했는지 알 수 없으면 저장됐을 수 있어 올린 파일을 지우면 안 된다 */
@@ -116,8 +120,26 @@ export const saveDateRecord = async ({
   const mayHaveSaved = mayAlreadyBeSaved || mayHaveApplied || isOutcomeUnknown(error);
   if (mayHaveSaved && error.code === DUPLICATE_KEY_CODE) return "already-saved";
   if (!mayHaveSaved) await discardUploadedPhotos(storage, uploaded);
+  // 같은 id가 이미 있으면 DB 함수가 23505를 먼저 알리므로, 이번 id는 저장되지 않았다
+  if (error.code === EVENT_LINK_TAKEN_CODE) throw new DateRecordAlreadyLinkedError(error.details, { cause: error });
   throw toSaveError(error, mayHaveSaved);
 };
+
+/**
+ * 일정에서 남기려는데 그 일정의 그날에 이미 기록이 있을 때(#227). 다시 저장해도 거부되므로 남긴 기록으로 안내한다.
+ *
+ * @example if (error instanceof DateRecordAlreadyLinkedError && error.recordId) router.push(`/dates/${error.recordId}`)
+ */
+export class DateRecordAlreadyLinkedError extends SaveDateRecordError {
+  /** 이미 남긴 기록의 id. 그사이 지워졌으면 undefined */
+  readonly recordId: string | undefined;
+
+  constructor(recordId: string | undefined, options?: ErrorOptions) {
+    super(options, "이 일정에는 이미 남긴 기록이 있어요.");
+    this.name = "DateRecordAlreadyLinkedError";
+    this.recordId = recordId || undefined;
+  }
+}
 
 /** 고치는 사이 상대가 기록을 지웠을 때. 다시 시도해도 실패하므로 재시도를 권하지 않는다 */
 export class DateRecordGoneError extends SaveDateRecordError {
@@ -177,7 +199,12 @@ export const updateDateRecord = async ({
   onProgress,
 }: UpdateDateRecordParams): Promise<void> => {
   const mayAlreadyBeSaved = draft.uncertainSaveRecordId !== undefined;
-  const args = { ...toCreateRecordArgs(recordId, draft), p_expected_revisions: draft.expectedRevisions, p_new_revision: draft.nextRevision };
+  // 일정 연결은 새 기록에만 정하고 `update_date_record`는 받지 않는다
+  const args = {
+    ...toCreateRecordArgs(recordId, { ...draft, eventLink: undefined }),
+    p_expected_revisions: draft.expectedRevisions,
+    p_new_revision: draft.nextRevision,
+  };
   const photoFiles = draft.photos.flatMap(({ id }) => {
     const file = files.get(id);
     return file ? [{ id, file }] : [];

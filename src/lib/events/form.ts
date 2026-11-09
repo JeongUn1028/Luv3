@@ -1,7 +1,7 @@
 import type { AuthorRow } from "@/lib/author";
 import { toNextDay } from "@/lib/calendar/month";
 import { countChars, isIsoDate } from "@/lib/form";
-import { isRepeatRule, type RepeatRule } from "./calendar";
+import { isRepeatRule, type LinkedRecordRow, type RepeatRule } from "./calendar";
 
 // 글자 수 제한은 DB check 제약(마이그레이션)과 같아야 한다
 export const EVENT_TITLE_MAX_LENGTH = 100;
@@ -59,6 +59,8 @@ export interface EditableEventRow extends EventRow {
   author: AuthorRow;
   /** 반복 중 건너뛰는 날 */
   exceptions: { date: string }[];
+  /** 이 일정에서 남긴 기록(#227) */
+  records: LinkedRecordRow[];
 }
 
 /** 수정 화면에 넘기는 일정. 작성자는 닉네임만 남긴다 */

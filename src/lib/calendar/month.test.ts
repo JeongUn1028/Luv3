@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   buildMonthGrid,
-  canLeaveRecord,
   formatDayHeading,
   formatEventTime,
   formatMonthTitle,
@@ -142,67 +141,6 @@ describe("groupByDate 기간", () => {
     expect(grouped.get("2026-11-03")).toBeUndefined();
   });
 });
-
-describe("canLeaveRecord", () => {
-  it("일정 날짜가 같은 제목 기록의 기간 안에 있으면 권하지 않는다", () => {
-    const records = [{ date: "2026-10-31", endDate: "2026-11-02", title: "제주 여행" }];
-    const canLeave = (date: string, title = "제주 여행") =>
-      canLeaveRecord({ date, title, isTogether: true }, "2026-11-05", records);
-    expect(canLeave("2026-10-31")).toBe(false);
-    expect(canLeave("2026-11-01")).toBe(false);
-    expect(canLeave("2026-11-02")).toBe(false);
-    expect(canLeave("2026-10-30")).toBe(true);
-    expect(canLeave("2026-11-03")).toBe(true);
-    expect(canLeave("2026-11-01", "저녁")).toBe(true);
-  });
-
-  const today = "2026-11-02";
-
-  it("오늘까지의 일정은 기록으로 이어 쓸 수 있다", () => {
-    expect(canLeaveRecord({ date: "2026-11-01", title: "산책", isTogether: true }, today, [])).toBe(true);
-    expect(canLeaveRecord({ date: today, title: "산책", isTogether: true }, today, [])).toBe(true);
-    expect(canLeaveRecord({ date: "2026-11-03", title: "산책", isTogether: true }, today, [])).toBe(false);
-  });
-
-  it("그날 같은 제목의 기록이 이미 있으면 다시 권하지 않는다", () => {
-    const records = [{ date: "2026-11-01", title: "산책" }];
-    expect(canLeaveRecord({ date: "2026-11-01", title: "산책", isTogether: true }, today, records)).toBe(false);
-    expect(canLeaveRecord({ date: "2026-11-01", title: "전시", isTogether: true }, today, records)).toBe(true);
-    expect(canLeaveRecord({ date: "2026-10-31", title: "산책", isTogether: true }, today, records)).toBe(true);
-  });
-
-  it("한 사람 일정은 데이트 기록으로 권하지 않는다", () => {
-    expect(canLeaveRecord({ date: "2026-11-01", title: "치과", isTogether: false }, today, [])).toBe(false);
-  });
-
-  describe("기간 일정", () => {
-    const trip = { title: "제주 여행", isTogether: true, period: { start: "2026-10-30", end: "2026-11-01" } };
-
-    it("끝나는 날부터 기록으로 이어 쓸 수 있다", () => {
-      expect(canLeaveRecord({ ...trip, date: "2026-10-30" }, "2026-11-01", [])).toBe(true);
-      expect(canLeaveRecord({ ...trip, date: "2026-11-01" }, "2026-11-05", [])).toBe(true);
-    });
-
-    it("진행 중이면 아직 권하지 않는다", () => {
-      expect(canLeaveRecord({ ...trip, date: "2026-10-30" }, "2026-10-31", [])).toBe(false);
-    });
-
-    it("기간과 겹치는 같은 제목의 기록이 있으면 기간의 어느 날에서도 권하지 않는다", () => {
-      const records = [{ date: "2026-10-30", endDate: "2026-10-31", title: "제주 여행" }];
-      expect(canLeaveRecord({ ...trip, date: "2026-11-01" }, today, records)).toBe(false);
-      expect(canLeaveRecord({ ...trip, date: "2026-10-30" }, today, records)).toBe(false);
-    });
-
-    it("기간과 겹치지 않는 기록이나 다른 제목의 기록은 상관없다", () => {
-      const records = [
-        { date: "2026-10-29", title: "제주 여행" },
-        { date: "2026-10-31", title: "저녁" },
-      ];
-      expect(canLeaveRecord({ ...trip, date: "2026-11-01" }, today, records)).toBe(true);
-    });
-  });
-});
-
 describe("toCalendarHref", () => {
   it("값이 없으면 캘린더 탭 주소만 돌려준다", () => {
     expect(toCalendarHref({})).toBe("/calendar");
