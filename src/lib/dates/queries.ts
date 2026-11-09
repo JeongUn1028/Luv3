@@ -2,8 +2,8 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { catchLoadError } from "@/lib/load";
-import { getSignedUrls } from "@/lib/photos/signed-urls";
-import { toAlbumTiles, toTagSuggestions, type AlbumTile } from "./album";
+import { getHomePhotoSignedUrls, getSignedUrls, type GetSignedUrls } from "@/lib/photos/signed-urls";
+import { toAlbumTiles, toLatestRecord, toTagSuggestions, type AlbumTile, type LatestRecord } from "./album";
 import { isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
 import { toMapPins, type MapPin } from "./map";
 
@@ -15,8 +15,11 @@ export class AlbumLoadError extends Error {
   }
 }
 
-/** 최신순(날짜 → 작성 시각) 기록을 `limit`개까지(없으면 전부) 읽고 대표 사진 썸네일 서명 URL을 붙인다 */
-const loadLatestTiles = async (limit?: number): Promise<AlbumTile[]> => {
+/**
+ * 최신순(날짜 → 작성 시각) 기록을 `limit`개까지(없으면 전부) 읽고 대표 사진 썸네일을 `sign`으로 서명한다.
+ * 홈은 7일 주소(`getHomePhotoSignedUrls`), 기록 탭은 2시간 주소(`getSignedUrls`)를 쓴다
+ */
+const loadLatestRows = async (sign: GetSignedUrls, limit?: number) => {
   const supabase = await createClient();
   const query = supabase
     .from("dates")
@@ -27,10 +30,10 @@ const loadLatestTiles = async (limit?: number): Promise<AlbumTile[]> => {
   if (error) throw new AlbumLoadError({ cause: error });
 
   const thumbPaths = rows.flatMap(({ cover }) => (cover ? [cover.thumb_path] : []));
-  const { data: signed, error: signError } = await getSignedUrls(supabase.storage.from(ALBUM_BUCKET), thumbPaths);
+  const { data: signed, error: signError } = await sign(supabase.storage.from(ALBUM_BUCKET), thumbPaths);
   if (signError) throw new AlbumLoadError({ cause: signError });
 
-  return toAlbumTiles(rows, signed);
+  return { rows, signed };
 };
 
 /**
@@ -39,7 +42,10 @@ const loadLatestTiles = async (limit?: number): Promise<AlbumTile[]> => {
  * @throws {AlbumLoadError} 기록 조회나 서명 URL 발급이 실패했을 때
  * @example const tiles = await getAlbumTiles()
  */
-export const getAlbumTiles = async (): Promise<AlbumTile[]> => loadLatestTiles();
+export const getAlbumTiles = async (): Promise<AlbumTile[]> => {
+  const { rows, signed } = await loadLatestRows(getSignedUrls);
+  return toAlbumTiles(rows, signed);
+};
 
 /**
  * 가장 최근 데이트 기록 하나(홈). 기록 탭 그리드의 첫 칸과 같은 기록이다.
@@ -48,7 +54,10 @@ export const getAlbumTiles = async (): Promise<AlbumTile[]> => loadLatestTiles()
  * @throws {AlbumLoadError} 기록 조회나 서명 URL 발급이 실패했을 때
  * @example const latest = await getLatestRecord()
  */
-export const getLatestRecord = async (): Promise<AlbumTile | undefined> => (await loadLatestTiles(1))[0];
+export const getLatestRecord = async (): Promise<LatestRecord | undefined> => {
+  const { rows, signed } = await loadLatestRows(getHomePhotoSignedUrls, 1);
+  return toLatestRecord(rows, signed);
+};
 
 /** 지도의 핀을 불러오지 못했을 때 */
 export class MapPinLoadError extends Error {

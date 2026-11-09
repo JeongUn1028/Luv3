@@ -17,10 +17,22 @@ export const THUMB_MAX_EDGE = 600;
 export const MEDIUM_MAX_EDGE = 1100;
 
 /**
- * 올린 사진을 휴대폰과 저장소 CDN이 저장해 둘 시간(초, 7일). 사진 파일은 덮어쓰지 않아 같은 경로면 늘 같은 사진이다.
- * CDN은 파일을 지우거나 주소가 만료돼도 이 시간 동안 저장한 사본을 보내 주므로, 홈 사진 주소를 다시 쓰는 가장 긴 기간(#219)만큼만 둔다
+ * 홈 사진(커플 사진·최근 데이트 썸네일)의 서명 URL 유효 시간(초, 7일). 휴대폰이 주소를 기억해 다시 쓰므로(#219)
+ * 앱을 며칠 만에 켜도 저장해 둔 사진을 그대로 쓴다. 기록 상세·앨범 그리드는 `SIGNED_URL_EXPIRES_IN`을 쓴다
  */
-export const PHOTO_CACHE_CONTROL = String(7 * 24 * 60 * 60);
+export const HOME_PHOTO_URL_EXPIRES_IN = 7 * 24 * 60 * 60;
+
+/**
+ * 서버가 보관한 홈 사진 주소를 다시 쓸 때 남아 있어야 하는 시간(초, 6일). 서버는 하루 동안 같은 주소를 주고,
+ * 그 주소를 받은 휴대폰은 6일 넘게 쓸 수 있다
+ */
+export const HOME_PHOTO_URL_MIN_REMAINING = 6 * 24 * 60 * 60;
+
+/**
+ * 올린 사진을 휴대폰과 저장소 CDN이 저장해 둘 시간(초, 7일). 사진 파일은 덮어쓰지 않아 같은 경로면 늘 같은 사진이다.
+ * CDN은 파일을 지우거나 주소가 만료돼도 이 시간 동안 저장한 사본을 보내 주므로, 홈 사진 주소를 다시 쓰는 가장 긴 기간만큼만 둔다
+ */
+export const PHOTO_CACHE_CONTROL = String(HOME_PHOTO_URL_EXPIRES_IN);
 
 /**
  * 서명 URL 유효 시간(초). 화면을 오래 열어 둘 시간과 주소를 다시 쓸 시간을 더한 만큼만 두고,

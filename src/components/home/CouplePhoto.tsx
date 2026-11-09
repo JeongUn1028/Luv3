@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ChangeEvent, type ReactElement } from "react";
 import { CameraIcon, PlusIcon } from "@/components/icons";
 import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
-import { SignedPhoto } from "@/components/SignedPhoto";
+import { RememberedPhoto } from "@/components/RememberedPhoto";
 import { clearCouplePhoto, CouplePhotoError, replaceCouplePhoto } from "@/lib/couple-photo/save";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
+import type { RememberablePhoto } from "@/lib/photos/remembered-url";
 import { isAcceptedPhoto, PHOTO_INPUT_ACCEPT, resizeCouplePhoto } from "@/lib/photos/resize";
 import { createClient } from "@/lib/supabase/client";
 
@@ -27,8 +28,8 @@ const toMessage = (error: unknown): string =>
 const menuButtonClassName = "press-wide h-12 w-full rounded-[10px] border border-line text-[15px] hover:bg-background";
 
 interface CouplePhotoProps {
-  /** 커플 사진 서명 URL. 없으면 추가 칸을 보여 준다 */
-  photoUrl: string | undefined;
+  /** 커플 사진의 경로·서명 주소. 없으면 추가 칸을 보여 준다 */
+  photo: RememberablePhoto | undefined;
 }
 
 /**
@@ -36,7 +37,7 @@ interface CouplePhotoProps {
  * 없으면 점선 "커플 사진 추가" 칸을 누르고 사진을 고른다. 두 사람이 같은 사진을 본다.
  * 사진 자체를 누르는 방식은 스크롤하다 스쳐도 열리고, 길게 누르기는 iOS 이미지 메뉴와 겹쳐 쓰지 않는다(#60).
  */
-export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
+export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<ModalDialogHandle>(null);
@@ -59,8 +60,8 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
   useEffect(() => {
     if (isBusy || !shouldMoveFocusRef.current) return;
     shouldMoveFocusRef.current = false;
-    (photoUrl ? changeButtonRef : addButtonRef).current?.focus();
-  }, [photoUrl, isBusy]);
+    (photo ? changeButtonRef : addButtonRef).current?.focus();
+  }, [photo, isBusy]);
 
   const refreshAfter = (finishedTask: Task) => {
     setRefreshingTask(finishedTask);
@@ -147,7 +148,7 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
 
   return (
     // 사진이 있으면 남는 높이를 채운다. 4:3보다 작아지지 않고, 공간이 모자라면 화면이 스크롤된다(#115)
-    <section aria-label="커플 사진" className={photoUrl ? "flex shrink-0 grow flex-col" : "shrink-0"}>
+    <section aria-label="커플 사진" className={photo ? "flex shrink-0 grow flex-col" : "shrink-0"}>
       <input
         ref={inputRef}
         type="file"
@@ -156,10 +157,10 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
         onChange={handleFileChange}
         aria-label="커플 사진 고르기"
       />
-      {photoUrl ? (
+      {photo ? (
         // w-full: 늘어난 높이로 비율을 다시 계산해 폭까지 넓어지지 않게 폭을 고정한다
         <div className="relative aspect-[4/3] w-full shrink-0 grow overflow-hidden rounded-[16px] bg-surface">
-          <SignedPhoto src={photoUrl} alt="커플 사진" className="absolute inset-0 size-full object-cover" />
+          <RememberedPhoto photo={photo} alt="커플 사진" className="absolute inset-0 size-full object-cover" />
           {!isBusy && (
             <button
               ref={changeButtonRef}

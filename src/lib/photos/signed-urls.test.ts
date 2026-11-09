@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { readSourceLines } from "@/test-utils/source";
-import { SIGNED_URL_EXPIRES_IN, SIGNED_URL_MIN_REMAINING } from "./limits";
+import { HOME_PHOTO_URL_EXPIRES_IN, HOME_PHOTO_URL_MIN_REMAINING, PHOTO_CACHE_CONTROL, SIGNED_URL_EXPIRES_IN, SIGNED_URL_MIN_REMAINING } from "./limits";
 import { createSignedUrlCache, type SigningBucket } from "./signed-urls";
 
 const HOUR = 60 * 60 * 1000;
@@ -130,7 +130,7 @@ describe("createSignedUrlCache", () => {
     });
     const { data } = await getSignedUrls(bucket, ["a.jpg", "b.jpg"]);
 
-    expect(data).toEqual([first.data?.[0], { path: "b.jpg", signedUrl: "b.jpg?token=new" }]);
+    expect(data).toEqual([first.data?.[0], { path: "b.jpg", signedUrl: "b.jpg?token=new", expiresAt: clock.time - 1 + SIGNED_URL_EXPIRES_IN * 1000 }]);
   });
 
   it("서명 요청이 실패하면 오류를 그대로 돌려주고, 다음 요청에서 다시 서명한다", async () => {
@@ -147,7 +147,7 @@ describe("createSignedUrlCache", () => {
   });
 
   it("경로 하나만 서명에 실패하면 그 경로만 빈 주소로 두고, 다음 요청에서 다시 서명한다", async () => {
-    const getSignedUrls = createSignedUrlCache();
+    const getSignedUrls = createSignedUrlCache(createClock().now);
     const bucket = createBucket();
     bucket.createSignedUrls.mockResolvedValueOnce({
       data: [
@@ -161,10 +161,46 @@ describe("createSignedUrlCache", () => {
     await getSignedUrls(bucket, ["a.jpg", "b.jpg"]);
 
     expect(data).toEqual([
-      { path: "a.jpg", signedUrl: null },
-      { path: "b.jpg", signedUrl: "b.jpg?token=ok" },
+      { path: "a.jpg", signedUrl: null, expiresAt: undefined },
+      { path: "b.jpg", signedUrl: "b.jpg?token=ok", expiresAt: SIGNED_URL_EXPIRES_IN * 1000 },
     ]);
     expect(bucket.createSignedUrls).toHaveBeenLastCalledWith(["a.jpg"], SIGNED_URL_EXPIRES_IN);
+  });
+
+  it("주소마다 만료 시각을 함께 돌려주고, 다시 쓰는 주소는 처음 만료 시각 그대로다", async () => {
+    // Arrange
+    const clock = createClock();
+    const getSignedUrls = createSignedUrlCache(clock.now);
+    const bucket = createBucket();
+
+    // Act
+    const first = await getSignedUrls(bucket, ["a.jpg"]);
+    clock.time = HOUR / 2;
+    const second = await getSignedUrls(bucket, ["a.jpg"]);
+
+    // Assert
+    expect(first.data?.[0]?.expiresAt).toBe(SIGNED_URL_EXPIRES_IN * 1000);
+    expect(second.data).toEqual(first.data);
+  });
+
+  it("유효 시간을 정해 만들면 그 시간으로 서명하고, 정한 최소 시간이 남을 때까지 다시 쓴다", async () => {
+    // Arrange
+    const clock = createClock();
+    const getSignedUrls = createSignedUrlCache(clock.now, { expiresIn: HOME_PHOTO_URL_EXPIRES_IN, minRemaining: HOME_PHOTO_URL_MIN_REMAINING });
+    const bucket = createBucket();
+    const reuseUntil = (HOME_PHOTO_URL_EXPIRES_IN - HOME_PHOTO_URL_MIN_REMAINING) * 1000;
+
+    // Act
+    const first = await getSignedUrls(bucket, ["a.jpg"]);
+    clock.time = reuseUntil;
+    const reused = await getSignedUrls(bucket, ["a.jpg"]);
+    clock.time = reuseUntil + 1;
+    const renewed = await getSignedUrls(bucket, ["a.jpg"]);
+
+    // Assert
+    expect(bucket.createSignedUrls).toHaveBeenNthCalledWith(1, ["a.jpg"], HOME_PHOTO_URL_EXPIRES_IN);
+    expect(reused.data).toEqual(first.data);
+    expect(renewed.data?.[0]?.signedUrl).not.toBe(first.data?.[0]?.signedUrl);
   });
 
   it("같은 경로를 동시에 요청해도 모두 먼저 보관된 주소 하나를 받는다", async () => {
@@ -184,6 +220,13 @@ describe("서명 주소 발급 위치", () => {
     );
 
     expect(offenders).toEqual([]);
+  });
+
+  // 홈 사진은 휴대폰이 주소를 기억해 며칠 다시 쓴다(#219). CDN이 지운 사진도 보관 시간 동안 보내 줘 그보다 길게 두지 않는다
+  it("홈 사진 주소는 7일이고 올린 사진의 보관 시간과 같으며, 서버는 하루 동안 같은 주소를 준다", () => {
+    expect(HOME_PHOTO_URL_EXPIRES_IN).toBe(7 * 24 * 60 * 60);
+    expect(PHOTO_CACHE_CONTROL).toBe(String(HOME_PHOTO_URL_EXPIRES_IN));
+    expect(HOME_PHOTO_URL_EXPIRES_IN - HOME_PHOTO_URL_MIN_REMAINING).toBe(24 * 60 * 60);
   });
 
   it("보관한 주소는 화면을 오래 열어 둘 시간을 남기고 쓴다", () => {
