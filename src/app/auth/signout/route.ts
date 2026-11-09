@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getSessionClaims } from "@/lib/supabase/jwks";
 import { HOME_PATH, LOGIN_PATH } from "@/lib/auth/paths";
 
 /** 로그아웃 버튼(폼 POST). 303으로 보내야 브라우저가 로그인 화면을 GET으로 연다. */
@@ -15,7 +16,7 @@ export const POST = async (request: NextRequest) => {
  */
 export const GET = async (request: NextRequest) => {
   const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
+  const { data } = await getSessionClaims(supabase.auth);
   if (!data?.claims) {
     return NextResponse.redirect(new URL(LOGIN_PATH, request.url));
   }

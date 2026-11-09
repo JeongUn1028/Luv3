@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "./database.types";
+import { getSessionClaims } from "./jwks";
 import { getSupabaseEnv } from "@/lib/env";
 import { HOME_PATH, LOGIN_PATH, isPublicPath } from "@/lib/auth/paths";
 import { formatProxyServerTiming } from "@/lib/pwa/startup-timing";
@@ -47,8 +48,8 @@ export const updateSession = async (request: NextRequest): Promise<NextResponse>
     },
   });
 
-  // createServerClient와 getClaims() 사이에 다른 코드를 넣지 않는다(무작위 로그아웃 원인).
-  const { data } = await supabase.auth.getClaims();
+  // createServerClient와 로그인 확인(getSessionClaims → getClaims) 사이에 다른 코드를 넣지 않는다(무작위 로그아웃 원인).
+  const { data } = await getSessionClaims(supabase.auth);
   const authMs = performance.now() - startedAt;
   const isLoggedIn = Boolean(data?.claims);
   const { pathname, search } = request.nextUrl;
