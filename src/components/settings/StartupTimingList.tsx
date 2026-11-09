@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore, type ReactElement } from "react";
 import {
+  describeServerSteps,
   describeStylesheets,
   formatMeasuredAt,
   formatSeconds,
@@ -57,6 +58,7 @@ export const StartupTimingList = (): ReactElement => {
                 연결 {formatSeconds(timing.connectMs)} · 서버 응답 {formatSeconds(timing.serverMs)} · 넘김 {formatSeconds(timing.redirectMs)} · 시작 전{" "}
                 {formatSeconds(timing.beforeFetchMs)}
               </p>
+              <p>{describeServerSteps(timing)}</p>
               <p>{describeStylesheets(timing)}</p>
               <p>
                 {timing.isStandalone ? "홈 화면 앱" : "브라우저"} · {timing.path}

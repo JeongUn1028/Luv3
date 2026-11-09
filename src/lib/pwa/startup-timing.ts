@@ -31,6 +31,19 @@ export interface StylesheetTimingValues {
   decodedBodySize: number;
 }
 
+/** 서버가 `Server-Timing` 헤더로 알려 준 단계 하나(`PerformanceServerTiming` 중 쓰는 값) */
+export interface ServerTimingValues {
+  name: string;
+  /** ms. 표시만 있는 단계(토큰 갱신 등)는 0이다 */
+  duration: number;
+}
+
+/** 저장해 두는 서버 단계 하나 */
+export interface ServerStep {
+  name: string;
+  durationMs: number;
+}
+
 /** 앱을 켠 문서에서 읽은 브라우저 기록 */
 export interface StartupTimingSource {
   navigation: NavigationTimingValues;
@@ -40,6 +53,8 @@ export interface StartupTimingSource {
   measuredAt: string;
   path: string;
   isStandalone: boolean;
+  /** 문서 응답의 서버 단계. 브라우저가 알려 주지 않으면 없다 */
+  serverTimings: readonly ServerTimingValues[] | undefined;
 }
 
 /**
@@ -68,6 +83,8 @@ export interface StartupTiming {
   stylesheetDownloadCount: number | undefined;
   /** 첫 그림 전에 요청한 CSS 수 */
   stylesheetCount: number;
+  /** 서버가 알려 준 단계(`proxy` 시간 등). 브라우저가 알려 주지 않았거나 이 값을 재기 전의 기록이면 없다 */
+  serverSteps?: ServerStep[];
 }
 
 /** `isAppLaunch`가 보는 문서 정보 */
@@ -101,7 +118,15 @@ const toDuration = (start: number, end: number): number => Math.max(0, Math.roun
  *
  * @example toStartupTiming({ navigation, firstContentfulPaint: 1400, stylesheets, measuredAt, path: "/", isStandalone: true })
  */
-export const toStartupTiming = ({ navigation, firstContentfulPaint, stylesheets, measuredAt, path, isStandalone }: StartupTimingSource): StartupTiming => {
+export const toStartupTiming = ({
+  navigation,
+  firstContentfulPaint,
+  stylesheets,
+  measuredAt,
+  path,
+  isStandalone,
+  serverTimings,
+}: StartupTimingSource): StartupTiming => {
   // 첫 그림을 막는 CSS는 그 전에 요청한다. 켠 뒤 다른 화면으로 옮겨 받은 CSS는 세지 않는다
   const startupStylesheets = firstContentfulPaint === undefined ? stylesheets : stylesheets.filter(({ startTime }) => startTime <= firstContentfulPaint);
   const isSizeKnown = startupStylesheets.every(({ decodedBodySize }) => decodedBodySize > 0);
@@ -121,6 +146,7 @@ export const toStartupTiming = ({ navigation, firstContentfulPaint, stylesheets,
       startupStylesheets.length === 0 ? undefined : Math.round(Math.max(...startupStylesheets.map(({ responseEnd }) => responseEnd))),
     stylesheetDownloadCount: isSizeKnown ? startupStylesheets.filter(({ transferSize }) => transferSize > 0).length : undefined,
     stylesheetCount: startupStylesheets.length,
+    ...(serverTimings && { serverSteps: serverTimings.map(({ name, duration }) => ({ name, durationMs: Math.round(duration) })) }),
   };
 };
 
@@ -140,6 +166,10 @@ const NUMBER_KEYS = ["beforeFetchMs", "redirectMs", "connectMs", "serverMs", "st
 
 const isDateString = (value: unknown): boolean => typeof value === "string" && !Number.isNaN(new Date(value).getTime());
 
+const isServerSteps = (value: unknown): boolean =>
+  value === undefined ||
+  (Array.isArray(value) && value.every((step) => isRecord(step) && typeof step.name === "string" && typeof step.durationMs === "number"));
+
 const isStartupTiming = (value: unknown): value is StartupTiming =>
   isRecord(value) &&
   isDateString(value.measuredAt) &&
@@ -148,7 +178,8 @@ const isStartupTiming = (value: unknown): value is StartupTiming =>
   NUMBER_KEYS.every((key) => typeof value[key] === "number") &&
   isOptionalNumber(value.firstPaintMs) &&
   isOptionalNumber(value.stylesheetEndMs) &&
-  isOptionalNumber(value.stylesheetDownloadCount);
+  isOptionalNumber(value.stylesheetDownloadCount) &&
+  isServerSteps(value.serverSteps);
 
 /**
  * 저장소에 남긴 기록을 읽는다. 없거나 읽을 수 없는 것은 빼서, 측정 표시가 화면을 깨뜨리지 않게 한다.
@@ -202,4 +233,57 @@ export const describeStylesheets = ({
   if (stylesheetCount === 0) return "CSS 기록 없음";
   const downloaded = stylesheetDownloadCount === undefined ? "새로 받았는지 모름" : `${String(stylesheetDownloadCount)}개 새로 받음`;
   return `CSS ${String(stylesheetCount)}개 중 ${downloaded}, ${formatSeconds(stylesheetEndMs)}에 끝`;
+};
+
+/** `proxy`가 `Server-Timing` 헤더에 쓰는 단계 이름 */
+export const PROXY_SERVER_TIMING = {
+  total: "proxy",
+  auth: "proxy-auth",
+  refresh: "proxy-refresh",
+  cold: "proxy-cold",
+} as const;
+
+/** `formatProxyServerTiming`에 넘기는 `proxy` 한 번의 기록 */
+export interface ProxyTimingParams {
+  totalMs: number;
+  /** Supabase 클라이언트를 만들고 로그인을 확인(`getClaims`)하기까지 */
+  authMs: number;
+  /** 접속 토큰이 만료돼 새 토큰을 받았는지 */
+  isRefreshed: boolean;
+  /** 이 서버 인스턴스에서 처음 돈 요청인지(쉬다 새로 떴는지) */
+  isColdStart: boolean;
+}
+
+const toServerTimingDuration = (ms: number): string => (Math.round(ms * 10) / 10).toFixed(1);
+
+/**
+ * `proxy` 단계를 `Server-Timing` 헤더 값으로 쓴다. 휴대폰 측정 표시가 문서 응답에서 읽는다.
+ *
+ * @example formatProxyServerTiming({ totalMs: 120, authMs: 100, isRefreshed: false, isColdStart: true }) // "proxy;dur=120.0, proxy-auth;dur=100.0, proxy-cold"
+ */
+export const formatProxyServerTiming = ({ totalMs, authMs, isRefreshed, isColdStart }: ProxyTimingParams): string =>
+  [
+    `${PROXY_SERVER_TIMING.total};dur=${toServerTimingDuration(totalMs)}`,
+    `${PROXY_SERVER_TIMING.auth};dur=${toServerTimingDuration(authMs)}`,
+    ...(isRefreshed ? [PROXY_SERVER_TIMING.refresh] : []),
+    ...(isColdStart ? [PROXY_SERVER_TIMING.cold] : []),
+  ].join(", ");
+
+/**
+ * 서버 응답 시간을 `proxy`와 나머지로 나눠 쓴다. 나머지에는 페이지 함수가 깨어나 그리기까지와 휴대폰·서버 사이 왕복이 함께 든다.
+ * `proxy`는 페이지 함수와 따로 돌아, `새로 뜸`은 `proxy` 인스턴스만 가리킨다.
+ *
+ * @example describeServerSteps({ serverMs: 2800, serverSteps }) // "proxy 0.12초(로그인 확인 0.10초) · 나머지 2.68초"
+ */
+export const describeServerSteps = ({ serverMs, serverSteps }: Pick<StartupTiming, "serverMs" | "serverSteps">): string => {
+  if (!serverSteps) return "서버 단계: 브라우저가 알려 주지 않음";
+  const findStep = (name: string): ServerStep | undefined => serverSteps.find((step) => step.name === name);
+  const total = findStep(PROXY_SERVER_TIMING.total);
+  if (!total) return "서버 단계: 받은 정보 없음";
+  const details = [
+    `로그인 확인 ${formatSeconds(findStep(PROXY_SERVER_TIMING.auth)?.durationMs)}`,
+    ...(findStep(PROXY_SERVER_TIMING.refresh) ? ["토큰 갱신"] : []),
+    ...(findStep(PROXY_SERVER_TIMING.cold) ? ["새로 뜸"] : []),
+  ];
+  return `proxy ${formatSeconds(total.durationMs)}(${details.join(", ")}) · 나머지 ${formatSeconds(Math.max(0, serverMs - total.durationMs))}`;
 };
