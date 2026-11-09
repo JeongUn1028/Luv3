@@ -5,7 +5,6 @@ import { LogoutForm } from "@/components/LogoutForm";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
-import { StartupTimingList } from "@/components/settings/StartupTimingList";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
 import { getCurrentMember } from "@/lib/auth/member";
 import { HOME_PATH, SETTINGS_NICKNAME_PATH, SETTINGS_PASSWORD_PATH } from "@/lib/auth/paths";
@@ -64,7 +63,6 @@ const SettingsPage = () => (
       >
         <MemberSection />
       </LoadingSuspense>
-      <StartupTimingList />
     </div>
   </PageShell>
 );
