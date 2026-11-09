@@ -1,10 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import type { ReactElement } from "react";
 import { RetryButton } from "@/components/RetryButton";
 import { StatusLink, StatusScreen } from "@/components/StatusScreen";
-import { markAllScreensLoaded } from "@/lib/navigation/screen-freshness";
+import { getRetryMessage } from "@/lib/load-retry";
+import { useRefreshRetry } from "@/lib/navigation/use-retry";
 
 interface LoadErrorScreenProps {
   /** 무엇을 못 불러왔는지. 예: "일정을 불러오지 못했어요" */
@@ -22,16 +22,11 @@ interface LoadErrorScreenProps {
  * @example <LoadErrorScreen title="일정을 불러오지 못했어요" backHref={CALENDAR_PATH} backLabel="캘린더로" />
  */
 export const LoadErrorScreen = ({ title, backHref, backLabel }: LoadErrorScreenProps): ReactElement => {
-  const router = useRouter();
-
-  const handleRetry = () => {
-    markAllScreensLoaded();
-    router.refresh();
-  };
+  const { isPending, failedCount, retry } = useRefreshRetry();
 
   return (
-    <StatusScreen title={title} description="잠시 후 다시 시도해 주세요." isAlert>
-      <RetryButton onRetry={handleRetry} />
+    <StatusScreen title={title} description={getRetryMessage("잠시 후 다시 시도해 주세요.", failedCount)} isAlert failedRetryCount={failedCount}>
+      <RetryButton isPending={isPending} onRetry={retry} />
       <StatusLink href={backHref}>{backLabel}</StatusLink>
     </StatusScreen>
   );

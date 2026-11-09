@@ -8,19 +8,49 @@ const GLOBAL_ERROR = "app/global-error.tsx";
 const ERROR_SCREEN = "components/ErrorScreen.tsx";
 const RETRY_BUTTON = "components/RetryButton.tsx";
 const LOAD_ERROR_SCREEN = "components/LoadErrorScreen.tsx";
+const LOAD_ERROR_MESSAGE = "components/LoadErrorMessage.tsx";
+const STATUS_SCREEN = "components/StatusScreen.tsx";
+const USE_RETRY = "lib/navigation/use-retry.ts";
 
 describe("오류 화면", () => {
   it("다시 시도 버튼이 화면을 다시 불러온다", () => {
     expect(readSource("app/error.tsx")).toContain("<ErrorScreen onRetry={retry} />");
-    expect(readSource(ERROR_SCREEN)).toContain("<RetryButton onRetry={onRetry} />");
-    expect(readSource(RETRY_BUTTON)).toContain("startTransition(() => onRetry())");
+    // 다시 시도가 또 실패하면 React가 오류 화면을 새로 그려 화면 안의 상태가 사라지므로, 실패 횟수를 화면 밖에서 센다
+    expect(readSource(ERROR_SCREEN)).toContain("useErrorRetry(onRetry)");
+    expect(readSource(ERROR_SCREEN)).toContain("<RetryButton isPending={isPending} onRetry={retry} />");
+    expect(readSource(USE_RETRY)).toContain("startTransition(() => onRetry())");
+    expect(readSource("lib/navigation/use-error-retry.ts")).toContain("startTransition(() => onRetry())");
   });
 
   it("다시 시도하는 동안 눌렸다는 것을 보여 주고 다시 누를 수 없게 한다", () => {
     const source = readSource(RETRY_BUTTON);
 
-    expect(source).toContain("disabled={isPending}");
+    expect(source).toContain("disabled={isPending || isOffline}");
     expect(source).toContain('isPending ? "다시 시도하는 중…" : "다시 시도"');
+  });
+
+  it("끊긴 동안에는 다시 시도를 누를 수 없게 하고 연결되면 누를 수 있다고 알린다", () => {
+    // 끊긴 채로 누르면 연결될 때까지 기다리며, 그동안 돌아가는 링크를 눌러도 제자리에 있다가 연결되면 한꺼번에 옮겨 간다(#139)
+    const source = readSource(RETRY_BUTTON);
+
+    expect(source).toContain("const isOffline = useOffline();");
+    expect(source).toMatch(/\{isOffline && \(\s*<p id=\{hintId\}[^>]*>\s*연결되면 다시 시도할 수 있어요/);
+  });
+
+  it("다시 시도가 또 실패하면 바뀐 문구를 화면 읽기 프로그램에 다시 알린다", () => {
+    // role="alert"는 내용이 바뀌어야 다시 읽으므로, 실패할 때마다 key로 새로 그린다
+    expect(readSource(STATUS_SCREEN)).toMatch(/<div\s+key=\{failedRetryCount\}\s+role=\{isAlert \? "alert" : undefined\}/);
+    for (const at of [ERROR_SCREEN, LOAD_ERROR_SCREEN]) {
+      const source = readSource(at);
+
+      expect(source).toContain('description={getRetryMessage("잠시 후 다시 시도해 주세요.", failedCount)}');
+      expect(source).toContain("failedRetryCount={failedCount}");
+    }
+  });
+
+  it("같은 문구로 또 실패하면 짧게 다시 나타나고, 동작 줄이기면 움직이지 않는다", () => {
+    expect(readSource(STATUS_SCREEN)).toContain('shouldFlashRetryMessage(failedRetryCount) ? "retry-failed-flash" : ""');
+    expect(readSource("app/globals.css")).toMatch(/@media \(prefers-reduced-motion: no-preference\) \{\s*\.retry-failed-flash \{/);
   });
 
   it("홈으로 링크는 문서를 새로 받는다", () => {
@@ -125,22 +155,40 @@ describe("고치기 화면의 조회 실패", () => {
   it("다시 시도와 돌아가기를 함께 두고 화면 읽기 프로그램에 바로 알린다", () => {
     const source = readSource(LOAD_ERROR_SCREEN);
 
-    expect(source).toContain("<RetryButton onRetry={handleRetry} />");
+    expect(source).toContain("useRefreshRetry()");
+    expect(source).toContain("<RetryButton isPending={isPending} onRetry={retry} />");
     expect(source).toContain("<StatusLink href={backHref}>");
     expect(source).toContain("isAlert");
   });
 
   it("다시 불러온 화면을 되돌아갈 때 또 불러오지 않게 표시한다", () => {
     // router.refresh()는 숨겨 둔 화면까지 비워 돌아갈 때 Next가 새로 받으므로, 표시가 없으면 같은 요청과 사진을 두 번 받는다
-    const source = readSource(LOAD_ERROR_SCREEN);
+    const source = readSource(USE_RETRY);
 
-    expect(source).toContain("markAllScreensLoaded();");
-    expect(source).toContain("router.refresh();");
+    expect(source).toMatch(/markAllScreensLoaded\(\);\s*router\.refresh\(\);/);
   });
 });
 
 describe("화면 안 조회 실패 문구", () => {
-  it.each(["app/records/page.tsx", "app/calendar/page.tsx", "app/todos/page.tsx", "app/dates/[id]/page.tsx"])("%s 화면은 같은 문구 틀을 쓴다", (at) => {
-    expect(readSource(at)).toContain("<LoadErrorMessage message=");
+  it.each(["app/records/page.tsx", "app/calendar/page.tsx", "app/todos/page.tsx", "app/records/map/page.tsx", "app/dates/[id]/page.tsx"])(
+    "%s 화면은 같은 문구 틀을 쓴다",
+    (at) => {
+      expect(readSource(at)).toContain("<LoadErrorMessage message=");
+    },
+  );
+
+  it("주소창과 새로고침이 없는 홈 화면 앱에서도 그 자리에서 다시 불러올 수 있다", () => {
+    const source = readSource(LOAD_ERROR_MESSAGE);
+
+    expect(source).toContain("useRefreshRetry()");
+    expect(source).toContain("<RetryButton isPending={isPending} onRetry={retry} />");
+  });
+
+  it("다시 시도가 또 실패하면 바뀐 문구를 화면 읽기 프로그램에 다시 알린다", () => {
+    const source = readSource(LOAD_ERROR_MESSAGE);
+
+    expect(source).toMatch(/<p\s+key=\{failedCount\}\s+role="alert"/);
+    expect(source).toContain("{getRetryMessage(message, failedCount)}");
+    expect(source).toContain('shouldFlashRetryMessage(failedCount) ? "retry-failed-flash" : ""');
   });
 });
