@@ -11,10 +11,11 @@ export class TodoLoadError extends Error {
   }
 }
 
-const TODO_COLUMNS = "id, content, sort_order, completed_at, author:members!todos_author_id_fkey(nickname)";
+// 작성자를 읽지 않는 이유는 `TodoRow` 주석에 있다
+const TODO_COLUMNS = "id, content, sort_order, completed_at";
 
 /**
- * 둘이 함께 쓰는 하고 싶은 것 목록 전체를 작성자 닉네임과 함께 읽는다. 하지 않은 것·완료한 것 나누기는 `groupTodos`가 한다.
+ * 둘이 함께 쓰는 하고 싶은 것 목록 전체를 읽는다. 하지 않은 것·완료한 것 나누기는 `groupTodos`가 한다.
  *
  * @throws {TodoLoadError} 조회가 실패했을 때
  * @example const { open, done } = groupTodos(await getTodos())

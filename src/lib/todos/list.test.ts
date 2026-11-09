@@ -5,21 +5,19 @@ const createTodo = (overrides: Partial<Todo> & Pick<Todo, "id">): Todo => ({
   content: `할 일 ${overrides.id}`,
   sortOrder: 1,
   completedAt: undefined,
-  authorNickname: "정운",
   ...overrides,
 });
 
 const toIds = (todos: Todo[]): string[] => todos.map(({ id }) => id);
 
 describe("toTodo", () => {
-  it("DB 행의 작성자를 닉네임으로, 완료 시각 null을 undefined로 바꾼다", () => {
+  it("DB 행의 완료 시각 null을 undefined로 바꾼다", () => {
     // Arrange
     const row = {
       id: "t1",
       content: "제주도 여행",
       sort_order: 3,
       completed_at: null,
-      author: { nickname: "진아" },
     };
 
     // Act
@@ -31,14 +29,12 @@ describe("toTodo", () => {
       content: "제주도 여행",
       sortOrder: 3,
       completedAt: undefined,
-      authorNickname: "진아",
     });
   });
 
-  it("작성자를 읽지 못하면 닉네임은 undefined다", () => {
-    const todo = toTodo({ id: "t1", content: "a", sort_order: 1, completed_at: "2026-11-03T10:00:00+00:00", author: null });
+  it("완료한 항목은 완료 시각을 그대로 둔다", () => {
+    const todo = toTodo({ id: "t1", content: "a", sort_order: 1, completed_at: "2026-11-03T10:00:00+00:00" });
 
-    expect(todo.authorNickname).toBeUndefined();
     expect(todo.completedAt).toBe("2026-11-03T10:00:00+00:00");
   });
 });
