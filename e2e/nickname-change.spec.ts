@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { SETTINGS_NICKNAME_PATH, SETTINGS_PATH } from "@/lib/auth/paths";
-import { BASE_URL } from "./support/constants";
 import { createDisposableMember, createMemberContent } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
+import { getSaveButton, getTab, signInToHome } from "./support/actions";
 
 const MEMBERS_URL = "**/rest/v1/members*";
 const LONG_NICKNAME = "가나다라마바사아자차카타파하가나다라마바";
@@ -13,18 +13,8 @@ const WIDE_NICKNAME = "뷁뷁뷁뷁뷁뷁";
 // 전용 계정의 닉네임을 바꾸면 나란히 도는 다른 테스트가 흔들리므로 테스트마다 임시 계정을 쓴다
 test.use({ storageState: { cookies: [], origins: [] } });
 
-const signIn = async (page: Page, email: string, password: string): Promise<void> => {
-  await page.goto("/login", { waitUntil: "networkidle" });
-  await page.getByLabel("이메일").fill(email);
-  await page.getByLabel("비밀번호").fill(password);
-  await page.getByRole("button", { name: "로그인" }).click();
-  await page.waitForURL(`${BASE_URL}/`);
-};
-
 const getNicknameRow = (page: Page): Locator => page.getByRole("link", { name: /^닉네임/ }).locator("visible=true");
 const getNicknameInput = (page: Page): Locator => page.getByLabel("닉네임", { exact: true }).locator("visible=true");
-const getSaveButton = (page: Page): Locator => page.getByRole("button", { name: "저장" }).locator("visible=true");
-const getTab = (page: Page, href: string): Locator => page.locator(`nav a[href="${href}"]`).locator("visible=true");
 
 const openNicknameScreen = (page: Page): Promise<void> => openScreen(page, SETTINGS_NICKNAME_PATH, page.getByLabel("닉네임", { exact: true }));
 
@@ -52,7 +42,7 @@ test.describe("닉네임 변경", () => {
     await useMember("예전이름");
     const label = `E2E 닉네임 ${testInfo.project.name} ${randomUUID().slice(0, 4)}`;
     const { recordId, eventId } = await createMemberContent({ memberId, label });
-    await signIn(page, email, password);
+    await signInToHome(page, email, password);
     await getTab(page, "/todos").click();
     const todoRow = page.locator("main").getByRole("listitem").filter({ hasText: `${label} 항목` }).locator("visible=true");
     await expect(todoRow.getByTitle("예전이름")).toBeVisible();
@@ -91,7 +81,7 @@ test.describe("닉네임 변경", () => {
   test("비었거나 공백만 있거나 6자를 넘으면 서버에 보내지 않고 안내한다", async ({ page }) => {
     // Arrange
     await useMember();
-    await signIn(page, email, password);
+    await signInToHome(page, email, password);
     await openNicknameScreen(page);
     const updates: string[] = [];
     page.on("request", (request) => {
@@ -121,7 +111,7 @@ test.describe("닉네임 변경", () => {
   test("일정 구분에 쓰는 함께는 닉네임으로 저장하지 않는다", async ({ page }) => {
     // Arrange
     await useMember();
-    await signIn(page, email, password);
+    await signInToHome(page, email, password);
     await openNicknameScreen(page);
 
     // Act
@@ -136,7 +126,7 @@ test.describe("닉네임 변경", () => {
   test("앞뒤 공백은 지우고 저장한다", async ({ page }) => {
     // Arrange
     await useMember();
-    await signIn(page, email, password);
+    await signInToHome(page, email, password);
     await openNicknameScreen(page);
 
     // Act
@@ -154,7 +144,7 @@ test.describe("닉네임 변경", () => {
   test("저장에 실패하면 적은 값을 남기고 알리며, 다시 저장할 수 있다", async ({ page }) => {
     // Arrange
     await useMember();
-    await signIn(page, email, password);
+    await signInToHome(page, email, password);
     await openNicknameScreen(page);
     await page.route(MEMBERS_URL, (route) =>
       route.request().method() === "PATCH" ? route.fulfill({ status: 500, json: { message: "E2E 저장 실패" } }) : route.continue(),
@@ -183,7 +173,7 @@ test.describe("닉네임 변경", () => {
   test("권한이 없어 바뀐 행이 없으면 저장된 것처럼 넘어가지 않는다", async ({ page }) => {
     // Arrange
     await useMember();
-    await signIn(page, email, password);
+    await signInToHome(page, email, password);
     await openNicknameScreen(page);
     await page.route(MEMBERS_URL, (route) => (route.request().method() === "PATCH" ? route.fulfill({ status: 200, json: [] }) : route.continue()));
 
@@ -199,7 +189,7 @@ test.describe("닉네임 변경", () => {
   test("저장하는 사이 다른 화면으로 옮겨도 끌고 오지 않고 결과를 알린다", async ({ page }) => {
     // Arrange
     await useMember();
-    await signIn(page, email, password);
+    await signInToHome(page, email, password);
     await openScreen(page, SETTINGS_PATH, getNicknameRow(page));
     await getNicknameRow(page).click();
     await getNicknameInput(page).waitFor();
@@ -230,7 +220,7 @@ test.describe("닉네임 변경", () => {
     await useMember(LONG_NICKNAME);
     const label = `E2E 긴 닉네임 ${testInfo.project.name} ${randomUUID().slice(0, 4)}`;
     const { eventId } = await createMemberContent({ memberId, label });
-    await signIn(page, email, password);
+    await signInToHome(page, email, password);
 
     // Act: 설정 줄은 넘치지 않게 줄여 그리고, 링크 이름은 전체를 읽는다
     await openScreen(page, SETTINGS_PATH, getNicknameRow(page));
@@ -262,7 +252,7 @@ test.describe("닉네임 변경", () => {
     await useMember(WIDE_NICKNAME);
     const label = `E2E 넓은 닉네임 ${testInfo.project.name} ${randomUUID().slice(0, 4)}`;
     const { eventId } = await createMemberContent({ memberId, label });
-    await signIn(page, email, password);
+    await signInToHome(page, email, password);
 
     // Act & Assert: 일정 폼의 "누구 일정" 버튼
     await openScreen(page, `/events/${eventId}/edit`, page.getByRole("heading", { name: "일정 고치기" }));

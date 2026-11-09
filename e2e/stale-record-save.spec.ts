@@ -4,11 +4,11 @@ import type { Page } from "@playwright/test";
 import { PHOTO_FIXTURE_PATH } from "./support/constants";
 import { addPhotoAsPartner, createDisposableRecord, listRecordFiles } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { getSubmitButton } from "./support/actions";
 
 const CONFLICT_MESSAGE = "그사이 이 기록이 바뀌어 저장하지 않았어요";
 
 const getTitleField = (page: Page) => page.locator("#title").locator("visible=true");
-const getSaveButton = (page: Page) => page.locator('main button[type="submit"]').locator("visible=true");
 
 test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () => {
   test("저장을 거부해 상대의 사진이 지워지지 않고, 최신 내용을 불러와 다시 고칠 수 있다", async ({ page }, testInfo) => {
@@ -26,7 +26,7 @@ test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () =>
       const filesBefore = await listRecordFiles(id);
 
       // Act
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
 
       // Assert: 저장되지 않고, 쓰던 내용과 상대의 사진이 그대로다
       await expect(page.locator("main").getByRole("alert").locator("visible=true")).toContainText(CONFLICT_MESSAGE);
@@ -41,7 +41,7 @@ test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () =>
       await expect(page.getByRole("button", { name: "2번째 사진 빼기" })).toBeVisible();
       await expect(getTitleField(page)).toHaveValue(title);
       await getTitleField(page).fill(`${title} 다시 고침`);
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await page.waitForURL(`**/dates/${id}`);
       await expect(page.getByRole("heading", { name: `${title} 다시 고침` })).toBeVisible();
       expect(await listRecordFiles(id)).toEqual(filesBefore);
@@ -66,10 +66,10 @@ test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () =>
       });
 
       // Act
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await expect(page.locator("main").getByRole("alert").locator("visible=true")).toContainText("저장됐는지 확인하지 못했어요");
       await page.unroute(url);
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
 
       // Assert: 내 앞선 저장을 상대의 저장으로 오해하지 않는다
       await page.waitForURL(`**/dates/${id}`);
@@ -94,7 +94,7 @@ test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () =>
         await route.fetch();
         await route.abort("connectionreset");
       });
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await expect(page.locator("main").getByRole("alert").locator("visible=true")).toContainText("저장됐는지 확인하지 못했어요");
       await page.unroute(url);
       await openScreen(partnerPage, `/dates/${id}/edit`, getTitleField(partnerPage));
@@ -102,10 +102,10 @@ test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () =>
 
       // Act: 내가 내용을 고쳐 다시 저장한 뒤, 상대가 저장한다
       await getTitleField(page).fill(`${title} 내 최종`);
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await page.waitForURL(`**/dates/${id}`);
       await getTitleField(partnerPage).fill(`${title} 상대 저장`);
-      await getSaveButton(partnerPage).tap();
+      await getSubmitButton(partnerPage).tap();
 
       // Assert: 내가 고친 내용이 그대로다
       await expect(partnerPage.locator("main").getByRole("alert").locator("visible=true")).toContainText(CONFLICT_MESSAGE);
@@ -136,7 +136,7 @@ test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () =>
         await route.continue();
       });
       const requested = page.waitForRequest("**/rest/v1/rpc/update_date_record");
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await requested;
 
       // Act
@@ -148,7 +148,7 @@ test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () =>
 
       // Assert: 다시 저장해도 거부되므로 저장 버튼 대신 불러오기 버튼이 보인다
       await expect(page.getByRole("button", { name: "최신 내용 불러오기" })).toBeVisible();
-      await expect(getSaveButton(page)).toHaveCount(0);
+      await expect(getSubmitButton(page)).toHaveCount(0);
     } finally {
       await deleteRecord();
     }

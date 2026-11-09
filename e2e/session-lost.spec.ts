@@ -4,12 +4,12 @@ import type { Locator, Page } from "@playwright/test";
 import { E2E_EVENTS, E2E_MEMBER, E2E_TODOS, PHOTO_FIXTURE_PATH } from "./support/constants";
 import { createNonMemberAccount } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { getSaveButton } from "./support/actions";
 
 const [EVENT] = E2E_EVENTS;
 const [, , TODO] = E2E_TODOS;
 
 const getDialog = (page: Page): Locator => page.getByRole("dialog", { name: "다시 로그인해 주세요" });
-const getSaveButton = (page: Page): Locator => page.getByRole("button", { name: "저장", exact: true });
 
 /** 앱을 오래 켜 둔 사이 세션이 끊긴 상태를 만든다 */
 const dropSession = (page: Page): Promise<void> => page.context().clearCookies();

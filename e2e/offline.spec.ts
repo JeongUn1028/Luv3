@@ -1,13 +1,12 @@
 import type { Locator, Page, Route } from "@playwright/test";
 import { E2E_MEMBER, E2E_TODOS, PHOTO_RECORD, TOP_BLANK_SPACE } from "./support/constants";
 import { expect, getDocumentOverflow, getScrollArea, openScreen, test } from "./support/test";
+import { getSaveButton, getTab, signInToHome } from "./support/actions";
 
 const [TODO] = E2E_TODOS;
 
 const getOfflineNotice = (page: Page): Locator => page.getByRole("status").filter({ hasText: "인터넷이 끊겼어요" });
-const getTab = (page: Page, href: string): Locator => page.locator(`nav a[href="${href}"]`).locator("visible=true");
 const getRecordLink = (page: Page): Locator => page.locator(`a[href="/dates/${PHOTO_RECORD.id}"]`).locator("visible=true");
-const getSaveButton = (page: Page): Locator => page.getByRole("button", { name: "저장", exact: true });
 const getLogoutButton = (page: Page): Locator => page.getByRole("button", { name: "로그아웃" });
 const getSessionLostDialog = (page: Page): Locator => page.getByRole("dialog", { name: "다시 로그인해 주세요" });
 
@@ -184,11 +183,7 @@ test.describe("로그아웃", () => {
   test("인터넷이 연결돼 있으면 로그아웃하고 로그인 화면으로 간다", async ({ page, context }) => {
     const password = process.env.E2E_MEMBER_PASSWORD;
     if (!password) throw new Error("E2E_MEMBER_PASSWORD가 없습니다. global-setup이 돌았는지 확인해 주세요.");
-    await page.goto("/login");
-    await page.getByLabel("이메일").fill(E2E_MEMBER.email);
-    await page.getByLabel("비밀번호").fill(password);
-    await page.getByRole("button", { name: "로그인" }).click();
-    await page.waitForURL((url) => url.pathname === "/");
+    await signInToHome(page, E2E_MEMBER.email, password);
     await openScreen(page, "/settings", page.getByText(E2E_MEMBER.nickname, { exact: true }));
 
     await getLogoutButton(page).click();

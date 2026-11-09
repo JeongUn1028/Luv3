@@ -3,6 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 import { ANNIVERSARY_DATE, formatSinceLabel } from "@/lib/anniversary";
 import { createDisposableMember } from "./support/seed";
 import { expect, test } from "./support/test";
+import { submitSignIn } from "./support/actions";
 
 const NO_SESSION = { cookies: [], origins: [] };
 
@@ -151,9 +152,7 @@ test.describe("로그인 화면 로고", () => {
     await waitForDrawn(logo);
 
     // Act
-    await page.getByLabel("이메일").fill(`wrong-${randomUUID()}@example.com`);
-    await page.getByLabel("비밀번호").fill(randomUUID());
-    await page.getByRole("button", { name: "로그인" }).click();
+    await submitSignIn(page, `wrong-${randomUUID()}@example.com`, randomUUID());
     await expect(page.locator("main").getByRole("alert")).toContainText("맞지 않아요");
 
     // Assert: 로고가 새로 그려졌다면 다시 시작한 움직임이 남는다
@@ -169,9 +168,7 @@ test.describe("로그인 화면 로고", () => {
     await page.goto("/login", { waitUntil: "networkidle" });
 
     try {
-      await page.getByLabel("이메일").fill(email);
-      await page.getByLabel("비밀번호").fill(password);
-      await page.getByRole("button", { name: "로그인" }).click();
+      await submitSignIn(page, email, password);
       await page.waitForURL((url) => url.pathname === "/");
       await page.goto("/settings", { waitUntil: "networkidle" });
       await holdLogo(page);

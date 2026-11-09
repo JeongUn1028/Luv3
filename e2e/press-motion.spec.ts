@@ -2,6 +2,7 @@ import type { Locator, Page } from "@playwright/test";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { readAnimations, recordAnimations, waitForPaint } from "./support/motion";
 import { expect, openScreen, test } from "./support/test";
+import { getSubmitButton, getTab } from "./support/actions";
 
 const getScale = (target: Locator): Promise<string> => target.evaluate((element) => getComputedStyle(element).scale);
 const getOpacity = (target: Locator): Promise<string> => target.evaluate((element) => getComputedStyle(element).opacity);
@@ -29,15 +30,13 @@ const pressEdgeUntilShrunk = async (page: Page, target: Locator): Promise<void> 
   await page.mouse.up();
 };
 
-const getTab = (page: Page, href: string): Locator => page.locator(`nav a[href="${href}"]`).locator("visible=true");
-
 test.describe("움직임을 켠 기기에서", () => {
   test.use({ contextOptions: { reducedMotion: "no-preference" } });
 
   test("넓은 버튼을 누르면 96%로 줄었다가 떼면 돌아온다", async ({ page }) => {
     // Arrange
     await openScreen(page, "/todos/new", page.locator("#todo-content"));
-    const button = page.locator('main button[type="submit"]').locator("visible=true");
+    const button = getSubmitButton(page);
 
     // Act
     const release = await pressAndHold(page, button);

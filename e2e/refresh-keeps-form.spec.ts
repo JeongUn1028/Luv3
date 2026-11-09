@@ -5,10 +5,10 @@ import { TODOS_PATH } from "@/lib/todos/list";
 import { PHOTO_FIXTURE_PATH } from "./support/constants";
 import { createDisposableTodo } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { getTab } from "./support/actions";
 
 const NEW_TODO_PATH = "/todos/new";
 
-const getTab = (page: Page, href: string): Locator => page.locator(`nav a[href="${href}"]`).locator("visible=true");
 const getNewTodoLink = (page: Page): Locator => page.locator(`a[href="${NEW_TODO_PATH}"]`).locator("visible=true").first();
 const getTodoContent = (page: Page): Locator => page.locator("#todo-content").locator("visible=true");
 

@@ -1,25 +1,17 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { SETTINGS_PASSWORD_PATH } from "@/lib/auth/paths";
-import { BASE_URL } from "./support/constants";
 import { createDisposableMember } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { signIn, signInToHome } from "./support/actions";
 
 const NEW_PASSWORD = "e2e-new-password-1234";
 
 // 전용 계정의 비밀번호를 바꾸면 나란히 도는 다른 테스트의 로그인이 끊기므로 테스트마다 임시 계정을 쓴다
 test.use({ storageState: { cookies: [], origins: [] } });
 
-const signIn = async (page: Page, email: string, password: string): Promise<void> => {
-  await page.goto("/login", { waitUntil: "networkidle" });
-  await page.getByLabel("이메일").fill(email);
-  await page.getByLabel("비밀번호").fill(password);
-  await page.getByRole("button", { name: "로그인" }).click();
-};
-
 const openPasswordScreen = async (page: Page, email: string, password: string): Promise<void> => {
-  await signIn(page, email, password);
-  await page.waitForURL(`${BASE_URL}/`);
+  await signInToHome(page, email, password);
   await openScreen(page, SETTINGS_PASSWORD_PATH, page.getByLabel("현재 비밀번호"));
 };
 
@@ -47,8 +39,7 @@ test.describe("비밀번호 변경", () => {
 
   test("설정에서 들어가 바꾸면 설정으로 돌아오고 새 비밀번호로만 다시 로그인할 수 있다", async ({ page }) => {
     // Arrange
-    await signIn(page, email, password);
-    await page.waitForURL(`${BASE_URL}/`);
+    await signInToHome(page, email, password);
     await openScreen(page, "/settings", page.getByRole("link", { name: "비밀번호 변경" }));
     await page.getByRole("link", { name: "비밀번호 변경" }).click();
     await page.getByLabel("현재 비밀번호").waitFor();
@@ -67,8 +58,7 @@ test.describe("비밀번호 변경", () => {
     await page.waitForURL("**/login");
     await signIn(page, email, password);
     await expect(page.locator("main").getByRole("alert")).toContainText("맞지 않아요");
-    await signIn(page, email, NEW_PASSWORD);
-    await page.waitForURL(`${BASE_URL}/`);
+    await signInToHome(page, email, NEW_PASSWORD);
   });
 
   test("현재 비밀번호가 틀리면 바뀌지 않고 로그인도 유지된다", async ({ page }) => {
@@ -125,8 +115,7 @@ test.describe("비밀번호 변경", () => {
 
   test("적다가 화면을 떠나면 숨겨진 칸에 비밀번호가 남지 않고 다시 열면 비어 있다", async ({ page }) => {
     // Arrange
-    await signIn(page, email, password);
-    await page.waitForURL(`${BASE_URL}/`);
+    await signInToHome(page, email, password);
     await openScreen(page, "/settings", page.getByRole("link", { name: "비밀번호 변경" }));
     await page.getByRole("link", { name: "비밀번호 변경" }).click();
     await page.getByLabel("현재 비밀번호").waitFor();

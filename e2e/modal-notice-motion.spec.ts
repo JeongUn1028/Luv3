@@ -4,6 +4,7 @@ import { TODOS_PATH } from "@/lib/todos/list";
 import { readAnimations, recordAnimations, waitForPaint } from "./support/motion";
 import { createDisposableTodo, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { getSubmitButton } from "./support/actions";
 
 const getDeleteButton = (page: Page): Locator => page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true");
 
@@ -157,7 +158,7 @@ test.describe("움직임을 켠 기기에서", () => {
 
     try {
       await page.locator("#todo-content").fill(content);
-      await page.locator('main button[type="submit"]').locator("visible=true").tap();
+      await getSubmitButton(page).tap();
       await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${TODOS_PATH}`);
       await recordAnimations(page);
