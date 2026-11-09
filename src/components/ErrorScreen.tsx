@@ -5,6 +5,7 @@ import type { ReactElement } from "react";
 import { RetryButton } from "@/components/RetryButton";
 import { STATUS_LINK_CLASS_NAME, StatusScreen } from "@/components/StatusScreen";
 import { HOME_PATH } from "@/lib/auth/paths";
+import { useErrorRetry } from "@/lib/navigation/use-error-retry";
 
 interface ErrorScreenProps {
   /** 화면을 다시 불러와 그린다 */
@@ -18,10 +19,11 @@ interface ErrorScreenProps {
  */
 export const ErrorScreen = ({ onRetry }: ErrorScreenProps): ReactElement => {
   const isOffline = useOffline();
+  const { isPending, failedCount, retry } = useErrorRetry(onRetry);
 
   return (
-    <StatusScreen title="문제가 생겼어요" description="잠시 후 다시 시도해 주세요." isAlert>
-      <RetryButton onRetry={onRetry} />
+    <StatusScreen title="문제가 생겼어요" description="잠시 후 다시 시도해 주세요." isAlert failedRetryCount={failedCount}>
+      <RetryButton isPending={isPending} onRetry={retry} />
       {/* 화면 전환 링크는 홈에서 난 오류를 지우지 못하고 옛 JS 때문에 난 오류도 고치지 못해, 문서를 새로 받는다. 끊긴 동안에는 문서를 받지 못해 브라우저 오류 화면으로 바뀌므로 옮기지 않는다 */}
       <a
         href={HOME_PATH}

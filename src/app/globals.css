@@ -455,3 +455,19 @@ input[type="time"] {
     }
   }
 }
+
+/*
+  다시 시도가 같은 문구로 또 실패했을 때 문구를 짧게 다시 나타나게 한다(#139, shouldFlashRetryMessage).
+  문구는 실패할 때마다 새로 그려지므로 처음 나타날 때만 움직이면 된다. 동작 줄이기면 움직이지 않는다.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  .retry-failed-flash {
+    animation: retry-failed-flash 400ms ease-out;
+  }
+}
+
+@keyframes retry-failed-flash {
+  from {
+    opacity: 0.2;
+  }
+}
