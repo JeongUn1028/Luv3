@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { useId, type ReactElement } from "react";
+import { SignedPhoto } from "@/components/SignedPhoto";
 import type { AlbumTile } from "@/lib/dates/album";
 import { formatRecordShortDate } from "@/lib/dates/detail";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
@@ -23,8 +24,7 @@ export const LatestRecordCard = ({ record }: LatestRecordCardProps): ReactElemen
       </h2>
       <Link href={`/dates/${record.id}`} transitionTypes={FORWARD_TRANSITION} className="absolute inset-0 rounded-[16px] -outline-offset-2">
         {record.thumbUrl && (
-          // eslint-disable-next-line @next/next/no-img-element -- 업로드 때 이미 600px로 줄인 썸네일이라 next/image 최적화를 다시 거치지 않는다
-          <img src={record.thumbUrl} alt="" className="size-full rounded-[16px] object-cover" />
+          <SignedPhoto src={record.thumbUrl} alt="" className="size-full rounded-[16px] object-cover" />
         )}
         {/* 흰 사진 위에서도 두 줄 제목 윗줄까지 글자가 읽히도록(명암비 4.5:1) 글자 높이까지 진하게 깐다 */}
         <span className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 rounded-b-[16px] bg-gradient-to-t from-background/90 via-background/70 via-60% to-transparent px-3 pt-9 pb-3">

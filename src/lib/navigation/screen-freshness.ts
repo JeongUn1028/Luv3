@@ -48,11 +48,18 @@ export const markAllScreensStale = (): void => {
 };
 
 /**
+ * 이 주소의 화면을 언제 받았는지 알려 준다. 모르면 `undefined`.
+ *
+ * @example getScreenLoadedAt(window.location.href, window.location.href)
+ */
+export const getScreenLoadedAt = (url: string, baseUrl: string): number | undefined => loadedAtByScreen.get(toScreenKey(url, baseUrl));
+
+/**
  * 되돌아간 이 화면을 새로 불러와야 하는지 알려 준다. 언제 받았는지 모르면 오래된 것으로 본다.
  *
  * @example if (isScreenStale(window.location.href, window.location.href)) router.refresh();
  */
 export const isScreenStale = (url: string, baseUrl: string, now: number = Date.now()): boolean => {
-  const loadedAt = loadedAtByScreen.get(toScreenKey(url, baseUrl));
+  const loadedAt = getScreenLoadedAt(url, baseUrl);
   return loadedAt === undefined || now - loadedAt >= STALE_AFTER_MS;
 };
