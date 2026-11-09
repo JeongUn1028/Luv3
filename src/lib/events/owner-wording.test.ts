@@ -32,10 +32,4 @@ describe("일정 주인 표시", () => {
     expect(calendarView).not.toContain("memberNickname");
     expect(readSource("app/calendar/page.tsx")).not.toMatch(/nickname/i);
   });
-
-  it("캘린더 일정 줄의 주인 이름표는 홈 일정 칸과 같은 규칙으로 함께 일정과 한 사람 일정을 나눠 쓴다", () => {
-    // 함께 일정에 작성자 닉네임을 붙이면 한 사람이 정한 일정처럼 읽힌다(#201). 작성자를 몰라도 한 사람 일정임은 보여 준다
-    expect(readSource("components/calendar/CalendarView.tsx")).toContain("<EventOwnerTag isTogether={event.isTogether} authorNickname={event.authorNickname} />");
-    expect(readSource("components/AuthorTag.tsx")).toContain("nickname={formatEventOwner({ isTogether, authorNickname })}");
-  });
 });

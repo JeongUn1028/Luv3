@@ -57,15 +57,15 @@ describe("refreshOutsideForm", () => {
 });
 
 describe("저장 뒤 새로 받기", () => {
-  it("다른 화면의 저장이 끝나 새로 받는 곳은 폼을 쓰는 중인지 먼저 본다(#164)", () => {
-    expect(readSource("components/home/CouplePhoto.tsx")).toContain("refreshOutsideForm(() => startRefresh(() => router.refresh()))");
+  // 커플 사진과 폼 저장 뒤의 새로 받기가 폼을 지키는지는 e2e/refresh-keeps-form.spec.ts와 e2e/leave-while-saving.spec.ts가 잰다.
+  // Todo 체크는 E2E에서 새로 받기가 입력보다 먼저 끝날 수 있어 놓치므로 여기서 고정한다
+  it("Todo 체크 뒤 새로 받기는 폼을 쓰는 중인지 먼저 보고, 커플 사진 저장을 미뤘으면 숨겨진 홈에 초점 옮기기를 남기지 않는다(#164)", () => {
     expect(readSource("components/todos/TodoList.tsx")).toContain("refreshOutsideForm(() => startTransition(() => router.refresh()))");
-    expect(readSource("lib/navigation/use-leavable-save.ts")).toContain("refreshOutsideForm(() => router.refresh())");
-    // 미뤘으면 숨겨진 홈에 초점 옮기기를 남기지 않는다
     expect(readSource("components/home/CouplePhoto.tsx")).toContain("shouldMoveFocusRef.current = refreshOutsideForm(");
   });
 
   it("화면 이동을 시작할 때 가는 곳을 적어, 주소창이 바뀌기 전에도 폼으로 옮기는 중인지 안다", () => {
+    // 되돌아가기(traverse)까지 모든 이동에서 적어야 한다. 되돌아간 뒤 저장이 끝나는 경우는 E2E가 지나지 않는다
     expect(readSource("instrumentation-client.ts")).toMatch(
       /onRouterTransitionStart = \(url: string, navigationType: "push" \| "replace" \| "traverse"\): void => \{\s*markNavigationStart\(url, window\.location\.href\);/,
     );

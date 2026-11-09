@@ -32,16 +32,13 @@ describe("shouldRefreshOnReturn", () => {
   });
 });
 
+// 루트 레이아웃의 앱 복귀, 화면이 다시 보일 때 새로 받기, 쓰던 폼 지키기, 기록을 되돌아간 화면 적기는 e2e/app-return.spec.ts가 잰다
 describe("앱 복귀 연결", () => {
-  it("루트 레이아웃에서 앱 복귀를 챙긴다", () => {
-    expect(readSource("app/layout.tsx")).toContain("<AppReturn />");
-  });
-
-  it("화면이 다시 보일 때와 저장된 페이지로 돌아올 때 확인하고, 쓰던 폼은 지킨다", () => {
+  it("저장된 페이지로 돌아올 때도 확인하고, 로그인을 확인하는 새로 받기를 쓴다", () => {
     const source = readSource("components/AppReturn.tsx");
 
-    expect(source).toContain('document.addEventListener("visibilitychange", handleReturn)');
     expect(source).toContain('window.addEventListener("pageshow", handleReturn)');
+    // 로그아웃 상태로 앱에 돌아오는 경우는 E2E가 지나지 않는다(#102)
     expect(source).toContain("refreshSignedInScreen(");
   });
 
@@ -54,7 +51,6 @@ describe("앱 복귀 연결", () => {
     expect(source).toContain("if (!data.user || window.location.href !== href) return false;");
     // 적힌 적 없는 화면은 앱에 돌아올 때마다 새로 받게 된다
     expect(source).toContain("markScreenLoaded(href, href);");
-    expect(readSource("components/HistoryReturn.tsx")).toContain("markScreenLoaded(href, href);");
     expect(readSource("components/SignedPhoto.tsx")).toContain("refreshSignedInScreen(");
   });
 
