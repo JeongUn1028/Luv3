@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactElement, ReactNode } from "react";
 import { PageShell } from "@/components/PageShell";
-import { shouldFlashRetryMessage } from "@/lib/load-retry";
+import { getRetryMessage, shouldFlashRetryMessage } from "@/lib/load-retry";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 
 /** 안내 화면의 "돌아가기" 모양. 문서를 새로 받는 `<a>`도 같은 모양을 쓴다 */
@@ -13,7 +13,7 @@ interface StatusScreenProps {
   description: string;
   /** 쓰던 화면이 오류로 바뀌는 경우처럼 화면 읽기 프로그램에 바로 알려야 하면 true */
   isAlert?: boolean;
-  /** 다시 시도가 또 실패한 횟수(`useRetry`). 바뀔 때마다 알림을 새로 그려 다시 읽게 하고, 같은 문구가 이어지면 짧게 다시 나타나게 한다 */
+  /** 다시 시도가 또 실패한 횟수(`useRetry`). 실패하면 설명을 다시 시도 실패 문구로 바꾸고, 바뀔 때마다 알림을 새로 그려 다시 읽게 하며, 같은 문구가 이어지면 짧게 다시 나타나게 한다 */
   failedRetryCount?: number;
   /** 빠져나갈 버튼·링크 */
   children: ReactNode;
@@ -35,7 +35,7 @@ export const StatusScreen = ({ title, description, isAlert = false, failedRetryC
       className={`flex flex-col gap-4 ${shouldFlashRetryMessage(failedRetryCount) ? "retry-failed-flash" : ""}`}
     >
       <h1 className="font-display text-[15px] text-ink">{title}</h1>
-      <p className="text-[13px] text-ink-sub">{description}</p>
+      <p className="text-[13px] text-ink-sub">{getRetryMessage(description, failedRetryCount)}</p>
     </div>
     <div className="mt-2 flex w-full flex-col gap-2.5">{children}</div>
   </PageShell>

@@ -25,7 +25,11 @@ describe("오류 화면", () => {
   it("다시 시도하는 동안 눌렸다는 것을 보여 주고 다시 누를 수 없게 한다", () => {
     const source = readSource(RETRY_BUTTON);
 
-    expect(source).toContain("disabled={isPending || isOffline}");
+    // disabled는 누른 순간 초점을 빼앗으므로 aria-disabled로 막고 누름도 무시한다
+    expect(source).toContain("const isDisabled = isPending || isOffline;");
+    expect(source).toContain("aria-disabled={isDisabled}");
+    expect(source).toContain("if (!isDisabled) onRetry();");
+    expect(source).not.toMatch(/\sdisabled=\{/);
     expect(source).toContain('isPending ? "다시 시도하는 중…" : "다시 시도"');
   });
 
@@ -34,17 +38,17 @@ describe("오류 화면", () => {
     const source = readSource(RETRY_BUTTON);
 
     expect(source).toContain("const isOffline = useOffline();");
-    expect(source).toMatch(/\{isOffline && \(\s*<p id=\{hintId\}[^>]*>\s*연결되면 다시 시도할 수 있어요/);
+    // 다시 시도하는 중에 끊기면 그 시도가 연결을 기다리므로 다시 누르라는 안내는 보여 주지 않는다
+    expect(source).toContain("const shouldShowOfflineHint = isOffline && !isPending;");
+    expect(source).toMatch(/\{shouldShowOfflineHint && \(\s*<p id=\{hintId\}[^>]*>\s*연결되면 다시 시도할 수 있어요/);
   });
 
   it("다시 시도가 또 실패하면 바뀐 문구를 화면 읽기 프로그램에 다시 알린다", () => {
     // role="alert"는 내용이 바뀌어야 다시 읽으므로, 실패할 때마다 key로 새로 그린다
     expect(readSource(STATUS_SCREEN)).toMatch(/<div\s+key=\{failedRetryCount\}\s+role=\{isAlert \? "alert" : undefined\}/);
+    expect(readSource(STATUS_SCREEN)).toContain("{getRetryMessage(description, failedRetryCount)}");
     for (const at of [ERROR_SCREEN, LOAD_ERROR_SCREEN]) {
-      const source = readSource(at);
-
-      expect(source).toContain('description={getRetryMessage("잠시 후 다시 시도해 주세요.", failedCount)}');
-      expect(source).toContain("failedRetryCount={failedCount}");
+      expect(readSource(at)).toContain("failedRetryCount={failedCount}");
     }
   });
 

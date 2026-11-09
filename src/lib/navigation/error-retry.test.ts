@@ -7,7 +7,11 @@ const createManualClock = () => {
   const tasks: { runAt: number; task: () => void }[] = [];
   return {
     schedule: (task: () => void, delayMs: number) => {
-      tasks.push({ runAt: now + delayMs, task });
+      const item = { runAt: now + delayMs, task };
+      tasks.push(item);
+      return () => {
+        if (tasks.includes(item)) tasks.splice(tasks.indexOf(item), 1);
+      };
     },
     advance: (ms: number) => {
       now += ms;
@@ -20,9 +24,11 @@ const createManualClock = () => {
 
 type Tracker = ReturnType<typeof createErrorRetryTracker>;
 
+const PATHNAME = "/todos";
+
 /** 오류 화면 하나가 그려지고 붙는 과정. React는 다시 시도가 또 실패하면 오류 화면을 새로 그린다 */
-const mountScreen = (tracker: Tracker): number => {
-  const failedCount = tracker.readFailedCount();
+const mountScreen = (tracker: Tracker, pathname: string = PATHNAME): number => {
+  const failedCount = tracker.readFailedCount(pathname);
   tracker.attach(failedCount);
   return failedCount;
 };
@@ -48,7 +54,7 @@ describe("createErrorRetryTracker", () => {
 
     // Act
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      tracker.start();
+      tracker.start(PATHNAME);
       tracker.detach();
       counts.push(mountScreen(tracker));
       clock.advance(ERROR_RETRY_RESET_DELAY_MS);
@@ -63,7 +69,7 @@ describe("createErrorRetryTracker", () => {
     const clock = createManualClock();
     const tracker = createErrorRetryTracker(clock.schedule);
     mountScreen(tracker);
-    tracker.start();
+    tracker.start(PATHNAME);
 
     // Act: 오류 화면이 떨어지고 1초 동안 뼈대가 보인 뒤 다시 실패한다
     tracker.detach();
@@ -79,10 +85,10 @@ describe("createErrorRetryTracker", () => {
     const clock = createManualClock();
     const tracker = createErrorRetryTracker(clock.schedule);
     mountScreen(tracker);
-    tracker.start();
+    tracker.start(PATHNAME);
     tracker.detach();
     mountScreen(tracker);
-    tracker.start();
+    tracker.start(PATHNAME);
 
     // Act: 성공해서 오류 화면만 떨어진다
     tracker.detach();
@@ -98,11 +104,11 @@ describe("createErrorRetryTracker", () => {
     const clock = createManualClock();
     const tracker = createErrorRetryTracker(clock.schedule);
     mountScreen(tracker);
-    tracker.start();
+    tracker.start(PATHNAME);
     tracker.detach();
     mountScreen(tracker);
     clock.advance(ERROR_RETRY_RESET_DELAY_MS - 1000);
-    tracker.start();
+    tracker.start(PATHNAME);
     tracker.detach();
 
     // Act: 첫 지우기 예약 시각이 지나는 동안 뼈대가 보인다
@@ -113,13 +119,28 @@ describe("createErrorRetryTracker", () => {
     expect(failedCount).toBe(2);
   });
 
+  it("다시 시도하는 사이 다른 화면으로 옮겨 오류 화면이 사라지고, 옮긴 화면에서 난 오류는 처음부터 센다", () => {
+    // Arrange
+    const clock = createManualClock();
+    const tracker = createErrorRetryTracker(clock.schedule);
+    mountScreen(tracker);
+    tracker.start(PATHNAME);
+
+    // Act: 다시 불러오는 중에 다른 탭으로 옮긴다
+    tracker.detach();
+    const failedCount = mountScreen(tracker, "/calendar");
+
+    // Assert
+    expect(failedCount).toBe(0);
+  });
+
   it("같은 화면을 두 번 붙였다 떼어도(개발 모드의 이펙트 두 번 실행) 센 것을 지우지 않는다", () => {
     // Arrange
     const clock = createManualClock();
     const tracker = createErrorRetryTracker(clock.schedule);
     mountScreen(tracker);
-    tracker.start();
-    const failedCount = tracker.readFailedCount();
+    tracker.start(PATHNAME);
+    const failedCount = tracker.readFailedCount(PATHNAME);
     tracker.detach();
 
     // Act
@@ -127,9 +148,9 @@ describe("createErrorRetryTracker", () => {
     tracker.detach();
     tracker.attach(failedCount);
     clock.advance(ERROR_RETRY_RESET_DELAY_MS);
-    tracker.start();
+    tracker.start(PATHNAME);
 
     // Assert
-    expect(tracker.readFailedCount()).toBe(2);
+    expect(tracker.readFailedCount(PATHNAME)).toBe(2);
   });
 });

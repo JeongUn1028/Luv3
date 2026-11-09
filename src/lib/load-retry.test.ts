@@ -1,59 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { getRetryMessage, INITIAL_RETRY_PROGRESS, RETRY_FAILED_MESSAGE, shouldFlashRetryMessage, updateRetryProgress } from "./load-retry";
+import { getRetryMessage, RETRY_FAILED_MESSAGE, shouldFlashRetryMessage } from "./load-retry";
 
 const MESSAGE = "기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.";
-
-describe("updateRetryProgress", () => {
-  it("다시 불러오기를 시작하면 실패로 세지 않는다", () => {
-    // Arrange
-    const progress = INITIAL_RETRY_PROGRESS;
-
-    // Act
-    const next = updateRetryProgress(progress, true);
-
-    // Assert
-    expect(next).toEqual({ wasPending: true, failedCount: 0 });
-  });
-
-  it("다시 불러오기가 끝났는데 조회 실패 화면이 남아 있으면 실패 횟수를 늘린다", () => {
-    // Arrange
-    const progress = { wasPending: true, failedCount: 0 };
-
-    // Act
-    const next = updateRetryProgress(progress, false);
-
-    // Assert
-    expect(next).toEqual({ wasPending: false, failedCount: 1 });
-  });
-
-  it("다시 시도할 때마다 또 실패하면 횟수가 계속 늘어난다", () => {
-    // Arrange
-    let progress = INITIAL_RETRY_PROGRESS;
-
-    // Act
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      progress = updateRetryProgress(progress, true);
-      progress = updateRetryProgress(progress, false);
-    }
-
-    // Assert
-    expect(progress.failedCount).toBe(3);
-  });
-
-  it("다시 불러오는 상태가 그대로면 같은 값을 돌려줘 화면을 또 그리지 않는다", () => {
-    // Arrange
-    const idle = INITIAL_RETRY_PROGRESS;
-    const pending = { wasPending: true, failedCount: 2 };
-
-    // Act
-    const nextIdle = updateRetryProgress(idle, false);
-    const nextPending = updateRetryProgress(pending, true);
-
-    // Assert
-    expect(nextIdle).toBe(idle);
-    expect(nextPending).toBe(pending);
-  });
-});
 
 describe("getRetryMessage", () => {
   it("아직 다시 시도하지 않았으면 처음 문구를 그대로 보여 준다", () => {

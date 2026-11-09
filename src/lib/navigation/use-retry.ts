@@ -1,6 +1,5 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { INITIAL_RETRY_PROGRESS, updateRetryProgress } from "@/lib/load-retry";
 import { markAllScreensLoaded } from "./screen-freshness";
 
 /** 조회 실패 화면의 다시 시도 상태 */
@@ -15,22 +14,22 @@ export interface RetryState {
 
 /**
  * 조회 실패 화면에서 다시 시도하고, 다시 시도가 또 실패한 횟수를 센다(#139).
- * 다시 불러온 화면이 성공하면 이 훅을 쓰는 화면이 사라지므로, 끝난 뒤에도 남아 있으면 실패로 센다.
+ * 다시 불러온 화면이 성공하면 이 훅을 쓰는 화면이 사라지므로, 남아 있는 동안 끝난 시도는 모두 실패한 것이다.
  *
  * @example const { isPending, failedCount, retry } = useRetry(onRetry);
  */
 export const useRetry = (onRetry: () => void): RetryState => {
   const [isPending, startTransition] = useTransition();
-  const [progress, setProgress] = useState(INITIAL_RETRY_PROGRESS);
-
-  // 다시 불러오기가 끝난 것을 그리는 중에 바로 반영한다(이펙트를 쓰면 바뀌기 전 문구가 한 번 더 그려진다)
-  const nextProgress = updateRetryProgress(progress, isPending);
-  if (nextProgress !== progress) setProgress(nextProgress);
+  const [attemptCount, setAttemptCount] = useState(0);
 
   return {
     isPending,
-    failedCount: nextProgress.failedCount,
-    retry: () => startTransition(() => onRetry()),
+    // 지금 도는 시도는 아직 실패하지 않았다
+    failedCount: isPending ? attemptCount - 1 : attemptCount,
+    retry: () => {
+      setAttemptCount((count) => count + 1);
+      startTransition(() => onRetry());
+    },
   };
 };
 

@@ -3,7 +3,6 @@
 import type { ReactElement } from "react";
 import { RetryButton } from "@/components/RetryButton";
 import { StatusLink, StatusScreen } from "@/components/StatusScreen";
-import { getRetryMessage } from "@/lib/load-retry";
 import { useRefreshRetry } from "@/lib/navigation/use-retry";
 
 interface LoadErrorScreenProps {
@@ -25,7 +24,7 @@ export const LoadErrorScreen = ({ title, backHref, backLabel }: LoadErrorScreenP
   const { isPending, failedCount, retry } = useRefreshRetry();
 
   return (
-    <StatusScreen title={title} description={getRetryMessage("잠시 후 다시 시도해 주세요.", failedCount)} isAlert failedRetryCount={failedCount}>
+    <StatusScreen title={title} description="잠시 후 다시 시도해 주세요." isAlert failedRetryCount={failedCount}>
       <RetryButton isPending={isPending} onRetry={retry} />
       <StatusLink href={backHref}>{backLabel}</StatusLink>
     </StatusScreen>

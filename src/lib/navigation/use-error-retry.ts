@@ -1,3 +1,4 @@
+import { usePathname } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { errorRetryTracker } from "./error-retry";
 import type { RetryState } from "./use-retry";
@@ -9,8 +10,9 @@ import type { RetryState } from "./use-retry";
  * @example const { isPending, failedCount, retry } = useErrorRetry(onRetry);
  */
 export const useErrorRetry = (onRetry: () => void): RetryState => {
+  const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
-  const [failedCount] = useState(() => errorRetryTracker.readFailedCount());
+  const [failedCount] = useState(() => errorRetryTracker.readFailedCount(pathname));
 
   // 화면 밖 저장소에 이 오류 화면이 붙어 있는지 맞춘다
   useEffect(() => {
@@ -22,7 +24,7 @@ export const useErrorRetry = (onRetry: () => void): RetryState => {
     isPending,
     failedCount,
     retry: () => {
-      errorRetryTracker.start();
+      errorRetryTracker.start(pathname);
       startTransition(() => onRetry());
     },
   };

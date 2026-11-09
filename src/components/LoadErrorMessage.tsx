@@ -21,11 +21,11 @@ export const LoadErrorMessage = ({ message }: LoadErrorMessageProps): ReactEleme
 
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-12 text-center">
-      {/* role="alert"는 내용이 바뀌어야 다시 읽으므로, 다시 시도가 실패할 때마다 새로 그린다. 두 줄이 되면 마지막 낱말만 넘어가지 않게 줄 길이를 맞춘다 */}
+      {/* role="alert"는 내용이 바뀌어야 다시 읽으므로, 다시 시도가 실패할 때마다 새로 그린다. 두 줄이 되면 낱말 중간에서 끊거나 마지막 낱말만 넘기지 않는다 */}
       <p
         key={failedCount}
         role="alert"
-        className={`text-[13px] text-balance text-ink-sub ${shouldFlashRetryMessage(failedCount) ? "retry-failed-flash" : ""}`}
+        className={`text-[13px] break-keep text-balance text-ink-sub ${shouldFlashRetryMessage(failedCount) ? "retry-failed-flash" : ""}`}
       >
         {getRetryMessage(message, failedCount)}
       </p>
