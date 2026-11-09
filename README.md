@@ -71,6 +71,17 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 
 로그인 메일을 쓰지 않으므로 SMTP 설정은 필요 없다.
 
+### keepalive 실패 알림
+
+Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패해도 알림이 없다. 그래서 GitHub Actions(`.github/workflows/keepalive.yml`)가 매일 한국 시간 밤 9시 17분에 같은 `/api/keepalive`를 따로 부른다. Vercel Cron과 시간을 떨어뜨려 두어 한쪽이 멈춰도 다른 쪽이 7일 일시정지를 막는다.
+
+실패하면 작업이 실패하고 GitHub이 메일을 보낸다(GitHub 알림 설정의 Actions 메일이 켜져 있어야 한다). 예약 실행의 메일은 이 파일의 예약 시간을 마지막으로 고친 계정에 간다. 실행 기록에서 예약 실행을 열어 실행한 계정이 메일을 받을 계정인지 확인하고, 다르면 받을 계정으로 예약 줄을 고쳐 다시 머지한다.
+
+- 저장소 비밀 값 `CRON_SECRET`(Settings > Secrets and variables > Actions)에 Vercel과 같은 값을 넣는다. Vercel에서 값을 바꾸면 여기도 바꾼다.
+- 손으로 돌리기: Actions > keepalive 확인 > Run workflow, 또는 `gh workflow run keepalive.yml`
+- 실패 문구: 401이면 두 비밀 값이 다르고, 502면 Supabase를 깨우지 못한 것이다(아래 절). 비밀 값이 없으면 그렇다고 알린다.
+- 운영 주소를 바꾸면 워크플로의 `KEEPALIVE_URL`도 고친다.
+
 ### 프로젝트가 일시정지됐을 때
 
 Cron이 멈춰 프로젝트가 일시정지되면 앱이 Supabase에 연결하지 못한다. Supabase 대시보드에서 프로젝트를 골라 Resume을 누르면 되살아난다([공식 문서](https://supabase.com/docs/guides/platform/free-project-pausing) 기준 일시정지 후 1년까지, 2026-11 확인). 되살린 뒤 Vercel 대시보드의 Cron Jobs 실행 기록과 `CRON_SECRET`을 확인해 멈춘 원인을 고친다. 기한이 지났으면 아래 "운영 프로젝트를 잃었을 때"를 따른다.
@@ -126,6 +137,8 @@ pnpm backup "<백업 폴더>"   # 예: "G:\내 드라이브\Luv3-백업"
 
 이미 받은 사진은 건너뛴다. 끝나면 표마다 행 수와 저장 용량 사용량(파일 수, MB, 1GB 중 몇 %)을 출력하고, 80%를 넘으면 경고한다. 기록이 가리키는데 받지 못한 파일이 있으면 경로를 함께 경고하니, 앨범을 쓰지 않을 때 다시 받는다.
 
+백업을 받은 날 같은 김에 아래 "월 1회 점검"도 한다.
+
 스크립트를 시험할 때는 `pnpm backup "<시험 폴더>" --local`로 운영 대신 로컬 Supabase에서 받는다(`pnpm db:start` 필요). 운영 백업과 섞이지 않게, 다른 곳에서 받은 백업이 있는 폴더는 거부한다.
 
 ```text
@@ -150,6 +163,23 @@ pnpm backup:restore "<백업 폴더>" <시점 이름> --yes  # 시점을 골라�
 ```
 
 **로컬 Supabase의 내용을 지우고** 되살린 뒤, 표 행 수와 파일 수를 원본과 비교한다. 운영 프로젝트에는 쓸 수 없다. 스키마가 달라 DB 되살리기가 실패하면 `manifest.json`의 `commit`(되살리기를 시작할 때도 출력한다)으로 돌아가 다시 실행한다. 이 칸을 넣기 전에 받은 시점에는 기록이 없으니 백업 시각의 커밋을 찾는다. 끝나면 `pnpm dev`로 띄워 원래 비밀번호로 로그인해 화면을 확인하고, 다 봤으면 `pnpm db:reset`으로 비운다. 운영 데이터가 로컬에 남지 않게 하기 위해서다. 로컬 확인 계정은 위 "로컬 개발"대로 다시 만든다.
+
+### 월 1회 점검
+
+백업을 받는 날 함께 한다. 평소에는 사용량을 볼 곳이 대시보드뿐이고, 한도를 넘으면 앱이 멈추거나 업로드가 막힌다.
+
+1. **사용량**: 각 대시보드의 Usage 화면에서 무료 플랜 한도와 비교한다. 80%를 넘는 항목이 있으면 이슈로 남긴다.
+   - Supabase(Organization > Usage): Database Size, Storage Size, Egress(내려받은 양)
+   - Vercel(Usage): Fast Data Transfer, Function Invocations, Image Optimization
+2. **의존성**: 원본 클론의 최신 main에서 실행한다.
+   ```bash
+   pnpm outdated      # 새 버전 확인
+   pnpm audit --prod  # 앱에 들어가는 패키지의 알려진 보안 문제
+   ```
+   - 패치 버전(예: 16.4.3 → 16.4.5)은 바로 PR로 올리고 E2E로 확인한다.
+   - 마이너·메이저 버전은 변경 기록을 읽고 이슈로 따로 올린다. Next.js는 `node_modules/next/dist/docs/`의 안내도 본다.
+3. **보안 알림**: Dependabot 알림(Security > Dependabot)은 켜 두었고 새 알림은 GitHub 메일로 온다. 심각도 High 이상은 월 점검을 기다리지 않고 바로 올린다.
+4. **keepalive**: Actions의 "keepalive 확인" 기록이 매일 성공했는지 본다. 공개 리포는 60일 동안 활동이 없으면 GitHub이 예약을 끈다(끄기 전에 메일이 온다). 꺼져 있으면 Actions > keepalive 확인 > Enable workflow로 다시 켠다.
 
 ### 운영 프로젝트를 잃었을 때
 
