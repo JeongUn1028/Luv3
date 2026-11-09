@@ -42,9 +42,20 @@ describe("앱 복귀 연결", () => {
 
     expect(source).toContain('document.addEventListener("visibilitychange", handleReturn)');
     expect(source).toContain('window.addEventListener("pageshow", handleReturn)');
-    expect(source).toContain("refreshOutsideForm(");
+    expect(source).toContain("refreshSignedInScreen(");
+  });
+
+  it("사용자가 누르지 않은 새로 받기는 폼을 지키고, 로그인이 살아 있을 때만, 확인한 화면 그대로일 때만 받으며, 받은 화면을 적는다", () => {
+    const source = readSource("lib/navigation/refresh-signed-in.ts");
+
+    // 폼이면 서버에 묻기 전에 미룬다(#164)
+    expect(source).toMatch(/if \(isWritingNow\(\)\) \{\s*markAllScreensStale\(\);\s*return false;\s*\}\s*const \{ href \} = window\.location;\s*const \{ data \} = await createClient\(\)\.auth\.getUser\(\);/);
     // 로그인이 풀렸으면 서버가 로그인 화면으로 보내 숨겨 둔 폼까지 잃는다(#102)
-    expect(source).toMatch(/if \(!data\.user\) return;/);
+    expect(source).toContain("if (!data.user || window.location.href !== href) return false;");
+    // 적힌 적 없는 화면은 앱에 돌아올 때마다 새로 받게 된다
+    expect(source).toContain("markScreenLoaded(href, href);");
+    expect(readSource("components/HistoryReturn.tsx")).toContain("markScreenLoaded(href, href);");
+    expect(readSource("components/SignedPhoto.tsx")).toContain("refreshSignedInScreen(");
   });
 
   it("서명 주소로 받는 사진은 실패하면 다시 받는다", () => {

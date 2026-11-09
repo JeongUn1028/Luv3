@@ -3,9 +3,8 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect } from "react";
 import { shouldRefreshOnReturn } from "@/lib/navigation/app-return";
-import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
-import { getScreenLoadedAt, markAllScreensLoaded } from "@/lib/navigation/screen-freshness";
-import { createClient } from "@/lib/supabase/client";
+import { refreshSignedInScreen } from "@/lib/navigation/refresh-signed-in";
+import { getScreenLoadedAt } from "@/lib/navigation/screen-freshness";
 
 /**
  * 홈 화면 앱으로 돌아오면 오래된 화면을 새로 받는다(#163). 화면에 내용을 그리지 않는다.
@@ -27,14 +26,7 @@ export const AppReturn = (): null => {
 
       isChecking = true;
       try {
-        const { data } = await createClient().auth.getUser();
-        // 로그인이 풀렸으면 서버가 로그인 화면으로 보내 숨겨 둔 폼까지 잃는다(#102). 인터넷이 끊겼을 때도 여기서 그만둔다
-        if (!data.user) return;
-        refreshOutsideForm(() => {
-          // router.refresh()는 숨겨 둔 화면까지 비워 돌아갈 때 Next가 새로 받으므로, 표시가 없으면 같은 요청과 사진을 두 번 받는다
-          markAllScreensLoaded();
-          startTransition(() => router.refresh());
-        });
+        await refreshSignedInScreen(() => startTransition(() => router.refresh()));
       } finally {
         isChecking = false;
       }

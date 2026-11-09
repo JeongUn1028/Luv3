@@ -2,8 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useEffectEvent, useRef, useState, type ComponentPropsWithoutRef, type ReactElement } from "react";
-import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
-import { markAllScreensLoaded } from "@/lib/navigation/screen-freshness";
+import { refreshSignedInScreen } from "@/lib/navigation/refresh-signed-in";
 import { photoRefreshGate } from "@/lib/photos/photo-retry";
 
 interface SignedPhotoProps extends Omit<ComponentPropsWithoutRef<"img">, "src" | "onError"> {
@@ -16,6 +15,7 @@ interface SignedPhotoProps extends Omit<ComponentPropsWithoutRef<"img">, "src" |
  * 서명 주소로 받는 사진. 받지 못하면 화면을 새로 받아 새 주소로 한 번 더 받는다(#163).
  * 화면을 오래 열어 두면 주소가 만료돼, 나중에 받는(lazy) 사진이 빈 칸으로 남는다.
  * 같은 주소가 다시 오면(잠깐 끊긴 경우 등) 그 주소로 한 번만 더 받아, 계속 실패해도 되풀이하지 않는다.
+ * 다른 사진이 먼저 새로 받기를 시작했으면 기다린다. 그 화면이 오면 이 사진도 새 주소를 받는다.
  *
  * @example <SignedPhoto src={tile.thumbUrl} alt={tile.title} loading="lazy" className="size-full object-cover" />
  */
@@ -25,17 +25,15 @@ export const SignedPhoto = ({ src, alt, ...props }: SignedPhotoProps): ReactElem
   const [retriedSrc, setRetriedSrc] = useState<string>();
   const isRetried = retriedSrc === src;
 
-  const handleError = () => {
-    if (isRetried) return;
+  const handleError = async () => {
+    if (isRetried || !photoRefreshGate.tryClaim()) return;
     // 새 화면이 올 때 함께 다시 그려, 새 주소면 그 주소로, 같은 주소면 새 요소로 다시 받는다
-    startTransition(() => {
-      setRetriedSrc(src);
-      if (!photoRefreshGate.tryClaim()) return;
-      refreshOutsideForm(() => {
-        markAllScreensLoaded();
+    await refreshSignedInScreen(() =>
+      startTransition(() => {
+        setRetriedSrc(src);
         router.refresh();
-      });
-    });
+      }),
+    );
   };
 
   const handleBrokenBeforeMount = useEffectEvent(handleError);

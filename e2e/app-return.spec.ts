@@ -102,6 +102,17 @@ test.describe("홈 화면 앱으로 돌아오면", () => {
       await page.goBack();
       await page.waitForURL(`**${TODOS_PATH}`);
       await expect(getTodo(page, content)).toBeVisible();
+
+      // Assert: 뒤로 와서 새로 받은 목록은 받은 때가 적혀, 잠깐 다녀오면 다시 받지 않는다
+      await page.waitForLoadState("networkidle");
+      const refreshes: Request[] = [];
+      page.on("request", (request) => {
+        if (isScreenRequest(request, TODOS_PATH)) refreshes.push(request);
+      });
+      await page.clock.fastForward(MINUTE_MS);
+      await returnToApp(page);
+      await page.waitForTimeout(2_000);
+      expect(refreshes).toHaveLength(0);
     } finally {
       await deleteTodo();
     }
