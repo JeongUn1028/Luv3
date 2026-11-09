@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useEffect, useState } from "react";
 import { isBackMotionPending } from "@/lib/navigation/history-back";
 import { isWritingPath } from "@/lib/navigation/save-notices";
-import { isScreenStale, markAllScreensLoaded } from "@/lib/navigation/screen-freshness";
+import { isScreenStale, markAllScreensLoaded, markScreenLoaded } from "@/lib/navigation/screen-freshness";
 import { createClient } from "@/lib/supabase/client";
 
 /** 뒤로 가는 움직임(260ms)이 끝난 뒤에 불러온다. 움직이는 중에 불러오면 Next의 같은 상태에 묶여 돌아오는 화면까지 응답을 기다린다 */
@@ -39,6 +39,8 @@ export const HistoryReturn = (): null => {
         // 확인하는 사이 폼으로 옮겼을 수 있어 다시 본다
         if (!data.user || isWritingPath(window.location.pathname)) return;
         markAllScreensLoaded();
+        // 모두 오래된 것으로 친 뒤(#164)에는 이 화면이 적혀 있지 않아, 적지 않으면 앱에 돌아올 때마다 새로 받는다(#163)
+        markScreenLoaded(href, href);
         startTransition(() => router.refresh());
       }, REFRESH_DELAY_MS);
     };
