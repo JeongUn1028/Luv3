@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
-import { AuthorTag } from "@/components/AuthorTag";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -22,8 +21,6 @@ interface TodoFormProps {
   initialContent: string;
   /** 고칠 항목의 id. 없으면 새 항목을 목록 맨 아래에 추가한다 */
   todoId?: string;
-  /** 고칠 항목의 작성자 닉네임. 있으면 제목 옆에 작성자 이름표를 그린다 */
-  authorNickname?: string;
 }
 
 /** 하고 싶은 것을 저장한다. 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
@@ -40,7 +37,7 @@ const saveTodo = async (content: string, todoId: string | undefined): Promise<st
 };
 
 /** 하고 싶은 것 추가·고치기 폼. 고칠 때는 머리글에서 지울 수도 있다 */
-export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormProps): ReactElement => {
+export const TodoForm = ({ initialContent, todoId }: TodoFormProps): ReactElement => {
   const router = useRouter();
   const formKey = `todo:${todoId ?? "new"}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "하고 싶은 것을", failedSaves });
@@ -103,7 +100,6 @@ export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormPro
         <ScreenHeader
           back={{ href: TODOS_PATH, shouldConfirmLeave }}
           title={todoId ? "하고 싶은 것 고치기" : "하고 싶은 것 추가"}
-          titleAddon={authorNickname && <AuthorTag nickname={authorNickname} className="ml-2" />}
           actions={
             todoId && (
               <ConfirmDeleteButton

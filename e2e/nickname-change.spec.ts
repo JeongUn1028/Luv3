@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { SETTINGS_NICKNAME_PATH, SETTINGS_PATH } from "@/lib/auth/paths";
+import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { createDisposableMember, createMemberContent } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
 import { getSaveButton, getTab, signInToHome } from "./support/actions";
@@ -38,14 +39,14 @@ test.describe("닉네임 변경", () => {
   });
 
   test("설정에서 들어가 바꾸면 설정으로 돌아오고 지난 기록과 일정, 숨겨 둔 화면까지 새 닉네임으로 보인다", async ({ page }, testInfo) => {
-    // Arrange: Todo 화면을 먼저 봐서 예전 닉네임이 그려진 화면이 숨겨져 남게 한다
+    // Arrange: 캘린더 탭을 먼저 봐서 예전 닉네임이 그려진 화면이 숨겨져 남게 한다
     await useMember("예전이름");
     const label = `E2E 닉네임 ${testInfo.project.name} ${randomUUID().slice(0, 4)}`;
     const { recordId, eventId } = await createMemberContent({ memberId, label });
     await signInToHome(page, email, password);
-    await getTab(page, "/todos").click();
-    const todoRow = page.locator("main").getByRole("listitem").filter({ hasText: `${label} 항목` }).locator("visible=true");
-    await expect(todoRow.getByTitle("예전이름")).toBeVisible();
+    await getTab(page, CALENDAR_PATH).click();
+    const eventRow = page.getByRole("link", { name: new RegExp(`${label} 일정`) }).locator("visible=true");
+    await expect(eventRow.getByTitle("예전이름")).toBeVisible();
 
     // Act
     await getTab(page, "/").click();
@@ -59,11 +60,12 @@ test.describe("닉네임 변경", () => {
     await page.waitForURL(`**${SETTINGS_PATH}`);
     await expect(getNicknameRow(page)).toContainText("새이름");
     await page.getByRole("link", { name: "뒤로" }).click();
-    await getTab(page, "/todos").click();
-    await expect(todoRow.getByTitle("새이름")).toBeVisible();
-    await expect(todoRow.getByTitle("예전이름")).toBeHidden();
+    await getTab(page, CALENDAR_PATH).click();
+    await expect(eventRow.getByRole("img", { name: "새이름 일정" })).toBeVisible();
+    await expect(eventRow.getByTitle("예전이름")).toBeHidden();
 
-    await openScreen(page, "/calendar", page.getByText(`${label} 일정`));
+    // 숨겨 둔 화면이 아닌 새로 그린 캘린더도 새 닉네임이다
+    await openScreen(page, CALENDAR_PATH, page.getByText(`${label} 일정`));
     await expect(page.getByRole("link", { name: new RegExp(`${label} 일정.*새이름 일정`) })).toBeVisible();
 
     await openScreen(page, `/dates/${recordId}`, page.getByRole("heading", { name: `${label} 기록` }));
