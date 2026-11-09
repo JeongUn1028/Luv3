@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { createDisposableTodo } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { getSaveButton } from "./support/actions";
 
 const getDeleteButton = (page: Page): Locator => page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true");
-const getSaveButton = (page: Page): Locator => page.getByRole("button", { name: "저장", exact: true });
 const getSessionDialog = (page: Page): Locator => page.getByRole("dialog", { name: "다시 로그인해 주세요" });
 
 /** 임시 할 일의 고치기 화면을 연다 */

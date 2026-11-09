@@ -6,10 +6,9 @@ import { PHOTO_FIXTURE_PATH } from "./support/constants";
 import { pickDate } from "./support/date-picker";
 import { createDisposableRecord, deleteRecordWithFiles, getRecordIdsByTitle, listRecordFiles } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { getSubmitButton } from "./support/actions";
 
 const FAILURE_MESSAGE = "저장됐는지 확인하지 못했어요";
-
-const getSaveButton = (page: Page) => page.locator('main button[type="submit"]').locator("visible=true");
 
 const pickPhoto = async (page: Page, order: number): Promise<void> => {
   await page.getByLabel("사진 고르기").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer: readFileSync(PHOTO_FIXTURE_PATH) });
@@ -38,14 +37,14 @@ test.describe("저장은 됐는데 응답만 끊기면", () => {
 
     try {
       // Act: 저장이 실패한 것처럼 보이는 동안에도 파일이 지워지면 안 된다
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await expect(page.getByRole("alert").filter({ hasText: FAILURE_MESSAGE })).toBeVisible();
       const [savedId] = await getRecordIdsByTitle(title);
       expect(savedId).toBeDefined();
       expect(await listRecordFiles(savedId ?? "")).toHaveLength(2);
 
       await page.unroute(url);
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       // 저장된 내용을 바로 확인할 수 있게 그 기록으로 간다
       await page.waitForURL(`**/dates/${savedId}`);
 
@@ -71,12 +70,12 @@ test.describe("저장은 됐는데 응답만 끊기면", () => {
       await loseResponses(page, url);
 
       // Act
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await expect(page.getByRole("alert").filter({ hasText: FAILURE_MESSAGE })).toBeVisible();
       expect(await listRecordFiles(id)).toHaveLength(filesBefore + 2);
 
       await page.unroute(url);
-      await getSaveButton(page).tap();
+      await getSubmitButton(page).tap();
       await page.waitForURL(new RegExp(`/dates/${id}$`));
 
       // Assert
