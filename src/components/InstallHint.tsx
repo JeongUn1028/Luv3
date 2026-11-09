@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useSyncExternalStore, type ReactElement } from "react";
-import { INSTALL_HINT_DISMISSED_KEY, shouldShowInstallHint } from "@/lib/pwa/install";
+import { INSTALL_HINT_DISMISSED_KEY, isStandaloneDisplay, shouldShowInstallHint } from "@/lib/pwa/install";
 
 // 사생활 보호 모드 등에서는 저장소 접근이 막혀 예외가 난다. 그때는 닫은 적 없는 것으로 보고 안내를 띄운다
 const readDismissed = (): boolean => {
@@ -20,17 +20,13 @@ const saveDismissed = () => {
   }
 };
 
-const isStandalone = (): boolean =>
-  window.matchMedia("(display-mode: standalone)").matches ||
-  ("standalone" in window.navigator && window.navigator.standalone === true);
-
 // 사용자 에이전트·표시 모드·저장소는 브라우저에만 있어, 서버와 첫 하이드레이션에서는 숨기고 그 뒤에 읽는다
 const subscribe = () => () => {};
 const getSnapshot = (): boolean =>
   shouldShowInstallHint({
     userAgent: window.navigator.userAgent,
     maxTouchPoints: window.navigator.maxTouchPoints,
-    isStandalone: isStandalone(),
+    isStandalone: isStandaloneDisplay(),
     isDismissed: readDismissed(),
   });
 const getServerSnapshot = (): boolean => false;

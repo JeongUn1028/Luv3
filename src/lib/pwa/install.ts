@@ -37,3 +37,11 @@ export const shouldShowInstallHint = ({
   isStandalone,
   isDismissed,
 }: InstallEnvironment): boolean => !isStandalone && !isDismissed && isIosSafari(userAgent, maxTouchPoints);
+
+/**
+ * 홈 화면 앱(standalone)으로 열었는지. 브라우저에서만 부른다. 아이폰 Safari는 `navigator.standalone`으로도 알려 준다.
+ *
+ * @example isStandaloneDisplay() // 홈 화면 앱이면 true
+ */
+export const isStandaloneDisplay = (): boolean =>
+  window.matchMedia("(display-mode: standalone)").matches || ("standalone" in window.navigator && window.navigator.standalone === true);
