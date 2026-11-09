@@ -67,6 +67,16 @@ describe("uploadPhotos", () => {
     );
   });
 
+  // 올린 파일은 덮어쓰지 않아 같은 경로면 늘 같은 사진이므로 기본값(1시간)보다 오래 저장해 두게 한다(#218).
+  // 지운 사진도 이 시간 동안은 CDN이 보내 줄 수 있어 7일을 넘기지 않는다
+  it("올린 사진은 휴대폰과 CDN이 7일 동안 저장해 두게 한다", async () => {
+    const { storage } = createFakeStorage();
+
+    await uploadPhotos({ storage, dateId: DATE_ID, photos: [photo(PHOTO_A)] });
+
+    expect(storage.upload).toHaveBeenCalledWith(expect.any(String), expect.any(Blob), expect.objectContaining({ cacheControl: "604800" }));
+  });
+
   it("사진 한 장을 올릴 때마다 진행 상황을 알린다", async () => {
     const { storage } = createFakeStorage();
     const onProgress = vi.fn();

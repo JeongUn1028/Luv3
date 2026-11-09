@@ -38,3 +38,14 @@ export const buildCouplePhotoPath = (photoId: string): string => {
   // DB의 경로 검사는 소문자 UUID만 받는다
   return `couple/${photoId.toLowerCase()}.jpg`;
 };
+
+/**
+ * 커플 사진 원본 경로 옆에 두는 홈 카드용 중간 크기 경로를 만든다. DB에는 원본 경로만 저장하고 이 경로는 원본에서 정한다.
+ *
+ * @example toCouplePhotoMediumPath("couple/<photoId>.jpg") // "couple/<photoId>_medium.jpg"
+ */
+export const toCouplePhotoMediumPath = (path: string): string => {
+  // .jpg로 끝나지 않으면 중간 크기 경로가 원본 경로와 같아져, 원본을 덮어쓰거나 지울 수 있다
+  if (!path.endsWith(".jpg")) throw new Error(`커플 사진 경로는 .jpg로 끝나야 합니다: ${path}`);
+  return `${path.slice(0, -".jpg".length)}_medium.jpg`;
+};

@@ -9,7 +9,7 @@ import { clearCouplePhoto, CouplePhotoError, replaceCouplePhoto } from "@/lib/co
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
-import { isAcceptedPhoto, PHOTO_INPUT_ACCEPT, resizePhoto } from "@/lib/photos/resize";
+import { isAcceptedPhoto, PHOTO_INPUT_ACCEPT, resizeCouplePhoto } from "@/lib/photos/resize";
 import { createClient } from "@/lib/supabase/client";
 
 type Task = "upload" | "clear";
@@ -88,12 +88,13 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
     setTask("upload");
     setMessage(undefined);
     try {
-      const { original } = await resizePhoto(file);
+      const { original, medium } = await resizeCouplePhoto(file);
       const supabase = createClient();
       await replaceCouplePhoto({
         storage: supabase.storage.from(ALBUM_BUCKET),
         photoId: crypto.randomUUID(),
-        photo: original,
+        original,
+        medium,
         savePath: (path) => supabase.rpc("set_couple_photo", { p_path: path }),
         onCleanupError: console.error,
       });

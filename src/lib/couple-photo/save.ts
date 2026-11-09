@@ -1,4 +1,4 @@
-import { buildCouplePhotoPath } from "@/lib/photos/paths";
+import { buildCouplePhotoPath, toCouplePhotoMediumPath } from "@/lib/photos/paths";
 import { uploadPhotoFile, type PhotoStorage } from "@/lib/photos/upload";
 
 /** 커플 사진 경로를 바꾼 결과. `data`는 밀려난 예전 파일 경로(없으면 null)다 */
@@ -43,8 +43,10 @@ export interface ReplaceCouplePhotoParams extends CleanupParams {
   storage: PhotoStorage;
   /** 새 사진 id. `crypto.randomUUID()`로 정해 경로가 늘 새것이 되게 한다(덮어쓰지 않음) */
   photoId: string;
-  /** `resizePhoto`로 줄인 원본 */
-  photo: Blob;
+  /** `resizeCouplePhoto`로 줄인 원본 */
+  original: Blob;
+  /** `resizeCouplePhoto`로 줄인 홈 카드용 중간 크기. 원본 경로 옆(`_medium`)에 올린다 */
+  medium: Blob;
   /** `(path) => supabase.rpc("set_couple_photo", { p_path: path })` */
   savePath: (path: string) => SwapResult;
 }
@@ -62,7 +64,7 @@ const removePrevious = async (
   // 같은 경로를 돌려받는 건 지금 보여 주는 파일이라 지우지 않는다
   if (!previousPath || previousPath === currentPath) return;
   try {
-    const { error } = await storage.remove([previousPath]);
+    const { error } = await storage.remove([previousPath, toCouplePhotoMediumPath(previousPath)]);
     if (error) onCleanupError?.(error);
   } catch (error) {
     onCleanupError?.(error);
@@ -71,8 +73,8 @@ const removePrevious = async (
 
 /**
  * 커플 사진을 새 사진으로 바꾼다(처음 올릴 때도 같다).
- * 새 파일을 먼저 올리고 경로를 저장한 뒤, 저장이 돌려준 예전 파일을 지운다. 두 사람이 동시에 바꿔도
- * 각자 자기가 밀어낸 파일만 받으므로 파일이 남지 않는다. 저장이 실패하면 올린 새 파일을 지우고 예전 사진은 그대로 둔다.
+ * 새 원본과 중간 크기를 먼저 올리고 경로를 저장한 뒤, 저장이 돌려준 예전 파일을 지운다. 두 사람이 동시에 바꿔도
+ * 각자 자기가 밀어낸 파일만 받으므로 파일이 남지 않는다. 올리기나 저장이 실패하면 올린 새 파일을 지우고 예전 사진은 그대로 둔다.
  *
  * @throws {PhotoError} 올리지 못했을 때
  * @throws {CouplePhotoError} 경로를 저장하지 못했을 때(`save`)
@@ -81,7 +83,7 @@ const removePrevious = async (
  * await replaceCouplePhoto({
  *   storage: supabase.storage.from(ALBUM_BUCKET),
  *   photoId: crypto.randomUUID(),
- *   photo: (await resizePhoto(file)).original,
+ *   ...(await resizeCouplePhoto(file)),
  *   savePath: (path) => supabase.rpc("set_couple_photo", { p_path: path }),
  *   onCleanupError: console.error,
  * })
@@ -89,16 +91,21 @@ const removePrevious = async (
 export const replaceCouplePhoto = async ({
   storage,
   photoId,
-  photo,
+  original,
+  medium,
   savePath,
   onCleanupError,
 }: ReplaceCouplePhotoParams): Promise<void> => {
   const path = buildCouplePhotoPath(photoId);
-  // 저장이 안 된 새 파일은 어디에서도 가리키지 않으므로, 실패하면 바로 지운다(정리 실패는 원래 실패 이유를 가리지 않게 삼킨다)
-  const discardNewFile = () => storage.remove([path]).catch(() => undefined);
+  const mediumPath = toCouplePhotoMediumPath(path);
+  // 저장이 안 된 새 파일은 어디에서도 가리키지 않으므로, 실패하면 바로 지운다(정리 실패는 원래 실패 이유를 가리지 않게 삼킨다).
+  // 응답만 끊기고 올라갔을 수 있어 올리기에 실패한 파일도 함께 지운다
+  const discardNewFile = () => storage.remove([path, mediumPath]).catch(() => undefined);
 
   try {
-    await uploadPhotoFile({ storage, path, body: photo });
+    // 홈은 중간 크기를 보여 주므로, 경로를 저장하기 전에 둘 다 올려 둔다
+    await uploadPhotoFile({ storage, path, body: original });
+    await uploadPhotoFile({ storage, path: mediumPath, body: medium });
   } catch (error) {
     await discardNewFile();
     throw error;
@@ -118,7 +125,7 @@ export const replaceCouplePhoto = async ({
 };
 
 /**
- * 커플 사진을 없앤다. 경로를 먼저 비우고 그 파일을 지운다(파일을 먼저 지우면 비우기가 실패했을 때 깨진 사진이 보인다).
+ * 커플 사진을 없앤다. 경로를 먼저 비우고 그 원본과 중간 크기를 지운다(파일을 먼저 지우면 비우기가 실패했을 때 깨진 사진이 보인다).
  *
  * @throws {CouplePhotoError} 경로를 비우지 못했을 때(`clear`)
  * @example
