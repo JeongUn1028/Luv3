@@ -49,6 +49,34 @@ test.describe("날짜 선택 창", () => {
     await expect(page.locator("#event-date")).toContainText("2038.01.20 수요일");
   });
 
+  // 서버의 공휴일 키는 E2E에 없다. 브라우저가 우리 API에 묻는 요청을 가로채 답을 정한다(#200)
+  test("공휴일이면 날짜 칸 이름에 공휴일 이름을 함께 읽는다", async ({ page }) => {
+    // Arrange: 2036년 3월 1일(삼일절)은 토요일이다
+    await page.route("**/api/holidays?year=2036", (route) =>
+      route.fulfill({ json: { holidays: [{ date: "2036-03-01", name: "삼일절" }] } }),
+    );
+    await openNewEvent(page);
+
+    // Act
+    await openDatePicker(page, "#event-date");
+
+    // Assert
+    await expect(getPickerDay(page, "2036-03-01")).toHaveAttribute("aria-label", "2036년 3월 1일 토요일, 삼일절");
+    await expect(getPickerDay(page, "2036-03-08")).toHaveAttribute("aria-label", "2036년 3월 8일 토요일");
+  });
+
+  test("공휴일을 받지 못해도 창은 그대로 날짜를 고를 수 있다", async ({ page }) => {
+    // Arrange
+    await page.route("**/api/holidays?year=*", (route) => route.fulfill({ status: 502, json: { code: "HOLIDAYS_FAILED" } }));
+    await openNewEvent(page);
+
+    // Act
+    await pickDate(page, "#event-date", "2036-03-01");
+
+    // Assert
+    await expect(page.locator("#event-date")).toContainText("2036.03.01 토요일");
+  });
+
   test("Esc와 창 바깥 누르기로 닫으면 날짜가 그대로다", async ({ page }) => {
     // Arrange
     await openNewEvent(page);
