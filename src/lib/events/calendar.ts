@@ -45,6 +45,19 @@ export interface CalendarRecord {
  */
 export const toOwnerLabel = (authorNickname: string | undefined): string => authorNickname ?? "한 사람";
 
+/**
+ * 누구 일정인지 쓰는 글자: 함께 일정은 "함께", 한 사람 일정은 작성자 닉네임. 홈 일정 칸과 캘린더 목록이 같이 쓴다.
+ *
+ * @example formatEventOwner({ isTogether: false, authorNickname: "정운" }) // "정운"
+ */
+export const formatEventOwner = ({
+  isTogether,
+  authorNickname,
+}: {
+  isTogether: boolean;
+  authorNickname: string | undefined;
+}): string => (isTogether ? "함께" : toOwnerLabel(authorNickname));
+
 /** `events` 조회 결과 한 행 */
 export interface CalendarEventRow {
   id: string;

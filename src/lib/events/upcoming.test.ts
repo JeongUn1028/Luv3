@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatEventMeta, formatEventOwner, formatUpcomingDay, previewUpcomingEvents } from "./upcoming";
+import { formatEventMeta, formatUpcomingDay, previewUpcomingEvents } from "./upcoming";
 
 const event = (id: string, date: string) => ({ id, date });
 
@@ -67,19 +67,5 @@ describe("formatEventMeta", () => {
     const period = { start: "2026-10-30", end: "2026-11-01" };
     expect(formatEventMeta({ startTime: "10:00:00", place: "제주", period })).toBe("10.30–11.01 · 제주");
     expect(formatEventMeta({ startTime: null, place: undefined, period })).toBe("10.30–11.01");
-  });
-});
-
-describe("formatEventOwner", () => {
-  it("함께 일정이면 작성자와 상관없이 함께라고 쓴다", () => {
-    expect(formatEventOwner({ isTogether: true, authorNickname: "진아" })).toBe("함께");
-  });
-
-  it("한 사람 일정이면 작성자 닉네임을 쓴다", () => {
-    expect(formatEventOwner({ isTogether: false, authorNickname: "정운" })).toBe("정운");
-  });
-
-  it("한 사람 일정인데 작성자를 모르면 한 사람이라고 쓴다", () => {
-    expect(formatEventOwner({ isTogether: false, authorNickname: undefined })).toBe("한 사람");
   });
 });

@@ -26,12 +26,16 @@ test.describe("작성자 이름표", () => {
     expect(await getTodoRow(page.locator("main"), E2E_TODOS[0].content).ariaSnapshot()).toContain(AUTHOR_NAME);
   });
 
-  test("캘린더 아래 목록은 일정 링크 이름에 작성자 이름이 들어간다", async ({ page }) => {
+  test("캘린더 아래 목록의 함께 일정 줄은 작성자 대신 함께 이름표를 보여 주고 함께 일정으로 읽는다", async ({ page }) => {
     // Act
     await openScreen(page, "/calendar", page.getByText(E2E_EVENTS[0].title));
+    // 오늘의 함께 일정이라 같은 제목이 든 "기록 남기기" 링크도 있어 일정 주소로 고른다
+    const row = page.locator(`a[href^="/events/${E2E_EVENTS[0].id}/"]`);
 
-    // Assert
-    await expect(page.getByRole("link", { name: new RegExp(`${E2E_EVENTS[0].title}.*${AUTHOR_NAME}`) })).toBeVisible();
+    // Assert: 홈 일정 칸과 같은 이름을 쓴다(#201)
+    await expect(row.getByRole("img", { name: "함께 일정" })).toHaveText("함께");
+    await expect(row.getByText(E2E_MEMBER.nickname, { exact: true })).toHaveCount(0);
+    expect(await row.ariaSnapshot()).not.toContain(AUTHOR_NAME);
   });
 
   test("캘린더 아래 목록의 한 사람 일정 줄은 이름을 주인 이름표에 한 번만 보여 준다", async ({ page }, testInfo) => {
