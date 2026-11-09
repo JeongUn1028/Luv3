@@ -28,9 +28,9 @@ describe("글꼴", () => {
     expect(layout).toContain("Cormorant_Garamond({");
     expect(layout).toContain("${cormorantGaramond.variable}");
     expect(readSource("app/globals.css")).toMatch(/--font-logo: var\(--font-cormorant\)/);
-    expect(readSource("app/login/page.tsx")).toMatch(/font-logo[^"]*tracking-\[6px\]/);
-    // 홈 D-day, 연·월 제목, 탭, 버튼은 주아를 유지한다
-    expect(logoUsers).toEqual(["app/login/page.tsx", "components/StartupSplash.tsx"]);
+    expect(readSource("components/DrawnLogo.tsx")).toMatch(/font-logo[^"]*tracking-\[6px\]/);
+    // 로그인 화면과 시작 화면은 같은 로고(DrawnLogo)를 쓴다. 홈 D-day, 연·월 제목, 탭, 버튼은 주아를 유지한다
+    expect(logoUsers).toEqual(["components/DrawnLogo.tsx"]);
   });
 
   it("브라우저가 가짜 굵기를 만들지 않게 막는다", () => {
