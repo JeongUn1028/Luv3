@@ -14,6 +14,11 @@
   --color-label: #c8a2ac;
   /* 한 사람 일정 형광펜(함께 일정은 highlight 분홍) */
   --color-cream: #f3e6c8;
+  /* 일요일·공휴일 빨강과 토요일 파랑(#200). 어두운 바탕에는 밝은 색, 형광펜·오늘 원·고른 날 원 위에는 진한 색을 쓴다 */
+  --color-holiday: #ff6b6b;
+  --color-saturday: #6ba8ff;
+  --color-holiday-deep: #a3122a;
+  --color-saturday-deep: #1d4ed8;
   --font-sans: var(--font-gowun-dodum), -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
   --font-display: var(--font-jua), -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
   --font-logo: var(--font-cormorant), "Times New Roman", serif;

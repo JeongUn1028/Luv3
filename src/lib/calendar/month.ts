@@ -45,6 +45,13 @@ export const shiftMonth = (month: string, offset: number): string => {
 };
 
 /**
+ * 요일 번호. 0이 일요일, 6이 토요일이다(`WEEKDAYS` 순서).
+ *
+ * @example getWeekday("2026-11-14") // 6
+ */
+export const getWeekday = (isoDate: string): number => toUtc(isoDate).getUTCDay();
+
+/**
  * 일요일부터 시작하는 주 단위 달력 칸을 만든다. 첫 주와 마지막 주는 앞뒤 달 날로 채운다(4~6주).
  *
  * @example buildMonthGrid("2026-11")[0][0] // { date: "2026-11-01", day: 1, isCurrentMonth: true }

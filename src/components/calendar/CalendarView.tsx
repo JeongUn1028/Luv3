@@ -9,7 +9,9 @@ import {
   describeDayEvents,
   getDayHighlight,
   getDayNumberClassName,
+  getDayTone,
   getHighlightClassNames,
+  getWeekdayClassName,
   LEGEND_EVENT_KINDS,
 } from "@/lib/calendar/highlight";
 import {
@@ -27,6 +29,7 @@ import { EventRecordAction } from "@/components/events/EventRecordAction";
 import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
 import { getEventRecordLink, omitLinkedRecords } from "@/lib/events/record-link";
 import { formatEventPeriod, formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
+import type { HolidayNames } from "@/lib/holidays/holidays";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 interface CalendarViewProps {
@@ -38,6 +41,8 @@ interface CalendarViewProps {
   requestedDate?: string | string[];
   events: CalendarEvent[];
   records: CalendarRecord[];
+  /** 달력 칸 범위의 공휴일 이름. 받지 못했으면 비어 있다 */
+  holidayNames: HolidayNames;
 }
 
 // 달 이동은 주소(`/calendar?month=`)로 한다. 캘린더 탭은 일정·기록만 불러오므로 앨범 그리드를 다시 불러오지 않는다(#41)
@@ -50,7 +55,7 @@ const highlightBandClassName =
   "absolute top-2.5 left-1/2 h-5 w-10 -translate-x-1/2 -rotate-2 rounded-[2px_7px_3px_8px/5px_3px_6px_3px]";
 
 /** 공유 캘린더: 월 달력 + 고른 날의 데이트 기록·일정 */
-export const CalendarView = ({ month, today, requestedDate, events, records }: CalendarViewProps): ReactElement => {
+export const CalendarView = ({ month, today, requestedDate, events, records, holidayNames }: CalendarViewProps): ReactElement => {
   // 달이나 주소의 날이 바뀌면 부모가 key로 새로 그리므로, 처음 고른 날만 정하면 된다
   const [selectedDate, setSelectedDate] = useState(() => getDefaultSelectedDate(month, today, requestedDate));
   const eventsByDate = groupByDate(events);
@@ -61,7 +66,8 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
   const selectedEvents = eventsByDate.get(selectedDate) ?? [];
   const selectedRecords = recordsByDate.get(selectedDate) ?? [];
   const selectedAnniversary = getAnniversaryLabel(ANNIVERSARY_DATE, selectedDate);
-  const isEmptyDay = !selectedAnniversary && selectedRecords.length === 0 && selectedEvents.length === 0;
+  const selectedHoliday = holidayNames[selectedDate];
+  const isEmptyDay = !selectedAnniversary && !selectedHoliday && selectedRecords.length === 0 && selectedEvents.length === 0;
 
   return (
     <div className="flex flex-col px-4 pb-6">
@@ -87,8 +93,8 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
       <table className="mt-2 w-full table-fixed border-collapse">
         <thead>
           <tr>
-            {WEEKDAYS.map((weekday) => (
-              <th key={weekday} scope="col" className="h-8 text-[12px] font-normal text-ink-sub">
+            {WEEKDAYS.map((weekday, index) => (
+              <th key={weekday} scope="col" className={`h-8 text-[12px] font-normal ${getWeekdayClassName(index)}`}>
                 {weekday}
               </th>
             ))}
@@ -103,6 +109,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                 const isSelected = date === selectedDate;
                 const isToday = date === today;
                 const anniversary = getAnniversaryLabel(ANNIVERSARY_DATE, date);
+                const holidayName = holidayNames[date];
                 const highlight = getDayHighlight(dayEvents);
                 const highlightClassNames = highlight && getHighlightClassNames({ highlight, isCurrentMonth });
                 const summary = [...describeDayEvents(dayEvents), recordCount > 0 && `기록 ${recordCount}개`].filter(Boolean);
@@ -111,7 +118,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                     <button
                       type="button"
                       aria-pressed={isSelected}
-                      aria-label={[formatDayHeading(date), isToday && "오늘", anniversary, ...summary].filter(Boolean).join(", ")}
+                      aria-label={[formatDayHeading(date), isToday && "오늘", anniversary, holidayName, ...summary].filter(Boolean).join(", ")}
                       onClick={() => setSelectedDate(date)}
                       className={`relative flex h-12 w-full flex-col items-center justify-start gap-1 rounded-[10px] pt-1.5 text-[14px] ${
                         isSelected ? "bg-surface" : ""
@@ -126,6 +133,8 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
                           isAnniversary: Boolean(anniversary),
                           isSelected,
                           highlightClassNames,
+                          isCurrentMonth,
+                          tone: getDayTone(date, holidayName),
                         })}`}
                       >
                         {day}
@@ -190,6 +199,13 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
               <li className="flex min-h-[51px] items-center gap-3 rounded-[10px] border border-line px-4 py-2">
                 <span className="w-11 shrink-0 text-[12px] text-highlight">기념일</span>
                 <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{selectedAnniversary}</span>
+              </li>
+            )}
+            {/* 빨간 날짜가 왜 빨간지 색만으로는 알 수 없어 이름을 적는다(#200) */}
+            {selectedHoliday && (
+              <li className="flex min-h-[51px] items-center gap-3 rounded-[10px] border border-line px-4 py-2">
+                <span className="w-11 shrink-0 text-[12px] text-holiday">공휴일</span>
+                <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{selectedHoliday}</span>
               </li>
             )}
             {selectedRecords.map((record) => (

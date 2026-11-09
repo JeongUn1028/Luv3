@@ -1,4 +1,5 @@
 import { toOwnerLabel, type CalendarEvent } from "@/lib/events/calendar";
+import { getWeekday } from "./month";
 
 /** 일정 있는 날에 칠하는 형광펜 종류. 함께 일정은 분홍, 한 사람 일정만 있으면 크림색 */
 export type DayHighlight = "together" | "personal";
@@ -92,6 +93,63 @@ export const getHighlightClassNames = ({
   isCurrentMonth: boolean;
 }): HighlightClassNames => HIGHLIGHT_CLASS_NAMES[highlight][isCurrentMonth ? "currentMonth" : "otherMonth"];
 
+/** 날짜 숫자 색의 종류. 일요일·공휴일은 빨강, 토요일은 파랑이다(#200) */
+export type DayTone = "holiday" | "saturday";
+
+/**
+ * 그날 숫자 색. 토요일이어도 공휴일이면 빨강이다.
+ *
+ * @example getDayTone("2026-05-05", "어린이날") // "holiday"
+ */
+export const getDayTone = (date: string, holidayName: string | undefined): DayTone | undefined => {
+  const weekday = getWeekday(date);
+  if (holidayName || weekday === 0) return "holiday";
+  return weekday === 6 ? "saturday" : undefined;
+};
+
+/**
+ * 색을 칠할 바탕.
+ * - plain: 어두운 칸(검정·고른 날 바탕)
+ * - dim: 지난달·다음달의 흐린 숫자(흐린 회색 글자만큼 흐리게)
+ * - fill: 분홍·크림 형광펜, 오늘 원, 날짜 창의 고른 날 원처럼 밝게 채운 바탕
+ */
+export type DayToneSurface = "plain" | "dim" | "fill";
+
+// 글자 대비는 highlight.test.ts가 globals.css 색 값으로 확인한다(plain·fill은 4.5 이상, dim은 흐린 회색 글자 이상)
+const DAY_TONE_CLASS_NAMES = {
+  holiday: { plain: "text-holiday", dim: "text-holiday/70", fill: "text-holiday-deep" },
+  saturday: { plain: "text-saturday", dim: "text-saturday/70", fill: "text-saturday-deep" },
+} as const satisfies Record<DayTone, Record<DayToneSurface, string>>;
+
+/**
+ * 날짜 숫자 색 클래스.
+ *
+ * @example getDayToneClassName("saturday", "fill") // "text-saturday-deep"
+ */
+export const getDayToneClassName = (tone: DayTone, surface: DayToneSurface): string => DAY_TONE_CLASS_NAMES[tone][surface];
+
+const DEFAULT_DAY_TEXT_CLASS_NAMES = { plain: "text-ink", dim: "text-ink-placeholder", fill: "text-background" } as const satisfies Record<DayToneSurface, string>;
+
+/**
+ * 날짜 창의 날짜 글자 색. 평일이면 바탕에 맞는 기본 글자색을 쓴다.
+ *
+ * @example getDayTextClassName(undefined, "fill") // "text-background"
+ */
+export const getDayTextClassName = (tone: DayTone | undefined, surface: DayToneSurface): string =>
+  tone ? getDayToneClassName(tone, surface) : DEFAULT_DAY_TEXT_CLASS_NAMES[surface];
+
+const WEEKDAY_TONES: readonly (DayTone | undefined)[] = ["holiday", undefined, undefined, undefined, undefined, undefined, "saturday"];
+
+/**
+ * 요일 머리글 글자 색. `WEEKDAYS` 순서(일요일부터)의 칸 번호로 고른다.
+ *
+ * @example getWeekdayClassName(6) // "text-saturday"
+ */
+export const getWeekdayClassName = (index: number): string => {
+  const tone = WEEKDAY_TONES[index];
+  return tone ? getDayToneClassName(tone, "plain") : "text-ink-sub";
+};
+
 interface DayNumberClassNameParams {
   isToday: boolean;
   isAnniversary: boolean;
@@ -99,22 +157,33 @@ interface DayNumberClassNameParams {
   isSelected: boolean;
   /** 그날 형광펜. 없으면 undefined */
   highlightClassNames: HighlightClassNames | undefined;
+  /** 보고 있는 달의 날인지. 지난달·다음달 숫자는 흐리게 칠한다 */
+  isCurrentMonth: boolean;
+  /** 주말·공휴일 색. 평일이면 undefined */
+  tone: DayTone | undefined;
 }
+
+// 지난달·다음달의 옅은 띠 위에서는 어떤 빨강·파랑도 대비가 모자라 띠의 밝은 글자를 그대로 쓴다(사용자 결정, #200)
+const getToneSurface = ({ isToday, highlightClassNames, isCurrentMonth }: DayNumberClassNameParams): DayToneSurface | undefined => {
+  if (isToday) return "fill";
+  if (highlightClassNames) return isCurrentMonth ? "fill" : undefined;
+  return isCurrentMonth ? "plain" : "dim";
+};
 
 /**
  * 날짜 숫자 원의 클래스. 오늘(채운 원)·기념일(테두리)·형광펜이 겹쳐도 서로 구별되게 한다.
  * 오늘 원과 기념일 테두리도 분홍이라, 형광펜 위에서는 칸 바탕색 테두리로 떼어 놓아야 보인다.
+ * 주말·공휴일 숫자는 바탕에 맞는 빨강·파랑으로 칠한다.
  *
- * @example getDayNumberClassName({ isToday: true, isAnniversary: false, isSelected: false, highlightClassNames })
+ * @example getDayNumberClassName({ isToday: true, isAnniversary: false, isSelected: false, highlightClassNames, isCurrentMonth: true, tone: undefined })
  */
-export const getDayNumberClassName = ({
-  isToday,
-  isAnniversary,
-  isSelected,
-  highlightClassNames,
-}: DayNumberClassNameParams): string => {
+export const getDayNumberClassName = (params: DayNumberClassNameParams): string => {
+  const { isToday, isAnniversary, isSelected, highlightClassNames, tone } = params;
   const isOnBand = highlightClassNames !== undefined;
-  const fill = isToday ? "bg-accent text-background" : isOnBand && highlightClassNames.text;
+  const toneSurface = tone && getToneSurface(params);
+  const toneText = tone && toneSurface && getDayToneClassName(tone, toneSurface);
+  const plainText = isToday ? "text-background" : isOnBand && highlightClassNames.text;
+  const fill = [isToday && "bg-accent", toneText || plainText].filter(Boolean).join(" ");
   const separator = isSelected
     ? { offset: "ring-offset-surface", ring: "ring-surface" }
     : { offset: "ring-offset-background", ring: "ring-background" };
