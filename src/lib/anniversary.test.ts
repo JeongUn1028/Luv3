@@ -66,7 +66,7 @@ describe("countDaysTogether", () => {
     expect(() => countDaysTogether("2026-10-31", "2026-11-2")).toThrow("YYYY-MM-DD");
   });
 
-  // 시안(home.svg)의 2026-11-02 = 3 DAYS와 맞춘다
+  // 시안(home.svg)의 2026-11-02 = D-day 숫자 3과 맞춘다
   it("한국 시간 자정이 지나면 하루가 늘어난다", () => {
     expect(countDaysTogether(ANNIVERSARY_DATE, toKstDate(new Date("2026-11-01T14:59:59Z")))).toBe(2);
     expect(countDaysTogether(ANNIVERSARY_DATE, toKstDate(new Date("2026-11-01T15:00:00Z")))).toBe(3);
