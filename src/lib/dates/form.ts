@@ -1,6 +1,6 @@
 import type { PlaceLocation } from "@/lib/places/search";
 import { toNextDay } from "@/lib/calendar/month";
-import { countChars, isIsoDate } from "@/lib/form";
+import { countChars, isIsoDate, isSameFormValue } from "@/lib/form";
 import type { Database } from "@/lib/supabase/database.types";
 
 // 글자 수 제한은 DB check 제약(마이그레이션)과 같아야 한다
@@ -261,3 +261,24 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_place_location: draft.location ? { lat: draft.location.lat, lng: draft.location.lng } : {},
   };
 };
+
+// 저장 시도에 쓰는 칸(판 번호 등)과 사진 파일·미리보기 주소는 사용자가 쓴 내용이 아니라 비교에서 뺀다
+const toWrittenContent = ({ date, endDate, title, place, memo, photos, coverPhotoId, tags, location }: DateRecordDraft) => ({
+  date,
+  endDate,
+  title,
+  place,
+  memo,
+  photos: photos.map(({ id, caption }) => ({ id, caption })),
+  coverPhotoId,
+  tags,
+  location,
+});
+
+/**
+ * 기록 폼에 쓴 내용이 처음과 다른지 알려 준다. 다르면 뒤로 버튼을 누를 때 버릴지 묻는다(#165).
+ *
+ * @example hasRecordDraftChanges(initialDraft, draft) // true
+ */
+export const hasRecordDraftChanges = (initial: DateRecordDraft, current: DateRecordDraft): boolean =>
+  !isSameFormValue(toWrittenContent(initial), toWrittenContent(current));

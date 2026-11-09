@@ -45,9 +45,13 @@ export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormPro
   const formKey = `todo:${todoId ?? "new"}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "하고 싶은 것을", failedSaves });
   const [content, setContent] = useState(failedSave?.draft ?? initialContent);
+  // 쓴 내용이 있는지 견줄 처음 내용. 상대가 고쳐 화면을 새로 받아도 폼은 처음 내용 그대로라 이 값과 견준다
+  const [baseContent, setBaseContent] = useState(initialContent);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState(failedSave?.message);
   const [isSaving, setIsSaving] = useState(false);
+  // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알리므로 묻지 않는다(#104)
+  const shouldConfirmLeave = content !== baseContent && !isSaving;
 
   const goToList = () => {
     startTransition(() => {
@@ -78,6 +82,7 @@ export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormPro
       href: TODOS_PATH,
       reset: () => {
         setContent(initialContent);
+        setBaseContent(initialContent);
         setIsSaving(false);
       },
     });
@@ -96,7 +101,7 @@ export const TodoForm = ({ initialContent, todoId, authorNickname }: TodoFormPro
       className="px-4"
       header={
         <ScreenHeader
-          back={{ href: TODOS_PATH }}
+          back={{ href: TODOS_PATH, shouldConfirmLeave }}
           title={todoId ? "하고 싶은 것 고치기" : "하고 싶은 것 추가"}
           titleAddon={authorNickname && <AuthorTag nickname={authorNickname} className="ml-2" />}
           actions={

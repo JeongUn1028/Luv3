@@ -4,6 +4,7 @@ import {
   addPhotos,
   addTag,
   getMinEndDate,
+  hasRecordDraftChanges,
   movePhoto,
   normalizeTag,
   parseRecordPrefill,
@@ -319,5 +320,26 @@ describe("pickTagSuggestions", () => {
     const suggestions = Array.from({ length: 20 }, (_, index) => `태그${index}`);
     const picked = pickTagSuggestions(suggestions, suggestions.slice(0, 5));
     expect(picked).toEqual(suggestions.slice(5, 17));
+  });
+});
+
+describe("hasRecordDraftChanges", () => {
+  it("쓴 내용(칸·사진·사진 한마디·태그)이 처음과 다르면 바뀌었다고 본다", () => {
+    const initial = draft();
+
+    expect([
+      hasRecordDraftChanges(initial, draft({ title: "두 번째 데이트" })),
+      hasRecordDraftChanges(initial, draft({ photos: [photo("p1"), photo("p2")] })),
+      hasRecordDraftChanges(initial, draft({ photos: [photo("p1", "카페")] })),
+      hasRecordDraftChanges(initial, draft({ tags: ["산책"] })),
+    ]).toEqual([true, true, true, true]);
+  });
+
+  // 저장 시도에 쓰는 판 번호와, 다시 연 폼에서 새로 만드는 미리보기 주소는 쓴 내용이 아니다
+  it("판 번호나 사진 미리보기 주소만 다르면 바뀌지 않았다고 본다", () => {
+    const initial = { ...draft(), photos: [{ ...photo("p1"), previewUrl: "blob:a" }] };
+    const current = { ...draft({ expectedRevisions: ["r1", "r2"], nextRevision: "r3", hasConflict: true }), photos: [{ ...photo("p1"), previewUrl: "blob:b" }] };
+
+    expect(hasRecordDraftChanges(initial, current)).toBe(false);
   });
 });
