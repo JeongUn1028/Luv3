@@ -25,7 +25,7 @@ import {
 } from "@/lib/calendar/month";
 import { EventRecordAction } from "@/components/events/EventRecordAction";
 import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
-import { getEventRecordLink } from "@/lib/events/record-link";
+import { getEventRecordLink, omitLinkedRecords } from "@/lib/events/record-link";
 import { formatEventPeriod, formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
@@ -54,7 +54,10 @@ export const CalendarView = ({ month, today, requestedDate, events, records }: C
   // 달이나 주소의 날이 바뀌면 부모가 key로 새로 그리므로, 처음 고른 날만 정하면 된다
   const [selectedDate, setSelectedDate] = useState(() => getDefaultSelectedDate(month, today, requestedDate));
   const eventsByDate = groupByDate(events);
-  const recordsByDate = groupByDate(records);
+  // 일정에 이어진 기록은 일정 줄의 "기록 보기"로 열므로 기록 줄·점에서 뺀다(#228)
+  const recordsByDate = new Map(
+    Array.from(groupByDate(records), ([date, dayRecords]) => [date, omitLinkedRecords(dayRecords, eventsByDate.get(date) ?? [])]),
+  );
   const selectedEvents = eventsByDate.get(selectedDate) ?? [];
   const selectedRecords = recordsByDate.get(selectedDate) ?? [];
   const selectedAnniversary = getAnniversaryLabel(ANNIVERSARY_DATE, selectedDate);

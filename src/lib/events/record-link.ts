@@ -40,6 +40,17 @@ export const getEditEventRecordLink = (
 };
 
 /**
+ * 그날 보이는 일정에 이어진 기록을 뺀다(#228). 그 일정 줄의 "기록 보기"가 기록을 대신하므로 따로 "기록" 줄과 점을 만들지 않는다.
+ * 이어진 일정이 그날 보이지 않으면(반복에서 빠진 날, 건너뛴 날, 날짜를 바꾼 일정) 기록으로 갈 길이 없어지므로 그대로 둔다.
+ *
+ * @example omitLinkedRecords(recordsByDate.get(date) ?? [], eventsByDate.get(date) ?? []) // 직접 쓴 기록만
+ */
+export const omitLinkedRecords = <Item extends { id: string }>(records: Item[], dayEvents: Pick<CalendarEvent, "recordId">[]): Item[] => {
+  const linkedIds = new Set(dayEvents.flatMap(({ recordId }) => (recordId ? [recordId] : [])));
+  return records.filter(({ id }) => !linkedIds.has(id));
+};
+
+/**
  * 기록 버튼이 갈 주소. 남길 때는 일정 id와 날짜만 넘기고 채울 값은 작성 화면의 서버가 일정에서 읽는다.
  *
  * @example toEventRecordHref("e1", { kind: "leave", eventDate: "2026-11-01" }) // "/dates/new?event=e1&eventDate=2026-11-01"
