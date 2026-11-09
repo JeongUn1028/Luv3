@@ -33,7 +33,9 @@ const startWatching = (page: Page): Promise<void> =>
   page.evaluate(() => {
     const seen = { skeleton: false, animations: [] as string[] };
     const sample = () => {
-      if ([...document.querySelectorAll<HTMLElement>('main [role="status"]')].some((element) => element.offsetParent !== null)) seen.skeleton = true;
+      // 뼈대만 "불러오는 중이에요"를 알린다. 댓글 남김 안내처럼 다른 화면 읽기용 알림도 role="status"를 쓴다
+      const statuses = [...document.querySelectorAll<HTMLElement>('main [role="status"]')];
+      if (statuses.some((element) => element.offsetParent !== null && element.textContent?.includes("불러오는 중이에요"))) seen.skeleton = true;
       for (const animation of document.getAnimations()) {
         const { pseudoElement } = animation.effect as KeyframeEffect;
         const name = (animation as CSSAnimation).animationName;
