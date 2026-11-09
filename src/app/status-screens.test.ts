@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readSource, readSourceLines } from "@/test-utils/source";
 
 // 홈 화면 앱에는 주소창과 브라우저 버튼이 없어, 오류·없는 주소 화면에서 빠져나갈 길이 화면 안에 있어야 한다(#83).
-// Vitest(node)로는 오류 화면을 띄울 수 없어 소스 규칙으로 고정하고, 실제 동작은 프로덕션 빌드로 확인한다.
+// Vitest(node)로는 오류 화면을 띄울 수 없어 소스 규칙으로 고정한다. 조회 실패·오류 화면은 서버가 Supabase를 부르다 실패해야 떠서
+// E2E에서 page.route로 만들 수 없다(#195). 없는 주소·기록·일정·항목 화면은 e2e/status-screens.spec.ts가 잰다.
 
 const GLOBAL_ERROR = "app/global-error.tsx";
 const ERROR_SCREEN = "components/ErrorScreen.tsx";
@@ -118,15 +119,8 @@ describe("최후의 오류 화면", () => {
 });
 
 describe("찾을 수 없음 화면", () => {
-  it("없는 주소에서 홈으로 가는 링크를 보여 준다", () => {
-    expect(readSource("app/not-found.tsx")).toContain("<StatusLink href={HOME_PATH}>");
-  });
-
-  it("없는 기록·일정·항목 화면은 같은 틀을 쓴다", () => {
-    for (const file of ["app/dates/[id]/not-found.tsx", "app/events/[id]/edit/page.tsx", "app/todos/[id]/edit/page.tsx"]) {
-      expect(readSource(file)).toContain("<StatusScreen");
-    }
-
+  it("없는 대상 안내 문구는 화면마다 따로 적지 않고 StatusScreen의 설명으로만 쓴다", () => {
+    // 없는 주소·기록·일정·항목 화면이 안내와 돌아갈 링크를 보여 주는지는 e2e/status-screens.spec.ts가 잰다
     const copies = readSourceLines().flatMap(({ at, lines }) =>
       lines.flatMap((line, index) => (line.includes("지워졌거나 주소가 잘못됐어요") && !line.includes("description=") ? [`${at}:${index + 1}`] : [])),
     );

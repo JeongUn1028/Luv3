@@ -140,13 +140,16 @@ const getMemberId = async (admin: AdminClient): Promise<string> => {
 };
 
 /**
- * 테스트 하나에서만 쓰는 하고 싶은 것을 만든다. 돌려준 함수는 그 항목을 지운다.
+ * 테스트 하나에서만 쓰는 하고 싶은 것을 만든다. `completedAt`을 주면 완료한 항목이 된다. 돌려준 함수는 그 항목을 지운다.
  *
  * @example const deleteTodo = await createDisposableTodo({ id: randomUUID(), content: "고칠 항목" })
  */
-export const createDisposableTodo = async ({ id, content }: { id: string; content: string }): Promise<() => Promise<void>> => {
+export const createDisposableTodo = async ({ id, content, completedAt }: { id: string; content: string; completedAt?: string }): Promise<() => Promise<void>> => {
   const admin = createAdminClient();
-  assertNoError(await admin.from("todos").insert({ id, content, author_id: await getMemberId(admin) }), "하고 싶은 것");
+  assertNoError(
+    await admin.from("todos").insert({ id, content, author_id: await getMemberId(admin), ...(completedAt && { completed_at: completedAt }) }),
+    "하고 싶은 것",
+  );
   return async () => assertNoError(await admin.from("todos").delete().eq("id", id), "하고 싶은 것 지우기");
 };
 
@@ -475,4 +478,21 @@ export const seedE2eData = async (password: string): Promise<() => Promise<void>
     await clearAccount(admin);
     await clearStorage(admin);
   };
+};
+
+/**
+ * 다른 닉네임의 작성자(상대)가 만든 오늘 일정을 만든다. 돌려준 함수는 일정과 계정을 지운다.
+ *
+ * @example const deleteEvent = await createDisposableAuthorEvent({ id: randomUUID(), title: "상대 일정", nickname: "상대" })
+ */
+export const createDisposableAuthorEvent = async ({ id, title, nickname }: { id: string; title: string; nickname: string }): Promise<() => Promise<void>> => {
+  const { id: authorId, remove } = await createDisposableMember(randomUUID(), nickname);
+  try {
+    const date = toKstDate(new Date());
+    assertNoError(await createAdminClient().from("events").insert({ id, title, date, is_together: false, author_id: authorId }), "상대 일정");
+  } catch (insertError) {
+    await remove();
+    throw insertError;
+  }
+  return remove;
 };

@@ -3,7 +3,9 @@ import { readSource, readSourceLines } from "@/test-utils/source";
 
 // 홈 화면 앱을 처음 띄우면 iOS가 뷰포트를 상태바만큼 작게(852 → 793) 알리고, 그동안 fixed 요소도 793 기준으로 그린다(#51).
 // 문서 스크롤 대신 화면 틀(PageShell) 안쪽에서만 스크롤하게 하고, 틀·하단 탭·safe-area 규칙을 한곳에 모은다(#63, #58).
-// Vitest(node)로는 레이아웃을 잴 수 없어 소스 규칙으로 고정한다.
+// Vitest(node)로는 레이아웃을 잴 수 없어 소스 규칙으로 고정한다. 화면 높이·하단 탭 위치는 e2e/screen-fit.spec.ts가 잰다.
+// 남은 코드 모양 검사는 iOS에서만 나는 현상(첫 실행 793, 튕김, 입력 칸 확대, 시간 칸)이거나 E2E 데이터·화면으로 만들기 어려운 상태라
+// E2E로 옮기지 않았다. 검사마다 이유를 적어 둔다(#195).
 
 const SHELL = "components/PageShell.tsx";
 // 루트 레이아웃까지 실패했을 때의 최후의 화면은 일반 화면 코드에 기대지 않고 직접 그린다(#83)
@@ -21,24 +23,6 @@ const findLines = (pattern: RegExp, allowed: readonly string[]): string[] =>
 describe("화면 틀", () => {
   it("화면의 main은 PageShell에서만 만든다", () => {
     expect(findLines(/<main\b/, [SHELL, GLOBAL_ERROR])).toEqual([]);
-  });
-
-  it("하단 탭은 스크롤 영역 아래, 화면 높이 틀 안에 둔다", () => {
-    const shell = readSource(SHELL);
-
-    // fixed 대신 높이 틀의 마지막 자식으로 두어야 첫 실행 때(793) 하단 탭이 위로 뜨지 않는다
-    expect(shell).toMatch(/<\/main>\s*<\/ViewTransition>\s*\{footer && \(\s*<ViewTransition[^>]*>\s*\{footer\}\s*<\/ViewTransition>\s*\)\}\s*<\/>/);
-    // 아래 safe-area는 하단 탭이 채우므로, 하단 탭이 있는 화면은 내용 아래 여백을 따로 두지 않는다
-    expect(shell).toMatch(/footer \? "" : BOTTOM_SPACE\[bottomSpace\]/);
-  });
-
-  it.each([
-    ["app/page.tsx", "home"],
-    ["app/records/page.tsx", "records"],
-    ["app/calendar/page.tsx", "calendar"],
-    ["app/todos/page.tsx", "todos"],
-  ])("탭 화면 %s는 하단 탭이 붙은 공통 틀(%s)을 쓴다", (at, tab) => {
-    expect(readSource(at)).toMatch(new RegExp(`<TabScreen\\b[^>]*\\btab="${tab}"`));
   });
 
   it("예전 홈 주소(?view=)를 만드는 코드가 남지 않는다", () => {
@@ -129,14 +113,6 @@ describe("누름 영역", () => {
     const link = readSource("components/home/HomeTile.tsx").match(/<Link href=\{action\.href\}[^>]*>/)?.[0] ?? "";
 
     expect(link).toContain("h-11");
-  });
-
-  it("완료한 줄의 빈 칸은 순서 버튼 두 개 너비와 같아 이름표 오른쪽 끝이 위 목록과 같은 세로줄에 온다", () => {
-    // 완료한 줄은 공유 데이터를 바꿔야 나와 E2E 대신 클래스로 고정한다(#105)
-    const source = readSource("components/todos/TodoList.tsx");
-
-    expect(source).toMatch(/MOVE_BUTTON_CLASS_NAME =\s*"flex size-11 /);
-    expect(source).toContain('className="w-22 shrink-0"');
   });
 });
 
