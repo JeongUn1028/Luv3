@@ -11,6 +11,7 @@ export const DEVICE_SIZE_SPECS = [
   "home-upcoming",
   "nickname-change",
   "offline",
+  "record-comments",
   "screen-fit",
   "startup-image",
   "startup-splash",

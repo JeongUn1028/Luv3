@@ -5,7 +5,33 @@ export type Database = {
   
   "public": {
           Tables: {
-            "couple_photo": {
+            "comments": {
+                  Row: {
+                    "author_id": string,"content": string,"created_at": string,"date_id": string,"id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "author_id"?: string,"content": string,"created_at"?: string,"date_id": string,"id"?: string
+                  }
+                  Update: {
+                    "author_id"?: string,"content"?: string,"created_at"?: string,"date_id"?: string,"id"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "comments_author_id_fkey"
+      columns: ["author_id"]
+isOneToOne: false
+      referencedRelation: "members"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "comments_date_id_fkey"
+      columns: ["date_id"]
+isOneToOne: false
+      referencedRelation: "dates"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"couple_photo": {
                   Row: {
                     "id": boolean,"path": string | null,"updated_at": string
                   }

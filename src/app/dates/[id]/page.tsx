@@ -8,10 +8,12 @@ import { PhotoCarousel } from "@/components/dates/PhotoCarousel";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
+import { RecordComments } from "@/components/dates/RecordComments";
 import { RecordDetailSkeleton } from "@/components/dates/RecordDetailSkeleton";
 import { RecordTagLink } from "@/components/dates/RecordTagLink";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { getCurrentMember } from "@/lib/auth/member";
+import { CommentLoadError, getRecordComments } from "@/lib/comments/queries";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { formatRecordPeriod } from "@/lib/dates/detail";
 import { DateRecordLoadError, getDateRecordDetail } from "@/lib/dates/queries";
@@ -28,9 +30,13 @@ const DetailHeader = ({ actions }: { actions?: ReactNode }) => (
 
 const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  await getCurrentMember();
+  const member = await getCurrentMember();
   const { id } = await params;
-  const record = await catchLoadError(() => getDateRecordDetail(id), DateRecordLoadError);
+  // 댓글은 기록을 기다리지 않고 함께 읽는다. 댓글을 못 읽어도 기록은 보여 준다
+  const [record, comments] = await Promise.all([
+    catchLoadError(() => getDateRecordDetail(id), DateRecordLoadError),
+    catchLoadError(() => getRecordComments({ recordId: id, memberId: member.id }), CommentLoadError),
+  ]);
 
   if (record instanceof DateRecordLoadError) {
     return (
@@ -83,6 +89,7 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
           )}
         </div>
       </article>
+      <RecordComments recordId={record.id} comments={comments} />
     </>
   );
 };
