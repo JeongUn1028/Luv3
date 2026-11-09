@@ -204,7 +204,7 @@ MVP는 로그인, 기록 작성, 앨범 목록, 기록 상세, D-day와 공유 �
 | 컬럼 | 타입 | 설명 |
 | --- | --- | --- |
 | id | boolean | 기본키. `true`만 넣을 수 있어 두 번째 행이 생기지 않는다 |
-| path | text | Storage 경로 `couple/{photo_id}.jpg`. 사진이 없으면 `null` |
+| path | text | Storage 원본 경로 `couple/{photo_id}.jpg`. 사진이 없으면 `null`. 홈 카드용 중간 크기(긴 변 1100px)는 경로를 따로 두지 않고 옆의 `couple/{photo_id}_medium.jpg`에 둔다 |
 | updated_at | timestamptz | 바꾼 시각 |
 
 - **일정 시각**: 두 사람 모두 한국에 있어 시간대 없이 한국 날짜·시각 그대로 저장한다. 같은 날 안에서는 종일 일정이 먼저, 그다음 시각순으로 보인다.

@@ -3,7 +3,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "smol-toml";
-import { ALBUM_BUCKET } from "../../src/lib/photos/limits.ts";
+import { ALBUM_BUCKET, PHOTO_CACHE_CONTROL } from "../../src/lib/photos/limits.ts";
 import { compareCounts, describeBackupVersion, findLatestSnapshot, listPublicTables, toContentType, type BackupManifest } from "./lib.mts";
 import { getLocalConnection, readLocalSizes, REPO_ROOT, runSupabase, runWithLimit } from "./supabase.mts";
 
@@ -113,6 +113,8 @@ const main = async (): Promise<void> => {
       .upload(file.path, await readFile(path.join(albumDirectory, file.path)), {
         upsert: true,
         contentType: toContentType(file.path),
+        // 앱이 올린 사진과 같은 보관 시간을 준다
+        cacheControl: PHOTO_CACHE_CONTROL,
       });
     if (error) throw new Error(`${file.path}: ${error.message}`);
   });

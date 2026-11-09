@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCouplePhotoPath, buildPhotoPaths } from "./paths";
+import { buildCouplePhotoPath, buildPhotoPaths, toCouplePhotoMediumPath } from "./paths";
 
 const DATE_ID = "10000000-0000-4000-8000-000000000001";
 const PHOTO_ID = "20000000-0000-4000-8000-000000000002";
@@ -33,5 +33,16 @@ describe("buildCouplePhotoPath", () => {
 
   it("사진 id가 UUID 형식이 아니면 에러를 낸다", () => {
     expect(() => buildCouplePhotoPath("../x")).toThrow("UUID");
+  });
+});
+
+describe("toCouplePhotoMediumPath", () => {
+  // DB에는 원본 경로만 있어, 홈 카드용 중간 크기는 이름 규칙으로 원본 옆에 둔다(#218)
+  it("원본 경로 옆에 _medium을 붙인 경로를 만든다", () => {
+    expect(toCouplePhotoMediumPath(`couple/${PHOTO_ID}.jpg`)).toBe(`couple/${PHOTO_ID}_medium.jpg`);
+  });
+
+  it(".jpg로 끝나지 않는 경로는 원본과 같은 경로가 되므로 받지 않는다", () => {
+    expect(() => toCouplePhotoMediumPath(`couple/${PHOTO_ID}.JPG`)).toThrow();
   });
 });
