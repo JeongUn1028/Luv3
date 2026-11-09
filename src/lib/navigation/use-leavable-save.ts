@@ -1,6 +1,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useRef, useState } from "react";
-import { isWritingPath, saveNoticeStore } from "./save-notices";
+import { refreshOutsideForm } from "./refresh-outside-form";
+import { saveNoticeStore } from "./save-notices";
 import { markAllScreensLoaded, markAllScreensStale } from "./screen-freshness";
 import { BACK_TRANSITION } from "./transition";
 
@@ -70,12 +71,6 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
     };
   }, [failedSaves, formKey]);
 
-  /** 폼은 다시 불러오면 쓰던 내용이 사라지므로, 다른 폼을 쓰는 중이면 지금 불러오지 않는다. 그 폼에서 나갈 때 링크로 옮기면 새로 받고, 뒤로 가면 HistoryReturn이 불러온다 */
-  const refreshOutsideForm = () => {
-    if (isWritingPath(window.location.pathname)) markAllScreensStale();
-    else router.refresh();
-  };
-
   return {
     failedSave,
     beginSave: () => {
@@ -89,7 +84,8 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
           router.refresh();
           markAllScreensLoaded();
         } else {
-          refreshOutsideForm();
+          // 다른 폼을 쓰는 중이면 다시 불러올 때 쓰던 내용이 사라진다
+          refreshOutsideForm(() => router.refresh());
         }
         reset();
       });

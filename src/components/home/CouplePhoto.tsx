@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, useTransition, type ChangeEvent, type Reac
 import { CameraIcon, PlusIcon } from "@/components/icons";
 import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
 import { clearCouplePhoto, CouplePhotoError, replaceCouplePhoto } from "@/lib/couple-photo/save";
+import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { isAcceptedPhoto, PHOTO_INPUT_ACCEPT, resizePhoto } from "@/lib/photos/resize";
@@ -61,9 +62,10 @@ export const CouplePhoto = ({ photoUrl }: CouplePhotoProps): ReactElement => {
   }, [photoUrl, isBusy]);
 
   const refreshAfter = (finishedTask: Task) => {
-    shouldMoveFocusRef.current = true;
     setRefreshingTask(finishedTask);
-    startRefresh(() => router.refresh());
+    // 올리는 사이 폼으로 옮겨 쓰고 있으면 다시 불러올 때 쓰던 내용이 사라진다(#164).
+    // 미뤘으면 홈이 숨겨져 있어, 초점을 옮기려 남겨 두면 나중에 홈에 돌아올 때 저절로 버튼으로 튄다
+    shouldMoveFocusRef.current = refreshOutsideForm(() => startRefresh(() => router.refresh()));
   };
 
   const handlePick = () => {

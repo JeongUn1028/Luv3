@@ -1,5 +1,6 @@
 import { addTransitionType } from "react";
 import { claimBackMotion } from "@/lib/navigation/history-back";
+import { markNavigationStart } from "@/lib/navigation/refresh-outside-form";
 import { markScreenLoaded } from "@/lib/navigation/screen-freshness";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 
@@ -14,6 +15,7 @@ document.addEventListener("touchstart", () => undefined, { passive: true });
  * 뒤로 버튼으로 시작한 이동에만 붙여, iOS가 스스로 그리는 가장자리 밀기와 겹치지 않게 한다.
  */
 export const onRouterTransitionStart = (url: string, navigationType: "push" | "replace" | "traverse"): void => {
+  markNavigationStart(url, window.location.href);
   if (navigationType !== "traverse") {
     // 링크로 옮긴 화면은 서버에서 새로 받는다. 되돌아간 화면은 숨겨 둔 그대로라 HistoryReturn이 판단한다
     markScreenLoaded(url, window.location.href);
