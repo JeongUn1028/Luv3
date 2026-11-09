@@ -5,11 +5,10 @@ import { TODOS_PATH } from "@/lib/todos/list";
 import { BASE_URL, PHOTO_RECORD } from "./support/constants";
 import { createDisposableRecord, createDisposableTodo, renameRecord } from "./support/seed";
 import { expect, getScrollArea, openScreen, test } from "./support/test";
-import { getTab } from "./support/actions";
+import { getTab, getVisibleLink } from "./support/actions";
 
 const DETAIL_PATH = `/dates/${PHOTO_RECORD.id}`;
 
-const getVisibleLink = (page: Page, href: string): Locator => page.locator(`a[href="${href}"]`).locator("visible=true");
 const getBackButton = (page: Page): Locator => page.getByRole("link", { name: "뒤로" }).locator("visible=true");
 const getHistoryIndex = (page: Page): Promise<number> => page.evaluate(() => window.navigation?.currentEntry?.index ?? -1);
 

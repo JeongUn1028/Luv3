@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
-import { PHOTO_FIXTURE_PATH } from "./support/constants";
 import { createDisposableRecord, deleteRecordWithFiles, getRecordIdsByTitle, setRecordTags } from "./support/seed";
+import { pickPhoto } from "./support/actions";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
 
 const openTagField = async (page: Page): Promise<void> => {
@@ -165,8 +164,7 @@ test.describe("기록 태그", () => {
 
     try {
       // Act
-      await page.getByLabel("사진 고르기").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer: readFileSync(PHOTO_FIXTURE_PATH) });
-      await page.getByRole("button", { name: "1번째 사진 빼기" }).waitFor();
+      await pickPhoto(page, 1);
       await page.locator("#title").fill(title);
       await openTagField(page);
       await page.locator("#tag-input").fill("새태그");

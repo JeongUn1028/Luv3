@@ -1,8 +1,7 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
-import { PHOTO_FIXTURE_PATH } from "./support/constants";
 import { createDisposableRecord, deleteRecordWithFiles, getRecordIdsByTitle, getRecordLocation, setRecordLocation } from "./support/seed";
+import { pickPhoto } from "./support/actions";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
 
 const SEONGSU = { id: "1", name: "성수 카페", address: "서울 성동구 연무장길 1", lat: 37.5445, lng: 127.0561 };
@@ -245,8 +244,7 @@ test.describe("기록 장소 찾기", () => {
     const title = `E2E 찾기 결과 비우기 ${testInfo.project.name}`;
     await fakePlaceSearch(page, { items: [SEONGSU] });
     await openScreen(page, "/dates/new", page.locator("#memo"));
-    await page.getByLabel("사진 고르기").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer: readFileSync(PHOTO_FIXTURE_PATH) });
-    await page.getByRole("button", { name: "1번째 사진 빼기" }).waitFor();
+    await pickPhoto(page, 1);
     await page.locator("#title").fill(title);
     await page.locator("#place").fill("성수");
     await page.getByRole("button", { name: "장소 찾기" }).click();
