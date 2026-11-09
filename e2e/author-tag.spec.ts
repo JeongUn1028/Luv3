@@ -119,6 +119,25 @@ test.describe("작성자 이름표", () => {
     }
   });
 
+  test("완료한 줄의 이름표는 순서 버튼 자리를 비워 위 목록 줄과 오른쪽 끝이 같다", async ({ page }, testInfo) => {
+    // Arrange: 완료한 항목은 홈(하지 않은 것 맨 위 3개)에 나오지 않아 나란히 도는 테스트를 흔들지 않는다
+    const id = randomUUID();
+    const content = `E2E 완료 이름표 항목 ${testInfo.project.name}`;
+    const deleteTodo = await createDisposableTodo({ id, content, completedAt: new Date().toISOString() });
+
+    try {
+      // Act
+      await openScreen(page, "/todos", page.getByText(content));
+
+      // Assert
+      const doneTag = getTodoRow(page.locator("main"), content).getByTitle(E2E_MEMBER.nickname);
+      const openTag = getTodoRow(page.locator("main"), E2E_TODOS[0].content).getByTitle(E2E_MEMBER.nickname);
+      expect(await getRightEdge(doneTag)).toBe(await getRightEdge(openTag));
+    } finally {
+      await deleteTodo();
+    }
+  });
+
   test("넓은 글자 6자 닉네임은 줄지 않고 전체가 보인다", async ({ page }, testInfo) => {
     // Arrange
     const content = `E2E 6자 이름표 항목 ${testInfo.project.name}`;

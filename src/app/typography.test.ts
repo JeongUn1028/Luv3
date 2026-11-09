@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { readSource, readSourceLines } from "@/test-utils/source";
 
 // 주아와 고운돋움은 굵기가 하나뿐이다(#134). 굵게 지정하면 브라우저가 획을 두껍게 뭉갠 가짜 굵기를 그린다.
-// Vitest(node)로는 글자 모양을 잴 수 없어 소스 규칙으로 고정한다.
+// Vitest(node)로는 글자 모양을 잴 수 없어 소스 규칙으로 고정한다. 가짜 굵기는 화면에서 차이를 재기 어렵고,
+// 글꼴 파일 이름·변수는 바뀌는 일이 드물어 E2E로 옮기지 않았다(#195).
 
 // 루트 레이아웃까지 실패했을 때의 최후의 화면은 웹 글꼴 없이 진짜 굵기가 있는 시스템 글꼴로 그린다(#83)
 const GLOBAL_ERROR = "app/global-error.tsx";

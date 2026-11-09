@@ -3,6 +3,8 @@ import { readSource, readSourceLines } from "@/test-utils/source";
 
 // 화면 이동 방향(앞으로·뒤로·탭)은 링크마다 붙이지 않으면 조용히 애니메이션 없이 바뀐다(#53).
 // Vitest(node)로는 전환을 볼 수 없어 소스 규칙으로 고정한다. 뒤로 버튼 움직임과 스크롤 위치 기억은 e2e/back-navigation.spec.ts가 잰다.
+// 나머지 움직임(탭·앞으로 방향, 전환 덮개, 모션 줄이기)은 E2E로 잴 수는 있지만 시간에 기대 CI에서 흔들리기 쉬워 여기서 고정한다(#195).
+// 뼈대가 화면 읽기 프로그램에 알리는지는 e2e/status-screens.spec.ts가 잰다.
 
 const findLinks = (at: string): string[] => readSource(at).match(/<Link\b[\s\S]*?>/g) ?? [];
 
@@ -101,17 +103,6 @@ describe("로딩 표시", () => {
     );
 
     expect(raw).toEqual([]);
-  });
-
-  it.each([["components/home/HomeSkeletons.tsx"], ["components/Skeleton.tsx"]])(
-    "%s는 스크린 리더에 불러오는 중임을 알린다",
-    (at) => {
-      expect(readSource(at)).toMatch(/role="status"/);
-    },
-  );
-
-  it("설정 화면 뼈대도 불러오는 중임을 알린다", () => {
-    expect(readSource("app/settings/page.tsx")).toContain("<SkeletonArea");
   });
 
   it("뼈대의 깜빡임은 모션 줄이기 설정이면 멈춘다", () => {
