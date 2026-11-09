@@ -5,10 +5,15 @@ import {
   describeDayEvents,
   getDayHighlight,
   getDayNumberClassName,
+  getDayTextClassName,
+  getDayTone,
+  getDayToneClassName,
   getEventKinds,
   getHighlightClassNames,
+  getWeekdayClassName,
   LEGEND_EVENT_KINDS,
   type DayHighlight,
+  type DayTone,
 } from "./highlight";
 
 const together = { isTogether: true, authorNickname: "정운" };
@@ -70,7 +75,7 @@ describe("LEGEND_EVENT_KINDS", () => {
 // 오늘 원·기념일 테두리도 분홍이라, 형광펜 위에서는 칸 바탕색 테두리로 떼어 놓아야 서로 구별된다(#61)
 describe("getDayNumberClassName", () => {
   const band = getHighlightClassNames({ highlight: "together", isCurrentMonth: true });
-  const base = { isToday: false, isAnniversary: false, isSelected: false, highlightClassNames: undefined };
+  const base = { isToday: false, isAnniversary: false, isSelected: false, highlightClassNames: undefined, isCurrentMonth: true, tone: undefined };
 
   it("표시할 것이 없으면 클래스가 없다", () => {
     expect(getDayNumberClassName(base)).toBe("");
@@ -101,6 +106,66 @@ describe("getDayNumberClassName", () => {
   });
 });
 
+describe("getDayTone", () => {
+  it("일요일은 빨강, 토요일은 파랑, 평일은 색이 없다", () => {
+    // 2026-11-08은 일요일이다
+    expect(getDayTone("2026-11-08", undefined)).toBe("holiday");
+    expect(getDayTone("2026-11-14", undefined)).toBe("saturday");
+    expect(getDayTone("2026-11-09", undefined)).toBeUndefined();
+  });
+
+  it("공휴일은 평일이어도, 토요일이어도 빨강이다", () => {
+    expect(getDayTone("2026-05-05", "어린이날")).toBe("holiday");
+    expect(getDayTone("2026-06-06", "현충일")).toBe("holiday");
+  });
+});
+
+describe("getWeekdayClassName", () => {
+  it("요일 머리글은 일요일만 빨강, 토요일만 파랑이다", () => {
+    expect([0, 1, 2, 3, 4, 5, 6].map(getWeekdayClassName)).toEqual([
+      "text-holiday",
+      "text-ink-sub",
+      "text-ink-sub",
+      "text-ink-sub",
+      "text-ink-sub",
+      "text-ink-sub",
+      "text-saturday",
+    ]);
+  });
+});
+
+describe("getDayNumberClassName 주말·공휴일 색", () => {
+  const base = { isToday: false, isAnniversary: false, isSelected: false, highlightClassNames: undefined, isCurrentMonth: true, tone: "holiday" as const };
+  const togetherBand = getHighlightClassNames({ highlight: "together", isCurrentMonth: true });
+  const fadedBand = getHighlightClassNames({ highlight: "together", isCurrentMonth: false });
+
+  it("어두운 칸에서는 밝은 색, 지난달·다음달은 흐린 색을 쓴다", () => {
+    expect(getDayNumberClassName(base)).toBe("text-holiday");
+    expect(getDayNumberClassName({ ...base, isCurrentMonth: false })).toBe("text-holiday/70");
+  });
+
+  it("형광펜과 오늘 원 위에서는 진한 색을 쓴다", () => {
+    expect(getDayNumberClassName({ ...base, highlightClassNames: togetherBand })).toBe("text-holiday-deep");
+    expect(getDayNumberClassName({ ...base, tone: "saturday", isToday: true })).toBe("bg-accent text-saturday-deep");
+  });
+
+  // 옅은 띠 위에서는 어떤 빨강·파랑도 대비가 모자란다(사용자 결정, #200)
+  it("지난달·다음달의 옅은 띠 위에서는 띠의 밝은 글자를 그대로 쓴다", () => {
+    expect(getDayNumberClassName({ ...base, isCurrentMonth: false, highlightClassNames: fadedBand })).toBe(fadedBand.text);
+  });
+});
+
+describe("getDayTextClassName", () => {
+  it("평일은 바탕에 맞는 기본 글자색, 주말·공휴일은 그 색을 쓴다", () => {
+    expect([getDayTextClassName(undefined, "plain"), getDayTextClassName(undefined, "dim"), getDayTextClassName(undefined, "fill")]).toEqual([
+      "text-ink",
+      "text-ink-placeholder",
+      "text-background",
+    ]);
+    expect(getDayTextClassName("saturday", "fill")).toBe("text-saturday-deep");
+  });
+});
+
 // 형광펜 위 날짜 숫자가 WCAG AA(4.5:1)를 넘는지, 실제로 쓰는 클래스와 globals.css 색 값으로 확인한다(#61).
 // 고른 날은 칸 바탕이 surface라서 background·surface 두 바탕 위에서 모두 본다
 describe("형광펜 위 글자 대비", () => {
@@ -127,6 +192,31 @@ describe("형광펜 위 글자 대비", () => {
         alpha: opacity ? Number(opacity) / 100 : 1,
       });
       expect(getContrastRatio(readToken(textToken), bandColor)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  // 주말·공휴일 색이 바탕마다 읽히는지 확인한다(#200). 고른 날 칸(surface)과 날짜 창(surface 바탕)도 함께 본다
+  const readTone = (className: string) => {
+    const [, token, opacity] = /^text-([a-z-]+)(?:\/(\d+))?$/.exec(className) ?? [];
+    if (!token) throw new Error(`글자 클래스를 읽지 못했습니다: ${className}`);
+    return { color: readToken(token), alpha: opacity ? Number(opacity) / 100 : 1 };
+  };
+  const tones = ["holiday", "saturday"] as const satisfies readonly DayTone[];
+
+  it.each(tones)("%s 색은 어두운 바탕과 형광펜·오늘 원 위에서 대비 4.5:1 이상이다", (tone) => {
+    for (const background of ["background", "surface"]) {
+      expect(getContrastRatio(readTone(getDayToneClassName(tone, "plain")).color, readToken(background))).toBeGreaterThanOrEqual(4.5);
+    }
+    for (const fill of ["highlight", "cream", "accent"]) {
+      expect(getContrastRatio(readTone(getDayToneClassName(tone, "fill")).color, readToken(fill))).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it.each(tones)("지난달·다음달의 흐린 %s 색은 흐린 회색 글자보다 덜 읽히지 않는다", (tone) => {
+    const { color, alpha } = readTone(getDayToneClassName(tone, "dim"));
+    for (const background of ["background", "surface"]) {
+      const shown = blendColors({ foreground: color, background: readToken(background), alpha });
+      expect(getContrastRatio(shown, readToken(background))).toBeGreaterThanOrEqual(getContrastRatio(readToken("ink-placeholder"), readToken(background)));
     }
   });
 

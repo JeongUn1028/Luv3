@@ -1,14 +1,17 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent, type MouseEvent, type ReactElement } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from "@/components/icons";
 import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import { toKstDate } from "@/lib/anniversary";
 import { clampMonth, getFocusDate, getInitialMonth, getKeyboardDayOffset, isSelectableDate } from "@/lib/calendar/date-picker";
+import { getDayTextClassName, getDayTone, getWeekdayClassName } from "@/lib/calendar/highlight";
 import { addDays, buildMonthGrid, formatDayHeading, formatMonthTitle, shiftMonth, WEEKDAYS } from "@/lib/calendar/month";
 import { formatRecordDate } from "@/lib/dates/detail";
 import { isIsoDate } from "@/lib/form";
+import { loadHolidayNames } from "@/lib/holidays/client";
+import type { HolidayNames } from "@/lib/holidays/holidays";
 
 interface DatePickerFieldProps {
   id: string;
@@ -66,6 +69,28 @@ export const DatePickerField = ({
   const modalRef = useRef<ModalDialogHandle>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<PickerView>();
+  const [holidayNames, setHolidayNames] = useState<HolidayNames>({});
+  const weeks = view && buildMonthGrid(view.month);
+  // 12월·1월 달력은 앞뒤 해의 날도 그리므로 두 해를 함께 받는다
+  const gridStartYear = weeks && Number(weeks[0]?.[0]?.date.slice(0, 4));
+  const gridEndYear = weeks && Number(weeks.at(-1)?.at(-1)?.date.slice(0, 4));
+
+  // 공휴일은 서버 API(외부 시스템)에서 받아 보고 있는 해에 맞춘다. 받지 못하면 주말 색만 칠한다(원인은 서버가 로그에 남긴다)
+  useEffect(() => {
+    if (gridStartYear === undefined || gridEndYear === undefined) return undefined;
+    let isMounted = true;
+    for (const year of new Set([gridStartYear, gridEndYear])) {
+      loadHolidayNames(year).then(
+        (names) => {
+          if (isMounted) setHolidayNames((previous) => ({ ...previous, ...names }));
+        },
+        () => undefined,
+      );
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [gridStartYear, gridEndYear]);
 
   const bounds = { min, max };
   const hasValue = isIsoDate(value);
@@ -158,19 +183,21 @@ export const DatePickerField = ({
             <table className="mt-1 w-full table-fixed border-collapse">
               <thead>
                 <tr>
-                  {WEEKDAYS.map((weekday) => (
-                    <th key={weekday} scope="col" className="h-7 text-[12px] font-normal text-ink-sub">
+                  {WEEKDAYS.map((weekday, index) => (
+                    <th key={weekday} scope="col" className={`h-7 text-[12px] font-normal ${getWeekdayClassName(index)}`}>
                       {weekday}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {buildMonthGrid(view.month).map((week) => (
+                {(weeks ?? []).map((week) => (
                   <tr key={week[0]?.date}>
                     {week.map(({ date, day, isCurrentMonth }) => {
                       const isSelected = date === value;
                       const isToday = date === view.today;
+                      const holidayName = holidayNames[date];
+                      const textClassName = getDayTextClassName(getDayTone(date, holidayName), isSelected ? "fill" : isCurrentMonth ? "plain" : "dim");
                       return (
                         <td key={date} className="p-0">
                           <button
@@ -181,12 +208,12 @@ export const DatePickerField = ({
                             aria-pressed={isSelected}
                             aria-current={isToday ? "date" : undefined}
                             // 해를 옮겨 다니는 창이라 칸마다 연도까지 읽는다
-                            aria-label={[`${date.slice(0, 4)}년 ${formatDayHeading(date)}`, isToday && "오늘"].filter(Boolean).join(", ")}
+                            aria-label={[`${date.slice(0, 4)}년 ${formatDayHeading(date)}`, isToday && "오늘", holidayName].filter(Boolean).join(", ")}
                             onClick={() => handleChange(date)}
                             onKeyDown={(event) => handleDayKeyDown(event, date)}
-                            className={`h-11 w-full rounded-[10px] text-[14px] disabled:opacity-30 ${
-                              isSelected ? "bg-accent text-background" : isCurrentMonth ? "text-ink" : "text-ink-placeholder"
-                            } ${isToday && !isSelected ? "ring-1 ring-highlight ring-inset" : ""}`}
+                            className={`h-11 w-full rounded-[10px] text-[14px] disabled:opacity-30 ${textClassName} ${isSelected ? "bg-accent" : ""} ${
+                              isToday && !isSelected ? "ring-1 ring-highlight ring-inset" : ""
+                            }`}
                           >
                             {day}
                           </button>
