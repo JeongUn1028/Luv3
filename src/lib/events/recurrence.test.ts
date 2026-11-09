@@ -89,6 +89,22 @@ describe("expandEventRows", () => {
     expect(expandEventRows([createRow({})], range)).toMatchObject([{ date: "2026-11-06", repeatRule: undefined }]);
   });
 
+  it("반복 일정은 펼친 날마다 그날에 이어진 기록을 붙이고, 기간 일정은 모든 날에 같은 기록을 붙인다", () => {
+    const swim = createRow({ repeat_rule: "weekly", records: [{ id: "r1", event_date: "2026-11-13" }] });
+    const trip = createRow({ id: "e2", date: "2026-11-01", end_date: "2026-11-02", records: [{ id: "r2", event_date: "2026-11-01" }] });
+
+    const events = expandEventRows([swim, trip], range);
+
+    expect(events.map(({ id, date, recordId }) => [id, date, recordId])).toEqual([
+      ["e2", "2026-11-01", "r2"],
+      ["e2", "2026-11-02", "r2"],
+      ["e1", "2026-11-06", undefined],
+      ["e1", "2026-11-13", "r1"],
+      ["e1", "2026-11-20", undefined],
+      ["e1", "2026-11-27", undefined],
+    ]);
+  });
+
   it("건너뛰는 날은 펼치지 않는다", () => {
     const events = expandEventRows([createRow({ repeat_rule: "weekly", exceptions: [{ date: "2026-11-13" }] })], range);
 

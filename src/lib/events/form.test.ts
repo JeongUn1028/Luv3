@@ -262,6 +262,7 @@ describe("toEditableEvent", () => {
       end_date: null,
       repeat_parent_id: null,
       exceptions: [],
+      records: [],
     };
     expect(toEditableEvent({ ...row, author: { nickname: "정운" } })).toEqual({ ...row, authorNickname: "정운" });
   });
@@ -280,6 +281,7 @@ describe("toEditableEvent", () => {
       end_date: null,
       repeat_parent_id: null,
       exceptions: [],
+      records: [],
       author: null,
     };
     expect(toEditableEvent(row).authorNickname).toBeUndefined();

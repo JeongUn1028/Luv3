@@ -24,6 +24,8 @@ export interface CalendarEvent {
   /** 둘이 함께 하는 일정이면 true(분홍 형광펜), 한 사람 일정이면 false(크림색 형광펜) */
   isTogether: boolean;
   authorNickname: string | undefined;
+  /** 이 줄의 날에 이어진 기록 id(#227). 이어진 기록을 읽지 않은 화면(홈)이나 기록이 없으면 undefined */
+  recordId?: string | undefined;
 }
 
 /** 달력에 표시하는 데이트 기록(누르면 기록 상세) */
@@ -73,6 +75,17 @@ export interface CalendarEventRow {
   author: AuthorRow;
   /** 반복 중 건너뛰는 날 */
   exceptions: { date: string }[];
+  /** 이 일정에서 남긴 기록(캘린더만 읽는다) */
+  records?: LinkedRecordRow[];
+}
+
+/**
+ * 일정에서 남긴 기록. `event_date`는 반복 일정이면 그날, 아니면 일정을 남길 때의 시작일이다.
+ * 일정과 이어진 기록은 늘 날짜가 있지만(DB check 제약) 생성된 타입은 칸마다 null을 허용한다.
+ */
+export interface LinkedRecordRow {
+  id: string;
+  event_date: string | null;
 }
 
 /** `dates` 조회 결과 한 행 */
@@ -91,6 +104,22 @@ export interface CalendarRecordRow {
  */
 export const isRepeatRule = (value: string | null): value is RepeatRule =>
   value === "weekly" || value === "monthly" || value === "yearly";
+
+/**
+ * 일정의 그날에 이어진 기록 id를 찾는다. 반복 일정은 그날의 기록만 본다.
+ * 반복이 아닌 일정은 날짜를 고쳐도 같은 일이므로, 시작일의 기록이 없으면 이어진 기록 중 가장 이른 날의 것을 잇는다
+ * (반복을 끈 일정은 여러 기록과 이어져 있을 수 있고, 조회 순서는 정해져 있지 않다).
+ *
+ * @example findLinkedRecordId(row, "2026-11-13") // "r1"
+ */
+export const findLinkedRecordId = (
+  { date, repeat_rule, records = [] }: Pick<CalendarEventRow, "date" | "repeat_rule" | "records">,
+  occurrenceDate: string,
+): string | undefined => {
+  if (isRepeatRule(repeat_rule)) return records.find(({ event_date }) => event_date === occurrenceDate)?.id;
+  const earliest = records.toSorted((left, right) => (left.event_date ?? "").localeCompare(right.event_date ?? ""))[0];
+  return (records.find(({ event_date }) => event_date === date) ?? earliest)?.id;
+};
 
 /**
  * 일정 행을 달력 값으로 바꾼다. DB의 null은 화면 경계에서 undefined로 바꾼다(시작 시간의 null은 "종일"이라 그대로 둔다).

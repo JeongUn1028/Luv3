@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useTransition, useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
@@ -27,10 +28,18 @@ import {
 import { clearError, countChars } from "@/lib/form";
 import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
-import { BACK_TRANSITION } from "@/lib/navigation/transition";
+import { BACK_TRANSITION, FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import type { EditableRecord } from "@/lib/dates/detail";
-import { DateRecordConflictError, DateRecordGoneError, SaveDateRecordError, saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
+import {
+  DateRecordAlreadyLinkedError,
+  DateRecordConflictError,
+  DateRecordGoneError,
+  SaveDateRecordError,
+  saveDateRecord,
+  updateDateRecord,
+  type SaveProgress,
+} from "@/lib/dates/save";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
@@ -60,7 +69,8 @@ const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto>
   endDate: prefill?.endDate,
   title: prefill?.title ?? "",
   place: prefill?.place ?? "",
-  memo: "",
+  memo: prefill?.memo ?? "",
+  eventLink: prefill?.eventLink,
   photos: [],
   coverPhotoId: undefined,
   tags: [],
@@ -105,7 +115,7 @@ interface DateRecordFormProps {
 export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace }: DateRecordFormProps): ReactElement => {
   const router = useRouter();
   // 지난 일정에서 넘어온 새 기록은 일정마다 다른 폼이다. 다른 일정의 실패한 내용이 채워지지 않게 값까지 구분한다
-  const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.endDate ?? ""}:${prefill?.title ?? ""}:${prefill?.place ?? ""}`}`;
+  const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.endDate ?? ""}:${prefill?.title ?? ""}:${prefill?.place ?? ""}:${prefill?.eventLink?.eventId ?? ""}`}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "기록을", failedSaves });
   // 쓴 내용이 있는지 견줄 처음 내용. 실패해서 다시 채운 내용도 아직 저장되지 않았으므로 이것과 견준다
   const [initialDraft, setInitialDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft(prefill)));
@@ -120,6 +130,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
   const tagInputRef = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState(failedSave?.message);
   const [isRecordGone, setIsRecordGone] = useState(false);
+  // 일정에서 남기려는데 그 일정의 그날에 이미 남긴 기록이 있으면 그 기록 id(#227)
+  const [linkedRecordId, setLinkedRecordId] = useState<string>();
   const [progress, setProgress] = useState<SaveProgress>();
   const [isSaving, setIsSaving] = useState(false);
   // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알린다(#104). 지워진 기록은 저장할 곳이 없어 묻지 않는다
@@ -289,6 +301,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       // 저장됐거나 상대가 고쳤다면 숨겨 둔 목록·상세가 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
       if (mayHaveSaved || hasConflict) markAllScreensStale();
       setIsRecordGone(isGone);
+      setLinkedRecordId(error instanceof DateRecordAlreadyLinkedError ? error.recordId : undefined);
       setNotice(message);
       setIsSaving(false);
       setProgress(undefined);
@@ -512,6 +525,15 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
             >
               기록 목록으로
             </button>
+          ) : linkedRecordId ? (
+            // 다시 저장해도 거부되므로 저장 버튼 대신 남긴 기록으로 가는 길을 준다
+            <Link
+              href={`/dates/${linkedRecordId}`}
+              transitionTypes={FORWARD_TRANSITION}
+              className="press-wide flex h-[52px] w-full items-center justify-center rounded-[10px] bg-accent font-display text-[15px] text-background"
+            >
+              남긴 기록 보기
+            </Link>
           ) : draft.hasConflict ? (
             // 다시 저장해도 거부되므로 저장 버튼 대신 최신 내용을 불러오는 길을 준다
             <button

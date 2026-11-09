@@ -4,7 +4,10 @@ import { getGridRange } from "@/lib/calendar/month";
 import { isRecordId } from "@/lib/dates/detail";
 import { createClient } from "@/lib/supabase/server";
 import { toCalendarRecord, type CalendarEvent, type CalendarRecord } from "./calendar";
+import type { RecordPrefill } from "@/lib/dates/form";
+import { isIsoDate } from "@/lib/form";
 import { toEditableEvent, type EditableEvent } from "./form";
+import { toEventRecordPrefill } from "./record-link";
 import { expandEventRows, expandUpcomingEventRows } from "./recurrence";
 
 /** 일정을 불러오지 못했을 때 */
@@ -17,6 +20,9 @@ export class EventLoadError extends Error {
 
 const EVENT_COLUMNS =
   "id, date, start_time, title, place, is_together, repeat_rule, repeat_until, end_date, created_at, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date)";
+
+/** 캘린더는 일정 줄에 "기록 보기"를 달려고 일정에서 남긴 기록도 읽는다(#227). 기록 날짜가 달 밖이어도 빠지지 않는다 */
+const CALENDAR_EVENT_COLUMNS = `${EVENT_COLUMNS}, records:dates(id, event_date)` as const;
 
 /**
  * 달력에 그릴 한 달(앞뒤 주 포함)의 일정과 데이트 기록을 함께 읽는다. 기록은 기간이 이 범위와 겹치면 읽는다.
@@ -33,7 +39,7 @@ export const getCalendarMonth = async (
   const [eventsResult, recordsResult] = await Promise.all([
     supabase
       .from("events")
-      .select(EVENT_COLUMNS)
+      .select(CALENDAR_EVENT_COLUMNS)
       .lte("date", end)
       // 하루 일정은 범위 안의 날만, 반복·기간 일정은 범위 앞에 시작했어도 끝나지 않았으면 읽는다. 반복이 아니면 끝나는 날은 늘 비어 있다
       .or(`date.gte.${start},repeat_rule.not.is.null,end_date.gte.${start}`)
@@ -98,10 +104,32 @@ export const getEvent = async (id: string): Promise<EditableEvent | undefined> =
   const { data, error } = await supabase
     .from("events")
     .select(
-      "id, date, start_time, title, place, memo, is_together, repeat_rule, repeat_until, end_date, repeat_parent_id, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date)",
+      "id, date, start_time, title, place, memo, is_together, repeat_rule, repeat_until, end_date, repeat_parent_id, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date), records:dates(id, event_date)",
     )
     .eq("id", id)
     .maybeSingle();
   if (error) throw new EventLoadError({ cause: error });
   return data ? toEditableEvent(data) : undefined;
+};
+
+/**
+ * 일정의 그날로 남길 기록의 처음 값을 일정에서 읽는다(기록 작성 화면, #227).
+ *
+ * @returns 없는 일정이거나 그날로 남길 수 없으면 undefined(연결 없이 쓴다)
+ * @throws {EventLoadError} 조회가 실패했을 때
+ * @example const prefill = await getEventRecordPrefill({ eventId, eventDate }, today)
+ */
+export const getEventRecordPrefill = async (
+  { eventId, eventDate }: { eventId: string; eventDate: string },
+  today: string,
+): Promise<RecordPrefill | undefined> => {
+  if (!isRecordId(eventId) || !isIsoDate(eventDate)) return undefined;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("events")
+    .select("id, date, title, place, memo, is_together, repeat_rule, repeat_until, end_date, exceptions:event_exceptions(date)")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error) throw new EventLoadError({ cause: error });
+  return data ? toEventRecordPrefill(data, eventDate, today) : undefined;
 };

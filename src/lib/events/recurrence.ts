@@ -2,7 +2,7 @@ import type { KstNow } from "@/lib/anniversary";
 import { toIsoDate, toNextDay } from "@/lib/calendar/month";
 import { formatPeriodMonthDay } from "@/lib/dates/album";
 import { isIsoDate } from "@/lib/form";
-import { isRepeatRule, toCalendarEvent, type CalendarEvent, type CalendarEventRow, type EventPeriod, type RepeatRule } from "./calendar";
+import { findLinkedRecordId, isRepeatRule, toCalendarEvent, type CalendarEvent, type CalendarEventRow, type EventPeriod, type RepeatRule } from "./calendar";
 
 /** 날짜 범위. 양 끝을 포함한다(YYYY-MM-DD) */
 export interface DateRange {
@@ -114,7 +114,7 @@ const toSortedEvents = (entries: { row: CalendarEventRow; date: string }[]): Cal
   entries
     .map(({ row, date }) => {
       const startTime = getStartTimeOn(row, date);
-      return { event: { ...toCalendarEvent(row), date, startTime }, key: toSortKey(row, date, startTime) };
+      return { event: { ...toCalendarEvent(row), date, startTime, recordId: findLinkedRecordId(row, date) }, key: toSortKey(row, date, startTime) };
     })
     .toSorted((left, right) => (left.key < right.key ? -1 : left.key > right.key ? 1 : 0))
     .map(({ event }) => event);

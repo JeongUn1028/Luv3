@@ -11,7 +11,6 @@ import {
   pickTagSuggestions,
   removePhoto,
   toCreateRecordArgs,
-  toNewRecordHref,
   validateDraft,
   type DateRecordDraft,
 } from "./form";
@@ -191,28 +190,15 @@ describe("toCreateRecordArgs", () => {
     expect(JSON.parse(JSON.stringify(oneDay))).not.toHaveProperty("p_end_date");
   });
 
+  it("일정에서 남기면 어느 일정의 어느 날인지 넘기고, 직접 쓰면 넘기지 않는다", () => {
+    const linked = toCreateRecordArgs("r1", draft({ eventLink: { eventId: "e1", eventDate: "2026-11-01" } }));
+    expect([linked.p_event_id, linked.p_event_date]).toEqual(["e1", "2026-11-01"]);
+
+    expect(JSON.parse(JSON.stringify(toCreateRecordArgs("r1", draft())))).not.toHaveProperty("p_event_id");
+  });
+
   it("대표 사진이 없으면 코드 실수라 에러를 낸다", () => {
     expect(() => toCreateRecordArgs("r1", draft({ coverPhotoId: undefined }))).toThrow("대표 사진");
-  });
-});
-
-describe("toNewRecordHref", () => {
-  it("일정의 날짜·제목·장소를 작성 화면 주소 쿼리로 넘긴다", () => {
-    expect(toNewRecordHref({ date: "2026-11-01", title: "전시 & 저녁", place: "국립현대미술관" })).toBe(
-      "/dates/new?date=2026-11-01&title=%EC%A0%84%EC%8B%9C+%26+%EC%A0%80%EB%85%81&place=%EA%B5%AD%EB%A6%BD%ED%98%84%EB%8C%80%EB%AF%B8%EC%88%A0%EA%B4%80",
-    );
-  });
-
-  it("장소가 없으면 장소 쿼리를 넣지 않는다", () => {
-    expect(toNewRecordHref({ date: "2026-11-01", title: "산책", place: "" })).toBe(
-      "/dates/new?date=2026-11-01&title=%EC%82%B0%EC%B1%85",
-    );
-  });
-
-  it("기간 일정이면 끝 날짜도 넘긴다", () => {
-    expect(toNewRecordHref({ date: "2026-10-30", endDate: "2026-11-01", title: "여행", place: "" })).toBe(
-      "/dates/new?date=2026-10-30&title=%EC%97%AC%ED%96%89&endDate=2026-11-01",
-    );
   });
 });
 

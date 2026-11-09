@@ -43,6 +43,14 @@ export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
   tags: string[];
   /** 장소의 지도 좌표. 찾아서 고른 장소에만 있고, 이름을 직접 고치면 지운다 */
   location: PlaceLocation | undefined;
+  /** 일정에서 남기는 기록이면 어느 일정의 어느 날인지. 직접 쓰거나 고치는 기록은 없다 */
+  eventLink?: RecordEventLink;
+}
+
+/** 기록을 남긴 일정과 그날(반복이면 그날, 아니면 시작일) */
+export interface RecordEventLink {
+  eventId: string;
+  eventDate: string;
 }
 
 /** 칸 이름 → 화면에 보여 줄 에러 문구. 사진 한마디는 `caption:<사진 id>` */
@@ -109,19 +117,11 @@ export interface RecordPrefill {
   endDate?: string | undefined;
   title: string;
   place: string;
+  /** 일정의 메모(#227). 예전 주소(날짜·제목·장소 쿼리)로 열면 없다 */
+  memo?: string | undefined;
+  /** 이 기록을 이을 일정. 예전 주소로 열면 없다 */
+  eventLink?: RecordEventLink | undefined;
 }
-
-/**
- * 지난 일정으로 기록을 남기는 작성 화면 주소. 날짜(기간이면 끝 날짜까지)·제목·장소를 쿼리로 넘긴다.
- *
- * @example toNewRecordHref({ date: "2026-11-01", title: "산책", place: "" }) // "/dates/new?date=2026-11-01&title=%EC%82%B0%EC%B1%85"
- */
-export const toNewRecordHref = ({ date, endDate, title, place }: RecordPrefill): string => {
-  const query = new URLSearchParams({ date, title });
-  if (place) query.set("place", place);
-  if (endDate) query.set("endDate", endDate);
-  return `/dates/new?${query.toString()}`;
-};
 
 /**
  * 앞에서부터 글자 수만큼 자른다.
@@ -256,6 +256,8 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_memo: draft.memo.trim(),
     p_photos: draft.photos.map(({ id, caption }) => ({ id, caption: caption.trim() })),
     p_cover_photo_id: draft.coverPhotoId,
+    p_event_id: draft.eventLink?.eventId,
+    p_event_date: draft.eventLink?.eventDate,
     p_tags: draft.tags,
     // 빈 객체는 좌표를 지우라는 뜻이다. 넘기지 않으면 고칠 때 있던 좌표가 남는다
     p_place_location: draft.location ? { lat: draft.location.lat, lng: draft.location.lng } : {},

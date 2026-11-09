@@ -53,6 +53,17 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
       <DetailHeader
         actions={
           <>
+            {record.eventHref && (
+              // 일정에서 남긴 기록은 그 일정으로 돌아갈 수 있다(#227)
+              <Link
+                href={record.eventHref}
+                transitionTypes={FORWARD_TRANSITION}
+                aria-label="일정 보기"
+                className="press-icon flex h-11 items-center px-3 text-[14px] text-ink-sub hover:text-ink"
+              >
+                일정
+              </Link>
+            )}
             <Link
               href={`/dates/${record.id}/edit`}
               transitionTypes={FORWARD_TRANSITION}
