@@ -60,7 +60,7 @@ export const PhotoCarousel = ({ photos, title }: PhotoCarouselProps): ReactEleme
       </div>
 
       <div className="flex min-h-11 items-center gap-2 px-4 pt-2">
-        <p aria-live="polite" className="min-w-0 flex-1 text-[14px] leading-[1.5] text-ink">
+        <p aria-live="polite" className="min-w-0 flex-1 text-[14px] leading-[1.5] break-words text-ink">
           {current?.caption ?? ""}
         </p>
         {total > 1 && (

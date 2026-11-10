@@ -25,7 +25,8 @@ import {
   type DraftErrors,
   type RecordPrefill,
 } from "@/lib/dates/form";
-import { clearError, countChars } from "@/lib/form";
+import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
+import { clearError, countChars, FIX_FIELDS_NOTICE, isResolvedFieldNotice } from "@/lib/form";
 import { subscribeToAppReturn } from "@/lib/navigation/app-return";
 import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
@@ -135,6 +136,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
   const [linkedRecordId, setLinkedRecordId] = useState<string>();
   const [progress, setProgress] = useState<SaveProgress>();
   const [isSaving, setIsSaving] = useState(false);
+  // 칸 오류를 모두 고치면 저장을 다시 누르기 전이라도 안내를 지운다. 효과로 지우면 한 번 더 그려지므로 그리는 중에 맞춘다
+  if (isResolvedFieldNotice(notice, errors)) setNotice(undefined);
   const hasWrittenContent = hasRecordDraftChanges(initialDraft, draft) || tagInput.trim() !== "";
   // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알린다(#104). 지워진 기록은 저장할 곳이 없어 묻지 않는다
   const shouldConfirmLeave = hasWrittenContent && !isSaving && !isRecordGone;
@@ -211,7 +214,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       skipped > 0 && `JPEG·PNG·WebP·HEIC 사진만 올릴 수 있어 ${skipped}개는 뺐어요.`,
       result.droppedCount > 0 && `사진은 10장까지라 ${result.droppedCount}장은 뺐어요.`,
     ].filter(Boolean);
-    setNotice(messages.length > 0 ? messages.join(" ") : undefined);
+    // 다른 칸 오류가 남아 있으면 칸 오류 안내는 그대로 둔다
+    setNotice((current) => (messages.length > 0 ? messages.join(" ") : current === FIX_FIELDS_NOTICE ? current : undefined));
   };
 
   const handleRemovePhoto = (photoId: string) => {
@@ -237,6 +241,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSaving) return;
+    const form = event.currentTarget;
 
     // 적어 두고 추가를 누르지 않은 태그를 잃지 않게 함께 저장한다
     const { tags, error: tagError } = addTag(draft.tags, tagInput);
@@ -246,11 +251,16 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
     if (!tagError) setTagInput("");
 
     const nextErrors: DraftErrors = { ...validateDraft(nextDraft, today), ...(tagError && { tags: tagError }) };
-    setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
-      setNotice("입력한 내용을 확인해 주세요.");
+      // 오류 칸이 그려져야 찾을 수 있어 바로 그린다
+      flushSync(() => {
+        setErrors(nextErrors);
+        setNotice(FIX_FIELDS_NOTICE);
+      });
+      focusFirstInvalidField(form);
       return;
     }
+    setErrors(nextErrors);
 
     const recordId = record?.id ?? nextDraft.uncertainSaveRecordId ?? crypto.randomUUID();
 

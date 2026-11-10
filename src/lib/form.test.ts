@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clearError, countChars, countGraphemes, isIsoDate, isSameFormValue } from "@/lib/form";
+import { clearError, countChars, countGraphemes, FIX_FIELDS_NOTICE, isIsoDate, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
 
 describe("countChars", () => {
   it("DB(char_length)처럼 이모지 하나를 한 글자로 센다", () => {
@@ -44,6 +44,21 @@ describe("clearError", () => {
   it("지울 에러가 없으면 같은 객체를 돌려준다(불필요한 다시 그리기 방지)", () => {
     const errors: Partial<Record<"title" | "memo", string>> = { title: "제목을 적어 주세요." };
     expect(clearError(errors, "memo")).toBe(errors);
+  });
+});
+
+describe("isResolvedFieldNotice", () => {
+  it("칸 오류가 남아 있으면 칸 오류 안내를 지우지 않는다", () => {
+    expect(isResolvedFieldNotice(FIX_FIELDS_NOTICE, { title: "제목을 적어 주세요." })).toBe(false);
+  });
+
+  it("칸 오류를 모두 고치면 칸 오류 안내를 지운다", () => {
+    expect(isResolvedFieldNotice(FIX_FIELDS_NOTICE, {})).toBe(true);
+  });
+
+  it("저장 실패 같은 다른 안내는 칸 오류가 없어도 지우지 않는다", () => {
+    expect(isResolvedFieldNotice("저장하지 못했어요.", {})).toBe(false);
+    expect(isResolvedFieldNotice(undefined, {})).toBe(false);
   });
 });
 
