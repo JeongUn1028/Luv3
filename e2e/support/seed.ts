@@ -4,7 +4,6 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { toKstDate } from "@/lib/anniversary";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
-import { toCouplePhotoMediumPath } from "@/lib/photos/paths";
 import { COUPLE_PHOTO_PATH, E2E_EVENTS, E2E_MEMBER, E2E_TODOS, PERIOD_RECORD, PHOTO_COUNT, PHOTO_FIXTURE_PATH, PHOTO_RECORD } from "./constants";
 import { readLocalSupabase } from "./local-supabase";
 import { getMonthCrossingPeriod } from "./period";
@@ -488,26 +487,34 @@ const seedCouplePhoto = async (admin: AdminClient): Promise<void> => {
  */
 export const getCouplePhotoPath = async (): Promise<string | undefined> => (await readCouplePhotoPath(createAdminClient())) ?? undefined;
 
+/** 커플 사진 폴더(`couple/`)의 파일 경로 목록 */
+const listCouplePhotoFiles = async (admin: AdminClient): Promise<string[]> => {
+  const { data, error } = await admin.storage.from(ALBUM_BUCKET).list("couple", { limit: 1000 });
+  assertNoError({ error }, "커플 사진 파일 조회");
+  return (data ?? []).map(({ name }) => `couple/${name}`);
+};
+
 /**
  * 커플 사진을 실제로 바꾸는 테스트를 위해 커플 사진을 E2E 사진으로 바꿔 둔다. 이 함수를 쓰는 스펙은 `SHARED_DATA_SPECS`에 넣는다.
  * 앱은 사진을 바꾸면 밀려난 파일을 지우므로, 로컬에 원래 있던 사진은 경로만 기억해 두고 파일은 앱이 건드리지 않게 한다.
- * 돌려준 함수는 테스트가 올린 파일을 지우고 원래 경로로 되돌린다(원래 경로가 E2E 사진이면 지워진 파일을 다시 올린다).
+ * 돌려준 함수는 원래 경로로 되돌리고, 그 사이 `couple/`에 새로 생긴 파일(저장하지 못하고 남은 파일 포함)을 지운다.
+ * 원래 경로가 E2E 사진이면 앱이 지운 파일을 다시 올린다. 브라우저의 올리기·저장이 끝난 뒤(화면을 닫은 뒤)에 부른다.
  *
  * @example const restore = await switchToE2eCouplePhoto()
  */
 export const switchToE2eCouplePhoto = async (): Promise<() => Promise<void>> => {
   const admin = createAdminClient();
   const originalPath = await readCouplePhotoPath(admin);
+  const filesBefore = new Set(await listCouplePhotoFiles(admin));
   await uploadPhoto(admin, COUPLE_PHOTO_PATH);
   assertNoError(await admin.from("couple_photo").update({ path: COUPLE_PHOTO_PATH }).eq("id", true), "E2E 커플 사진으로 바꾸기");
 
   return async () => {
-    const currentPath = await readCouplePhotoPath(admin);
     if (originalPath === COUPLE_PHOTO_PATH) await uploadPhoto(admin, COUPLE_PHOTO_PATH);
     assertNoError(await admin.from("couple_photo").update({ path: originalPath }).eq("id", true), "커플 사진 되돌리기");
-    if (currentPath && currentPath !== originalPath && currentPath !== COUPLE_PHOTO_PATH) {
-      assertNoError(await admin.storage.from(ALBUM_BUCKET).remove([currentPath, toCouplePhotoMediumPath(currentPath)]), "테스트가 올린 커플 사진 지우기");
-    }
+    const keptPaths = new Set([...filesBefore, COUPLE_PHOTO_PATH]);
+    const addedPaths = (await listCouplePhotoFiles(admin)).filter((path) => !keptPaths.has(path));
+    if (addedPaths.length > 0) assertNoError(await admin.storage.from(ALBUM_BUCKET).remove(addedPaths), "테스트가 올린 커플 사진 지우기");
   };
 };
 

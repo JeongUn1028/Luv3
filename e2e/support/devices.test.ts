@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEVICE_SIZE_SPECS, isAllDevicesRun, SHARED_DATA_SPECS } from "./devices";
-import { listSpecPaths, SPEC_SUFFIX } from "./spec-files";
+import { DEVICE_SIZE_SPECS, isAllDevicesRun, SHARED_DATA_SPECS, SPEC_SUFFIX } from "./devices";
+import { listSpecPaths } from "./spec-files";
 
 const SPEC_PATHS = listSpecPaths();
 

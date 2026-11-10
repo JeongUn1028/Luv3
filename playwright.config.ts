@@ -1,7 +1,7 @@
 import { availableParallelism } from "node:os";
 import { defineConfig } from "@playwright/test";
 import { BASE_URL, MEMBER_STATE_PATH } from "./e2e/support/constants";
-import { DEVICE_SIZE_SPECS, isAllDevicesRun, SHARED_DATA_SPECS, TARGET_DEVICES } from "./e2e/support/devices";
+import { DEVICE_SIZE_SPECS, isAllDevicesRun, SHARED_DATA_SPECS, SPEC_SUFFIX, TARGET_DEVICES } from "./e2e/support/devices";
 import { readLocalSupabase } from "./e2e/support/local-supabase";
 import type { DeviceOptions } from "./e2e/support/test";
 
@@ -14,7 +14,7 @@ process.env.E2E_NOW ??= new Date().toISOString();
 const LOCAL_MAX_WORKERS = 4;
 
 const [IPHONE_15_PRO, IPHONE_17] = TARGET_DEVICES;
-const toSpecGlobs = (names: readonly string[]): string[] => names.map((name) => `**/${name}.spec.ts`);
+const toSpecGlobs = (names: readonly string[]): string[] => names.map((name) => `**/${name}${SPEC_SUFFIX}`);
 /** 공유 데이터 스펙을 맨 마지막에 돌리려고 두는 빈 프로젝트. 테스트는 없고, 끝난 뒤 돌 프로젝트(teardown)만 정한다 */
 const SHARED_DATA_GATE = "shared-data-gate";
 const SHARED_DATA = "shared-data";
@@ -22,7 +22,7 @@ const SHARED_DATA = "shared-data";
 export default defineConfig<DeviceOptions>({
   testDir: "./e2e",
   // e2e/support의 *.test.ts는 Vitest가 돌리는 단위 테스트다
-  testMatch: "**/*.spec.ts",
+  testMatch: `**/*${SPEC_SUFFIX}`,
   globalSetup: "./e2e/global-setup.ts",
   // CI 러너(4코어)는 앱 서버·로컬 Supabase·Chrome을 함께 돌린다. 기본값(코어의 절반)도 2지만 러너가 바뀌어도 그대로이게 고정한다.
   // 4개로 재 보니 테스트 시간이 대마다 0.2~0.9분, 전체로는 약 30초 줄었을 뿐이라 부하 위험을 지지 않는다(#241).

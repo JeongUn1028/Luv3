@@ -4,7 +4,7 @@ import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { RETRY_FAILED_MESSAGE } from "@/lib/load-retry";
 import { TODOS_PATH } from "@/lib/todos/list";
-import { getTab } from "./support/actions";
+import { getTab, isScreenRequest } from "./support/actions";
 import { expect, openScreen, test } from "./support/test";
 
 // 없는 화면 안내와 로딩 뼈대(#195에서 코드 글자 검사를 옮김), 오류 화면(#258)
@@ -55,13 +55,13 @@ test.describe("로딩 뼈대", () => {
 /**
  * `path` 화면으로 옮길 때 받는 화면 내용(RSC)을 도중에 끊는다. 화면을 받다가 연결이 끊긴 것처럼 React가 "Connection closed"로 실패해 오류 화면(`error.tsx`)을 그린다.
  * 서버가 Supabase를 부르다 실패하는 오류는 서버 안의 요청이라 page.route로 만들 수 없어, 브라우저가 받는 응답을 끊는 이 방법을 쓴다.
- * 빈 응답·상태 500을 주면 Next가 문서를 새로 받아(MPA 이동) 오류 화면이 나오지 않는다
+ * 빈 응답·상태 500을 주면 Next가 문서를 새로 받아(MPA 이동) 오류 화면이 나오지 않는다. 미리 받기는 끊지 않아 이동 요청만 실패한다
  */
 const cutScreenResponse = async (page: Page, path: string): Promise<void> => {
   await page.route(
     (url) => url.pathname === path,
     async (route) => {
-      if (!route.request().headers().rsc) return route.continue();
+      if (!isScreenRequest(route.request(), path)) return route.continue();
       const response = await route.fetch();
       const body = await response.body();
       return route.fulfill({ status: response.status(), contentType: response.headers()["content-type"], body: body.subarray(0, Math.floor(body.length / 2)) });
@@ -71,8 +71,9 @@ const cutScreenResponse = async (page: Page, path: string): Promise<void> => {
 
 /** 기록 목록에서 캘린더 탭으로 옮기다 응답이 끊겨 오류 화면이 나온 상태로 만든다 */
 const openErrorScreen = async (page: Page): Promise<void> => {
-  await openScreen(page, RECORDS_PATH, getTab(page, CALENDAR_PATH));
+  // 화면을 열기 전에 걸어, 열면서 시작된 요청도 놓치지 않는다
   await cutScreenResponse(page, CALENDAR_PATH);
+  await openScreen(page, RECORDS_PATH, getTab(page, CALENDAR_PATH));
   await getTab(page, CALENDAR_PATH).tap();
   await expect(page.getByRole("heading", { name: "문제가 생겼어요" }).locator("visible=true")).toBeVisible();
 };
