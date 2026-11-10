@@ -153,3 +153,15 @@ describe("CI의 커버리지", () => {
     expect(runs).not.toContain("pnpm test");
   });
 });
+
+describe("CI의 안 쓰는 코드 검사", () => {
+  it("검사 잡이 knip을 돌려 안 쓰는 파일·export·의존성이 생기면 실패한다", () => {
+    // 손으로만 돌리면 화면을 지우거나 옮긴 뒤 남은 파일·의존성을 알아채지 못한다(#257)
+    // 실패를 무시하는 continue-on-error가 붙으면 검사가 꺼진 것이라 인정하지 않는다
+    const checksKnip = Object.values(jobs).some(({ steps = [] }) =>
+      steps.some((step) => step.run?.trim() === "pnpm knip" && step["continue-on-error"] === undefined),
+    );
+
+    expect(checksKnip).toBe(true);
+  });
+});
