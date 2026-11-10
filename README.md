@@ -66,8 +66,12 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 1. 마이그레이션 적용: `pnpm exec supabase link --project-ref <ref>` 후 `pnpm exec supabase db push`
 2. Authentication > Sign In / Providers: "Allow new users to sign up" 끄기, Email 공급자는 켜 두고 Minimum password length를 12로
 3. Authentication > URL Configuration: Site URL을 배포 주소로
-4. Authentication > Users > Add user > Create new user에서 두 계정을 이메일·비밀번호(12자 이상)로 만들고("Auto Confirm User" 체크), SQL Editor에서 `members`에 추가(위 SQL)
-5. Vercel 환경 변수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `CRON_SECRET`(무작위 32자 이상, `.env.example`의 명령으로 만든다)
+4. 비밀번호 변경 때 서버가 현재 비밀번호를 확인하게 한다(#170): Authentication의 Email 설정에서 현재 비밀번호 요구(Management API 이름 `security_update_password_require_current_password`)를 켜고, Secure password change(`secure_password_change`)는 끈 채로 둔다.
+   - 현재 비밀번호 요구를 켜면 접속 토큰을 빼앗긴 경우에도 현재 비밀번호 없이는 비밀번호를 바꿀 수 없다. 앱은 바꿀 때 현재 비밀번호를 함께 보내므로 켜도 그대로 동작한다. 켠 뒤 설정 > 비밀번호 변경을 한 번 해 본다.
+   - Secure password change는 로그인한 지 24시간이 넘은 세션에 메일 확인 코드를 요구하는 설정이다. 이 앱은 메일을 보내지 않고, 바꾸기 직전에 다시 로그인해 새 세션을 쓰므로 켜도 보호가 늘지 않는다.
+   - 로컬 CLI(2.122)의 `config.toml`에는 현재 비밀번호 요구 칸이 없어 로컬에서는 꺼져 있다. 그래서 앱은 설정과 상관없이 바꾸기 전에 현재 비밀번호로 로그인해 확인한다(`src/components/settings/PasswordForm.tsx`).
+5. Authentication > Users > Add user > Create new user에서 두 계정을 이메일·비밀번호(12자 이상)로 만들고("Auto Confirm User" 체크), SQL Editor에서 `members`에 추가(위 SQL)
+6. Vercel 환경 변수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `CRON_SECRET`(무작위 32자 이상, `.env.example`의 명령으로 만든다)
    - `NEXT_PUBLIC_SUPABASE_URL`과 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`는 빌드할 때 값이 들어가므로 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
    - `CRON_SECRET`은 `vercel.json`의 Cron이 하루 한 번(`0 3 * * *`, Hobby 플랜이라 UTC 3시대의 어느 때, 한국 시간 낮 12시대) `/api/keepalive`를 부를 때 쓴다. 무료 플랜이 7일 동안 요청이 없어 일시정지되지 않게 한다. 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
    - `KAKAO_REST_API_KEY`(선택)는 기록 폼의 장소 찾기에 쓴다. 없으면 오류 없이 돋보기만 나오지 않는다. 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
@@ -75,6 +79,14 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
    - `HOLIDAY_API_KEY`(선택)는 캘린더·날짜 창의 공휴일 색과 이름에 쓴다. 공공데이터포털 "한국천문연구원_특일 정보"의 일반 인증키이고 Encoding·Decoding 어느 쪽을 넣어도 된다. 서버에서만 쓰며 브라우저로 보내지 않는다. 없거나 공공데이터포털이 실패하면 오류 없이 주말 색만 나오고 원인은 서버 로그에 남는다. 받은 공휴일은 하루 동안 저장해 두므로 임시공휴일은 하루 안에 반영된다. 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
 
 로그인 메일을 쓰지 않으므로 SMTP 설정은 필요 없다.
+
+### 보안 헤더
+
+모든 응답에 콘텐츠 보안 정책(CSP)과 기본 보안 헤더를 붙인다(`src/lib/security/headers.ts`, `next.config.ts`, #170). 스크립트·사진·요청은 앱 자신, Supabase(`NEXT_PUBLIC_SUPABASE_URL`), 카카오 지도(`dapi.kakao.com`, `*.kakaocdn.net`)에서만 받고, 다른 사이트 안에 넣는 것을 막는다. 미리 그려 둔 화면을 지키려고 요청마다 바뀌는 값(nonce)은 쓰지 않고 인라인 스크립트는 허용한다. 아이폰 사진(HEIC)을 바꾸는 heic2any가 `blob:` Worker 안에서 `new Function`을 쓰므로 `blob:` Worker와 eval도 허용한다.
+
+- 외부 서비스(스크립트, 이미지, API)를 새로 쓰면 그 주소를 `headers.ts`에 더한다. 빠뜨리면 브라우저 콘솔에 "Content Security Policy" 오류가 나고 그 자원이 막힌다.
+- E2E는 카카오 지도 SDK를 가짜로 대신하므로 실제 지도 파일·그림 주소(2026-11 확인: `t1.kakaocdn.net`, `mts.kakaocdn.net`)는 검사하지 못한다. 카카오가 이 주소를 바꾸면 지도가 안 나올 수 있다. 기록 지도가 "지도를 불러오지 못했어요"에 머물면 콘솔의 CSP 오류에 나온 주소를 더한다.
+- Supabase 주소가 CSP에 들어가므로 빌드할 때 `NEXT_PUBLIC_SUPABASE_URL`이 있어야 한다(없으면 빌드가 실패한다). Vercel 미리 보기(Preview)만 예외다: PR 코드가 운영 데이터에 닿지 않게 Preview에는 Supabase 값을 두지 않아, 빌드만 통과하고 로그인은 되지 않는다.
 
 ### 로그인 공개 키
 
@@ -179,7 +191,8 @@ pnpm backup "<백업 폴더>"   # 예: "G:\내 드라이브\Luv3-백업"
     manifest.json         표 행 수, 그 시점의 파일 목록, 백업 때의 커밋(commit)과 DB의 마지막 마이그레이션(lastMigration). 이 파일이 없으면 중간에 끊긴 백업이다
 ```
 
-- `data.sql`에는 이메일과 비밀번호 해시가, `album/`에는 사진이 들어 있다. 드라이브 계정에 2단계 인증을 켜 두고, 폴더를 공유하지 않는다.
+- `data.sql`에는 이메일과 비밀번호 해시가, `album/`에는 사진이 들어 있다. 백업은 암호화하지 않고 드라이브 계정의 보호에 기댄다(2026-11-10 결정, #170: 암호를 잃으면 백업을 못 쓰고 되살리기가 길어진다). 드라이브 계정에 2단계 인증을 켜 두고, 폴더를 공유하지 않는다.
+- 앱에서 지운 사진도 `album/`에는 계속 남는다. 백업에서도 완전히 지우려면 `album/<기록 id>/`의 그 파일을 손으로 지우고, 그 파일이 들어 있던 예전 `snapshots/<시점>`도 함께 지운다(되살리기는 시점의 파일이 하나라도 없으면 멈춘다).
 - **Git 리포 안에는 만들 수 없다**(공개 리포라 스크립트가 거부한다). 공개 리포의 GitHub Actions 결과물로도 올리지 않는다.
 - 세션·토큰 같은 나머지 `auth` 표는 받지 않는다.
 - 오래된 `snapshots/<시점>`은 지워도 되지만, `album/`은 다른 시점도 함께 쓰므로 지우지 않는다.

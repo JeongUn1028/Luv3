@@ -36,7 +36,8 @@ declare global {
   }
 }
 
-const SDK_URL = "https://dapi.kakao.com/v2/maps/sdk.js";
+/** 지도 SDK 주소. 보안 헤더(CSP)도 이 값의 출처를 허용한다(src/lib/security/headers.ts) */
+export const SDK_URL = "https://dapi.kakao.com/v2/maps/sdk.js";
 /** 답이 없을 때 화면이 "불러오는 중"에 머물지 않게 이만큼만 기다린다 */
 const SDK_TIMEOUT_MS = 15_000;
 
