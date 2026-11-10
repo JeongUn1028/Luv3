@@ -23,6 +23,7 @@ export default defineConfig<DeviceOptions>({
   // e2e/support의 *.test.ts는 Vitest가 돌리는 단위 테스트다
   testMatch: "**/*.spec.ts",
   globalSetup: "./e2e/global-setup.ts",
+  workers: process.env.CI ? 4 : undefined,
   forbidOnly: Boolean(process.env.CI),
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {

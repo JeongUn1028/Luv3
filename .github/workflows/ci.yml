@@ -59,7 +59,7 @@ jobs:
         shardTotal: [3]
     env:
       # PR에서는 아이폰 17에서 크기를 재는 스펙만 돌리고, main에 머지될 때 두 기기 전체를 돌린다(e2e/support/devices.ts)
-      E2E_ALL_DEVICES: ${{ github.event_name == 'push' && '1' || '' }}
+      E2E_ALL_DEVICES: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
