@@ -30,6 +30,9 @@ export default defineConfig<DeviceOptions>({
   // CI 잡 시간 제한(15분)보다 먼저 끝내, 멈춘 대도 실패 보고서를 남기게 한다. 평소 대마다 4분 안팎이다
   globalTimeout: process.env.CI ? 10 * 60_000 : undefined,
   forbidOnly: Boolean(process.env.CI),
+  // CI에서 우연히 한 번 실패한 테스트는 한 번 더 돌린다. 데이터 이름에 무작위 조각을 붙여 앞 시도가 남긴 데이터와 부딪치지 않는다(#242).
+  // 로컬은 다시 돌리지 않아 흔들리는 테스트를 바로 알아챈다
+  retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: BASE_URL,
@@ -38,7 +41,8 @@ export default defineConfig<DeviceOptions>({
     storageState: MEMBER_STATE_PATH,
     // 화면 전환 움직임이 끝나기를 기다리지 않고 잰다
     contextOptions: { reducedMotion: "reduce" },
-    trace: "retain-on-failure",
+    // 실패한 첫 시도의 기록을 남긴다. 다시 돌 때(on-first-retry)만 기록하면, 다시 돌아 통과한 테스트는 실패한 모습이 남지 않는다
+    trace: "retain-on-first-failure",
   },
   projects: [
     { name: "iphone-15-pro", use: createDeviceUse(393, 852, 59) },
