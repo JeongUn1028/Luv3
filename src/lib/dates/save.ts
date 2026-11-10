@@ -1,5 +1,6 @@
 import type { ResizedPhoto } from "@/lib/photos/resize";
 import { removeUploadedPhotos, uploadPhotos, type PhotoStorage, type UploadedPhoto } from "@/lib/photos/upload";
+import { callWithRetry, isDuplicateKey, isOutcomeUnknown } from "@/lib/save-outcome";
 import { toCreateRecordArgs, type CreateDateRecordArgs, type DateRecordDraft, type UpdateDateRecordArgs } from "./form";
 
 /** 저장 단계: 사진 줄이기 → 올리기 → 기록 저장 */
@@ -15,17 +16,8 @@ const RECORD_NOT_FOUND_CODE = "P0002";
 /** 화면을 연 뒤 기록이 바뀌어 `update_date_record`가 저장을 거부했을 때 */
 const RECORD_CONFLICT_CODE = "P0409";
 
-/** 같은 기록 id가 이미 있을 때. 다시 저장할 때는 기록 id를 그대로 쓰므로 앞선 시도가 저장했다는 뜻이다 */
-const DUPLICATE_KEY_CODE = "23505";
-
 /** 그 일정의 그날에 이미 남긴 기록이 있어 `create_date_record`가 거부했을 때. `details`에 그 기록 id가 온다 */
 const EVENT_LINK_TAKEN_CODE = "P0410";
-
-/**
- * 처리하지 않고 거절한 것이 분명한 오류: 데이터·제약(22, 23), 권한·문법(42), 함수의 raise(P0), PostgREST의 요청·인증 오류.
- * 나머지(네트워크, 앞단의 5xx, 연결 오류 08·57P·PGRST0)는 커밋됐는지 알 수 없다.
- */
-const DEFINITE_REJECTION_CODE = /^(?:(?:22|23|42|P0)[0-9A-Z]{3}|PGRST[123]\d{2})$/;
 
 const UNCERTAIN_SAVE_MESSAGE = "저장됐는지 확인하지 못했어요. 다시 저장해도 기록이 둘이 되지는 않아요.";
 
@@ -34,21 +26,6 @@ interface RecordRpcError {
   code?: string;
   details?: string;
 }
-
-/** 처리했는지 알 수 없으면 저장됐을 수 있어 올린 파일을 지우면 안 된다 */
-const isOutcomeUnknown = (error: RecordRpcError): boolean => !DEFINITE_REJECTION_CODE.test(error.code ?? "");
-
-/**
- * 응답만 끊겼을 수 있어 한 번 더 보낸다. 같은 id를 쓰므로 기록이 둘이 되지 않는다.
- * `mayHaveApplied`면 첫 요청이 저장됐을 수 있어, 두 번째가 거절돼도 파일을 지우면 안 된다.
- */
-const callWithRetry = async <Result extends { error: RecordRpcError | null }>(
-  call: () => PromiseLike<Result>,
-): Promise<Result & { mayHaveApplied: boolean }> => {
-  const first = await call();
-  if (!first.error || !isOutcomeUnknown(first.error)) return { ...first, mayHaveApplied: false };
-  return { ...(await call()), mayHaveApplied: true };
-};
 
 /** `already-saved`면 앞선 시도가 저장한 기록이 이미 있어 이번 내용은 반영하지 않았다 */
 export type SaveDateRecordResult = "saved" | "already-saved";
@@ -118,7 +95,7 @@ export const saveDateRecord = async ({
   if (!error) return "saved";
 
   const mayHaveSaved = mayAlreadyBeSaved || mayHaveApplied || isOutcomeUnknown(error);
-  if (mayHaveSaved && error.code === DUPLICATE_KEY_CODE) return "already-saved";
+  if (mayHaveSaved && isDuplicateKey(error)) return "already-saved";
   if (!mayHaveSaved) await discardUploadedPhotos(storage, uploaded);
   // 같은 id가 이미 있으면 DB 함수가 23505를 먼저 알리므로, 이번 id는 저장되지 않았다
   if (error.code === EVENT_LINK_TAKEN_CODE) throw new DateRecordAlreadyLinkedError(error.details, { cause: error });

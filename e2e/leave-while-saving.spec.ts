@@ -288,7 +288,8 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await page.waitForURL(`**/todos/${id}/edit`);
 
       await expect(page.locator("#todo-content").locator("visible=true")).toHaveValue("고친 항목");
-      await expect(page.locator("main").getByRole("alert").locator("visible=true")).toContainText("저장하지 못했어요");
+      // 5xx는 서버가 고쳤는지 알 수 없어 그렇게 알린다(#161)
+      await expect(page.locator("main").getByRole("alert").locator("visible=true")).toContainText("저장됐는지 확인하지 못했어요");
     } finally {
       await deleteTodo();
     }
