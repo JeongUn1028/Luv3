@@ -1,3 +1,4 @@
+import { createRowWithRetry, toSaveFailure, updateRowWithRetry, type SaveFailure } from "@/lib/save-outcome";
 import { createClient } from "@/lib/supabase/client";
 import { toEventValues, type EventDraft } from "./form";
 
@@ -8,23 +9,19 @@ const OCCURRENCE_GONE_MESSAGE = "이 날 일정은 이미 고쳤거나 지웠어
 // PostgREST가 함수의 no_data_found를 전달한 코드(마이그레이션 detach_event_occurrence)
 const NO_DATA_FOUND = "P0002";
 
-/** 저장 실패. 화면에 보여 줄 문구와, 고칠 대상이 이미 없는지 */
-export interface SaveEventFailure {
-  message: string;
-  isGone: boolean;
-}
-
 interface SaveEventParams {
   draft: EventDraft;
   /** 고칠 일정의 id. 없으면 새 일정을 만든다 */
   eventId: string | undefined;
   /** 반복 중 고를 수 있는 날. 범위가 `occurrence`일 때 이 날만 고친다 */
   occurrenceDate: string | undefined;
+  /** 새 일정에 쓸 id. 다시 저장할 때 앞선 시도와 같은 값을 넘겨 일정이 둘이 되지 않게 한다 */
+  newEventId: string;
 }
 
-const failSave = (message: string, isGone = false): SaveEventFailure => ({ message, isGone });
+const MESSAGES = { failedMessage: SAVE_FAILED_MESSAGE, goneMessage: GONE_MESSAGE };
 
-const saveOccurrence = async (draft: EventDraft, eventId: string, occurrenceDate: string): Promise<SaveEventFailure | undefined> => {
+const saveOccurrence = async (draft: EventDraft, eventId: string, occurrenceDate: string): Promise<SaveFailure | undefined> => {
   const { date, start_time, title, place, memo } = toEventValues(draft);
   const { error } = await createClient().rpc("detach_event_occurrence", {
     p_event_id: eventId,
@@ -36,28 +33,27 @@ const saveOccurrence = async (draft: EventDraft, eventId: string, occurrenceDate
     p_memo: memo ?? undefined,
   });
   if (!error) return undefined;
-  return error.code === NO_DATA_FOUND ? failSave(OCCURRENCE_GONE_MESSAGE, true) : failSave(SAVE_FAILED_MESSAGE);
+  // 이 날만 고치기의 재시도는 DB 함수가 같은 일정을 알아봐야 해서 다음 작업(#161 판 번호)에서 다룬다
+  return toSaveFailure(error.code === NO_DATA_FOUND ? "gone" : "failed", { ...MESSAGES, goneMessage: OCCURRENCE_GONE_MESSAGE });
 };
 
 /**
  * 일정을 저장한다. 새 일정을 만들거나, 일정 전체를 고치거나, 반복 중 하루만 고친다.
+ * 응답만 끊기면 한 번 더 보낸다. 새 일정은 `newEventId`로 만들어 다시 보내도 하나만 생긴다.
  *
  * @returns 실패하면 화면에 보여 줄 내용, 성공하면 undefined
- * @example const failure = await saveEvent({ draft, eventId, occurrenceDate })
+ * @example const failure = await saveEvent({ draft, eventId, occurrenceDate, newEventId: draft.newEventId ?? crypto.randomUUID() })
  */
-export const saveEvent = async ({ draft, eventId, occurrenceDate }: SaveEventParams): Promise<SaveEventFailure | undefined> => {
+export const saveEvent = async ({ draft, eventId, occurrenceDate, newEventId }: SaveEventParams): Promise<SaveFailure | undefined> => {
   if (eventId && occurrenceDate && draft.scope === "occurrence") return saveOccurrence(draft, eventId, occurrenceDate);
 
   const events = createClient().from("events");
   const values = toEventValues(draft);
-  if (!eventId) {
-    const { error } = await events.insert(values);
-    return error ? failSave(SAVE_FAILED_MESSAGE) : undefined;
-  }
-  // 고치는 사이 상대가 지운 일정은 오류 없이 0행이 바뀌므로, 바뀐 행을 받아 확인한다
-  const { data, error } = await events.update(values).eq("id", eventId).select("id");
-  if (error) return failSave(SAVE_FAILED_MESSAGE);
-  return data.length === 0 ? failSave(GONE_MESSAGE, true) : undefined;
+  const update = (id: string) => () => events.update(values).eq("id", id).select("id");
+  const outcome = eventId
+    ? await updateRowWithRetry(update(eventId))
+    : await createRowWithRetry({ insert: () => events.insert({ ...values, id: newEventId }), update: update(newEventId) });
+  return toSaveFailure(outcome, MESSAGES);
 };
 
 /**

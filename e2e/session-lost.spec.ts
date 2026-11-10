@@ -161,7 +161,8 @@ test.describe("로그인 문제가 아니면", () => {
 
       await getSaveButton(page).click();
 
-      await expect(page.locator("main").getByRole("alert")).toContainText("저장하지 못했어요");
+      // 끊긴 요청과 5xx는 서버가 저장했는지 알 수 없어 그렇게 알린다(#161)
+      await expect(page.locator("main").getByRole("alert")).toContainText("저장됐는지 확인하지 못했어요");
       await expect(getDialog(page)).toBeHidden();
     });
   }

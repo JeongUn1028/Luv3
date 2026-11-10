@@ -5,16 +5,22 @@ import { startTransition, useState, type ReactElement, type SubmitEvent } from "
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { createClient } from "@/lib/supabase/client";
 import { TODO_CONTENT_MAX_LENGTH, validateTodoContent } from "@/lib/todos/form";
 import { TODOS_PATH } from "@/lib/todos/list";
+import { saveTodo } from "@/lib/todos/save";
 
-const SAVE_FAILED_MESSAGE = "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
-const GONE_MESSAGE = "이 항목은 이미 지워졌어요. 목록에서 다시 확인해 주세요.";
+/** 저장에 실패해 보관하는 폼 내용 */
+interface TodoDraft {
+  content: string;
+  /** 새 항목을 저장하다 실패했을 때 쓴 id. 다시 저장할 때 같은 값을 써서 항목이 둘이 되지 않는다 */
+  newTodoId: string | undefined;
+}
 
-const failedSaves = new Map<string, FailedSave<string>>();
+const failedSaves = new Map<string, FailedSave<TodoDraft>>();
 
 interface TodoFormProps {
   /** 처음 채울 내용. 새 항목이면 빈 문자열 */
@@ -23,25 +29,13 @@ interface TodoFormProps {
   todoId?: string;
 }
 
-/** 하고 싶은 것을 저장한다. 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
-const saveTodo = async (content: string, todoId: string | undefined): Promise<string | undefined> => {
-  const todos = createClient().from("todos");
-  if (!todoId) {
-    const { error } = await todos.insert({ content });
-    return error ? SAVE_FAILED_MESSAGE : undefined;
-  }
-  // 고치는 사이 상대가 지운 항목은 오류 없이 0행이 바뀌므로, 바뀐 행을 받아 확인한다
-  const { data, error } = await todos.update({ content }).eq("id", todoId).select("id");
-  if (error) return SAVE_FAILED_MESSAGE;
-  return data.length === 0 ? GONE_MESSAGE : undefined;
-};
-
 /** 하고 싶은 것 추가·고치기 폼. 고칠 때는 머리글에서 지울 수도 있다 */
 export const TodoForm = ({ initialContent, todoId }: TodoFormProps): ReactElement => {
   const router = useRouter();
   const formKey = `todo:${todoId ?? "new"}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "하고 싶은 것을", failedSaves });
-  const [content, setContent] = useState(failedSave?.draft ?? initialContent);
+  const [content, setContent] = useState(failedSave?.draft.content ?? initialContent);
+  const [newTodoId, setNewTodoId] = useState(failedSave?.draft.newTodoId);
   // 쓴 내용이 있는지 견줄 처음 내용. 상대가 고쳐 화면을 새로 받아도 폼은 처음 내용 그대로라 이 값과 견준다
   const [baseContent, setBaseContent] = useState(initialContent);
   const [error, setError] = useState<string>();
@@ -68,11 +62,17 @@ export const TodoForm = ({ initialContent, todoId }: TodoFormProps): ReactElemen
     beginSave();
     setNotice(undefined);
     setIsSaving(true);
-    const failure = await saveTodo(content.trim(), todoId);
+    const saveId = newTodoId ?? crypto.randomUUID();
+    const failure = await saveTodo({ content: content.trim(), todoId, newTodoId: saveId });
     if (failure) {
-      setNotice(failure);
+      // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다
+      const failedTodoId = todoId ? undefined : saveId;
+      setNewTodoId(failedTodoId);
+      // 저장됐다면 숨겨 둔 목록이 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
+      if (failure.mayHaveSaved) markAllScreensStale();
+      setNotice(failure.message);
       setIsSaving(false);
-      finishFailed({ draft: content, message: failure, isGone: failure === GONE_MESSAGE });
+      finishFailed({ draft: { content, newTodoId: failedTodoId }, message: failure.message, isGone: failure.isGone });
       return;
     }
     finishSaved({
@@ -80,6 +80,7 @@ export const TodoForm = ({ initialContent, todoId }: TodoFormProps): ReactElemen
       reset: () => {
         setContent(initialContent);
         setBaseContent(initialContent);
+        setNewTodoId(undefined);
         setIsSaving(false);
       },
     });

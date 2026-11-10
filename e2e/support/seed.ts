@@ -255,6 +255,17 @@ export const deleteTodosByContent = async (content: string): Promise<void> => {
 };
 
 /**
+ * 내용이 같은 하고 싶은 것의 id 목록. 같은 항목이 둘 생겼는지 볼 때 쓴다.
+ *
+ * @example expect(await getTodoIdsByContent(content)).toHaveLength(1)
+ */
+export const getTodoIdsByContent = async (content: string): Promise<string[]> => {
+  const { data, error } = await createAdminClient().from("todos").select("id").eq("content", content);
+  if (error) throw new Error(`하고 싶은 것 찾기 실패: ${error.message}`);
+  return data.map(({ id }) => id);
+};
+
+/**
  * 상대가 다른 기기에서 기록에 사진을 더해 저장한 상태를 만든다. 판 번호도 함께 바뀐다.
  *
  * @example await addPhotoAsPartner(recordId)
@@ -390,6 +401,17 @@ export const stopEventRepeat = async (id: string): Promise<void> => {
  */
 export const deleteEventsByTitle = async (title: string): Promise<void> => {
   assertNoError(await createAdminClient().from("events").delete().eq("title", title), "일정 지우기");
+};
+
+/**
+ * 제목이 같은 일정의 id 목록. 같은 일정이 둘 생겼는지 볼 때 쓴다.
+ *
+ * @example expect(await getEventIdsByTitle(title)).toHaveLength(1)
+ */
+export const getEventIdsByTitle = async (title: string): Promise<string[]> => {
+  const { data, error } = await createAdminClient().from("events").select("id").eq("title", title);
+  if (error) throw new Error(`일정 찾기 실패: ${error.message}`);
+  return data.map(({ id }) => id);
 };
 
 /**
