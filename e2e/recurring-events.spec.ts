@@ -240,6 +240,30 @@ test.describe("반복 일정 폼", () => {
     }
   });
 
+  test("이 날만에서 옮긴 날짜는 전체에 다녀와도 그대로다", async ({ page }, testInfo) => {
+    // Arrange(#261)
+    const id = randomUUID();
+    const title = createTestName("E2E 범위 왕복", testInfo);
+    const deleteEvent = await createDisposableRepeatingEvent({ id, title, date: "2040-04-04", repeatRule: "weekly" });
+
+    try {
+      await openScreen(page, `/events/${id}/edit?date=2040-04-18`, page.locator("#event-title"));
+      await pickDate(page, "#event-date", "2040-04-20");
+      await expect(page.locator("#event-date")).toContainText("2040.04.20");
+
+      // Act
+      await page.getByText("전체", { exact: true }).click();
+      await expect(page.locator("#event-date")).toContainText("2040.04.04");
+      await page.getByText("이 날만", { exact: true }).click();
+
+      // Assert
+      await expect(page.getByRole("radio", { name: "이 날만" })).toBeChecked();
+      await expect(page.locator("#event-date")).toContainText("2040.04.20");
+    } finally {
+      await deleteEvent();
+    }
+  });
+
   test("이 날만 지우면 그날만 사라지고 다른 날은 남는다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();

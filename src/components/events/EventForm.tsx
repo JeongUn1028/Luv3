@@ -23,6 +23,7 @@ import {
   type EventDraft,
   type EventDraftErrors,
   type EventEditScope,
+  type ScopeValues,
 } from "@/lib/events/form";
 import type { EventRecordLink } from "@/lib/events/record-link";
 import { formatEventPeriod, formatRepeatRule, REPEAT_RULES } from "@/lib/events/recurrence";
@@ -111,6 +112,8 @@ export const EventForm = ({
   // 쓴 내용이 있는지 견줄 처음 내용. 상대가 고쳐 화면을 새로 받아도 폼은 처음 내용 그대로라 이 값과 견준다
   const [baseDraft, setBaseDraft] = useState(initialDraft);
   const [errors, setErrors] = useState<EventDraftErrors>({});
+  // 범위를 바꿨다 돌아와도 고쳐 둔 날짜·함께 여부를 잃지 않게 범위마다 남긴다(#261)
+  const [scopeValues, setScopeValues] = useState<ScopeValues>({});
   const [notice, setNotice] = useState(failedSave?.message);
   // 칸 오류를 모두 고치면 저장을 다시 누르기 전이라도 안내를 지운다. 효과로 지우면 한 번 더 그려지므로 그리는 중에 맞춘다
   if (isResolvedFieldNotice(notice, errors)) setNotice(undefined);
@@ -146,7 +149,9 @@ export const EventForm = ({
 
   const changeScope = (scope: EventEditScope) => {
     if (!occurrence) return;
-    setDraft((current) => changeDraftScope(current, scope, occurrence, initialDraft.isTogether));
+    const changed = changeDraftScope({ draft, scope, occurrence, isTogether: initialDraft.isTogether, scopeValues });
+    setDraft(changed.draft);
+    setScopeValues(changed.scopeValues);
     setErrors((current) => clearError(clearError(clearError(current, "date"), "repeatUntil"), "endDate"));
   };
 
@@ -189,6 +194,7 @@ export const EventForm = ({
       reset: () => {
         setDraft(initialDraft);
         setBaseDraft(initialDraft);
+        setScopeValues({});
         setIsSaving(false);
       },
     });
