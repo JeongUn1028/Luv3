@@ -192,6 +192,11 @@ isOneToOne: false
 "clear_couple_photo":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
+"count_date_tags":
+{ Args: Record<PropertyKey, never>; Returns: {
+              "count": number,"tag": string
+            }[]
+                           },
 "create_date_record":
 { Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_event_date"?: string,"p_event_id"?: string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_place_location"?: Json,"p_tags"?: (string)[],"p_title": string }; Returns: string
                            },
@@ -209,6 +214,11 @@ isOneToOne: false
                            },
 "move_todo":
 { Args: { "p_id": string,"p_offset": number }; Returns: undefined
+                           },
+"search_date_records":
+{ Args: { "p_before_created_at"?: string,"p_before_date"?: string,"p_before_id"?: string,"p_limit"?: number,"p_tag"?: string,"p_words"?: (string)[] }; Returns: {
+              "created_at": string,"date": string,"end_date": string,"id": string,"place": string,"tags": (string)[],"thumb_path": string,"title": string,"total_count": number
+            }[]
                            },
 "set_couple_photo":
 { Args: { "p_path": string }; Returns: string
