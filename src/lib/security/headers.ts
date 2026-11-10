@@ -8,8 +8,8 @@ export interface SecurityHeader {
 }
 
 export interface BuildSecurityHeadersParams {
-  /** 브라우저가 부르는 Supabase 주소(`NEXT_PUBLIC_SUPABASE_URL`) */
-  supabaseUrl: string;
+  /** 브라우저가 부르는 Supabase 주소(`NEXT_PUBLIC_SUPABASE_URL`). Vercel 미리 보기에는 없다(resolveHeaderSupabaseUrl) */
+  supabaseUrl: string | undefined;
   /** `next dev`인지. 개발 서버에는 HSTS를 보내지 않는다 */
   isDev: boolean;
 }
@@ -28,23 +28,43 @@ const KAKAO_MAP_IMAGE_ORIGIN = "https://*.kakaocdn.net";
  * @example buildContentSecurityPolicy({ supabaseUrl: "https://abc.supabase.co", isDev: false }) // "default-src 'self'; ..."
  */
 export const buildContentSecurityPolicy = ({ supabaseUrl }: BuildSecurityHeadersParams): string => {
-  const supabase = new URL(supabaseUrl);
+  const supabase = supabaseUrl === undefined ? undefined : new URL(supabaseUrl);
+  const supabaseSource = supabase ? [supabase.origin] : [];
   const directives = [
     "default-src 'self'",
     ["script-src 'self' 'unsafe-inline' 'unsafe-eval'", ...KAKAO_MAP_SCRIPT_ORIGINS].join(" "),
     "worker-src 'self' blob:",
     "style-src 'self' 'unsafe-inline'",
-    `img-src 'self' data: blob: ${supabase.origin} ${KAKAO_MAP_IMAGE_ORIGIN}`,
+    ["img-src 'self' data: blob:", ...supabaseSource, KAKAO_MAP_IMAGE_ORIGIN].join(" "),
     "font-src 'self'",
-    `connect-src 'self' ${supabase.origin}`,
+    ["connect-src 'self'", ...supabaseSource].join(" "),
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
     "frame-ancestors 'none'",
     // 로컬 Supabase(http)까지 https로 바꾸면 요청이 끊긴다
-    ...(supabase.protocol === "https:" ? ["upgrade-insecure-requests"] : []),
+    ...(supabase?.protocol === "https:" ? ["upgrade-insecure-requests"] : []),
   ];
   return directives.join("; ");
+};
+
+interface ResolveHeaderSupabaseUrlParams {
+  supabaseUrl: string | undefined;
+  /** Vercel이 넣는 배포 종류(`VERCEL_ENV`): production, preview, development. Vercel 밖이면 없다 */
+  vercelEnv: string | undefined;
+}
+
+/**
+ * CSP에 넣을 Supabase 주소를 정한다. 없으면 브라우저가 Supabase를 부르지 못하므로 빌드를 멈춘다.
+ * Vercel 미리 보기만 예외로 주소 없이 넘긴다: PR 코드가 운영 데이터에 닿지 않게 Supabase 값을 두지 않아,
+ * 예전처럼 빌드만 통과하고 로그인은 되지 않는 화면이다(#170 사용자 결정).
+ *
+ * @example resolveHeaderSupabaseUrl({ supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL, vercelEnv: process.env.VERCEL_ENV })
+ */
+export const resolveHeaderSupabaseUrl = ({ supabaseUrl, vercelEnv }: ResolveHeaderSupabaseUrlParams): string | undefined => {
+  if (supabaseUrl) return supabaseUrl;
+  if (vercelEnv === "preview") return undefined;
+  throw new Error("환경 변수가 없습니다: NEXT_PUBLIC_SUPABASE_URL (.env.example 참고)");
 };
 
 /**

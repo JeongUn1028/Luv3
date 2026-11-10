@@ -86,7 +86,7 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 
 - 외부 서비스(스크립트, 이미지, API)를 새로 쓰면 그 주소를 `headers.ts`에 더한다. 빠뜨리면 브라우저 콘솔에 "Content Security Policy" 오류가 나고 그 자원이 막힌다.
 - E2E는 카카오 지도 SDK를 가짜로 대신하므로 실제 지도 파일·그림 주소(2026-11 확인: `t1.kakaocdn.net`, `mts.kakaocdn.net`)는 검사하지 못한다. 카카오가 이 주소를 바꾸면 지도가 안 나올 수 있다. 기록 지도가 "지도를 불러오지 못했어요"에 머물면 콘솔의 CSP 오류에 나온 주소를 더한다.
-- Supabase 주소가 CSP에 들어가므로 빌드할 때 `NEXT_PUBLIC_SUPABASE_URL`이 있어야 한다(없으면 빌드가 실패한다).
+- Supabase 주소가 CSP에 들어가므로 빌드할 때 `NEXT_PUBLIC_SUPABASE_URL`이 있어야 한다(없으면 빌드가 실패한다). Vercel 미리 보기(Preview)만 예외다: PR 코드가 운영 데이터에 닿지 않게 Preview에는 Supabase 값을 두지 않아, 빌드만 통과하고 로그인은 되지 않는다.
 
 ### 로그인 공개 키
 

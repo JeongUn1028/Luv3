@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildContentSecurityPolicy, buildSecurityHeaders } from "./headers";
+import { buildContentSecurityPolicy, buildSecurityHeaders, resolveHeaderSupabaseUrl } from "./headers";
 
 const PRODUCTION = { supabaseUrl: "https://example.supabase.co", isDev: false };
 const LOCAL = { supabaseUrl: "http://127.0.0.1:54321", isDev: false };
@@ -84,5 +84,30 @@ describe("buildSecurityHeaders", () => {
     const referrer = buildSecurityHeaders(PRODUCTION).find(({ key }) => key === "Referrer-Policy");
 
     expect(referrer?.value).toBe("strict-origin-when-cross-origin");
+  });
+});
+
+describe("resolveHeaderSupabaseUrl", () => {
+  it("Supabase 주소가 있으면 그대로 쓴다", () => {
+    expect(resolveHeaderSupabaseUrl({ supabaseUrl: "https://example.supabase.co", vercelEnv: "production" })).toBe("https://example.supabase.co");
+  });
+
+  it("운영·로컬 빌드에 Supabase 주소가 없으면 빌드를 멈춘다", () => {
+    expect(() => resolveHeaderSupabaseUrl({ supabaseUrl: undefined, vercelEnv: "production" })).toThrow("NEXT_PUBLIC_SUPABASE_URL");
+    expect(() => resolveHeaderSupabaseUrl({ supabaseUrl: "", vercelEnv: undefined })).toThrow("NEXT_PUBLIC_SUPABASE_URL");
+  });
+
+  // Vercel 미리 보기에는 Supabase 값을 두지 않는다(PR 코드가 운영 데이터에 닿지 않게). 예전처럼 빌드만 통과시킨다
+  it("Vercel 미리 보기에 Supabase 주소가 없으면 주소 없이 넘긴다", () => {
+    expect(resolveHeaderSupabaseUrl({ supabaseUrl: undefined, vercelEnv: "preview" })).toBeUndefined();
+  });
+});
+
+describe("Supabase 주소 없이 만든 CSP", () => {
+  it("Supabase 출처 없이 앱 자신과 카카오 지도만 허용한다", () => {
+    const policy = parsePolicy(buildContentSecurityPolicy({ supabaseUrl: undefined, isDev: false }));
+
+    expect(policy["connect-src"]).toEqual(["'self'"]);
+    expect(policy["img-src"]).toEqual(["'self'", "data:", "blob:", "https://*.kakaocdn.net"]);
   });
 });
