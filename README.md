@@ -37,6 +37,7 @@ pnpm dev               # http://localhost:3000
 
 ```bash
 pnpm lint
+pnpm knip       # 안 쓰는 파일·export·의존성 (knip.json)
 pnpm type-check
 pnpm test       # Vitest 단위 테스트
 pnpm test:db    # pgTAP RLS 테스트 (로컬 Supabase 실행 중이어야 함)
