@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactElement } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactElement } from "react";
 import { AlbumGrid } from "@/components/dates/AlbumGrid";
 import { FILLED_TAG_CHIP_CLASS_NAME, OUTLINED_TAG_CHIP_CLASS_NAME } from "@/components/dates/tagChip";
 import { toTagSuggestions, type AlbumTile } from "@/lib/dates/album";
-import { filterAlbumTiles, replaceRecordsAddress, toRecordSearchHref } from "@/lib/dates/search";
+import { filterAlbumTiles, recordTagLinkCount, replaceRecordsAddress, toRecordSearchHref } from "@/lib/dates/search";
 
 interface RecordSearchProps {
   tiles: AlbumTile[];
@@ -24,11 +24,16 @@ export const RecordSearch = ({ tiles, tag }: RecordSearchProps): ReactElement =>
   const [query, setQuery] = useState("");
   const [shownTag, setShownTag] = useState(tag);
   const [pressedTag, setPressedTag] = useState(tag);
+  // 상세의 태그를 누른 횟수. 같은 태그를 누르면 주소가 그대로라 태그만 보고는 알 수 없다(#261)
+  const tagLinkCount = useSyncExternalStore(recordTagLinkCount.subscribe, recordTagLinkCount.get, () => 0);
+  const [seenTagLinkCount, setSeenTagLinkCount] = useState(tagLinkCount);
 
-  // 태그 줄을 누르지 않았는데 태그가 바뀌면 상세의 태그로 새 목록을 보러 온 것이다. 쓰던 검색어로 거르면 일부만 보이므로 지운다
-  if (tag !== shownTag) {
+  // 태그 줄을 누르지 않았는데 태그가 바뀌었거나 상세의 태그를 눌렀으면 새 목록을 보러 온 것이다. 쓰던 검색어로 거르면 일부만 보이므로 지운다
+  const isTagLinkPressed = tagLinkCount !== seenTagLinkCount;
+  if (tag !== shownTag || isTagLinkPressed) {
     setShownTag(tag);
-    if (tag !== pressedTag) setQuery("");
+    setSeenTagLinkCount(tagLinkCount);
+    if (tag !== pressedTag || isTagLinkPressed) setQuery("");
   }
 
   const tags = toTagSuggestions(tiles.map((tile) => tile.tags));

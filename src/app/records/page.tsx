@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AlbumGridSkeleton } from "@/components/dates/AlbumGridSkeleton";
 import { RecordsBrowser } from "@/components/dates/RecordsBrowser";
+import { RecordsLoadFailedMark } from "@/components/dates/RecordsLoadFailedMark";
 import { RecordsSearchButton } from "@/components/dates/RecordsSearchButton";
 import { MapPinIcon, PlusIcon } from "@/components/icons";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
@@ -20,7 +21,14 @@ const RecordsContent = async () => {
   // 그리드를 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다
   const tiles = await catchLoadError(getAlbumTiles, AlbumLoadError);
 
-  if (tiles instanceof AlbumLoadError) return <LoadErrorMessage message={tiles.message} />;
+  if (tiles instanceof AlbumLoadError) {
+    return (
+      <>
+        <RecordsLoadFailedMark />
+        <LoadErrorMessage message={tiles.message} />
+      </>
+    );
+  }
   return <RecordsBrowser tiles={tiles} />;
 };
 
