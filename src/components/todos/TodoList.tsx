@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useOptimistic, useState, type ReactElement } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
+import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { createClient } from "@/lib/supabase/client";
 import { applyTodoAction, groupTodos, TODOS_PATH, type Todo, type TodoAction } from "@/lib/todos/list";
@@ -52,6 +53,10 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
   const [notice, setNotice] = useState<string>();
   // 순서를 바꾼 결과를 화면 읽기 프로그램에 알려 준다(버튼만 눌러서는 바뀐 자리를 알 수 없다)
   const [announcement, setAnnouncement] = useState("");
+  useResetOnHide(() => {
+    setNotice(undefined);
+    setAnnouncement("");
+  });
   const { open, done } = groupTodos(optimisticTodos);
 
   const runAction = (action: TodoAction) => {
@@ -85,17 +90,9 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
     runAction({ type: "complete", id: todo.id, completedAt: isCompleted ? new Date().toISOString() : undefined });
   };
 
-  if (optimisticTodos.length === 0) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
-        <p className="text-[15px] text-ink">함께 하고 싶은 것을 적어 보세요</p>
-        <p className="text-[13px] text-ink-sub">오른쪽 위 + 버튼으로 추가할 수 있어요</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-6 pt-2 pb-6">
+  // 마지막 항목이 상대에게 지워졌다는 안내도 빈 목록과 함께 보여야 하므로, 안내는 목록이 비었는지와 상관없이 그린다
+  const messages = (
+    <>
       <p role="status" className="sr-only">
         {announcement}
       </p>
@@ -104,6 +101,25 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
           {notice}
         </p>
       )}
+    </>
+  );
+
+  if (optimisticTodos.length === 0) {
+    return (
+      // 빈 목록 문구의 자리가 바뀌지 않게, 위 여백은 안내가 있을 때만 둔다
+      <div className={notice ? "flex flex-1 flex-col pt-2" : "flex flex-1 flex-col"}>
+        {messages}
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">
+          <p className="text-[15px] text-ink">함께 하고 싶은 것을 적어 보세요</p>
+          <p className="text-[13px] text-ink-sub">오른쪽 위 + 버튼으로 추가할 수 있어요</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-6 pt-2 pb-6">
+      {messages}
 
       {open.length > 0 && (
         <ul aria-label="하고 싶은 것" className="flex flex-col">

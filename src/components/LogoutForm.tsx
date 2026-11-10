@@ -2,6 +2,7 @@
 
 import { useState, type ReactElement, type SubmitEvent } from "react";
 import { LOGIN_PATH, SIGN_OUT_PATH } from "@/lib/auth/paths";
+import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 
 /** 신호가 약해 요청이 끝나지 않을 때 실패로 알리기까지 기다리는 시간(ms) */
 const SIGN_OUT_TIMEOUT = 10_000;
@@ -14,6 +15,7 @@ const SIGN_OUT_TIMEOUT = 10_000;
 export const LogoutForm = (): ReactElement => {
   const [isPending, setIsPending] = useState(false);
   const [message, setMessage] = useState<string>();
+  useResetOnHide(() => setMessage(undefined));
 
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();

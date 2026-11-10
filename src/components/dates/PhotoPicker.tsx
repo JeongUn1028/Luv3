@@ -81,7 +81,8 @@ export const PhotoPicker = ({
   };
 
   return (
-    <fieldset className="flex flex-col" aria-describedby={errors.photos ? "photos-error" : undefined}>
+    // 오류 문구는 첫 오류 칸이 되는 사진 고르기 버튼이 설명으로 읽는다. 묶음에도 두면 같은 문구를 두 번 읽는다
+    <fieldset className="flex flex-col">
       <legend className="text-[13px] text-ink-sub">
         사진 <span className="font-display tracking-[1px]">{photos.length}/{MAX_PHOTOS}</span>
       </legend>
@@ -170,8 +171,11 @@ export const PhotoPicker = ({
       <button
         type="button"
         disabled={isDisabled || isFull}
+        // 사진이 없으면 저장할 때 이 버튼이 첫 오류 칸이 된다. 버튼에는 aria-invalid를 쓸 수 없어 data로 표시한다(DatePickerField와 같다)
+        data-invalid={Boolean(errors.photos)}
+        aria-describedby={errors.photos ? "photos-error" : undefined}
         onClick={() => inputRef.current?.click()}
-        className="press-wide mt-2 h-[51px] w-full rounded-[10px] border border-dashed border-line text-[15px] text-ink-sub hover:text-ink disabled:opacity-40"
+        className="press-wide mt-2 h-[51px] w-full rounded-[10px] border border-dashed border-line text-[15px] text-ink-sub hover:text-ink disabled:opacity-40 data-[invalid=true]:border-accent"
       >
         {isFull ? "사진은 10장까지 올릴 수 있어요" : "사진 고르기"}
       </button>
