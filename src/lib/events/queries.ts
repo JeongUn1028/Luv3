@@ -2,6 +2,7 @@ import "server-only";
 import type { KstNow } from "@/lib/anniversary";
 import { getGridRange } from "@/lib/calendar/month";
 import { isRecordId } from "@/lib/dates/detail";
+import { readAllRows } from "@/lib/supabase/read-all-rows";
 import { createClient } from "@/lib/supabase/server";
 import { toCalendarRecord, type CalendarEvent, type CalendarRecord } from "./calendar";
 import type { RecordPrefill } from "@/lib/dates/form";
@@ -65,12 +66,9 @@ export const getCalendarMonth = async (
   return { events: expandEventRows(eventsResult.data, { start, end }), records: recordsResult.data.map(toCalendarRecord) };
 };
 
-/** 홈 일정 칸에 읽을 한 번짜리 일정 수. 칸에는 2개와 그날 못 넣은 수만 쓰므로 이만큼이면 넉넉하다 */
-const UPCOMING_EVENTS_LIMIT = 50;
-
 /**
  * 앞으로의 일정을 하나당 가장 가까운 날 한 줄씩 날짜 → 종일 먼저 → 시간 → 만든 순서로 읽는다(홈).
- * 칸에 넣을 만큼 고르는 일은 `previewUpcomingEvents`가 한다.
+ * 칸에 넣을 만큼 고르는 일은 `previewUpcomingEvents`가 한다. 그날 못 넣은 수("외 N개")가 맞도록 앞으로의 일정을 끝까지 나눠 읽는다(#272).
  *
  * @throws {EventLoadError} 조회가 실패했을 때
  * @example const events = await getUpcomingEvents(toKstNow(new Date()))
@@ -78,23 +76,34 @@ const UPCOMING_EVENTS_LIMIT = 50;
 export const getUpcomingEvents = async (now: KstNow): Promise<CalendarEvent[]> => {
   const today = now.date;
   const supabase = await createClient();
-  const [singleResult, repeatingResult] = await Promise.all([
-    supabase
-      .from("events")
-      .select(EVENT_COLUMNS)
-      .is("repeat_rule", null)
-      // 이미 시작한 기간 일정도 끝나기 전까지 읽는다
-      .or(`date.gte.${today},end_date.gte.${today}`)
-      .order("date")
-      .order("start_time", { nullsFirst: true })
-      .order("created_at")
-      .limit(UPCOMING_EVENTS_LIMIT),
-    supabase.from("events").select(EVENT_COLUMNS).not("repeat_rule", "is", null).or(`repeat_until.is.null,repeat_until.gte.${today}`),
+  const [singleRows, repeatingRows] = await Promise.all([
+    readAllRows({
+      fetchPage: (afterId, limit) => {
+        const query = supabase
+          .from("events")
+          .select(EVENT_COLUMNS)
+          .is("repeat_rule", null)
+          // 이미 시작한 기간 일정도 끝나기 전까지 읽는다
+          .or(`date.gte.${today},end_date.gte.${today}`);
+        return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
+      },
+      toError: (cause) => new EventLoadError({ cause }),
+    }),
+    readAllRows({
+      fetchPage: (afterId, limit) => {
+        const query = supabase
+          .from("events")
+          .select(EVENT_COLUMNS)
+          .not("repeat_rule", "is", null)
+          .or(`repeat_until.is.null,repeat_until.gte.${today}`);
+        return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
+      },
+      toError: (cause) => new EventLoadError({ cause }),
+    }),
   ]);
-  if (singleResult.error) throw new EventLoadError({ cause: singleResult.error });
-  if (repeatingResult.error) throw new EventLoadError({ cause: repeatingResult.error });
 
-  return expandUpcomingEventRows([...singleResult.data, ...repeatingResult.data], now);
+  // 날짜 → 종일 먼저 → 시간 → 만든 순서 정렬은 펼친 뒤에 한다
+  return expandUpcomingEventRows([...singleRows, ...repeatingRows], now);
 };
 
 /**

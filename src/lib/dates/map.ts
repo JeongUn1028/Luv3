@@ -35,6 +35,20 @@ export interface MapRow {
   place_lng: number | null;
 }
 
+/**
+ * 기록을 최신순(날짜 → 작성 시각)으로 줄 세우는 비교 함수. 끝까지 나눠 읽은 기록을 화면 순서로 되돌릴 때 쓴다(#272).
+ *
+ * @example rows.toSorted(compareNewestFirst)
+ */
+export const compareNewestFirst = (
+  left: { id: string; date: string; created_at: string },
+  right: { id: string; date: string; created_at: string },
+): number =>
+  right.date.localeCompare(left.date) ||
+  Date.parse(right.created_at) - Date.parse(left.created_at) ||
+  // DB는 마이크로초까지 저장하지만 Date.parse는 밀리초까지만 읽어, 같아 보이는 기록도 늘 같은 순서가 되게 id로 정한다
+  right.id.localeCompare(left.id)
+
 /** 이름은 좌표와 함께 저장되지만, 없어도 핀은 그릴 수 있게 대신 쓰는 말 */
 const FALLBACK_PLACE = "이 장소";
 

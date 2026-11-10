@@ -1,5 +1,6 @@
 import "server-only";
 import { isRecordId } from "@/lib/dates/detail";
+import { readAllRows } from "@/lib/supabase/read-all-rows";
 import { createClient } from "@/lib/supabase/server";
 import { toTodo, type Todo } from "./list";
 
@@ -15,16 +16,22 @@ export class TodoLoadError extends Error {
 const TODO_COLUMNS = "id, content, sort_order, completed_at";
 
 /**
- * 둘이 함께 쓰는 하고 싶은 것 목록 전체를 읽는다. 하지 않은 것·완료한 것 나누기는 `groupTodos`가 한다.
+ * 둘이 함께 쓰는 하고 싶은 것 목록 전체를 정한 순서대로 읽는다. 1000개가 넘어도 잘리지 않게 끝까지 나눠 읽는다(#272).
+ * 순서 정하기와 하지 않은 것·완료한 것 나누기는 `groupTodos`가 한다.
  *
  * @throws {TodoLoadError} 조회가 실패했을 때
  * @example const { open, done } = groupTodos(await getTodos())
  */
 export const getTodos = async (): Promise<Todo[]> => {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("todos").select(TODO_COLUMNS).order("sort_order");
-  if (error) throw new TodoLoadError({ cause: error });
-  return data.map(toTodo);
+  const rows = await readAllRows({
+    fetchPage: (afterId, limit) => {
+      const query = supabase.from("todos").select(TODO_COLUMNS);
+      return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
+    },
+    toError: (cause) => new TodoLoadError({ cause }),
+  });
+  return rows.map(toTodo);
 };
 
 /**
