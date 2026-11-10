@@ -186,6 +186,9 @@ isOneToOne: false
             "are_valid_date_tags":
 { Args: { "p_tags": (string)[] }; Returns: boolean
                            },
+"assert_date_record_fields":
+{ Args: { "p_date": string,"p_end_date": string,"p_title": string }; Returns: undefined
+                           },
 "clear_couple_photo":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
