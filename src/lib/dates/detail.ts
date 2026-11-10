@@ -27,6 +27,8 @@ export interface DateRecordDetail {
   authorNickname: string | undefined;
   /** 일정에서 남긴 기록이면 그 일정의 고치기 주소(#227). 직접 쓴 기록이거나 일정이 지워졌으면 undefined */
   eventHref: string | undefined;
+  /** 이어진 일정과 그 고치기 주소(연결 끊기, #237). 직접 쓴 기록이거나 일정이 지워졌으면 undefined */
+  linkedEvent: { id: string; title: string; href: string } | undefined;
   /** sort_order 순서 */
   photos: DetailPhoto[];
   /** 기록을 지울 때 함께 지울 Storage 파일(원본·썸네일) */
@@ -67,7 +69,7 @@ export interface DetailRow {
   /** 기록을 남긴 일정의 날(반복이면 그날). 직접 쓴 기록은 null */
   event_date: string | null;
   /** 기록을 남긴 일정. 직접 쓴 기록이거나 일정이 지워졌으면 null */
-  event: { id: string; repeat_rule: string | null } | null;
+  event: { id: string; title: string; repeat_rule: string | null } | null;
   photos: { id: string; path: string; thumb_path: string; caption: string | null; sort_order: number }[];
 }
 
@@ -95,6 +97,14 @@ export const isRecordId = (id: string): boolean => UUID_PATTERN.test(id);
 export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): DateRecordDetail => {
   const urlByPath = toUrlByPath(signedPhotos);
   const photos = sortPhotos(row.photos);
+  const linkedEvent =
+    row.event && row.event_date
+      ? {
+          id: row.event.id,
+          title: row.event.title,
+          href: toEventEditHref({ id: row.event.id, date: row.event_date, repeatRule: isRepeatRule(row.event.repeat_rule) ? row.event.repeat_rule : undefined, period: undefined }),
+        }
+      : undefined;
   return {
     id: row.id,
     date: row.date,
@@ -104,10 +114,8 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): D
     memo: row.memo ?? undefined,
     tags: row.tags,
     authorNickname: row.author?.nickname,
-    eventHref:
-      row.event && row.event_date
-        ? toEventEditHref({ id: row.event.id, date: row.event_date, repeatRule: isRepeatRule(row.event.repeat_rule) ? row.event.repeat_rule : undefined, period: undefined })
-        : undefined,
+    eventHref: linkedEvent?.href,
+    linkedEvent,
     photos: photos.map(({ id, path, caption }) => ({ id, url: urlByPath.get(path), caption: caption ?? undefined })),
     filePaths: photos.flatMap(({ path, thumb_path }) => [path, thumb_path]),
   };

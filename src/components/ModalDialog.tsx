@@ -48,7 +48,7 @@ interface ModalDialogProps {
   ref: Ref<ModalDialogHandle>;
   title: string;
   description?: string;
-  /** 작업 중이면 Esc로 닫혀 결과를 놓치지 않게 막는다 */
+  /** 작업 중이면 Esc나 바깥 누름으로 닫혀 결과를 놓치지 않게 막는다 */
   isBusy?: boolean;
   onClose?: () => void;
   /** 창 바깥을 누르면 닫는다. 닫아도 잃는 것이 없는 창에만 쓴다 */
@@ -146,7 +146,8 @@ export const ModalDialog = ({
         if (shouldGuardDoubleTap && event.detail > 0 && event.timeStamp - openedAtRef.current < DOUBLE_TAP_GUARD_MS) event.stopPropagation();
       }}
       onClick={(event) => {
-        if (shouldCloseOnOutsideClick && isOutsideClick(event)) closeWithMotion(event.currentTarget, closeTimerRef);
+        // 작업 중이면 Esc와 같이 닫지 않는다. 닫힌 창에 실패 문구가 남아 결과를 놓친다
+        if (shouldCloseOnOutsideClick && !isBusy && isOutsideClick(event)) closeWithMotion(event.currentTarget, closeTimerRef);
       }}
       className="modal-dialog m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
     >

@@ -10,13 +10,16 @@ import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { RecordComments } from "@/components/dates/RecordComments";
 import { RecordDetailSkeleton } from "@/components/dates/RecordDetailSkeleton";
+import { LinkEventButton, LinkedEventRow } from "@/components/dates/RecordEventLink";
 import { RecordTagLink } from "@/components/dates/RecordTagLink";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { toKstDate } from "@/lib/anniversary";
 import { getCurrentMember } from "@/lib/auth/member";
 import { CommentLoadError, getRecordComments } from "@/lib/comments/queries";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { formatRecordPeriod } from "@/lib/dates/detail";
 import { DateRecordLoadError, getDateRecordDetail } from "@/lib/dates/queries";
+import { EventLoadError, getLinkableEvents } from "@/lib/events/queries";
 import { catchLoadError } from "@/lib/load";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
@@ -27,6 +30,13 @@ export const metadata: Metadata = { title: "기록 · Luv3" };
 const DetailHeader = ({ actions }: { actions?: ReactNode }) => (
   <ScreenHeader back={{ href: RECORDS_PATH }} actions={actions} />
 );
+
+// 이을 일정이 없으면 아무것도 그리지 않는다. 못 읽어도 기록은 그대로 볼 수 있다
+const LinkEventSuggestion = async ({ recordId, date, endDate }: { recordId: string; date: string; endDate: string | undefined }) => {
+  const events = await catchLoadError(() => getLinkableEvents({ start: date, end: endDate ?? date }, toKstDate(new Date())), EventLoadError);
+  if (events instanceof EventLoadError || events.length === 0) return null;
+  return <LinkEventButton recordId={recordId} events={events} />;
+};
 
 const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
@@ -97,6 +107,14 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
           )}
           {record.memo && (
             <p className="mt-5 text-[15px] leading-[1.75] break-words whitespace-pre-wrap text-ink">{record.memo}</p>
+          )}
+          {/* 이미 쓴 기록도 일정과 잇고, 잘못 이었으면 연결만 끊는다(#237). 이을 일정은 기록을 그린 뒤에 읽어 화면을 늦추지 않고, 늦게 나타나도 글을 밀지 않게 본문 끝에 둔다 */}
+          {record.linkedEvent ? (
+            <LinkedEventRow recordId={record.id} event={record.linkedEvent} />
+          ) : (
+            <LoadingSuspense fallback={null}>
+              <LinkEventSuggestion recordId={record.id} date={record.date} endDate={record.endDate} />
+            </LoadingSuspense>
           )}
         </div>
       </article>
