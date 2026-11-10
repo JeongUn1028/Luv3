@@ -26,6 +26,12 @@ const reportSessionLost = (error: unknown): void => {
   if (error instanceof RecordSearchError && error.status === UNAUTHORIZED_STATUS) window.dispatchEvent(new Event(SESSION_LOST_EVENT));
 };
 
+// 묶음을 받는 사이 상대가 날짜를 고치면 같은 기록이 다음 묶음에 다시 올 수 있어 이미 받은 것은 뺀다
+const appendNewItems = (items: AlbumTile[], nextItems: AlbumTile[]): AlbumTile[] => {
+  const ids = new Set(items.map(({ id }) => id));
+  return [...items, ...nextItems.filter(({ id }) => !ids.has(id))];
+};
+
 interface LoadedResults {
   /** 이 결과를 받은 조건 */
   key: string;
@@ -80,6 +86,8 @@ export const useRecordSearch = ({ query, tag, refreshKey }: UseRecordSearchParam
     const controller = new AbortController();
     fetchRecordSearchPage({ query: words, tag, after: undefined }, controller.signal).then(
       (page) => {
+        // 본문까지 받은 뒤 조건이 바뀌었으면 끊어도 여기로 온다. 예전 조건의 결과로 지금 조건을 받은 것처럼 남기지 않는다
+        if (controller.signal.aborted) return;
         loadedKey.current = key;
         setFailedKey(undefined);
         setResults({ key, ...page, isLoadingMore: false, isMoreFailed: false });
@@ -104,7 +112,7 @@ export const useRecordSearch = ({ query, tag, refreshKey }: UseRecordSearchParam
 
     update((current) => ({ ...current, isLoadingMore: true, isMoreFailed: false }));
     fetchRecordSearchPage({ query: words, tag, after }).then(
-      (page) => update((current) => ({ ...current, items: [...current.items, ...page.items], next: page.next, isLoadingMore: false })),
+      (page) => update((current) => ({ ...current, items: appendNewItems(current.items, page.items), next: page.next, isLoadingMore: false })),
       (error: unknown) => {
         update((current) => ({ ...current, isLoadingMore: false, isMoreFailed: true }));
         reportSessionLost(error);

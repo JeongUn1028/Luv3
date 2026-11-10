@@ -8,8 +8,8 @@ export const RECORD_SEARCH_PATH = "/api/records/search";
 /** 한 번에 받는 기록 수. 맨 아래 가까이 가면 다음 묶음을 받는다 */
 export const RECORD_SEARCH_PAGE_SIZE = 60;
 
-/** 검색어·태그로 받는 글자 수 상한. 기록의 어떤 칸보다 길면 찾을 것이 없다 */
-const SEARCH_TEXT_MAX_LENGTH = 100;
+/** 검색어·태그로 받는 글자 수 상한. 검색 칸도 이만큼만 받는다 */
+export const SEARCH_TEXT_MAX_LENGTH = 100;
 
 /** 다음 묶음을 받을 자리: 앞 묶음 마지막 기록의 날짜·작성 시각·id */
 export interface RecordCursor {

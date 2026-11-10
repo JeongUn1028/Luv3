@@ -22,15 +22,17 @@ export class RecordSearchLoadError extends Error {
  */
 export const searchRecords = async ({ query, tag, after }: RecordSearchParams): Promise<RecordSearchPage> => {
   const supabase = await createClient();
-  const { data: rows, error } = await supabase.rpc("search_date_records", {
+  const { data: found, error } = await supabase.rpc("search_date_records", {
     p_words: toSearchWords(query),
     p_tag: tag,
     p_before_date: after?.date,
     p_before_created_at: after?.createdAt,
     p_before_id: after?.id,
-    p_limit: RECORD_SEARCH_PAGE_SIZE,
+    // 하나 더 받아 다음 묶음이 있는지 안다. 맞는 기록이 60의 배수일 때 빈 묶음을 한 번 더 부르지 않는다
+    p_limit: RECORD_SEARCH_PAGE_SIZE + 1,
   });
   if (error) throw new RecordSearchLoadError({ cause: error });
+  const rows = found.slice(0, RECORD_SEARCH_PAGE_SIZE);
 
   const thumbPaths = rows.flatMap(({ thumb_path: thumbPath }) => (thumbPath ? [thumbPath] : []));
   const { data: signed, error: signError } = await getSignedUrls(supabase.storage.from(ALBUM_BUCKET), thumbPaths);
@@ -43,8 +45,8 @@ export const searchRecords = async ({ query, tag, after }: RecordSearchParams): 
   const last = rows.at(-1);
   return {
     items,
-    // 묶음마다 전체 수가 같이 온다. 다음 묶음이 비어 있으면 셀 행이 없으나, 화면은 첫 묶음의 수만 쓴다
+    // DB는 첫 묶음에서만 전체 수를 센다. 화면도 첫 묶음의 수만 쓴다
     total: rows[0]?.total_count ?? 0,
-    next: last && rows.length === RECORD_SEARCH_PAGE_SIZE ? { date: last.date, createdAt: last.created_at, id: last.id } : undefined,
+    next: last && found.length > RECORD_SEARCH_PAGE_SIZE ? { date: last.date, createdAt: last.created_at, id: last.id } : undefined,
   };
 };

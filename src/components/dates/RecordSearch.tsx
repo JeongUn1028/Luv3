@@ -6,6 +6,7 @@ import { FILLED_TAG_CHIP_CLASS_NAME, OUTLINED_TAG_CHIP_CLASS_NAME } from "@/comp
 import { LoadMoreTrigger } from "@/components/LoadMoreTrigger";
 import { RetryButton } from "@/components/RetryButton";
 import type { AlbumTile } from "@/lib/dates/album";
+import { SEARCH_TEXT_MAX_LENGTH } from "@/lib/dates/search-api";
 import { recordTagLinkCount, replaceRecordsAddress, toRecordSearchHref } from "@/lib/dates/search";
 import { useRecordSearch, type RecordSearchStatus } from "@/lib/dates/use-record-search";
 
@@ -19,6 +20,10 @@ interface RecordSearchProps {
 
 /** 글자를 칠 때마다 서버를 부르지 않고, 이만큼 멈추면 찾는다 */
 const SEARCH_DELAY_MS = 300;
+
+// 칸에 보이는 내용만 비교한다. 썸네일 서명 주소는 내용이 같아도 새로 받을 때 바뀔 수 있다
+const toTilesSignature = (tiles: AlbumTile[]): string =>
+  tiles.map(({ id, date, endDate, title, place, tags }) => JSON.stringify([id, date, endDate, title, place, tags])).join("\n");
 
 const toResultLabel = (status: RecordSearchStatus, total: number | undefined): string => {
   if (status === "loading") return "찾는 중…";
@@ -36,11 +41,13 @@ const toResultLabel = (status: RecordSearchStatus, total: number | undefined): s
 export const RecordSearch = ({ tiles, tags, tag }: RecordSearchProps): ReactElement => {
   const [query, setQuery] = useState("");
   const [searchedQuery, setSearchedQuery] = useState("");
-  // 기록을 쓰거나 지워 화면을 새로 받으면 그리드가 바뀐다. 찾은 결과도 맞지 않을 수 있으니 다시 찾는다
-  const [seenTiles, setSeenTiles] = useState(tiles);
+  // 기록을 쓰거나 고치거나 지운 뒤 화면을 새로 받으면 찾은 결과도 맞지 않을 수 있으니 다시 찾는다.
+  // 앱 복귀·뒤로 가기도 화면을 새로 받으므로 내용이 그대로면 이어 받은 결과와 스크롤 위치를 지킨다
+  const tilesSignature = toTilesSignature(tiles);
+  const [seenSignature, setSeenSignature] = useState(tilesSignature);
   const [refreshKey, setRefreshKey] = useState(0);
-  if (tiles !== seenTiles) {
-    setSeenTiles(tiles);
+  if (tilesSignature !== seenSignature) {
+    setSeenSignature(tilesSignature);
     setRefreshKey((key) => key + 1);
   }
   const [shownTag, setShownTag] = useState(tag);
@@ -71,6 +78,8 @@ export const RecordSearch = ({ tiles, tags, tag }: RecordSearchProps): ReactElem
   // 기록이 하나도 없으면 그리드의 빈 화면이 이미 알려 준다
   const isFiltering = tiles.length > 0 && search.status !== "idle";
   const shownTiles = search.status === "idle" ? tiles : search.items;
+  // 태그 줄을 못 읽었거나 아직 세지 않은 태그로 들어와도 고른 태그와 "전체"는 보여 줘야 풀 수 있다
+  const shownTags = tag === undefined || tags.some((name) => name.toLowerCase() === tag.toLowerCase()) ? tags : [tag, ...tags];
   const tagRowRef = useRef<HTMLUListElement>(null);
 
   // 상세의 태그로 들어오면 고른 태그가 줄 끝에 숨어 있을 수 있다. 스크롤 위치가 되살아나는 때에도 돌므로 세로로는 움직이지 않는다
@@ -105,11 +114,12 @@ export const RecordSearch = ({ tiles, tags, tag }: RecordSearchProps): ReactElem
         aria-label="기록 찾기"
         placeholder="제목, 장소, 글, 한마디"
         enterKeyHint="search"
+        maxLength={SEARCH_TEXT_MAX_LENGTH}
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={handleKeyDown}
         className="mt-1 h-[51px] w-full shrink-0 appearance-none rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none"
       />
-      {tags.length > 0 && (
+      {shownTags.length > 0 && (
         // 옆으로 밀리는 줄은 위아래가 잘리므로, 넓힌 누름 영역만큼 안쪽을 비운다
         <ul ref={tagRowRef} aria-label="태그로 모아 보기" className="-mx-4 mt-1 flex shrink-0 gap-1.5 overflow-x-auto px-4 py-[9px] [scrollbar-width:none]">
           <li className="shrink-0">
@@ -122,7 +132,7 @@ export const RecordSearch = ({ tiles, tags, tag }: RecordSearchProps): ReactElem
               전체
             </button>
           </li>
-          {tags.map((name) => {
+          {shownTags.map((name) => {
             const isSelected = name.toLowerCase() === tag?.toLowerCase();
             return (
               <li key={name} className="shrink-0">

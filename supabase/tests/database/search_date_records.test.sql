@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(16);
+select plan(17);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@search.test', 'authenticated', 'authenticated'),
@@ -12,9 +12,10 @@ insert into auth.users (id, email, aud, role) values
 insert into public.members (id, email, nickname) values
   ('00000000-0000-0000-0000-00000000000a', 'a@search.test', 'A');
 
--- 기록 넷: 낱말이 제목·장소·정리 글·사진 한마디·태그에 하나씩 있다. 같은 날의 둘은 작성 시각으로 줄 선다
+-- 기록 넷: 낱말이 제목·장소·정리 글·사진 한마디·태그에 하나씩 있다. 같은 날의 둘은 작성 시각으로 줄 선다.
+-- 같은 태그를 'PGS태그a'로 두 번, 'pgs태그a'로 한 번 썼다(정렬로는 소문자가 앞선다)
 insert into public.dates (id, date, title, place, memo, tags, author_id, created_at) values
-  ('70000000-0000-0000-0000-000000000001', '2026-11-03', 'pgs제목 Han River', null, null, array['pgs태그A'], '00000000-0000-0000-0000-00000000000a', '2026-11-03 10:00+09'),
+  ('70000000-0000-0000-0000-000000000001', '2026-11-03', 'pgs제목 Han River', null, null, array['PGS태그a'], '00000000-0000-0000-0000-00000000000a', '2026-11-03 10:00+09'),
   ('70000000-0000-0000-0000-000000000002', '2026-11-03', '둘째', 'pgs장소', 'pgs정리 100%_할인', array['PGS태그a', '여행'], '00000000-0000-0000-0000-00000000000a', '2026-11-03 12:00+09'),
   ('70000000-0000-0000-0000-000000000003', '2026-11-02', '셋째', null, null, array['pgs태그a'], '00000000-0000-0000-0000-00000000000a', '2026-11-02 10:00+09'),
   ('70000000-0000-0000-0000-000000000004', '2026-11-01', '넷째', null, 'pgs정리 1000원', array['pgs태그B'], '00000000-0000-0000-0000-00000000000a', '2026-11-01 10:00+09');
@@ -93,6 +94,11 @@ select is(
   '앞 묶음 마지막 기록 다음부터 받고, 대표 사진의 썸네일 경로를 붙인다'
 );
 select is(
+  (select array_agg(total_count) from public.search_date_records('{}', 'pgs태그a', p_before_date => '2026-11-03', p_before_created_at => '2026-11-03 10:00+09', p_before_id => '70000000-0000-0000-0000-000000000001')),
+  array[null::bigint],
+  '다음 묶음에서는 전체 수를 다시 세지 않는다'
+);
+select is(
   (select array_agg(distinct total_count) from public.search_date_records('{}', 'pgs태그a', p_limit => 1)),
   array[3::bigint],
   '전체 수는 묶음 크기와 상관없이 맞는 기록 전체의 수다'
@@ -105,9 +111,9 @@ select is(
 );
 
 select is(
-  (select array_agg((lower(tag), count)::text order by lower(tag)) from public.count_date_tags() where lower(tag) like 'pgs%'),
-  array['(pgs천건,1050)', '(pgs태그a,3)', '(pgs태그b,1)'],
-  '태그를 대소문자 없이 묶어 1000개가 넘어도 끝까지 센다'
+  (select array_agg((tag, count)::text order by lower(tag)) from public.count_date_tags() where lower(tag) like 'pgs%'),
+  array['(pgs천건,1050)', '(PGS태그a,3)', '(pgs태그B,1)'],
+  '태그를 대소문자 없이 묶어 1000개가 넘어도 끝까지 세고, 가장 많이 쓴 글자로 보여 준다'
 );
 
 -- 허용목록 밖의 사용자

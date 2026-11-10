@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
-import { createDisposableRecord, createDisposableRecords, setRecordSearchFields, setRecordTags } from "./support/seed";
+import { isScreenRequest, returnToApp } from "./support/actions";
+import { createDisposableRecord, createDisposableRecords, getRecordIdsByTitle, renameRecord, setRecordSearchFields, setRecordTags } from "./support/seed";
 import { expect, getScrollArea, getScrollAreaOverflow, openScreen, test } from "./support/test";
 
 /** 나란히 도는 테스트의 기록과 섞이지 않는 낱말. 태그 10자 제한 안에 들어온다 */
@@ -389,6 +390,67 @@ test.describe("기록 찾기", () => {
 
   test.describe("한 묶음(60개)보다 많이 찾으면", () => {
     const RECORD_COUNT = 65;
+    const MINUTE_MS = 60_000;
+
+    test("기록이 그대로인 채 화면을 새로 받으면 이어 받은 결과를 다시 받지 않는다", async ({ page }) => {
+      // Arrange
+      const word = createWord();
+      const deleteRecords = await createDisposableRecords({ count: RECORD_COUNT, titlePrefix: `E2E 묶음 새로 ${word}` });
+      await page.clock.install();
+
+      try {
+        await openSearch(page);
+        await page.getByRole("searchbox", { name: "기록 찾기" }).fill(word);
+        const links = getRecordLink(page, `E2E 묶음 새로 ${word}`);
+        await expect(links).toHaveCount(60);
+        await getScrollArea(page).evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+        await expect(links).toHaveCount(RECORD_COUNT);
+        const firstPageRequests: string[] = [];
+        page.on("request", (request) => {
+          const url = new URL(request.url());
+          if (url.pathname === "/api/records/search" && !url.searchParams.has("beforeId")) firstPageRequests.push(request.url());
+        });
+        const refreshed = page.waitForRequest((request) => isScreenRequest(request, "/records"));
+
+        // Act: 받은 지 30분이 지나 앱으로 돌아오면 기록 탭 화면을 새로 받는다
+        await page.clock.fastForward(31 * MINUTE_MS);
+        await returnToApp(page);
+        await refreshed;
+        await page.waitForTimeout(1_000);
+
+        // Assert
+        expect(firstPageRequests).toEqual([]);
+        await expect(links).toHaveCount(RECORD_COUNT);
+      } finally {
+        await deleteRecords();
+      }
+    });
+
+    test("상대가 고친 뒤 화면을 새로 받으면 찾은 결과도 다시 받는다", async ({ page }) => {
+      // Arrange
+      const word = createWord();
+      const titlePrefix = `E2E 묶음 고침 ${word}`;
+      const deleteRecords = await createDisposableRecords({ count: RECORD_COUNT, titlePrefix });
+      await page.clock.install();
+
+      try {
+        await openSearch(page);
+        await page.getByRole("searchbox", { name: "기록 찾기" }).fill(word);
+        await expect(getRecordLink(page, titlePrefix)).toHaveCount(60);
+        const [latestId] = await getRecordIdsByTitle(`${titlePrefix} ${RECORD_COUNT - 1}`);
+        if (!latestId) throw new Error("최근 기록을 찾지 못했다");
+        await renameRecord(latestId, `${titlePrefix} 상대가 고침`);
+
+        // Act
+        await page.clock.fastForward(31 * MINUTE_MS);
+        await returnToApp(page);
+
+        // Assert
+        await expect(getRecordLink(page, `${titlePrefix} 상대가 고침`)).toBeAttached();
+      } finally {
+        await deleteRecords();
+      }
+    });
 
     test("내리면 다음 묶음을 이어 붙여 모두 보여 준다", async ({ page }) => {
       // Arrange
