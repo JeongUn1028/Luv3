@@ -82,10 +82,10 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 
 ### 보안 헤더
 
-모든 응답에 콘텐츠 보안 정책(CSP)과 기본 보안 헤더를 붙인다(`src/lib/security/headers.ts`, `next.config.ts`, #170). 스크립트·사진·요청은 앱 자신, Supabase(`NEXT_PUBLIC_SUPABASE_URL`), 카카오 지도(`dapi.kakao.com`, `*.kakaocdn.net`)에서만 받고, 다른 사이트 안에 넣는 것을 막는다. 미리 그려 둔 화면을 지키려고 요청마다 바뀌는 값(nonce)은 쓰지 않고 인라인 스크립트는 허용한다.
+모든 응답에 콘텐츠 보안 정책(CSP)과 기본 보안 헤더를 붙인다(`src/lib/security/headers.ts`, `next.config.ts`, #170). 스크립트·사진·요청은 앱 자신, Supabase(`NEXT_PUBLIC_SUPABASE_URL`), 카카오 지도(`dapi.kakao.com`, `*.kakaocdn.net`)에서만 받고, 다른 사이트 안에 넣는 것을 막는다. 미리 그려 둔 화면을 지키려고 요청마다 바뀌는 값(nonce)은 쓰지 않고 인라인 스크립트는 허용한다. 아이폰 사진(HEIC)을 바꾸는 heic2any가 `blob:` Worker 안에서 `new Function`을 쓰므로 `blob:` Worker와 eval도 허용한다.
 
 - 외부 서비스(스크립트, 이미지, API)를 새로 쓰면 그 주소를 `headers.ts`에 더한다. 빠뜨리면 브라우저 콘솔에 "Content Security Policy" 오류가 나고 그 자원이 막힌다.
-- 카카오가 지도 파일 주소를 바꾸면 지도가 안 나올 수 있다. 기록 지도가 "지도를 불러오지 못했어요"에 머물면 콘솔의 CSP 오류에 나온 주소를 더한다.
+- E2E는 카카오 지도 SDK를 가짜로 대신하므로 실제 지도 파일·그림 주소(2026-11 확인: `t1.kakaocdn.net`, `mts.kakaocdn.net`)는 검사하지 못한다. 카카오가 이 주소를 바꾸면 지도가 안 나올 수 있다. 기록 지도가 "지도를 불러오지 못했어요"에 머물면 콘솔의 CSP 오류에 나온 주소를 더한다.
 - Supabase 주소가 CSP에 들어가므로 빌드할 때 `NEXT_PUBLIC_SUPABASE_URL`이 있어야 한다(없으면 빌드가 실패한다).
 
 ### 로그인 공개 키

@@ -1,5 +1,4 @@
 import type { NextConfig } from "next";
-import { getSupabaseEnv } from "./src/lib/env";
 import { buildSecurityHeaders } from "./src/lib/security/headers";
 
 const nextConfig: NextConfig = {
@@ -11,12 +10,11 @@ const nextConfig: NextConfig = {
     useOffline: true,
   },
   // 모든 응답에 보안 헤더를 붙인다(#170). Supabase 주소를 CSP에 넣으므로 빌드할 때 환경 변수가 있어야 한다
-  headers: async () => [
-    {
-      source: "/:path*",
-      headers: buildSecurityHeaders({ supabaseUrl: getSupabaseEnv().url, isDev: process.env.NODE_ENV === "development" }),
-    },
-  ],
+  headers: async () => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) throw new Error("환경 변수가 없습니다: NEXT_PUBLIC_SUPABASE_URL (.env.example 참고)");
+    return [{ source: "/:path*", headers: buildSecurityHeaders({ supabaseUrl, isDev: process.env.NODE_ENV === "development" }) }];
+  },
   turbopack: {
     rules: {
       "*.css": {

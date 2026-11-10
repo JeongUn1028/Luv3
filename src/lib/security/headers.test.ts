@@ -18,7 +18,7 @@ describe("buildContentSecurityPolicy", () => {
   it("스크립트는 우리 앱과 카카오 지도 SDK(본체를 다시 불러오는 주소 포함)에서만 받는다", () => {
     const policy = parsePolicy(buildContentSecurityPolicy(PRODUCTION));
 
-    expect(policy["script-src"]).toEqual(["'self'", "'unsafe-inline'", "https://dapi.kakao.com", "https://t1.kakaocdn.net"]);
+    expect(policy["script-src"]).toEqual(["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://dapi.kakao.com", "https://t1.kakaocdn.net"]);
   });
 
   it("Supabase로의 요청과 사진, 카카오 지도 그림을 허용한다", () => {
@@ -38,9 +38,9 @@ describe("buildContentSecurityPolicy", () => {
   });
 
   it("Supabase 주소의 경로는 빼고 출처만 넣는다", () => {
-    const policy = parsePolicy(buildContentSecurityPolicy({ ...PRODUCTION, supabaseUrl: "https://example.supabase.co/" }));
+    const policy = parsePolicy(buildContentSecurityPolicy({ ...PRODUCTION, supabaseUrl: "https://example.supabase.co/rest/v1" }));
 
-    expect(policy["connect-src"]).toContain("https://example.supabase.co");
+    expect(policy["connect-src"]).toEqual(["'self'", "https://example.supabase.co"]);
   });
 
   // http인 로컬 Supabase 요청까지 https로 바꿔 E2E와 로컬 확인이 깨진다
@@ -49,10 +49,12 @@ describe("buildContentSecurityPolicy", () => {
     expect(parsePolicy(buildContentSecurityPolicy(PRODUCTION))["upgrade-insecure-requests"]).toEqual([]);
   });
 
-  // React가 개발 중 오류 위치를 되살릴 때 eval을 쓴다(Next CSP 안내)
-  it("개발 서버에서만 eval을 허용한다", () => {
-    expect(parsePolicy(buildContentSecurityPolicy({ ...LOCAL, isDev: true }))["script-src"]).toContain("'unsafe-eval'");
-    expect(parsePolicy(buildContentSecurityPolicy(PRODUCTION))["script-src"]).not.toContain("'unsafe-eval'");
+  // heic2any는 불러올 때 blob: 주소로 Worker를 만들고, Worker는 페이지의 CSP를 물려받은 채 new Function을 쓴다
+  it("아이폰 사진(HEIC) 변환 Worker가 돌도록 blob: Worker와 eval을 허용한다", () => {
+    const policy = parsePolicy(buildContentSecurityPolicy(PRODUCTION));
+
+    expect(policy["worker-src"]).toEqual(["'self'", "blob:"]);
+    expect(policy["script-src"]).toContain("'unsafe-eval'");
   });
 
   it("Supabase 주소가 올바르지 않으면 헤더를 만들지 않는다", () => {
@@ -68,6 +70,13 @@ describe("buildSecurityHeaders", () => {
     expect(headers["X-Content-Type-Options"]).toBe("nosniff");
     expect(headers["X-Frame-Options"]).toBe("DENY");
     expect(headers["Strict-Transport-Security"]).toBe("max-age=63072000");
+  });
+
+  // https로 띄운 개발 서버에서 받으면 같은 주소의 다른 http 프로젝트가 2년 동안 열리지 않는다
+  it("개발 서버에서는 HSTS를 보내지 않는다", () => {
+    const keys = buildSecurityHeaders({ ...LOCAL, isDev: true }).map(({ key }) => key);
+
+    expect(keys).not.toContain("Strict-Transport-Security");
   });
 
   // 카카오 지도 키는 요청한 사이트 주소(Referer)로 허용 도메인을 확인하므로 다른 사이트에도 출처는 보내야 한다
