@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useTransition, useEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
+import { startTransition, useTransition, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { DatePickerField } from "@/components/DatePickerField";
 import { PageShell } from "@/components/PageShell";
@@ -26,6 +26,7 @@ import {
   type RecordPrefill,
 } from "@/lib/dates/form";
 import { clearError, countChars } from "@/lib/form";
+import { subscribeToAppReturn } from "@/lib/navigation/app-return";
 import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
 import { BACK_TRANSITION, FORWARD_TRANSITION } from "@/lib/navigation/transition";
@@ -134,10 +135,29 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
   const [linkedRecordId, setLinkedRecordId] = useState<string>();
   const [progress, setProgress] = useState<SaveProgress>();
   const [isSaving, setIsSaving] = useState(false);
+  const hasWrittenContent = hasRecordDraftChanges(initialDraft, draft) || tagInput.trim() !== "";
   // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알린다(#104). 지워진 기록은 저장할 곳이 없어 묻지 않는다
-  const shouldConfirmLeave = (hasRecordDraftChanges(initialDraft, draft) || tagInput.trim() !== "") && !isSaving && !isRecordGone;
+  const shouldConfirmLeave = hasWrittenContent && !isSaving && !isRecordGone;
   const today = toKstDate(new Date());
   const isPeriod = draft.endDate !== undefined;
+
+  // 오늘을 기본값으로 연 새 기록 폼은 다시 보일 때 아무것도 쓰지 않았으면 날짜를 오늘로 맞춘다(#162).
+  // 화면을 새로 받아도 같은 key라 처음 그린 날의 날짜가 남는다. 숨겨 둔 폼(Activity)은 다시 보일 때 효과가 다시 돌고,
+  // 보고 있던 폼은 앱으로 돌아올 때 알림을 받는다. 그리기 전에 맞춰 어제 날짜가 잠깐 보이지 않게 한다
+  const hasDefaultDate = !record && prefill?.date === undefined;
+  const moveUntouchedDateToToday = useEffectEvent(() => {
+    const currentToday = toKstDate(new Date());
+    // 날짜를 직접 고친 것도 쓴 내용이라 그대로 둔다
+    if (hasWrittenContent || draft.date >= currentToday) return;
+    setInitialDraft((current) => ({ ...current, date: currentToday }));
+    setDraft((current) => ({ ...current, date: currentToday }));
+  });
+  useLayoutEffect(() => {
+    if (!hasDefaultDate) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 다시 보일 때 바깥 시계에 맞춘다. 날짜가 지났을 때만 바꿔 연달아 그리지 않는다
+    moveUntouchedDateToToday();
+    return subscribeToAppReturn(moveUntouchedDateToToday);
+  }, [hasDefaultDate]);
 
   // 만든 미리보기 URL. 사진을 빼거나 화면을 떠날 때 해제한다(브라우저 메모리 = 외부 자원)
   const previewUrlsRef = useRef(new Set(draft.photos.flatMap(({ file, previewUrl }) => (file && previewUrl ? [previewUrl] : []))));
