@@ -1,0 +1,188 @@
+import { listAlbumObjects, type AlbumListStorage, type AlbumObject } from "./album-files";
+import { toCouplePhotoMediumPath } from "./paths";
+
+/**
+ * 이보다 최근에 올린 파일은 업로드 중이거나 기록 저장 직전일 수 있어 지우지 않는다(하루).
+ * 사진은 Storage에 먼저 올리고 DB 행을 나중에 만든다(#5)
+ */
+const MIN_ORPHAN_AGE_MS = 24 * 60 * 60 * 1000;
+
+/** 한 번에 지울 수 있는 최대 파일 수. 두 사람만 써서 이보다 많으면 무언가 잘못 읽은 것으로 보고 멈춘다 */
+const MAX_ORPHANS_PER_RUN = 100;
+
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+// 앱이 만드는 이름만 지운다: 기록 사진 `{date_id}/{photo_id}.jpg`·`_thumb.jpg`, 커플 사진 `couple/{id}.jpg`·`_medium.jpg`
+const APP_FILE_PATH = new RegExp(`^(?:${UUID}/${UUID}(?:_thumb)?|couple/${UUID}(?:_medium)?)\\.jpg$`, "i");
+
+/** DB에서 읽은, 파일을 가리키는 칸들 */
+export interface PhotoFileReferences {
+  /** `photos` 표의 모든 행 */
+  photos: { path: string; thumb_path: string }[];
+  /** `couple_photo.path`. 커플 사진이 없으면 undefined */
+  couplePhotoPath: string | undefined;
+}
+
+/** `supabase.storage.from("album")`에서 목록 읽기와 지우기만 쓴다 */
+export interface CleanupStorage extends AlbumListStorage {
+  remove: (paths: string[]) => Promise<{ error: { message: string } | null }>;
+}
+
+interface OrphanScan {
+  /** 하루 넘게 주인이 없는 앱 파일. 지울 대상 */
+  orphanPaths: string[];
+  /** 주인이 없지만 올린 지 하루가 안 됐거나 올린 시각을 몰라 남긴 파일 수 */
+  recentOrphanCount: number;
+  /** 앱이 만드는 이름이 아니라 건드리지 않은 파일 */
+  unknownPaths: string[];
+  /** 기록·커플 사진이 가리키는 파일 수 */
+  inUseCount: number;
+}
+
+/**
+ * 정리 결과. `preview`는 지우지 않고 목록만(지웠다면 멈췄을 때는 그 이유 `reason`도), `blocked`는 지울 목록이 이상해 멈춤,
+ * `deleted`는 `orphanPaths`를 지움
+ */
+export type CleanupResult = OrphanScan &
+  ({ status: "preview"; reason?: string } | { status: "blocked"; reason: string } | { status: "deleted" });
+
+interface CleanupOrphanPhotosParams {
+  storage: CleanupStorage;
+  readReferences: () => Promise<PhotoFileReferences>;
+  now: Date;
+  /** false면 지울 목록만 돌려준다 */
+  shouldDelete: boolean;
+}
+
+const collectReferencedPaths = ({ photos, couplePhotoPath }: PhotoFileReferences): Set<string> => {
+  const paths = new Set(photos.flatMap(({ path, thumb_path }) => [path, thumb_path]));
+  if (couplePhotoPath) {
+    // 홈 카드용 중간 크기는 DB에 경로가 없고 원본 경로에서 정한다(#218)
+    paths.add(couplePhotoPath);
+    paths.add(toCouplePhotoMediumPath(couplePhotoPath));
+  }
+  return paths;
+};
+
+const isOldEnough = (createdAt: string | undefined, now: Date): boolean => {
+  const uploadedAt = createdAt === undefined ? Number.NaN : Date.parse(createdAt);
+  // 올린 시각을 모르면 업로드 중일 수 있어 지우지 않는다
+  return !Number.isNaN(uploadedAt) && now.getTime() - uploadedAt >= MIN_ORPHAN_AGE_MS;
+};
+
+const scanOrphanFiles = (files: AlbumObject[], referencedPaths: ReadonlySet<string>, now: Date): OrphanScan => {
+  const scan: OrphanScan = { orphanPaths: [], recentOrphanCount: 0, unknownPaths: [], inUseCount: 0 };
+
+  for (const { path, createdAt } of files) {
+    if (referencedPaths.has(path)) scan.inUseCount += 1;
+    else if (!APP_FILE_PATH.test(path)) scan.unknownPaths.push(path);
+    else if (isOldEnough(createdAt, now)) scan.orphanPaths.push(path);
+    else scan.recentOrphanCount += 1;
+  }
+  return scan;
+};
+
+const findBlockReason = ({ orphanPaths, inUseCount }: OrphanScan): string | undefined => {
+  if (orphanPaths.length > MAX_ORPHANS_PER_RUN) {
+    return `지울 파일이 ${orphanPaths.length}개로 한 번에 지울 수 있는 ${MAX_ORPHANS_PER_RUN}개를 넘습니다. 목록을 확인하세요.`;
+  }
+  // DB를 비어 있게 잘못 읽으면 모든 사진이 주인 없는 파일로 보인다
+  if (orphanPaths.length > inUseCount) {
+    return `지울 파일(${orphanPaths.length}개)이 쓰는 파일(${inUseCount}개)보다 많습니다. 목록을 확인하세요.`;
+  }
+  return undefined;
+};
+
+/**
+ * album 버킷에서 기록·커플 사진이 가리키지 않고 올린 지 하루 넘은 파일을 찾아, `shouldDelete`면 지운다(#31).
+ * 파일 목록을 먼저 읽고 DB를 나중에 읽어, 그사이 저장된 기록의 사진을 주인 없는 파일로 보지 않는다.
+ * 지우기 직전에 DB를 한 번 더 읽어, 그사이 기록에 이어진 파일(저장 결과를 몰라 남겨 둔 사진을 다시 저장한 경우)은 빼고 지운다.
+ * 앱이 만드는 이름이 아닌 파일은 건드리지 않고, 지울 목록이 너무 많으면 지우지 않고 멈춘다.
+ *
+ * @throws {Error} 목록·DB를 읽지 못했거나 Storage가 지우기를 거부했을 때(읽기 실패면 아무것도 지우지 않는다)
+ * @example
+ * const result = await cleanupOrphanPhotos({
+ *   storage: supabase.storage.from(ALBUM_BUCKET),
+ *   readReferences: () => readPhotoFileReferences(supabase),
+ *   now: new Date(),
+ *   shouldDelete: process.env.PHOTO_CLEANUP_DELETE === "true",
+ * });
+ */
+export const cleanupOrphanPhotos = async ({
+  storage,
+  readReferences,
+  now,
+  shouldDelete,
+}: CleanupOrphanPhotosParams): Promise<CleanupResult> => {
+  const files = await listAlbumObjects(storage);
+  const scan = scanOrphanFiles(files, collectReferencedPaths(await readReferences()), now);
+
+  const reason = findBlockReason(scan);
+
+  if (!shouldDelete) return reason ? { ...scan, status: "preview", reason } : { ...scan, status: "preview" };
+  if (reason) return { ...scan, status: "blocked", reason };
+
+  if (scan.orphanPaths.length === 0) return { ...scan, status: "deleted" };
+
+  const latestPaths = collectReferencedPaths(await readReferences());
+  const orphanPaths = scan.orphanPaths.filter((path) => !latestPaths.has(path));
+  if (orphanPaths.length > 0) {
+    const { error } = await storage.remove(orphanPaths);
+    if (error) throw new Error(`사진 파일을 지우지 못했습니다: ${error.message}`, { cause: error });
+  }
+  return { ...scan, orphanPaths, status: "deleted" };
+};
+
+/**
+ * 이번 요청에서 실제로 지울지 정한다. 주소에 `preview`가 있으면(값과 상관없이) 지우지 않고,
+ * 아니면 환경 변수 `PHOTO_CLEANUP_DELETE`가 `true`일 때만 지운다(대소문자·앞뒤 공백 무시).
+ *
+ * @example shouldDeleteOrphans({ requestUrl: request.url, deleteFlag: process.env.PHOTO_CLEANUP_DELETE })
+ */
+export const shouldDeleteOrphans = ({ requestUrl, deleteFlag }: { requestUrl: string; deleteFlag: string | undefined }): boolean =>
+  !new URL(requestUrl).searchParams.has("preview") && deleteFlag?.trim().toLowerCase() === "true";
+
+const DEFAULT_PAGE_SIZE = 1000;
+
+interface ReadAllRowsParams<Row extends { id: string }> {
+  /** 실패 문구에 넣을 이름. 예: "사진 기록" */
+  label: string;
+  /** id 순으로 `afterId`보다 큰 행을 최대 `limit`개 돌려준다. 처음에는 `afterId`가 undefined다 */
+  fetchPage: (
+    afterId: string | undefined,
+    limit: number,
+  ) => PromiseLike<{ data: Row[] | null; error: { message: string } | null }>;
+  pageSize?: number;
+}
+
+/**
+ * id 순으로 빈 쪽이 올 때까지 읽어 합친다. Supabase는 한 번에 돌려주는 행 수에 상한(기본 1000, 설정으로 더 작게)이 있어,
+ * 잘린 목록 때문에 쓰는 사진을 주인 없는 파일로 보지 않게 한다. 몇 번째부터가 아니라 마지막 id 다음부터 읽어,
+ * 읽는 사이 앞쪽 행이 지워져도 건너뛰는 행이 없다.
+ *
+ * @throws {Error} 한 쪽이라도 읽지 못했을 때
+ * @example
+ * const photos = await readAllRows({
+ *   label: "사진 기록",
+ *   fetchPage: (afterId, limit) => {
+ *     const query = supabase.from("photos").select("id, path, thumb_path");
+ *     return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
+ *   },
+ * });
+ */
+export const readAllRows = async <Row extends { id: string }>({
+  label,
+  fetchPage,
+  pageSize = DEFAULT_PAGE_SIZE,
+}: ReadAllRowsParams<Row>): Promise<Row[]> => {
+  const rows: Row[] = [];
+  let afterId: string | undefined;
+
+  for (;;) {
+    const { data, error } = await fetchPage(afterId, pageSize);
+    if (error || !data) throw new Error(`${label}을 읽지 못했습니다: ${error?.message ?? "응답 없음"}`);
+    if (data.length === 0) return rows;
+
+    rows.push(...data);
+    afterId = data[data.length - 1].id;
+  }
+};

@@ -8,15 +8,18 @@ export const SETTINGS_NICKNAME_PATH = "/settings/nickname";
 /** 무료 플랜 일시정지를 막으려고 Vercel Cron이 부르는 경로. 로그인 대신 CRON_SECRET으로 확인한다 */
 export const KEEPALIVE_PATH = "/api/keepalive";
 
+/** 매달 주인 없는 사진을 정리하려고 Vercel Cron이 부르는 경로(#31). 로그인 대신 CRON_SECRET으로 확인한다 */
+const PHOTO_CLEANUP_PATH = "/api/photo-cleanup";
+
 /** 로그인하지 않아도 열 수 있는 경로(하위 경로 포함). 로그인 화면과 로그아웃 처리만 둔다. */
 const PUBLIC_PATH_PREFIXES = [LOGIN_PATH, "/auth"] as const;
 
 /** 하위 경로 없이 이 주소만 비로그인으로 열 수 있다. 나중에 아래에 붙는 경로가 실수로 공개되지 않게 한다. */
-const PUBLIC_EXACT_PATHS: readonly string[] = [KEEPALIVE_PATH];
+const PUBLIC_EXACT_PATHS: readonly string[] = [KEEPALIVE_PATH, PHOTO_CLEANUP_PATH];
 
 /**
  * 비로그인 상태로 접근해도 되는 경로인지 판단한다. `/login`과 `/login/...`은 허용하고 `/loginx`는 막는다.
- * `/api/keepalive`는 그 주소만 허용한다.
+ * Cron 경로(`/api/keepalive`, `/api/photo-cleanup`)는 그 주소만 허용한다.
  *
  * @example isPublicPath("/auth/signout") // true
  */

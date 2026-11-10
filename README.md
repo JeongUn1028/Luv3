@@ -83,6 +83,8 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 6. Vercel 환경 변수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `CRON_SECRET`(무작위 32자 이상, `.env.example`의 명령으로 만든다)
    - `NEXT_PUBLIC_SUPABASE_URL`과 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`는 빌드할 때 값이 들어가므로 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
    - `CRON_SECRET`은 `vercel.json`의 Cron이 하루 한 번(`0 3 * * *`, Hobby 플랜이라 UTC 3시대의 어느 때, 한국 시간 낮 12시대) `/api/keepalive`를 부를 때 쓴다. 무료 플랜이 7일 동안 요청이 없어 일시정지되지 않게 한다. 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
+   - `SUPABASE_SECRET_KEY`는 월 1회 주인 없는 사진 정리(`/api/photo-cleanup`)에만 쓰는 비밀 키다. 없으면 정리만 실패하고 앱은 그대로 동작한다. 아래 "주인 없는 사진 정리"를 따른다.
+   - `PHOTO_CLEANUP_DELETE`(선택)를 `true`로 두면 정리가 실제로 파일을 지운다. 없으면 지울 목록만 돌려준다.
    - `KAKAO_REST_API_KEY`(선택)는 기록 폼의 장소 찾기에 쓴다. 없으면 오류 없이 돋보기만 나오지 않는다. 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
    - `NEXT_PUBLIC_KAKAO_MAP_KEY`(선택)는 기록 지도에 쓰는 JavaScript 키다. 없으면 오류 없이 지도 버튼만 나오지 않는다. 브라우저에 보이는 값이므로 카카오 콘솔의 SDK 도메인에 운영 주소를 등록해 제한한다. 빌드할 때 값이 들어가므로 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
    - `HOLIDAY_API_KEY`(선택)는 캘린더·날짜 창의 공휴일 색과 이름에 쓴다. 공공데이터포털 "한국천문연구원_특일 정보"의 일반 인증키이고 Encoding·Decoding 어느 쪽을 넣어도 된다. 서버에서만 쓰며 브라우저로 보내지 않는다. 없거나 공공데이터포털이 실패하면 오류 없이 주말 색만 나오고 원인은 서버 로그에 남는다. 받은 공휴일은 하루 동안 저장해 두므로 임시공휴일은 하루 안에 반영된다. 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
@@ -132,6 +134,30 @@ Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패�
 - GitHub 예약 실행은 몇 분씩 늦거나 빠질 수 있어 매번 깨어 있다고 보장하지는 않는다.
 - 공개 리포라 Actions 사용 시간은 들지 않는다. Vercel 함수 호출은 한 번 부를 때 `proxy`와 서버 함수가 함께 돌아 한 달 약 1만 7천 번, Edge 요청은 약 9천 번 늘어난다. Hobby 한도(각각 월 100만 번)에 비해 작지만 월 1회 점검의 사용량에서 함께 본다.
 - 운영 주소를 바꾸면 워크플로의 `KEEP_WARM_URL`도 고친다.
+
+### 주인 없는 사진 정리
+
+사진은 Storage에 먼저 올리고 기록을 나중에 저장한다. 업로드 중에 앱을 닫거나, 저장 결과를 몰라 일부러 남기거나, 지우기가 실패하면 기록이 가리키지 않는 파일이 `album` 버킷에 남는다(#31). Vercel Cron이 매달 1일(`0 4 1 * *`, UTC 4시대, 한국 시간 오후 1시대) `/api/photo-cleanup`을 불러 이 파일을 찾는다.
+
+- 지우는 파일: 기록 사진(`photos.path`·`thumb_path`)과 지금 커플 사진(`couple_photo.path`와 같은 id의 `_medium.jpg`)이 가리키지 않고, 올린 지 하루가 넘은 파일. 하루가 안 됐거나 올린 시각을 모르는 파일은 업로드 중일 수 있어 남긴다.
+- 앱이 만드는 이름(`{기록 id}/{사진 id}.jpg`·`_thumb.jpg`, `couple/{id}.jpg`·`_medium.jpg`)이 아닌 파일은 건드리지 않고 응답의 `unknownPaths`로 알린다.
+- 지울 파일이 100개를 넘거나 쓰는 파일보다 많으면 DB를 잘못 읽었을 수 있어 지우지 않고 409와 `status: "blocked"`, 이유(`reason`)를 돌려준다. Vercel 실행 기록에는 실패로 보인다. 미리 보기에서도 이 경우면 `reason`이 함께 온다.
+- 지우기 직전에 DB를 한 번 더 읽어, 그사이 기록에 이어진 파일은 빼고 지운다.
+- 사진 경로를 담는 칸을 새로 만들면 `FILE_PATH_COLUMNS`(`src/lib/photos/album-files.ts`, 백업도 같은 목록을 쓴다)와 `src/app/api/photo-cleanup/route.ts`의 `readPhotoFileReferences`에 더한다. 빠뜨리면 그 칸의 파일이 지워진다. `database.types.ts`에 이름에 `path`가 든 칸이 생기면 단위 테스트가 실패해 알려 준다.
+
+처음 켤 때:
+
+1. Supabase 대시보드 Project Settings > API Keys에서 이 용도의 비밀 키(`sb_secret_…`)를 새로 만들어 Vercel 환경 변수 `SUPABASE_SECRET_KEY`에 넣고 재배포한다. RLS를 넘어 모든 데이터를 읽고 지울 수 있는 키라 다른 곳에 쓰지 않고, 새면 대시보드에서 이 키만 폐기한다.
+2. `PHOTO_CLEANUP_DELETE`를 넣지 않은 채로 지울 목록을 확인한다. 응답의 `orphanPaths`가 지울 파일이다.
+   ```bash
+   curl -s -H "Authorization: Bearer <CRON_SECRET>" "https://<운영 주소>/api/photo-cleanup?preview=1"
+   ```
+3. 목록이 맞으면 Vercel 환경 변수 `PHOTO_CLEANUP_DELETE=true`를 넣고 재배포한다. 그다음 달부터 Cron이 지운다.
+
+- 주소에 `preview`가 있으면(값과 상관없이) `PHOTO_CLEANUP_DELETE`와 상관없이 지우지 않는다. 켠 뒤에도 Cron 전에 언제든 목록을 볼 수 있다. `preview` 없이 부르면 켜져 있을 때 바로 지운다.
+- `PHOTO_CLEANUP_DELETE`는 `true`만 켠 것으로 본다(대소문자·앞뒤 공백 무시). `1`·`yes`는 꺼진 것이다.
+- Hobby 플랜의 Cron 로그는 1시간 뒤 사라진다. 무엇을 지웠는지는 그 안에 Vercel 로그의 "사진 정리" 줄에서 본다.
+- 정리는 백업 폴더의 파일을 지우지 않는다. 지운 사진이 백업을 받은 뒤에 남은 것이면 개인 드라이브의 `album/`에는 남아 있다.
 
 ### 프로젝트가 일시정지됐을 때
 
@@ -232,6 +258,7 @@ pnpm backup:restore "<백업 폴더>" <시점 이름> --yes  # 시점을 골라�
    - 마이너·메이저 버전은 변경 기록을 읽고 이슈로 따로 올린다. Next.js는 `node_modules/next/dist/docs/`의 안내도 본다.
 3. **보안 알림**: Dependabot 알림(Security > Dependabot)은 켜 두었고 새 알림은 GitHub 메일로 온다. 심각도 High 이상은 월 점검을 기다리지 않고 바로 올린다.
 4. **keepalive**: Actions의 "keepalive 확인" 기록이 매일 성공했는지, "서버 깨워 두기" 기록이 5분 간격으로 이어지는지 본다. 공개 리포는 60일 동안 활동이 없으면 GitHub이 예약을 끈다(끄기 전에 메일이 온다). 꺼져 있으면 Actions에서 해당 작업을 골라 Enable workflow로 다시 켠다.
+5. **주인 없는 사진**: 위 "주인 없는 사진 정리"의 `?preview=1`로 지울 목록과 `unknownPaths`를 본다. `reason`이 있으면(Cron이 지우지 않고 멈춘다) 또는 `unknownPaths`에 모르는 파일이 있으면 원인을 확인한다.
 
 ### 운영 프로젝트를 잃었을 때
 
