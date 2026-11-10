@@ -34,6 +34,11 @@ export const getTodos = async (): Promise<Todo[]> => {
   return rows.map(toTodo);
 };
 
+/** 수정 화면이 읽는 하고 싶은 것. 판 번호로 화면을 연 뒤 상대가 내용을 고쳤는지 알아본다(#161) */
+export interface EditableTodo extends Todo {
+  revision: string;
+}
+
 /**
  * 하고 싶은 것 하나를 읽는다(수정 화면).
  *
@@ -41,10 +46,10 @@ export const getTodos = async (): Promise<Todo[]> => {
  * @throws {TodoLoadError} 조회가 실패했을 때
  * @example const todo = await getTodo(id); if (!todo) notFound()
  */
-export const getTodo = async (id: string): Promise<Todo | undefined> => {
+export const getTodo = async (id: string): Promise<EditableTodo | undefined> => {
   if (!isRecordId(id)) return undefined;
   const supabase = await createClient();
-  const { data, error } = await supabase.from("todos").select(TODO_COLUMNS).eq("id", id).maybeSingle();
+  const { data, error } = await supabase.from("todos").select(`${TODO_COLUMNS}, revision`).eq("id", id).maybeSingle();
   if (error) throw new TodoLoadError({ cause: error });
-  return data ? toTodo(data) : undefined;
+  return data ? { ...toTodo(data), revision: data.revision } : undefined;
 };

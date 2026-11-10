@@ -119,7 +119,7 @@ export const getEvent = async (id: string): Promise<EditableEvent | undefined> =
   const { data, error } = await supabase
     .from("events")
     .select(
-      "id, date, start_time, title, place, memo, is_together, repeat_rule, repeat_until, end_date, repeat_parent_id, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date), records:dates(id, event_date)",
+      "id, date, start_time, title, place, memo, is_together, repeat_rule, repeat_until, end_date, repeat_parent_id, revision, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date), records:dates(id, event_date)",
     )
     .eq("id", id)
     .maybeSingle();
