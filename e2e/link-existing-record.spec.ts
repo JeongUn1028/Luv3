@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { createDisposableEvent, createDisposableRecord } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 // 다른 테스트가 쓰지 않는 지난 달. 기기마다 달을 나눠 두 기기가 함께 돌아도 서로의 기록이 후보로 섞이지 않는다
 const getMonth = (testInfo: TestInfo): string => (testInfo.project.name === "iphone-17" ? "2019-06" : "2019-05");
@@ -31,8 +32,8 @@ test.describe("이미 쓴 기록을 일정에 잇기", () => {
     const date = `${getMonth(testInfo)}-04`;
     const eventId = randomUUID();
     const recordId = randomUUID();
-    const title = `E2E 잇기 일정 ${testInfo.project.name}`;
-    const recordTitle = `E2E 잇기 기록 ${testInfo.project.name}`;
+    const title = createTestName("E2E 잇기 일정", testInfo);
+    const recordTitle = createTestName("E2E 잇기 기록", testInfo);
     const deleteEvent = await createDisposableEvent({ id: eventId, title, date });
     const deleteRecord = await createDisposableRecord({ id: recordId, title: recordTitle, date });
 
@@ -62,8 +63,8 @@ test.describe("이미 쓴 기록을 일정에 잇기", () => {
     const date = `${getMonth(testInfo)}-07`;
     const eventId = randomUUID();
     const recordId = randomUUID();
-    const title = `E2E 고치기 잇기 일정 ${testInfo.project.name}`;
-    const recordTitle = `E2E 고치기 잇기 기록 ${testInfo.project.name}`;
+    const title = createTestName("E2E 고치기 잇기 일정", testInfo);
+    const recordTitle = createTestName("E2E 고치기 잇기 기록", testInfo);
     const deleteEvent = await createDisposableEvent({ id: eventId, title, date });
     const deleteRecord = await createDisposableRecord({ id: recordId, title: recordTitle, date });
     const titleField = page.locator("#event-title").locator("visible=true");
@@ -90,8 +91,8 @@ test.describe("이미 쓴 기록을 일정에 잇기", () => {
     // Arrange: 느린 연결에서 잇기 응답이 늦게 오는 경우다
     const date = `${getMonth(testInfo)}-25`;
     const recordId = randomUUID();
-    const title = `E2E 잇는 중 일정 ${testInfo.project.name}`;
-    const recordTitle = `E2E 잇는 중 기록 ${testInfo.project.name}`;
+    const title = createTestName("E2E 잇는 중 일정", testInfo);
+    const recordTitle = createTestName("E2E 잇는 중 기록", testInfo);
     const deleteEvent = await createDisposableEvent({ id: randomUUID(), title, date });
     const deleteRecord = await createDisposableRecord({ id: recordId, title: recordTitle, date });
     let releaseLink = (): void => undefined;
@@ -126,7 +127,7 @@ test.describe("이미 쓴 기록을 일정에 잇기", () => {
   test("그날 이을 기록이 없으면 기록 남기기가 바로 작성 화면을 연다", async ({ page }, testInfo) => {
     // Arrange: 다른 날의 기록은 후보가 아니다
     const month = getMonth(testInfo);
-    const title = `E2E 잇기 없음 ${testInfo.project.name}`;
+    const title = createTestName("E2E 잇기 없음", testInfo);
     const deleteEvent = await createDisposableEvent({ id: randomUUID(), title, date: `${month}-11` });
     const deleteRecord = await createDisposableRecord({ id: randomUUID(), title: `${title} 다른 날`, date: `${month}-12` });
 
@@ -149,8 +150,8 @@ test.describe("이미 쓴 기록을 일정에 잇기", () => {
     // Arrange
     const date = `${getMonth(testInfo)}-18`;
     const recordId = randomUUID();
-    const title = `E2E 상세 잇기 일정 ${testInfo.project.name}`;
-    const recordTitle = `E2E 상세 잇기 기록 ${testInfo.project.name}`;
+    const title = createTestName("E2E 상세 잇기 일정", testInfo);
+    const recordTitle = createTestName("E2E 상세 잇기 기록", testInfo);
     const deleteEvent = await createDisposableEvent({ id: randomUUID(), title, date });
     const deleteRecord = await createDisposableRecord({ id: recordId, title: recordTitle, date });
     const linkButton = page.getByRole("button", { name: "일정과 잇기", exact: true }).locator("visible=true");

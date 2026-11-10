@@ -10,6 +10,7 @@ import {
   renameRecord,
 } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 // 다른 테스트의 일정·홈 최근 기록과 겹치지 않는 지난 날
 const PAST_DATE = "2020-04-10";
@@ -18,12 +19,11 @@ const PAST_CALENDAR = `/calendar?month=2020-04&date=${PAST_DATE}`;
 const getLeaveLink = (page: Page, title: string): Locator => page.getByRole("link", { name: `${title} 기록 남기기` }).locator("visible=true");
 const getViewLink = (page: Page, title: string): Locator => page.getByRole("link", { name: `${title} 기록 보기` }).locator("visible=true");
 const getFormAlert = (page: Page): Locator => page.locator("main").getByRole("alert").locator("visible=true");
-const createTitle = (label: string, projectName: string): string => `E2E 연결 ${label} ${projectName}`;
 
 test.describe("일정과 기록 연결", () => {
   test("지난 일정에서 기록을 남기면 메모까지 채우고, 저장한 뒤 기록 제목을 바꿔도 일정에서 그 기록을 연다", async ({ page }, testInfo) => {
     // Arrange
-    const title = createTitle("남기기", testInfo.project.name);
+    const title = createTestName("E2E 연결 남기기", testInfo);
     const deleteEvent = await createDisposableEvent({ id: randomUUID(), title, date: PAST_DATE, memo: "도슨트 2시" });
 
     try {
@@ -54,7 +54,7 @@ test.describe("일정과 기록 연결", () => {
     // Arrange: 앞서 연 캘린더에서 "기록 남기기"를 누른 경우다
     const eventId = randomUUID();
     const recordId = randomUUID();
-    const title = createTitle("중복", testInfo.project.name);
+    const title = createTestName("E2E 연결 중복", testInfo);
     const deleteEvent = await createDisposableEvent({ id: eventId, title, date: PAST_DATE });
     const deleteRecord = await createDisposableRecord({ id: recordId, title, eventLink: { eventId, eventDate: PAST_DATE } });
 
@@ -80,7 +80,7 @@ test.describe("일정과 기록 연결", () => {
     // Arrange
     const eventId = randomUUID();
     const recordId = randomUUID();
-    const title = createTitle("오가기", testInfo.project.name);
+    const title = createTestName("E2E 연결 오가기", testInfo);
     const deleteEvent = await createDisposableEvent({ id: eventId, title, date: PAST_DATE });
     const deleteRecord = await createDisposableRecord({ id: recordId, title, eventLink: { eventId, eventDate: PAST_DATE } });
 
@@ -101,7 +101,7 @@ test.describe("일정과 기록 연결", () => {
   test("반복 일정은 기록을 남긴 날만 기록 보기가 되고 다른 날은 따로 남긴다", async ({ page }, testInfo) => {
     // Arrange
     const eventId = randomUUID();
-    const title = createTitle("반복", testInfo.project.name);
+    const title = createTestName("E2E 연결 반복", testInfo);
     const deleteEvent = await createDisposableRepeatingEvent({ id: eventId, title, date: "2020-04-01", repeatRule: "weekly", repeatUntil: "2020-04-30" });
     const deleteRecord = await createDisposableRecord({ id: randomUUID(), title, eventLink: { eventId, eventDate: "2020-04-08" } });
 

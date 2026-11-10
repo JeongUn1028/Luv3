@@ -5,6 +5,7 @@ import { readAnimations, recordAnimations, waitForPaint } from "./support/motion
 import { createDisposableTodo, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { getSubmitButton } from "./support/actions";
+import { createTestName } from "./support/names";
 
 const getDeleteButton = (page: Page): Locator => page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true");
 
@@ -17,9 +18,9 @@ const trackTodoDeletes = (page: Page): string[] => {
   return requests;
 };
 
-const openDisposableTodo = async (page: Page, label: string, name: string): Promise<() => Promise<void>> => {
+const openDisposableTodo = async (page: Page, content: string): Promise<() => Promise<void>> => {
   const id = randomUUID();
-  const deleteTodo = await createDisposableTodo({ id, content: `${label} ${name} ${id.slice(0, 8)}` });
+  const deleteTodo = await createDisposableTodo({ id, content });
   await openScreen(page, `/todos/${id}/edit`, getDeleteButton(page));
   return deleteTodo;
 };
@@ -29,7 +30,7 @@ test.describe("움직임을 켠 기기에서", () => {
 
   test("창이 움직이며 열리고 닫히며, 닫히는 동안 다른 버튼이 눌리지 않고 초점이 돌아온다", async ({ page }, testInfo) => {
     // Arrange
-    const deleteTodo = await openDisposableTodo(page, "창 움직임", testInfo.project.name);
+    const deleteTodo = await openDisposableTodo(page, createTestName("창 움직임", testInfo));
     const deleteRequests = trackTodoDeletes(page);
 
     try {
@@ -79,7 +80,7 @@ test.describe("움직임을 켠 기기에서", () => {
 
   test("Esc로 닫는 동안 Enter를 눌러도 지워지지 않는다", async ({ page }, testInfo) => {
     // Arrange: 삭제 버튼에 초점을 둔다
-    const deleteTodo = await openDisposableTodo(page, "창 키보드", testInfo.project.name);
+    const deleteTodo = await openDisposableTodo(page, createTestName("창 키보드", testInfo));
     const deleteRequests = trackTodoDeletes(page);
 
     try {
@@ -145,7 +146,7 @@ test.describe("움직임을 켠 기기에서", () => {
 
   test("저장 알림이 내려왔다가 닫으면 위로 사라진다", async ({ page }, testInfo) => {
     // Arrange: 저장을 붙들어 폼을 떠난 뒤에 끝나게 한다
-    const content = `E2E 움직임 알림 ${testInfo.project.name} ${randomUUID().slice(0, 8)}`;
+    const content = createTestName("E2E 움직임 알림", testInfo);
     await openScreen(page, "/todos/new", page.locator("#todo-content"));
     let release = (): void => undefined;
     const released = new Promise<void>((resolve) => {
@@ -200,7 +201,7 @@ test.describe("동작 줄이기를 켠 기기에서", () => {
 
   test("창은 움직임 없이 열리고 바로 닫힌다", async ({ page }, testInfo) => {
     // Arrange
-    const deleteTodo = await openDisposableTodo(page, "창 움직임 없음", testInfo.project.name);
+    const deleteTodo = await openDisposableTodo(page, createTestName("창 움직임 없음", testInfo));
 
     try {
       await recordAnimations(page);

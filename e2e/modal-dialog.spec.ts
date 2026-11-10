@@ -5,6 +5,7 @@ import { TODOS_PATH } from "@/lib/todos/list";
 import { createDisposableEvent, createDisposableRecord, createDisposableTodo, getRecordIdsByTitle, listRecordFiles } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { getSaveButton, getTab } from "./support/actions";
+import { createTestName } from "./support/names";
 
 // 창(ModalDialog)을 쓰는 화면의 동작을 모은 스펙(#196)
 
@@ -24,9 +25,9 @@ const confirmDelete = async (page: Page): Promise<void> => {
 };
 
 /** 임시 할 일을 만들어 고치기 화면을 연다 */
-const openDisposableTodo = async (page: Page, label: string, name: string): Promise<{ id: string; deleteTodo: () => Promise<void> }> => {
+const openDisposableTodo = async (page: Page, content: string): Promise<{ id: string; deleteTodo: () => Promise<void> }> => {
   const id = randomUUID();
-  const deleteTodo = await createDisposableTodo({ id, content: `${label} ${name} ${id.slice(0, 8)}` });
+  const deleteTodo = await createDisposableTodo({ id, content });
   await openScreen(page, `/todos/${id}/edit`, getDeleteButton(page));
   return { id, deleteTodo };
 };
@@ -50,7 +51,7 @@ const holdTodoDelete = async (page: Page, finish: "continue" | "abort") => {
 test.describe("삭제 확인 창", () => {
   test("열면 제목과 설명을 읽을 수 있고 취소하면 닫히며 초점이 삭제 버튼으로 돌아간다", async ({ page }, testInfo) => {
     // Arrange
-    const { deleteTodo } = await openDisposableTodo(page, "창 취소", testInfo.project.name);
+    const { deleteTodo } = await openDisposableTodo(page, createTestName("창 취소", testInfo));
 
     try {
       // Act
@@ -69,7 +70,7 @@ test.describe("삭제 확인 창", () => {
 
   test("Esc를 누르면 닫힌다", async ({ page }, testInfo) => {
     // Arrange
-    const { deleteTodo } = await openDisposableTodo(page, "창 Esc", testInfo.project.name);
+    const { deleteTodo } = await openDisposableTodo(page, createTestName("창 Esc", testInfo));
 
     try {
       // Act
@@ -86,7 +87,7 @@ test.describe("삭제 확인 창", () => {
 
   test("지우는 중에는 Esc를 눌러도 닫히지 않고, 지우지 못하면 창을 그대로 두고 다시 시도하게 한다", async ({ page }, testInfo) => {
     // Arrange
-    const { id, deleteTodo } = await openDisposableTodo(page, "지우는 중 Esc", testInfo.project.name);
+    const { id, deleteTodo } = await openDisposableTodo(page, createTestName("지우는 중 Esc", testInfo));
     const request = await holdTodoDelete(page, "abort");
 
     try {
@@ -110,7 +111,7 @@ test.describe("삭제 확인 창", () => {
   test("기록을 지우면 파일까지 사라지고 다른 탭을 누를 수 있다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = `창 닫기 기록 ${testInfo.project.name} ${id.slice(0, 8)}`;
+    const title = createTestName("창 닫기 기록", testInfo);
     const deleteRecord = await createDisposableRecord({ id, title });
 
     try {
@@ -131,7 +132,7 @@ test.describe("삭제 확인 창", () => {
   test("일정을 지우면 다른 탭을 누를 수 있다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = `창 닫기 일정 ${testInfo.project.name} ${id.slice(0, 8)}`;
+    const title = createTestName("창 닫기 일정", testInfo);
     const deleteEvent = await createDisposableEvent({ id, title });
 
     try {
@@ -150,7 +151,7 @@ test.describe("삭제 확인 창", () => {
 
   test("할 일을 지우면 다른 탭을 누를 수 있다", async ({ page }, testInfo) => {
     // Arrange
-    const { deleteTodo } = await openDisposableTodo(page, "창 닫기 할 일", testInfo.project.name);
+    const { deleteTodo } = await openDisposableTodo(page, createTestName("창 닫기 할 일", testInfo));
 
     try {
       // Act
@@ -167,7 +168,7 @@ test.describe("삭제 확인 창", () => {
   test("확인 창을 연 채 뒤로 가도 앱이 막히지 않는다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const content = `뒤로 가기 할 일 ${testInfo.project.name} ${id.slice(0, 8)}`;
+    const content = createTestName("뒤로 가기 할 일", testInfo);
     const deleteTodo = await createDisposableTodo({ id, content });
 
     try {
@@ -191,7 +192,7 @@ test.describe("삭제 확인 창", () => {
   test("지우는 요청이 도는 동안 벗어났다 돌아와도 요청을 또 보내지 않는다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const content = `요청 한 번 할 일 ${testInfo.project.name} ${id.slice(0, 8)}`;
+    const content = createTestName("요청 한 번 할 일", testInfo);
     const deleteTodo = await createDisposableTodo({ id, content });
     const request = await holdTodoDelete(page, "continue");
 

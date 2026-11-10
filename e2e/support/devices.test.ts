@@ -1,15 +1,10 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { basename } from "node:path";
 import { describe, expect, it } from "vitest";
 import { DEVICE_SIZE_SPECS, isAllDevicesRun } from "./devices";
+import { listSpecPaths, SPEC_SUFFIX } from "./spec-files";
 
-const E2E_DIR = join(import.meta.dirname, "..");
-const SPEC_SUFFIX = ".spec.ts";
-
-/** e2e 아래 모든 스펙. Playwright가 하위 폴더까지 찾으므로 여기서도 하위 폴더를 본다 */
-const SPEC_PATHS = readdirSync(E2E_DIR, { recursive: true, encoding: "utf8" })
-  .filter((path) => path.endsWith(SPEC_SUFFIX))
-  .map((path) => join(E2E_DIR, path));
+const SPEC_PATHS = listSpecPaths();
 
 const toSpecName = (path: string): string => basename(path, SPEC_SUFFIX);
 

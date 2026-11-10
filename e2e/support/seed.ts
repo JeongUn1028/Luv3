@@ -116,7 +116,7 @@ export const getRecordLocation = async (id: string): Promise<{ place_lat: number
 };
 
 /**
- * 화면에서 저장한 기록의 id를 제목으로 찾는다.
+ * 화면에서 저장한 기록의 id를 제목으로 찾는다. 제목은 `createTestName`으로 만들어 다른 테스트·실행의 기록을 잡지 않게 한다.
  *
  * @example for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id)
  */
@@ -229,7 +229,7 @@ export const createMemberContent = async ({ memberId, label }: { memberId: strin
 };
 
 /**
- * 화면에서 저장한 하고 싶은 것을 내용으로 찾아 지운다.
+ * 화면에서 저장한 하고 싶은 것을 내용으로 찾아 지운다. 내용은 `createTestName`으로 만들어 다른 테스트·실행의 항목을 지우지 않게 한다.
  *
  * @example await deleteTodosByContent("저장한 항목")
  */
@@ -367,7 +367,7 @@ export const stopEventRepeat = async (id: string): Promise<void> => {
 };
 
 /**
- * 화면에서 저장한 일정을 제목으로 찾아 지운다.
+ * 화면에서 저장한 일정을 제목으로 찾아 지운다. 제목은 `createTestName`으로 만들어 다른 테스트·실행의 일정을 지우지 않게 한다.
  *
  * @example await deleteEventsByTitle("저장한 일정")
  */

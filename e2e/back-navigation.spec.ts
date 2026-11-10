@@ -6,6 +6,7 @@ import { BASE_URL, PHOTO_RECORD } from "./support/constants";
 import { createDisposableRecord, createDisposableTodo, renameRecord } from "./support/seed";
 import { expect, getScrollArea, openScreen, test } from "./support/test";
 import { getTab, getVisibleLink } from "./support/actions";
+import { createTestName } from "./support/names";
 
 const DETAIL_PATH = `/dates/${PHOTO_RECORD.id}`;
 
@@ -153,7 +154,7 @@ test.describe("뒤로 버튼", () => {
   test("고쳐서 저장한 뒤 상세에서 누르면 같은 상세가 아니라 그 앞 화면으로 돌아간다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = `E2E 뒤로 저장 ${testInfo.project.name}`;
+    const title = createTestName("E2E 뒤로 저장", testInfo);
     const deleteRecord = await createDisposableRecord({ id, title });
     try {
       await openScreen(page, RECORDS_PATH, getVisibleLink(page, `/dates/${id}`));
@@ -179,7 +180,7 @@ test.describe("뒤로 버튼", () => {
   test("상세를 보는 사이 상대가 제목을 고치고 30초가 지났으면 돌아온 목록에 고친 제목이 보인다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = `E2E 뒤로 상대 ${testInfo.project.name}`;
+    const title = createTestName("E2E 뒤로 상대", testInfo);
     const deleteRecord = await createDisposableRecord({ id, title });
     try {
       await page.clock.install();
@@ -220,7 +221,7 @@ test.describe("뒤로 버튼", () => {
   test("고치는 사이 상대가 지운 항목은 30초 안에 돌아와도 목록에서 사라진다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const content = `E2E 뒤로 지움 ${testInfo.project.name}`;
+    const content = createTestName("E2E 뒤로 지움", testInfo);
     const deleteTodo = await createDisposableTodo({ id, content });
     try {
       await openScreen(page, TODOS_PATH, page.getByText(content));

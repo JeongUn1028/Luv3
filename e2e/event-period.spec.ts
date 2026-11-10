@@ -4,6 +4,7 @@ import { toKstDate } from "../src/lib/anniversary";
 import { pickDate } from "./support/date-picker";
 import { createDisposablePeriodEvent, deleteEventsByTitle } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -12,11 +13,10 @@ const getDayWithEvent = (page: Page, day: string) => page.getByRole("button", { 
 
 test.describe("기간 일정", () => {
   /** 두 기기가 같은 DB를 나란히 쓰므로 제목에 기기 이름을 붙인다 */
-  const createTitle = (label: string, projectName: string): string => `E2E ${label} ${projectName}`;
 
   test("달을 넘는 기간을 저장하면 모든 날에 나오고 고치고 지울 수 있다", async ({ page }, testInfo) => {
     // Arrange
-    const title = createTitle("기간 흐름", testInfo.project.name);
+    const title = createTestName("E2E 기간 흐름", testInfo);
     await openScreen(page, "/events/new?date=2036-04-29", page.locator("#event-title"));
 
     try {
@@ -110,7 +110,7 @@ test.describe("기간 일정", () => {
     // Arrange: 오늘의 공통 일정 2개가 칸을 채우므로 수로 확인한다. 만든 순서가 뒤라 다른 테스트의 공통 일정을 밀어내지 않는다
     const now = Date.now();
     const today = toKstDate(new Date(now));
-    const title = createTitle("진행 중", testInfo.project.name);
+    const title = createTestName("E2E 진행 중", testInfo);
     const deleteEvent = await createDisposablePeriodEvent({
       id: randomUUID(),
       title,
@@ -130,7 +130,7 @@ test.describe("기간 일정", () => {
 
   test("끝난 기간 일정에서 기록 남기기를 누르면 기간을 채운 작성 화면이 열린다", async ({ page }, testInfo) => {
     // Arrange
-    const title = createTitle("끝난 기간", testInfo.project.name);
+    const title = createTestName("E2E 끝난 기간", testInfo);
     const deleteEvent = await createDisposablePeriodEvent({ id: randomUUID(), title, date: "2020-03-10", endDate: "2020-03-12" });
 
     try {

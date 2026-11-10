@@ -4,6 +4,7 @@ import { toKstDate } from "../src/lib/anniversary";
 import { pickDate } from "./support/date-picker";
 import { createDisposableRepeatingEvent, deleteEventById, deleteEventsByTitle, skipEventDate, stopEventRepeat } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -120,12 +121,11 @@ test.describe("반복 일정", () => {
 
 test.describe("반복 일정 폼", () => {
   /** 두 기기가 같은 DB를 나란히 쓰므로 제목에 기기 이름을 붙인다 */
-  const createTitle = (label: string, projectName: string): string => `E2E ${label} ${projectName}`;
   const getRow = (page: Page, title: string) => page.getByRole("link", { name: new RegExp(title) });
 
   test("새 일정을 매주로 저장하면 끝나는 날까지 해당 요일마다 나온다", async ({ page }, testInfo) => {
     // Arrange
-    const title = createTitle("폼 매주", testInfo.project.name);
+    const title = createTestName("E2E 폼 매주", testInfo);
     await openScreen(page, "/events/new?date=2036-03-05", page.locator("#event-title"));
 
     try {
@@ -166,7 +166,7 @@ test.describe("반복 일정 폼", () => {
   test("이 날만 고치면 그날만 바뀌고 다른 날은 그대로다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = createTitle("이 날만", testInfo.project.name);
+    const title = createTestName("E2E 이 날만", testInfo);
     const changedTitle = `${title} 옮김`;
     const deleteEvent = await createDisposableRepeatingEvent({ id, title, date: "2037-03-04", repeatRule: "weekly" });
 
@@ -193,7 +193,7 @@ test.describe("반복 일정 폼", () => {
   test("이 날만 고친 일정은 반복 칸이 없고 다른 일정처럼 고친다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = createTitle("따로 나온", testInfo.project.name);
+    const title = createTestName("E2E 따로 나온", testInfo);
     const changedTitle = `${title} 옮김`;
     const deleteEvent = await createDisposableRepeatingEvent({ id, title, date: "2038-03-03", repeatRule: "weekly" });
 
@@ -218,7 +218,7 @@ test.describe("반복 일정 폼", () => {
   test("전체를 고르면 시작하는 날이 채워지고 저장하면 모든 날이 바뀐다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = createTitle("전체", testInfo.project.name);
+    const title = createTestName("E2E 전체", testInfo);
     const changedTitle = `${title} 바꿈`;
     const deleteEvent = await createDisposableRepeatingEvent({ id, title, date: "2039-03-02", repeatRule: "weekly" });
 
@@ -243,7 +243,7 @@ test.describe("반복 일정 폼", () => {
   test("이 날만 지우면 그날만 사라지고 다른 날은 남는다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = createTitle("하루 지우기", testInfo.project.name);
+    const title = createTestName("E2E 하루 지우기", testInfo);
     const deleteEvent = await createDisposableRepeatingEvent({ id, title, date: "2040-03-07", repeatRule: "weekly" });
 
     try {
@@ -266,7 +266,7 @@ test.describe("반복 일정 폼", () => {
   test("전체를 지우면 모든 날과 따로 고친 날이 함께 사라진다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = createTitle("전체 지우기", testInfo.project.name);
+    const title = createTestName("E2E 전체 지우기", testInfo);
     const changedTitle = `${title} 옮김`;
     const deleteEvent = await createDisposableRepeatingEvent({ id, title, date: "2041-03-06", repeatRule: "weekly" });
 
@@ -296,7 +296,7 @@ test.describe("반복 일정 폼", () => {
   test("전체에서 시작 날짜를 옮기면 지웠던 날이 새 날짜로 돌아오고 따로 고친 일정은 남는다", async ({ page }, testInfo) => {
     // Arrange: 2048-03-04는 수요일이다. 3월 11일을 지우고, 3월 18일은 따로 고친다
     const id = randomUUID();
-    const title = createTitle("새로 시작", testInfo.project.name);
+    const title = createTestName("E2E 새로 시작", testInfo);
     const movedTitle = `${title} 옮김`;
     const deleteEvent = await createDisposableRepeatingEvent({ id, title, date: "2048-03-04", repeatRule: "weekly", exceptionDates: ["2048-03-11"] });
 
@@ -335,7 +335,7 @@ test.describe("반복 일정 폼", () => {
   test("이 날만 고치는 사이 상대가 그날을 고쳤으면 저장하지 않고 알려 준다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = createTitle("겹친 저장", testInfo.project.name);
+    const title = createTestName("E2E 겹친 저장", testInfo);
     const deleteEvent = await createDisposableRepeatingEvent({ id, title, date: "2044-03-02", repeatRule: "weekly" });
 
     try {
@@ -356,7 +356,7 @@ test.describe("반복 일정 폼", () => {
   test("이 날만 지우는 사이 상대가 반복 일정을 지웠으면 지운 것으로 보고 캘린더로 간다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const deleteEvent = await createDisposableRepeatingEvent({ id, title: createTitle("이미 지운", testInfo.project.name), date: "2045-03-01", repeatRule: "weekly" });
+    const deleteEvent = await createDisposableRepeatingEvent({ id, title: createTestName("E2E 이미 지운", testInfo), date: "2045-03-01", repeatRule: "weekly" });
 
     try {
       await openScreen(page, `/events/${id}/edit?date=2045-03-08`, page.locator("#event-title"));
@@ -376,7 +376,7 @@ test.describe("반복 일정 폼", () => {
   test("이 날만 지우는 사이 상대가 반복을 껐으면 지우지 못했다고 알려 준다", async ({ page }, testInfo) => {
     // Arrange: 일정은 남아 있으므로 지운 척하고 넘어가면 안 된다
     const id = randomUUID();
-    const deleteEvent = await createDisposableRepeatingEvent({ id, title: createTitle("반복 끔", testInfo.project.name), date: "2046-03-07", repeatRule: "weekly" });
+    const deleteEvent = await createDisposableRepeatingEvent({ id, title: createTestName("E2E 반복 끔", testInfo), date: "2046-03-07", repeatRule: "weekly" });
 
     try {
       await openScreen(page, `/events/${id}/edit?date=2046-03-14`, page.locator("#event-title"));
@@ -398,7 +398,7 @@ test.describe("반복 일정 폼", () => {
     const id = randomUUID();
     const deleteEvent = await createDisposableRepeatingEvent({
       id,
-      title: createTitle("낡은 줄", testInfo.project.name),
+      title: createTestName("E2E 낡은 줄", testInfo),
       date: "2042-03-05",
       repeatRule: "weekly",
       exceptionDates: ["2042-03-12"],
@@ -421,7 +421,7 @@ test.describe("반복 일정 폼", () => {
     const id = randomUUID();
     const deleteEvent = await createDisposableRepeatingEvent({
       id,
-      title: createTitle("날 없는 주소", testInfo.project.name),
+      title: createTestName("E2E 날 없는 주소", testInfo),
       date: "2047-03-06",
       repeatRule: "weekly",
     });
@@ -444,7 +444,7 @@ test.describe("반복 일정 폼", () => {
     const id = randomUUID();
     const deleteEvent = await createDisposableRepeatingEvent({
       id,
-      title: createTitle("칸 많은 폼", testInfo.project.name),
+      title: createTestName("E2E 칸 많은 폼", testInfo),
       date: "2043-03-04",
       repeatRule: "weekly",
     });

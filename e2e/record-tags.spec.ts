@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 import { createDisposableRecord, deleteRecordWithFiles, getRecordIdsByTitle, setRecordTags } from "./support/seed";
 import { pickPhoto } from "./support/actions";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 const openTagField = async (page: Page): Promise<void> => {
   await page.getByRole("button", { name: "태그 추가" }).click();
@@ -108,11 +109,11 @@ test.describe("기록 태그", () => {
     }
   });
 
-  test("전에 쓴 태그를 누르면 붙고 추천에서 빠지며, 적던 글자는 남는다", async ({ page }, testInfo) => {
+  test("전에 쓴 태그를 누르면 붙고 추천에서 빠지며, 적던 글자는 남는다", async ({ page }) => {
     // Arrange
     const id = randomUUID();
     const usedId = randomUUID();
-    const usedTag = `추천${testInfo.project.name.slice(-2)}`;
+    const usedTag = `추천${randomUUID().slice(0, 4)}`;
     const deleteRecord = await createDisposableRecord({ id, title: "E2E 태그 추천" });
     const deleteUsed = await createDisposableRecord({ id: usedId, title: "E2E 태그를 쓴 기록" });
     await setRecordTags(usedId, [usedTag]);
@@ -159,7 +160,7 @@ test.describe("기록 태그", () => {
 
   test("새 기록을 태그와 함께 저장한다", async ({ page }, testInfo) => {
     // Arrange
-    const title = `E2E 새 기록 태그 ${testInfo.project.name}`;
+    const title = createTestName("E2E 새 기록 태그", testInfo);
     await openScreen(page, "/dates/new", page.locator("#memo"));
 
     try {

@@ -3,6 +3,7 @@ import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { E2E_MEMBER } from "./support/constants";
 import { createDisposableAuthorEvent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 // 일정 주인 이름은 누가 만든 일정인지에 맞게 쓴다(#195에서 코드 글자 검사를 옮김)
 
@@ -19,7 +20,7 @@ test.describe("일정 주인 이름", () => {
     // Arrange: 상대 일정에 내 이름을 붙이면 사실과 달라진다
     const id = randomUUID();
     const nickname = `상대${randomUUID().slice(0, 4)}`;
-    const deleteEvent = await createDisposableAuthorEvent({ id, title: `E2E 상대 일정 ${testInfo.project.name}`, nickname });
+    const deleteEvent = await createDisposableAuthorEvent({ id, title: createTestName("E2E 상대 일정", testInfo), nickname });
 
     try {
       // Act

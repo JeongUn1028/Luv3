@@ -3,6 +3,7 @@ import type { Locator } from "@playwright/test";
 import { E2E_EVENTS, E2E_MEMBER, E2E_TODOS, PHOTO_RECORD } from "./support/constants";
 import { createDisposableEvent, createDisposableMember, createDisposableTodo, createMemberContent } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 const AUTHOR_NAME = `작성자 ${E2E_MEMBER.nickname}`;
 /** DB가 받는 가장 긴 예전 닉네임(20자). 넓은 글자 6자가 줄지 않는지는 닉네임 변경 E2E가 본다 */
@@ -39,7 +40,7 @@ test.describe("작성자 이름표", () => {
 
   test("캘린더 아래 목록의 한 사람 일정 줄은 이름을 주인 이름표에 한 번만 보여 준다", async ({ page }, testInfo) => {
     // Arrange
-    const title = `한 사람 일정 줄 ${testInfo.project.name}`;
+    const title = createTestName("한 사람 일정 줄", testInfo);
     const deleteEvent = await createDisposableEvent({ id: randomUUID(), title, isTogether: false });
 
     try {
@@ -98,7 +99,7 @@ test.describe("작성자 이름표", () => {
 
   test("가장 긴 닉네임은 작성자·일정 주인 이름표 모두 줄여 그려도 전체를 읽고, 화면이 넘치지 않는다", async ({ page }, testInfo) => {
     // Arrange: 공유 계정의 닉네임을 바꾸면 나란히 도는 테스트가 흔들려 임시 작성자를 만든다
-    const label = `E2E 긴 이름표 ${testInfo.project.name} ${randomUUID().slice(0, 4)}`;
+    const label = createTestName("E2E 긴 이름표", testInfo);
     const { id: memberId, remove } = await createDisposableMember(randomUUID(), LONGEST_NICKNAME);
 
     try {
