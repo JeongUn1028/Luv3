@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { FILE_PATH_COLUMNS } from "../../src/lib/photos/album-files.ts";
 
 /** 백업에 넣는 파일 하나. 경로는 버킷 이름을 뺀 저장 경로다 */
 export interface BackupFile {
@@ -41,11 +42,6 @@ const COPY_START = /^COPY "([^"]+)"\."([^"]+)"/;
 const COPY_END = "\\.";
 const AUTH_SEQUENCE_LINE = /^SELECT pg_catalog\.setval\('"auth"\./;
 
-// 기록이 파일을 가리키는 칸. 복구할 수 있는 백업인지 확인하는 데 쓴다
-const FILE_PATH_COLUMNS: Record<string, string[]> = {
-  "public.photos": ["path", "thumb_path"],
-  "public.couple_photo": ["path"],
-};
 const COPY_NULL = "\\N";
 
 const FREE_STORAGE_BYTES = 1024 ** 3;
