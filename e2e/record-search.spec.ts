@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
-import { createDisposableRecord, setRecordSearchFields, setRecordTags } from "./support/seed";
+import { createDisposableRecord, createDisposableRecords, setRecordSearchFields, setRecordTags } from "./support/seed";
 import { expect, getScrollArea, getScrollAreaOverflow, openScreen, test } from "./support/test";
 
 /** 나란히 도는 테스트의 기록과 섞이지 않는 낱말. 태그 10자 제한 안에 들어온다 */
@@ -384,6 +384,94 @@ test.describe("기록 찾기", () => {
     } finally {
       await deleteRecord();
       await deleteOther();
+    }
+  });
+
+  test.describe("한 묶음(60개)보다 많이 찾으면", () => {
+    const RECORD_COUNT = 65;
+
+    test("내리면 다음 묶음을 이어 붙여 모두 보여 준다", async ({ page }) => {
+      // Arrange
+      const word = createWord();
+      const deleteRecords = await createDisposableRecords({ count: RECORD_COUNT, titlePrefix: `E2E 묶음 ${word}` });
+
+      try {
+        await openSearch(page);
+        await page.getByRole("searchbox", { name: "기록 찾기" }).fill(word);
+        await expect(page.getByRole("status").filter({ hasText: `기록 ${RECORD_COUNT}개` })).toBeVisible();
+        const links = getRecordLink(page, `E2E 묶음 ${word}`);
+        await expect(links).toHaveCount(60);
+
+        // Act
+        await getScrollArea(page).evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+
+        // Assert
+        await expect(links).toHaveCount(RECORD_COUNT);
+        await expect(getRecordLink(page, `E2E 묶음 ${word} 0`)).toBeAttached();
+      } finally {
+        await deleteRecords();
+      }
+    });
+
+    test("다음 묶음을 받지 못하면 다시 불러오기로 이어 받는다", async ({ page }) => {
+      // Arrange
+      const word = createWord();
+      const deleteRecords = await createDisposableRecords({ count: RECORD_COUNT, titlePrefix: `E2E 묶음 실패 ${word}` });
+      const isNextPage = (url: URL) => url.pathname === "/api/records/search" && url.searchParams.has("beforeId");
+      await page.route(isNextPage, (route) => route.abort());
+
+      try {
+        await openSearch(page);
+        await page.getByRole("searchbox", { name: "기록 찾기" }).fill(word);
+        const links = getRecordLink(page, `E2E 묶음 실패 ${word}`);
+        await expect(links).toHaveCount(60);
+
+        // Act
+        await getScrollArea(page).evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+
+        // Assert
+        await expect(page.getByRole("alert").filter({ hasText: "더 불러오지 못했어요" })).toBeVisible();
+
+        // Act
+        await page.unroute(isNextPage);
+        await page.getByRole("button", { name: "다시 불러오기" }).click();
+
+        // Assert
+        await expect(links).toHaveCount(RECORD_COUNT);
+        await expect(page.getByRole("button", { name: "다시 불러오기" })).toHaveCount(0);
+      } finally {
+        await deleteRecords();
+      }
+    });
+  });
+
+  test("찾지 못하면 알려 주고, 다시 시도하면 찾는다", async ({ page }) => {
+    // Arrange
+    const id = randomUUID();
+    const word = createWord();
+    const title = `E2E 찾기 실패 ${word}`;
+    const deleteRecord = await createDisposableRecord({ id, title });
+    const isSearch = (url: URL) => url.pathname === "/api/records/search";
+    await page.route(isSearch, (route) => route.fulfill({ status: 502, json: { code: "RECORD_SEARCH_FAILED", message: "실패" } }));
+
+    try {
+      await openSearch(page);
+
+      // Act
+      await page.getByRole("searchbox", { name: "기록 찾기" }).fill(word);
+
+      // Assert
+      await expect(page.getByRole("alert").filter({ hasText: "기록을 찾지 못했어요" })).toBeVisible();
+
+      // Act
+      await page.unroute(isSearch);
+      await page.getByRole("button", { name: "다시 시도" }).click();
+
+      // Assert
+      await expect(getRecordLink(page, title)).toBeVisible();
+      await expect(page.getByRole("status").filter({ hasText: "기록 1개" })).toBeVisible();
+    } finally {
+      await deleteRecord();
     }
   });
 });

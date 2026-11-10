@@ -3,25 +3,46 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactElement } from "react";
 import { AlbumGrid } from "@/components/dates/AlbumGrid";
 import { FILLED_TAG_CHIP_CLASS_NAME, OUTLINED_TAG_CHIP_CLASS_NAME } from "@/components/dates/tagChip";
-import { toTagSuggestions, type AlbumTile } from "@/lib/dates/album";
-import { filterAlbumTiles, recordTagLinkCount, replaceRecordsAddress, toRecordSearchHref } from "@/lib/dates/search";
+import { LoadMoreTrigger } from "@/components/LoadMoreTrigger";
+import { RetryButton } from "@/components/RetryButton";
+import type { AlbumTile } from "@/lib/dates/album";
+import { recordTagLinkCount, replaceRecordsAddress, toRecordSearchHref } from "@/lib/dates/search";
+import { useRecordSearch, type RecordSearchStatus } from "@/lib/dates/use-record-search";
 
 interface RecordSearchProps {
   tiles: AlbumTile[];
+  /** 태그 줄. 많이 쓴 순서로 서버가 센 것이다 */
+  tags: string[];
   /** 고른 태그. 전체면 undefined */
   tag: string | undefined;
 }
 
-const toResultLabel = (count: number): string => (count > 0 ? `기록 ${count}개` : "찾는 기록이 없어요");
+/** 글자를 칠 때마다 서버를 부르지 않고, 이만큼 멈추면 찾는다 */
+const SEARCH_DELAY_MS = 300;
+
+const toResultLabel = (status: RecordSearchStatus, total: number | undefined): string => {
+  if (status === "loading") return "찾는 중…";
+  if (status !== "done" || total === undefined) return "";
+  return total > 0 ? `기록 ${total}개` : "찾는 기록이 없어요";
+};
 
 /**
  * 검색 칸 + 태그 줄 + 찾은 기록. 태그만 보려는 경우가 많아 칸에 초점을 주지 않아, 키보드가 결과를 가리지 않게 한다.
  * 받침을 쓰는 중에도 글자가 끊기지 않게 검색어는 주소가 아닌 이 화면의 상태로 둔다. 찾기를 닫으면 함께 사라진다.
+ * 찾기는 서버가 한다(#273). 검색어와 태그가 모두 비면 받아 둔 그리드(`tiles`)를 그대로 보여 준다.
  *
- * @example <RecordSearch tiles={tiles} tag="카페" />
+ * @example <RecordSearch tiles={tiles} tags={tags} tag="카페" />
  */
-export const RecordSearch = ({ tiles, tag }: RecordSearchProps): ReactElement => {
+export const RecordSearch = ({ tiles, tags, tag }: RecordSearchProps): ReactElement => {
   const [query, setQuery] = useState("");
+  const [searchedQuery, setSearchedQuery] = useState("");
+  // 기록을 쓰거나 지워 화면을 새로 받으면 그리드가 바뀐다. 찾은 결과도 맞지 않을 수 있으니 다시 찾는다
+  const [seenTiles, setSeenTiles] = useState(tiles);
+  const [refreshKey, setRefreshKey] = useState(0);
+  if (tiles !== seenTiles) {
+    setSeenTiles(tiles);
+    setRefreshKey((key) => key + 1);
+  }
   const [shownTag, setShownTag] = useState(tag);
   const [pressedTag, setPressedTag] = useState(tag);
   // 상세의 태그를 누른 횟수. 같은 태그를 누르면 주소가 그대로라 태그만 보고는 알 수 없다(#261)
@@ -33,13 +54,23 @@ export const RecordSearch = ({ tiles, tag }: RecordSearchProps): ReactElement =>
   if (tag !== shownTag || isTagLinkPressed) {
     setShownTag(tag);
     setSeenTagLinkCount(tagLinkCount);
-    if (tag !== pressedTag || isTagLinkPressed) setQuery("");
+    if (tag !== pressedTag || isTagLinkPressed) {
+      setQuery("");
+      setSearchedQuery("");
+    }
   }
 
-  const tags = toTagSuggestions(tiles.map((tile) => tile.tags));
-  const found = filterAlbumTiles(tiles, { query, tag });
+  useEffect(() => {
+    if (query === searchedQuery) return;
+    const timer = setTimeout(() => setSearchedQuery(query), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [query, searchedQuery]);
+
+  // 지운 것은 기다리지 않는다. 기다리면 지운 뒤에도 앞 검색어로 찾은 결과가 잠깐 남는다
+  const search = useRecordSearch({ query: query.trim() === "" ? "" : searchedQuery, tag, refreshKey });
   // 기록이 하나도 없으면 그리드의 빈 화면이 이미 알려 준다
-  const isFiltering = tiles.length > 0 && (query.trim() !== "" || tag !== undefined);
+  const isFiltering = tiles.length > 0 && search.status !== "idle";
+  const shownTiles = search.status === "idle" ? tiles : search.items;
   const tagRowRef = useRef<HTMLUListElement>(null);
 
   // 상세의 태그로 들어오면 고른 태그가 줄 끝에 숨어 있을 수 있다. 스크롤 위치가 되살아나는 때에도 돌므로 세로로는 움직이지 않는다
@@ -60,8 +91,10 @@ export const RecordSearch = ({ tiles, tag }: RecordSearchProps): ReactElement =>
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    // 글자마다 찾으므로 검색 키는 키보드를 닫아 결과를 보여 주는 일만 한다. 받침을 쓰는 중에 누른 키는 글자를 끝내는 키다
-    if (event.key === "Enter" && !event.nativeEvent.isComposing) event.currentTarget.blur();
+    // 멈추면 찾으므로 검색 키는 기다리지 않고 바로 찾고 키보드를 닫는다. 받침을 쓰는 중에 누른 키는 글자를 끝내는 키다
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    setSearchedQuery(query);
+    event.currentTarget.blur();
   };
 
   return (
@@ -108,9 +141,25 @@ export const RecordSearch = ({ tiles, tag }: RecordSearchProps): ReactElement =>
       )}
       {/* 알림 영역은 처음부터 있어야 첫 결과도 읽힌다. 비어 있을 때는 자리만 차지하지 않는다 */}
       <p role="status" className="mt-1 text-[12px] text-ink-sub empty:mt-0">
-        {isFiltering ? toResultLabel(found.length) : ""}
+        {isFiltering ? toResultLabel(search.status, search.total) : ""}
       </p>
-      {(found.length > 0 || tiles.length === 0) && <AlbumGrid tiles={found} />}
+      {search.status === "failed" ? (
+        <div className="flex flex-col items-center gap-4 px-4 py-12 text-center">
+          <p role="alert" className="text-[13px] break-keep text-balance text-ink-sub">
+            기록을 찾지 못했어요. 잠시 후 다시 시도해 주세요.
+          </p>
+          <div className="flex w-full max-w-60 flex-col gap-2.5">
+            <RetryButton isPending={false} onRetry={search.retry} />
+          </div>
+        </div>
+      ) : (
+        <>
+          {(shownTiles.length > 0 || tiles.length === 0) && <AlbumGrid tiles={shownTiles} />}
+          {search.status === "done" && (
+            <LoadMoreTrigger hasMore={search.hasMore} isLoading={search.isLoadingMore} isFailed={search.isMoreFailed} onLoad={search.loadMore} />
+          )}
+        </>
+      )}
     </>
   );
 };
