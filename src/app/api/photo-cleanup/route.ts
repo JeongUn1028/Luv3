@@ -2,7 +2,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isAuthorizedCronRequest } from "@/lib/cron";
 import { getSupabaseEnv } from "@/lib/env";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
-import { cleanupOrphanPhotos, readAllRows, shouldDeleteOrphans, type PhotoFileReferences } from "@/lib/photos/orphan-cleanup";
+import { cleanupOrphanPhotos, shouldDeleteOrphans, type PhotoFileReferences } from "@/lib/photos/orphan-cleanup";
+import { readAllRows } from "@/lib/supabase/read-all-rows";
 import type { Database } from "@/lib/supabase/database.types";
 
 const NO_STORE = { "Cache-Control": "no-store" };
@@ -10,11 +11,11 @@ const NO_STORE = { "Cache-Control": "no-store" };
 // 읽는 칸은 FILE_PATH_COLUMNS(src/lib/photos/album-files.ts)와 같아야 한다
 const readPhotoFileReferences = async (supabase: SupabaseClient<Database>): Promise<PhotoFileReferences> => {
   const photos = await readAllRows({
-    label: "사진 기록",
     fetchPage: (afterId, limit) => {
       const query = supabase.from("photos").select("id, path, thumb_path");
       return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
     },
+    toError: (cause) => new Error("사진 기록을 읽지 못했습니다.", { cause }),
   });
   const { data, error } = await supabase.from("couple_photo").select("path").maybeSingle();
   if (error) throw new Error(`커플 사진 기록을 읽지 못했습니다: ${error.message}`);
