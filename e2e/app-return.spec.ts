@@ -1,17 +1,14 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page, Request } from "@playwright/test";
-import { toKstDate } from "@/lib/anniversary";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { PHOTO_RECORD } from "./support/constants";
+import { installClockBeforeMidnight, returnToApp } from "./support/actions";
 import { createDisposableTodo } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { createTestName } from "./support/names";
 
 const MINUTE_MS = 60_000;
-
-/** 홈 화면 앱으로 돌아온 것처럼 화면이 다시 보였다고 알린다(헤드리스 브라우저는 늘 보이는 상태라 알림만 보낸다) */
-const returnToApp = (page: Page): Promise<void> => page.evaluate(() => void document.dispatchEvent(new Event("visibilitychange")));
 
 const getTodo = (page: Page, content: string): Locator => page.locator("main").locator("visible=true").getByText(content);
 
@@ -65,10 +62,9 @@ test.describe("홈 화면 앱으로 돌아오면", () => {
   });
 
   test("한국 날짜가 바뀌었으면 30분이 안 돼도 새로 받는다", async ({ page }, testInfo) => {
-    // Arrange: 오늘 0시 10분 전에 연 것으로 친다. 로그인 토큰이 만료로 보이지 않게 지난 시각을 쓴다
+    // Arrange: 오늘 0시 10분 전에 연 것으로 친다
     const content = createTestName("E2E 자정 넘겨 복귀", testInfo);
-    const todayMidnight = new Date(`${toKstDate(new Date())}T00:00:00+09:00`).getTime();
-    await page.clock.install({ time: todayMidnight - 10 * MINUTE_MS });
+    await installClockBeforeMidnight(page);
     await openScreen(page, TODOS_PATH, page.locator("main ul"));
     const deleteTodo = await createDisposableTodo({ id: randomUUID(), content });
     try {

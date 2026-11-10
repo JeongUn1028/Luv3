@@ -12,3 +12,21 @@ export const APP_RETURN_STALE_AFTER_MS = 30 * 60 * 1000;
  */
 export const shouldRefreshOnReturn = (loadedAt: number | undefined, now: number): boolean =>
   loadedAt === undefined || now - loadedAt >= APP_RETURN_STALE_AFTER_MS || toKstDate(new Date(loadedAt)) !== toKstDate(new Date(now));
+
+/**
+ * 앱 화면이 다시 보일 때마다 `onReturn`을 부른다. 듣기를 멈추는 함수를 돌려준다.
+ * 저장된 페이지로 되살아날 때(pageshow)는 visibilitychange가 오지 않을 수 있어 함께 듣는다.
+ *
+ * @example useEffect(() => subscribeToAppReturn(handleReturn), []);
+ */
+export const subscribeToAppReturn = (onReturn: () => void): (() => void) => {
+  const handleChange = () => {
+    if (document.visibilityState === "visible") onReturn();
+  };
+  document.addEventListener("visibilitychange", handleChange);
+  window.addEventListener("pageshow", handleChange);
+  return () => {
+    document.removeEventListener("visibilitychange", handleChange);
+    window.removeEventListener("pageshow", handleChange);
+  };
+};

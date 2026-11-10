@@ -1,8 +1,28 @@
 import { readFileSync } from "node:fs";
 import type { Locator, Page } from "@playwright/test";
+import { toKstDate } from "@/lib/anniversary";
 import { BASE_URL, PHOTO_FIXTURE_PATH } from "./constants";
 
 // 여러 스펙이 함께 쓰는 화면 조작 도우미(#196). 화면은 숨긴 채 남아 있을 수 있어(Activity) 보이는 것만 고른다
+
+const MINUTE_MS = 60_000;
+
+/**
+ * 홈 화면 앱으로 돌아온 것처럼 화면이 다시 보였다고 알린다(헤드리스 브라우저는 늘 보이는 상태라 알림만 보낸다).
+ *
+ * @example await returnToApp(page)
+ */
+export const returnToApp = (page: Page): Promise<void> => page.evaluate(() => void document.dispatchEvent(new Event("visibilitychange")));
+
+/**
+ * 브라우저 시계를 한국 날짜로 오늘 0시 10분 전에 맞춘다. 로그인 토큰이 만료로 보이지 않게 지난 시각을 쓴다.
+ * 그 뒤 `page.clock.fastForward`로 자정을 넘긴다.
+ *
+ * @example await installClockBeforeMidnight(page); await page.clock.fastForward(15 * 60_000);
+ */
+export const installClockBeforeMidnight = async (page: Page): Promise<void> => {
+  await page.clock.install({ time: new Date(`${toKstDate(new Date())}T00:00:00+09:00`).getTime() - 10 * MINUTE_MS });
+};
 
 /**
  * 하단 탭의 링크.

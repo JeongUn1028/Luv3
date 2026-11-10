@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect } from "react";
-import { shouldRefreshOnReturn } from "@/lib/navigation/app-return";
+import { shouldRefreshOnReturn, subscribeToAppReturn } from "@/lib/navigation/app-return";
 import { refreshSignedInScreen } from "@/lib/navigation/refresh-signed-in";
 import { getScreenLoadedAt } from "@/lib/navigation/screen-freshness";
 
@@ -20,7 +20,7 @@ export const AppReturn = (): null => {
     let isChecking = false;
 
     const handleReturn = async () => {
-      if (document.visibilityState !== "visible" || isChecking) return;
+      if (isChecking) return;
       const { href } = window.location;
       if (!shouldRefreshOnReturn(getScreenLoadedAt(href, href), Date.now())) return;
 
@@ -32,13 +32,7 @@ export const AppReturn = (): null => {
       }
     };
 
-    // 저장된 페이지로 되살아날 때(pageshow)는 visibilitychange가 오지 않을 수 있어 함께 듣는다
-    document.addEventListener("visibilitychange", handleReturn);
-    window.addEventListener("pageshow", handleReturn);
-    return () => {
-      document.removeEventListener("visibilitychange", handleReturn);
-      window.removeEventListener("pageshow", handleReturn);
-    };
+    return subscribeToAppReturn(handleReturn);
   }, [router]);
 
   return null;
