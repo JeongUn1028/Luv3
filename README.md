@@ -40,6 +40,8 @@ pnpm lint
 pnpm knip       # 안 쓰는 파일·export·의존성 (knip.json)
 pnpm type-check
 pnpm test       # Vitest 단위 테스트
+pnpm test:coverage  # 단위 테스트 + 커버리지. src/lib가 줄 75%·분기 80% 아래면 실패 (CI는 이 명령)
+pnpm db:types   # 마이그레이션을 바꾸면 DB 타입 파일을 다시 만들어 함께 커밋 (CI가 차이를 검사)
 pnpm test:db    # pgTAP RLS 테스트 (로컬 Supabase 실행 중이어야 함)
 pnpm test:e2e   # Playwright E2E 테스트 (로컬 Supabase 실행 중이어야 하고, 설치된 Chrome을 쓴다)
 ```
