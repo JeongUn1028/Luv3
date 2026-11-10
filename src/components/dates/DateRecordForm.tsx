@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useTransition, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
+import { startTransition, useTransition, useEffectEvent, useLayoutEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { DateField, TextAreaField, TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
@@ -44,6 +44,7 @@ import {
 } from "@/lib/dates/save";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
+import { usePreviewUrls } from "@/lib/photos/preview-urls";
 import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
 import { createClient } from "@/lib/supabase/client";
 import { PhotoPicker, type PickedPhoto } from "./PhotoPicker";
@@ -92,9 +93,9 @@ type RecordDraft = DateRecordDraft<PickedPhoto>;
 const failedSaves = new Map<string, FailedSave<RecordDraft>>();
 
 /** 예전 폼의 미리보기는 숨겨질 때 해제됐으므로 파일로 다시 만든다 */
-const withNewPreviews = (draft: RecordDraft): RecordDraft => ({
+const withNewPreviews = (draft: RecordDraft, createPreview: (file: File) => string): RecordDraft => ({
   ...draft,
-  photos: draft.photos.map((photo) => (photo.file ? { ...photo, previewUrl: URL.createObjectURL(photo.file) } : photo)),
+  photos: draft.photos.map((photo) => (photo.file ? { ...photo, previewUrl: createPreview(photo.file) } : photo)),
 });
 
 interface DateRecordFormProps {
@@ -116,7 +117,9 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "기록을", failedSaves });
   // 쓴 내용이 있는지 견줄 처음 내용. 실패해서 다시 채운 내용도 아직 저장되지 않았으므로 이것과 견준다
   const [initialDraft, setInitialDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft(prefill)));
-  const [draft, setDraft] = useState(() => (failedSave ? withNewPreviews(failedSave.draft) : initialDraft));
+  // 미리보기는 모두 여기서 만들어, 화면을 떠날 때 빠짐없이 해제한다
+  const previews = usePreviewUrls();
+  const [draft, setDraft] = useState(() => (failedSave ? withNewPreviews(failedSave.draft, previews.create) : initialDraft));
   const [isReloading, startReloading] = useTransition();
   const [errors, setErrors] = useState<DraftErrors>({});
   const [tagInput, setTagInput] = useState("");
@@ -157,20 +160,6 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
     return subscribeToAppReturn(moveUntouchedDateToToday);
   }, [hasDefaultDate]);
 
-  // 만든 미리보기 URL. 사진을 빼거나 화면을 떠날 때 해제한다(브라우저 메모리 = 외부 자원)
-  const previewUrlsRef = useRef(new Set(draft.photos.flatMap(({ file, previewUrl }) => (file && previewUrl ? [previewUrl] : []))));
-  useEffect(() => {
-    const previewUrls = previewUrlsRef.current;
-    return () => previewUrls.forEach((url) => URL.revokeObjectURL(url));
-  }, []);
-
-  // 이미 저장된 사진의 미리보기(서명 URL)는 만든 적이 없으므로 건드리지 않는다
-  const revokePreview = (url: string | undefined) => {
-    if (!url || !previewUrlsRef.current.has(url)) return;
-    URL.revokeObjectURL(url);
-    previewUrlsRef.current.delete(url);
-  };
-
   const updatePlace = (changes: Partial<Pick<RecordDraft, "place" | "location">>) => {
     setDraft((current) => ({ ...current, ...changes }));
     setErrors((current) => clearError(current, "place"));
@@ -196,11 +185,10 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       id: crypto.randomUUID(),
       caption: "",
       file,
-      previewUrl: URL.createObjectURL(file),
+      previewUrl: previews.create(file),
     }));
-    picked.forEach(({ previewUrl }) => previewUrlsRef.current.add(previewUrl));
     const result = addPhotos(draft, picked);
-    picked.slice(picked.length - result.droppedCount).forEach(({ previewUrl }) => revokePreview(previewUrl));
+    picked.slice(picked.length - result.droppedCount).forEach(({ previewUrl }) => previews.revoke(previewUrl));
     setDraft(result.draft);
     setErrors((current) => clearError(current, "photos"));
 
@@ -215,7 +203,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
 
   const handleRemovePhoto = (photoId: string) => {
     const removed = draft.photos.find(({ id }) => id === photoId);
-    if (removed) revokePreview(removed.previewUrl);
+    if (removed) previews.revoke(removed.previewUrl);
     setDraft(removePhoto(draft, photoId));
   };
 
@@ -293,7 +281,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       // cacheComponents는 다녀온 화면을 Activity로 숨겨 상태를 보존한다. 다시 열었을 때 처음 상태가 되도록
       // 이동과 같은 transition에서 되돌린다(이동이 끝날 때 함께 반영돼 빈 폼이 잠깐 보이지 않는다)
       // 이미 그려진 미리보기는 URL을 해제해도 그대로 보인다. 수정 화면은 페이지가 매번 새 key로 다시 그린다
-      draft.photos.forEach(({ previewUrl }) => revokePreview(previewUrl));
+      draft.photos.forEach(({ previewUrl }) => previews.revoke(previewUrl));
       // 목록은 날짜 내림차순이라 새 기록은 맨 위에 있다. 보던 위치로 돌아가면 저장되지 않은 것처럼 보인다
       if (!record) forgetScrollPosition("records");
       finishSaved({
@@ -343,7 +331,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
 
   // 기록을 지웠을 때(DeleteRecordButton)와 같이 옮기면서 다시 불러온다
   const handleGoToRecords = () => {
-    draft.photos.forEach(({ previewUrl }) => revokePreview(previewUrl));
+    draft.photos.forEach(({ previewUrl }) => previews.revoke(previewUrl));
     startTransition(() => {
       router.replace(RECORDS_PATH, { transitionTypes: BACK_TRANSITION });
       router.refresh();
