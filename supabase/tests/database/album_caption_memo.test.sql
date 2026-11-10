@@ -16,12 +16,9 @@ insert into public.members (id, email, nickname) values
 
 select has_column('public', 'photos', 'caption', 'photos에 사진별 한마디 컬럼이 있다');
 
--- 허용된 사용자 a
-set local role authenticated;
-select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
-
-insert into public.dates (id, date, title)
-values ('10000000-0000-0000-0000-000000000001', '2026-11-01', '첫 데이트');
+-- 값 제약. 회원은 표를 직접 쓸 수 없으므로(#170) 표 소유자로 넣어 확인한다
+insert into public.dates (id, date, title, author_id)
+values ('10000000-0000-0000-0000-000000000001', '2026-11-01', '첫 데이트', '00000000-0000-0000-0000-00000000000a');
 
 -- 바이트가 아닌 글자 수로 세는지 보려고 한글로 채운다
 select lives_ok(
@@ -61,6 +58,8 @@ select throws_ok(
   '데이트 정리 글이 10,000자를 넘으면 저장되지 않는다'
 );
 
+set local role authenticated;
+
 -- 허용목록 밖의 사용자
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000ff","role":"authenticated"}', true);
 
@@ -69,12 +68,11 @@ select is_empty(
   '허용목록 밖의 사용자는 사진별 한마디를 볼 수 없다'
 );
 
-select is_empty(
-  $$with changed as (
-      update public.photos set caption = '바꿔치기'
-      where id = '20000000-0000-0000-0000-000000000001'
-      returning id
-    ) select id from changed$$,
+select throws_ok(
+  $$update public.photos set caption = '바꿔치기'
+    where id = '20000000-0000-0000-0000-000000000001'$$,
+  '42501',
+  null,
   '허용목록 밖의 사용자는 사진별 한마디를 고칠 수 없다'
 );
 
@@ -87,8 +85,10 @@ select is(
   '허용된 다른 사용자가 쓴 사진별 한마디도 볼 수 있다'
 );
 
-update public.photos set caption = '여기 또 오자'
-where id = '20000000-0000-0000-0000-000000000001';
+select public.update_date_record(
+  '10000000-0000-0000-0000-000000000001', '2026-11-01', '첫 데이트', null, null,
+  '[{"id":"20000000-0000-0000-0000-000000000001","caption":"여기 또 오자"}]', '20000000-0000-0000-0000-000000000001'
+);
 
 select is(
   (select caption from public.photos where id = '20000000-0000-0000-0000-000000000001'),
