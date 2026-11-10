@@ -2,6 +2,7 @@
 
 import { useRef, useState, type ChangeEvent, type ReactElement } from "react";
 import { CAPTION_MAX_LENGTH, MAX_PHOTOS, type DraftErrors, type DraftPhoto } from "@/lib/dates/form";
+import { runKeepingFocus } from "@/lib/keep-focus";
 import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/resize";
 
 export interface PickedPhoto extends DraftPhoto {
@@ -57,7 +58,7 @@ const PhotoPreview = ({ src, alt }: PhotoPreviewProps): ReactElement => {
 // 보이는 크기는 36px로 두고 누르는 영역만 44px로 넓힌다. 버튼 사이 간격(8px)을 반씩 나눠 가져 서로 겹치지 않는다(#105).
 // 가상 요소는 테두리 안쪽을 기준으로 놓이므로 테두리 1px을 더해 5px 넓힌다
 const smallButtonClassName =
-  "press-icon relative h-9 min-w-9 rounded-[8px] border border-line px-2 text-[12px] text-ink-sub after:absolute after:-inset-[5px] hover:text-ink disabled:opacity-30";
+  "press-icon relative h-9 min-w-9 rounded-[8px] border border-line px-2 text-[12px] text-ink-sub after:absolute after:-inset-[5px] hover:text-ink disabled:opacity-30 aria-disabled:opacity-30";
 
 /** 사진 고르기 + 고른 사진 목록(미리보기, 한마디, 대표 사진, 순서, 빼기) */
 export const PhotoPicker = ({
@@ -72,6 +73,7 @@ export const PhotoPicker = ({
   onCoverChange,
 }: PhotoPickerProps): ReactElement => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const pickButtonRef = useRef<HTMLButtonElement>(null);
   const isFull = photos.length >= MAX_PHOTOS;
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -134,11 +136,13 @@ export const PhotoPicker = ({
                       />
                       대표
                     </label>
+                    {/* 끝에 있는 순서 버튼은 초점을 잃지 않도록 disabled 대신 aria-disabled로 둔다. 끝을 넘는 이동은 movePhoto가 무시한다 */}
                     <button
                       type="button"
                       aria-label={`${index + 1}번째 사진을 앞으로`}
-                      disabled={isDisabled || index === 0}
-                      onClick={() => onMove(index, -1)}
+                      disabled={isDisabled}
+                      aria-disabled={index === 0}
+                      onClick={(event) => runKeepingFocus({ button: event.currentTarget, change: () => onMove(index, -1) })}
                       className={smallButtonClassName}
                     >
                       ↑
@@ -146,8 +150,9 @@ export const PhotoPicker = ({
                     <button
                       type="button"
                       aria-label={`${index + 1}번째 사진을 뒤로`}
-                      disabled={isDisabled || index === photos.length - 1}
-                      onClick={() => onMove(index, 1)}
+                      disabled={isDisabled}
+                      aria-disabled={index === photos.length - 1}
+                      onClick={(event) => runKeepingFocus({ button: event.currentTarget, change: () => onMove(index, 1) })}
                       className={smallButtonClassName}
                     >
                       ↓
@@ -155,8 +160,16 @@ export const PhotoPicker = ({
                     <button
                       type="button"
                       aria-label={`${index + 1}번째 사진 빼기`}
+                      data-photo-remove
                       disabled={isDisabled}
-                      onClick={() => onRemove(photo.id)}
+                      onClick={(event) =>
+                        runKeepingFocus({
+                          button: event.currentTarget,
+                          change: () => onRemove(photo.id),
+                          neighborSelector: "[data-photo-remove]",
+                          fallback: pickButtonRef.current,
+                        })
+                      }
                       className={`${smallButtonClassName} ml-auto`}
                     >
                       빼기
@@ -169,6 +182,7 @@ export const PhotoPicker = ({
         </ol>
       )}
       <button
+        ref={pickButtonRef}
         type="button"
         disabled={isDisabled || isFull}
         // 사진이 없으면 저장할 때 이 버튼이 첫 오류 칸이 된다. 버튼에는 aria-invalid를 쓸 수 없어 data로 표시한다(DatePickerField와 같다)

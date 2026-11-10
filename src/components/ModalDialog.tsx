@@ -131,6 +131,9 @@ export const ModalDialog = ({
       ref={dialogRef}
       aria-labelledby={titleId}
       aria-describedby={description ? descriptionId : undefined}
+      // Chrome은 Esc를 연달아 누르면 세 번째부터 cancel을 막을 수 없어 작업 중에도 닫힌다. 작업 중에는 Esc 닫기 자체를 끈다.
+      // closedby를 모르는 브라우저(아이폰 Safari)는 아래 onCancel이 막는다
+      closedby={isBusy ? "none" : "closerequest"}
       onCancel={(event) => {
         // 브라우저가 바로 닫지 않게 하고 같은 움직임으로 닫는다. 작업 중이면 닫지 않는다
         event.preventDefault();
@@ -181,6 +184,7 @@ interface ModalActionsBaseProps {
   cancelLabel: string;
   onCancel: () => void;
   confirmLabel: string;
+  /** 작업 중. 누른 버튼이 초점을 잃지 않게 disabled 대신 aria-disabled로 두고 누름을 막는다 */
   isDisabled?: boolean;
   /** 창이 열린 뒤 이 줄이 새로 나타날 때 초점을 취소 버튼으로 옮긴다 */
   shouldFocusCancel?: boolean;
@@ -207,17 +211,24 @@ export const ModalActions = ({
     <button
       type="button"
       autoFocus={shouldFocusCancel}
-      disabled={isDisabled}
-      onClick={onCancel}
-      className="press-wide h-12 flex-1 rounded-[10px] border border-line text-[15px] text-ink hover:bg-background disabled:opacity-50"
+      aria-disabled={isDisabled}
+      onClick={isDisabled ? undefined : onCancel}
+      className="press-wide h-12 flex-1 rounded-[10px] border border-line text-[15px] text-ink hover:bg-background aria-disabled:opacity-50 aria-disabled:hover:bg-transparent"
     >
       {cancelLabel}
     </button>
     <button
       type={isSubmit ? "submit" : "button"}
-      disabled={isDisabled}
-      onClick={onConfirm && (() => onConfirm())}
-      className="press-wide h-12 flex-1 rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
+      aria-disabled={isDisabled}
+      onClick={(event) => {
+        // 제출 버튼은 폼 제출까지 막는다
+        if (isDisabled) {
+          event.preventDefault();
+          return;
+        }
+        onConfirm?.();
+      }}
+      className="press-wide h-12 flex-1 rounded-[10px] bg-accent font-display text-[15px] text-background aria-disabled:opacity-50"
     >
       {confirmLabel}
     </button>

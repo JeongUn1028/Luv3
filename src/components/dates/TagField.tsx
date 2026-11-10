@@ -1,9 +1,10 @@
 import type { KeyboardEvent, ReactElement, RefObject } from "react";
 import { FILLED_TAG_CHIP_CLASS_NAME, OUTLINED_TAG_CHIP_CLASS_NAME } from "@/components/dates/tagChip";
 import { MAX_TAGS, TAG_MAX_LENGTH, pickTagSuggestions } from "@/lib/dates/form";
+import { runKeepingFocus } from "@/lib/keep-focus";
 
 interface TagFieldProps {
-  /** 칸을 열 때 초점을 주려고 입력 칸을 넘겨받는다 */
+  /** 칸을 열 때, 마지막 태그·추천을 눌러 버튼이 사라질 때 초점을 주려고 입력 칸을 넘겨받는다 */
   inputRef: RefObject<HTMLInputElement | null>;
   tags: string[];
   /** 전에 쓴 태그(많이 쓴 순). 이미 붙인 태그는 빼고 보여 준다 */
@@ -75,7 +76,10 @@ export const TagField = ({ inputRef, tags, suggestions, input, error, isDisabled
                 type="button"
                 disabled={isDisabled}
                 aria-label={`${tag} 태그 빼기`}
-                onClick={() => onRemove(tag)}
+                data-tag-remove
+                onClick={(event) =>
+                  runKeepingFocus({ button: event.currentTarget, change: () => onRemove(tag), neighborSelector: "[data-tag-remove]", fallback: inputRef.current })
+                }
                 className={`${FILLED_TAG_CHIP_CLASS_NAME} gap-1`}
               >
                 {tag}
@@ -95,7 +99,16 @@ export const TagField = ({ inputRef, tags, suggestions, input, error, isDisabled
                   type="button"
                   disabled={isDisabled}
                   aria-label={`${suggestion} 태그 붙이기`}
-                  onClick={() => onAdd(suggestion)}
+                  data-tag-suggestion
+                  // 붙인 추천은 목록에서 빠진다. 개수가 넘쳐 붙이지 못하면 버튼이 남아 초점도 그대로다
+                  onClick={(event) =>
+                    runKeepingFocus({
+                      button: event.currentTarget,
+                      change: () => onAdd(suggestion),
+                      neighborSelector: "[data-tag-suggestion]",
+                      fallback: inputRef.current,
+                    })
+                  }
                   className={OUTLINED_TAG_CHIP_CLASS_NAME}
                 >
                   {suggestion}
