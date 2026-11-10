@@ -51,6 +51,8 @@ E2E는 대상 기기 두 크기(아이폰 15 Pro, 아이폰 17)에서 앱을 빌
 
 로컬 Supabase는 워크트리가 달라도 하나이고 E2E는 시작할 때 전용 계정을 지우므로, 포트를 바꿔도 두 실행을 동시에 돌리면 서로 깨진다. 그래서 앱 서버 명령(`e2e/web-server.mts`)이 빌드하기 전에 3101번 포트를 실행 잠금으로 잡고, 앱 서버가 끝날 때까지 쥐고 있는다. 다른 워크트리에서 실행이 돌고 있으면 그 실행의 폴더를 알려 주며 바로 멈춘다(앞 실행의 앱이 이미 3100번에 떠 있으면 Playwright가 "already used"로 먼저 멈춘다). 포트가 잠금이라 실행을 강제로 꺼도 운영체제가 풀어 남는 것이 없다.
 
+로컬 작업자는 Playwright 기본값(코어의 절반)에 4개 상한을 둔다. 24코어 PC에서 기본값대로 12개로 돌리면 Chrome 창이 죽거나(`Target crashed`, `ERR_INSUFFICIENT_RESOURCES`) 시간 초과로 실행마다 다른 테스트가 실패했고, 4개는 네 번 모두 실패 없이 12개와 거의 같은 시간(약 4분)에 끝났다. 2개는 1~2분 더 걸렸다(#243). 한 번에 더 적게 돌리려면 `pnpm test:e2e --workers=2`.
+
 PR과 main push마다 GitHub Actions(`.github/workflows/ci.yml`)가 같은 검사와 `pnpm build`를 실행한다. PR에는 운영 DB 반영 체크를 보는 검사(`.github/workflows/db-apply.yml`)도 함께 돈다.
 
 CI의 E2E는 스펙 파일 단위로 3대에 나눠 동시에 돈다(`test:e2e (1/3)`~`(3/3)`, Playwright `--shard`). 대마다 로컬 Supabase를 따로 띄우므로 서로의 데이터를 건드리지 않는다. 대마다 작업자는 2개로 고정했다(러너 기본값과 같다. 4개는 테스트 시간이 대마다 0.2~0.9분, 전체로 약 30초 줄었을 뿐이라 부하 위험을 지지 않음, #241). CI에서는 실패한 테스트를 한 번 더 돌리고(`retries: 1`, 로컬은 다시 돌리지 않음), 다시 돌아 통과하면 로그에 `flaky`로 남는다. 실행 기록(trace)은 실패한 첫 시도의 것을 남긴다. 잡마다 `timeout-minutes`가 있고(E2E를 나눈 잡은 15분), CI의 Playwright는 그보다 먼저 10분(`globalTimeout`)에 스스로 끝나 멈춘 대도 실패 보고서를 남긴다. 나눈 잡이 끝나면 `test:e2e` 잡이 결과를 모아, 셋 모두 통과해야 통과로 끝난다. 나눈 잡이 실패하거나 취소돼도 이 잡은 건너뛰지 않고 실패로 끝난다(건너뛴 잡은 필수 검사에서 통과로 쳐지기 때문이다). 실패한 대의 보고서는 실행 화면의 Artifacts에 `playwright-report-<대 번호>-of-3`으로 올라간다. 로컬에서 한 대 몫만 돌려 보려면 `pnpm test:e2e --shard=1/3`. 대 수를 바꾸면 `ci.yml`의 `shardIndex`·`shardTotal`을 함께 고친다(`e2e/support/ci-workflow.test.ts`가 둘이 어긋나면 실패한다).

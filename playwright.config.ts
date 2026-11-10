@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { defineConfig } from "@playwright/test";
 import { BASE_URL, MEMBER_STATE_PATH } from "./e2e/support/constants";
 import { DEVICE_SIZE_SPECS, isAllDevicesRun } from "./e2e/support/devices";
@@ -8,6 +9,9 @@ const supabase = readLocalSupabase();
 
 // 작업 프로세스는 환경 변수를 물려받으므로, 데이터를 만들 때와 테스트에서 같은 기준 시각을 쓴다
 process.env.E2E_NOW ??= new Date().toISOString();
+
+/** 로컬 E2E 작업자 상한. 12개는 Chrome 창이 죽거나 시간 초과가 났고, 4개는 실패 없이 거의 같은 시간에 끝났다(#243) */
+const LOCAL_MAX_WORKERS = 4;
 
 // 이 앱은 아이폰 홈 화면 앱으로 쓴다. 두 대상 기기의 화면과 safe-area로 잰다
 const createDeviceUse = (width: number, height: number, safeAreaTop: number) => ({
@@ -25,8 +29,8 @@ export default defineConfig<DeviceOptions>({
   globalSetup: "./e2e/global-setup.ts",
   // CI 러너(4코어)는 앱 서버·로컬 Supabase·Chrome을 함께 돌린다. 기본값(코어의 절반)도 2지만 러너가 바뀌어도 그대로이게 고정한다.
   // 4개로 재 보니 테스트 시간이 대마다 0.2~0.9분, 전체로는 약 30초 줄었을 뿐이라 부하 위험을 지지 않는다(#241).
-  // 로컬 값은 다른 실행과 겹치지 않을 때 따로 잰다(#243)
-  workers: process.env.CI ? 2 : undefined,
+  // 로컬은 기본값(코어의 절반)에 4개 상한을 둔다. 코어가 많아 작업자가 늘면 Chrome 창이 죽거나 시간 초과가 났다(근거는 README, #243)
+  workers: process.env.CI ? 2 : Math.min(LOCAL_MAX_WORKERS, Math.max(1, Math.floor(availableParallelism() / 2))),
   // CI 잡 시간 제한(15분)보다 먼저 끝내, 멈춘 대도 실패 보고서를 남기게 한다. 평소 대마다 4분 안팎이다
   globalTimeout: process.env.CI ? 10 * 60_000 : undefined,
   forbidOnly: Boolean(process.env.CI),
