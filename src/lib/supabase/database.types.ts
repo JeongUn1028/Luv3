@@ -184,7 +184,7 @@ isOneToOne: false
           }
           Functions: {
             "are_valid_date_tags":
-{ Args: { "p_tags": (string)[] }; Returns: boolean
+{ Args: { "p_tags": string }; Returns: boolean
                            },
 "assert_date_record_fields":
 { Args: { "p_date": string,"p_end_date": string,"p_title": string }; Returns: undefined
