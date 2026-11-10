@@ -10,7 +10,7 @@ import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
 import { getCurrentMember } from "@/lib/auth/member";
 import { RECORDS_MAP_PATH } from "@/lib/dates/map";
-import { AlbumLoadError, getAlbumTiles } from "@/lib/dates/queries";
+import { AlbumLoadError, getAlbumTiles, getTagSuggestions } from "@/lib/dates/queries";
 import { catchLoadError } from "@/lib/load";
 
 export const metadata: Metadata = { title: "기록 · Luv3" };
@@ -18,8 +18,8 @@ export const metadata: Metadata = { title: "기록 · Luv3" };
 const RecordsContent = async () => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
   await getCurrentMember();
-  // 그리드를 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다
-  const tiles = await catchLoadError(getAlbumTiles, AlbumLoadError);
+  // 그리드를 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다. 태그 줄은 못 읽으면 비워 둔다
+  const [tiles, tags] = await Promise.all([catchLoadError(getAlbumTiles, AlbumLoadError), getTagSuggestions()]);
 
   if (tiles instanceof AlbumLoadError) {
     return (
@@ -29,7 +29,7 @@ const RecordsContent = async () => {
       </>
     );
   }
-  return <RecordsBrowser tiles={tiles} />;
+  return <RecordsBrowser tiles={tiles} tags={tags} />;
 };
 
 const RecordsPage = () => (

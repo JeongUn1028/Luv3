@@ -14,8 +14,6 @@ interface RecordTileBase {
   title: string;
   place: string | undefined;
   tags: string[];
-  /** 찾을 때 비교하는 글자: 제목·장소·정리 글·사진 한마디·태그를 소문자로 모은 것 */
-  searchText: string;
 }
 
 /** 앨범 그리드 칸 하나 = 기록 하나(대표 사진 썸네일) */
@@ -46,27 +44,18 @@ export interface AlbumRow {
   end_date: string | null;
   title: string;
   place: string | null;
-  memo: string | null;
   tags: string[];
   cover: { thumb_path: string } | null;
-  photos: { caption: string | null }[];
 }
 
-const toSearchText = ({ title, place, memo, tags, photos }: AlbumRow): string =>
-  [title, place, memo, ...photos.map(({ caption }) => caption), ...tags]
-    .filter(Boolean)
-    .join("\n")
-    .toLowerCase();
-
 // DB의 null은 화면 경계에서 undefined로 바꾼다
-const toRecordTileBase = (row: AlbumRow): RecordTileBase => ({
+const toRecordTileBase = (row: Omit<AlbumRow, "cover">): RecordTileBase => ({
   id: row.id,
   date: row.date,
   endDate: row.end_date ?? undefined,
   title: row.title,
   place: row.place ?? undefined,
   tags: row.tags,
-  searchText: toSearchText(row),
 });
 
 /**
@@ -78,7 +67,7 @@ export const toAlbumTiles = (rows: AlbumRow[], signedThumbs: SignedUrl[]): Album
   const urlByPath = new Map(
     signedThumbs.flatMap(({ path, signedUrl }) => (path && signedUrl ? [[path, signedUrl] as const] : [])),
   );
-  return rows.map((row) => ({ ...toRecordTileBase(row), thumbUrl: row.cover ? urlByPath.get(row.cover.thumb_path) : undefined }));
+  return rows.map(({ cover, ...row }) => ({ ...toRecordTileBase(row), thumbUrl: cover ? urlByPath.get(cover.thumb_path) : undefined }));
 };
 
 /**
@@ -139,20 +128,16 @@ export const formatTileLabel = ({ date, endDate, place }: Pick<AlbumTile, "date"
   return place ? `${period} · ${place}` : period;
 };
 
+/** 태그 하나를 쓴 기록 수. DB(`count_date_tags`)가 대소문자만 다른 태그를 하나로 묶어 센다 */
+export interface TagCount {
+  tag: string;
+  count: number;
+}
+
 /**
- * 기록들의 태그를 많이 쓴 순서로 줄 세운다. 수가 같으면 가나다순이다.
- * 태그를 더할 때 대소문자를 가리지 않으므로 대소문자만 다른 태그는 하나로 세고, 먼저 나온 글자를 쓴다.
+ * 센 태그를 많이 쓴 순서로 줄 세운다. 수가 같으면 가나다순이다.
  *
- * @example toTagSuggestions([["카페"], ["여행", "카페"]]) // ["카페", "여행"]
+ * @example toTagSuggestions([{ tag: "여행", count: 1 }, { tag: "카페", count: 2 }]) // ["카페", "여행"]
  */
-export const toTagSuggestions = (tagLists: string[][]): string[] => {
-  const counts = new Map<string, { tag: string; count: number }>();
-  for (const tag of tagLists.flat()) {
-    const key = tag.toLowerCase();
-    const found = counts.get(key);
-    counts.set(key, { tag: found?.tag ?? tag, count: (found?.count ?? 0) + 1 });
-  }
-  return [...counts.values()]
-    .toSorted((left, right) => right.count - left.count || left.tag.localeCompare(right.tag, "ko"))
-    .map(({ tag }) => tag);
-};
+export const toTagSuggestions = (counts: TagCount[]): string[] =>
+  counts.toSorted((left, right) => right.count - left.count || left.tag.localeCompare(right.tag, "ko")).map(({ tag }) => tag);

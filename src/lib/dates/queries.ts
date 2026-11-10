@@ -24,7 +24,7 @@ const loadLatestRows = async (sign: GetSignedUrls, limit?: number) => {
   const supabase = await createClient();
   const query = supabase
     .from("dates")
-    .select("id, date, end_date, title, place, memo, tags, cover:photos!dates_cover_photo_id_fkey(thumb_path), photos!photos_date_id_fkey(caption)")
+    .select("id, date, end_date, title, place, tags, cover:photos!dates_cover_photo_id_fkey(thumb_path)")
     .order("date", { ascending: false })
     .order("created_at", { ascending: false });
   const { data: rows, error } = await (limit === undefined ? query : query.limit(limit));
@@ -98,20 +98,15 @@ class TagSuggestionLoadError extends Error {
 
 const loadTagSuggestions = async (): Promise<string[]> => {
   const supabase = await createClient();
-  // 1000개가 넘어도 잘리지 않게 끝까지 나눠 읽는다(#272)
-  const rows = await readAllRows({
-    fetchPage: (afterId, limit) => {
-      const query = supabase.from("dates").select("id, tags");
-      return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
-    },
-    toError: (cause) => new TagSuggestionLoadError({ cause }),
-  });
-  return toTagSuggestions(rows.map(({ tags }) => tags));
+  // DB가 세어 태그 종류만큼만 받으므로 기록이 1000개를 넘어도 잘리지 않는다(#273). 종류가 1000개를 넘는 일은 없다고 본다
+  const { data, error } = await supabase.rpc("count_date_tags");
+  if (error) throw new TagSuggestionLoadError({ cause: error });
+  return toTagSuggestions(data);
 };
 
 /**
- * 전에 쓴 태그를 많이 쓴 순서로 읽는다(작성 화면의 추천).
- * 추천을 못 읽어도 기록은 쓸 수 있어, 실패하면 로그만 남기고 빈 목록을 돌려준다.
+ * 전에 쓴 태그를 많이 쓴 순서로 읽는다(작성 화면의 추천, 기록 탭 찾기의 태그 줄).
+ * 태그를 못 읽어도 기록은 쓰고 찾을 수 있어, 실패하면 로그만 남기고 빈 목록을 돌려준다.
  *
  * @example const suggestions = await getTagSuggestions()
  */

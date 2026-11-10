@@ -9,7 +9,6 @@ const tile = (overrides: Partial<AlbumTile>): AlbumTile => ({
   place: undefined,
   thumbUrl: undefined,
   tags: [],
-  searchText: "",
   ...overrides,
 });
 
@@ -72,10 +71,8 @@ describe("toAlbumTiles", () => {
     end_date: null,
     title: "산책",
     place: null,
-    memo: null,
     tags: [],
     cover: null,
-    photos: [],
   };
 
   it("대표 사진 썸네일 경로에 서명 URL을 붙이고, 빈 장소는 undefined로 바꾼다", () => {
@@ -87,8 +84,8 @@ describe("toAlbumTiles", () => {
       [{ path: "a/p_thumb.jpg", signedUrl: "https://example.test/a" }],
     );
     expect(tiles).toEqual([
-      { id: "a", date: "2026-11-02", endDate: "2026-11-03", title: "산책", place: "성수동", thumbUrl: "https://example.test/a", tags: [], searchText: "산책\n성수동" },
-      { id: "b", date: "2026-11-01", endDate: undefined, title: "카페", place: undefined, thumbUrl: undefined, tags: [], searchText: "카페" },
+      { id: "a", date: "2026-11-02", endDate: "2026-11-03", title: "산책", place: "성수동", thumbUrl: "https://example.test/a", tags: [] },
+      { id: "b", date: "2026-11-01", endDate: undefined, title: "카페", place: undefined, thumbUrl: undefined, tags: [] },
     ]);
   });
 
@@ -99,28 +96,21 @@ describe("toAlbumTiles", () => {
     );
     expect(first?.thumbUrl).toBeUndefined();
   });
-
-  it("제목·장소·글·한마디·태그를 소문자로 모아 찾을 글자를 만들고, 빈 칸은 뺀다", () => {
-    const [first] = toAlbumTiles(
-      [{ ...row, title: "Han River", place: "한강", memo: "오래 걸었다", tags: ["피크닉"], photos: [{ caption: "노을" }, { caption: null }] }],
-      [],
-    );
-    expect(first?.tags).toEqual(["피크닉"]);
-    expect(first?.searchText).toBe("han river\n한강\n오래 걸었다\n노을\n피크닉");
-  });
 });
 
 describe("toTagSuggestions", () => {
   it("많이 쓴 순서로, 수가 같으면 가나다순으로 줄 세운다", () => {
-    expect(toTagSuggestions([["카페"], ["여행", "카페"], ["산책"]])).toEqual(["카페", "산책", "여행"]);
+    expect(
+      toTagSuggestions([
+        { tag: "여행", count: 1 },
+        { tag: "카페", count: 2 },
+        { tag: "산책", count: 1 },
+      ]),
+    ).toEqual(["카페", "산책", "여행"]);
   });
 
   it("태그가 없으면 빈 목록이다", () => {
     expect(toTagSuggestions([])).toEqual([]);
-  });
-
-  it("대소문자만 다른 태그는 하나로 세고 먼저 나온 글자를 쓴다", () => {
-    expect(toTagSuggestions([["여행"], ["Cafe"], ["cafe"]])).toEqual(["Cafe", "여행"]);
   });
 });
 
@@ -131,10 +121,8 @@ describe("toLatestRecord", () => {
     end_date: null,
     title: "산책",
     place: null,
-    memo: null,
     tags: [],
     cover: { thumb_path: "a/p_thumb.jpg" },
-    photos: [],
   };
 
   // 홈은 휴대폰이 썸네일 주소를 경로로 기억해 다시 쓴다(#219)
