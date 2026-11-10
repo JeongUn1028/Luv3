@@ -18,6 +18,8 @@ jobs:
   check:
     name: 운영 DB 반영 확인
     runs-on: ubuntu-latest
+    # 평소 10초 안. 필수 검사라 멈추면 머지도 막히므로 짧게 끊는다(#241)
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

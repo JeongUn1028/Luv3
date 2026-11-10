@@ -23,6 +23,12 @@ export default defineConfig<DeviceOptions>({
   // e2e/support의 *.test.ts는 Vitest가 돌리는 단위 테스트다
   testMatch: "**/*.spec.ts",
   globalSetup: "./e2e/global-setup.ts",
+  // CI 러너(4코어)는 앱 서버·로컬 Supabase·Chrome을 함께 돌린다. 기본값(코어의 절반)도 2지만 러너가 바뀌어도 그대로이게 고정한다.
+  // 4개로 재 보니 테스트 시간이 대마다 0.2~0.9분, 전체로는 약 30초 줄었을 뿐이라 부하 위험을 지지 않는다(#241).
+  // 로컬 값은 다른 실행과 겹치지 않을 때 따로 잰다(#243)
+  workers: process.env.CI ? 2 : undefined,
+  // CI 잡 시간 제한(15분)보다 먼저 끝내, 멈춘 대도 실패 보고서를 남기게 한다. 평소 대마다 4분 안팎이다
+  globalTimeout: process.env.CI ? 10 * 60_000 : undefined,
   forbidOnly: Boolean(process.env.CI),
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : "list",
   use: {
