@@ -201,6 +201,9 @@ isOneToOne: false
 "keepalive":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
+"link_date_record":
+{ Args: { "p_date_id": string,"p_event_date": string,"p_event_id": string }; Returns: undefined
+                           },
 "move_todo":
 { Args: { "p_id": string,"p_offset": number }; Returns: undefined
                            },
@@ -209,6 +212,9 @@ isOneToOne: false
                            },
 "swap_couple_photo_path":
 { Args: { "p_path": string }; Returns: string
+                           },
+"unlink_date_record":
+{ Args: { "p_date_id": string,"p_event_id": string }; Returns: undefined
                            },
 "update_date_record":
 { Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_expected_revisions"?: (string)[],"p_id": string,"p_memo": string,"p_new_revision"?: string,"p_photos": Json,"p_place": string,"p_place_location"?: Json,"p_tags"?: (string)[],"p_title": string }; Returns: (string)[]
