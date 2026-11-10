@@ -111,6 +111,9 @@ export const EventForm = ({
   const [errors, setErrors] = useState<EventDraftErrors>({});
   const [notice, setNotice] = useState(failedSave?.message);
   const [isSaving, setIsSaving] = useState(false);
+  // 이미 쓴 기록을 이으면 화면을 새로 받지 않고 버튼만 바꾼다. 새로 받으면 폼을 새로 그려 고치던 내용이 사라진다(#237)
+  const [linkedRecordId, setLinkedRecordId] = useState<string>();
+  const shownRecordLink: EventRecordLink | undefined = linkedRecordId ? { kind: "view", recordId: linkedRecordId } : recordLink;
   // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알리므로 묻지 않는다(#104)
   const shouldConfirmLeave = !isSameFormValue(draft, baseDraft) && !isSaving;
   // 캘린더로 돌아가면 일정 날짜가 속한 달을 열고 그날을 고른다
@@ -199,10 +202,11 @@ export const EventForm = ({
           actions={
             eventId && (
               <>
-                {recordLink && (
+                {shownRecordLink && (
                   <EventRecordAction
                     eventId={eventId}
-                    link={recordLink}
+                    link={shownRecordLink}
+                    onLinked={setLinkedRecordId}
                     className="press-icon flex h-11 shrink-0 items-center px-3 text-[14px] text-ink-sub hover:text-ink"
                   />
                 )}

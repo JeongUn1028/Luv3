@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getEditEventRecordLink,
   getEventRecordLink,
+  listLinkableEvents,
   omitLinkedRecords,
   toEventRecordHref,
   toEventRecordPrefill,
@@ -23,22 +24,22 @@ describe("getEventRecordLink", () => {
   });
 
   it("기록이 없으면 오늘까지의 함께 일정에만 남기기를 권한다", () => {
-    expect(getEventRecordLink(walk, today)).toEqual({ kind: "leave", eventDate: "2026-11-01" });
-    expect(getEventRecordLink({ ...walk, date: today }, today)).toEqual({ kind: "leave", eventDate: today });
+    expect(getEventRecordLink(walk, today)).toEqual({ kind: "leave", eventDate: "2026-11-01", lastDate: "2026-11-01" });
+    expect(getEventRecordLink({ ...walk, date: today }, today)).toEqual({ kind: "leave", eventDate: today, lastDate: today });
     expect(getEventRecordLink({ ...walk, date: "2026-11-10" }, today)).toBeUndefined();
     expect(getEventRecordLink({ ...walk, isTogether: false }, today)).toBeUndefined();
   });
 
   it("반복 일정은 그날을, 기간 일정은 어느 날에서 눌러도 시작일을 연결 날짜로 쓴다", () => {
-    expect(getEventRecordLink({ ...walk, date: "2026-11-06", repeatRule: "weekly" }, today)).toEqual({ kind: "leave", eventDate: "2026-11-06" });
+    expect(getEventRecordLink({ ...walk, date: "2026-11-06", repeatRule: "weekly" }, today)).toEqual({ kind: "leave", eventDate: "2026-11-06", lastDate: "2026-11-06" });
     const trip = { ...walk, period: { start: "2026-10-30", end: "2026-11-01" } };
-    expect(getEventRecordLink({ ...trip, date: "2026-10-31" }, today)).toEqual({ kind: "leave", eventDate: "2026-10-30" });
+    expect(getEventRecordLink({ ...trip, date: "2026-10-31" }, today)).toEqual({ kind: "leave", eventDate: "2026-10-30", lastDate: "2026-11-01" });
   });
 
   it("기간 일정은 끝나는 날부터 남기기를 권한다", () => {
     const trip = { ...walk, date: "2026-11-08", period: { start: "2026-11-08", end: "2026-11-10" } };
     expect(getEventRecordLink(trip, today)).toBeUndefined();
-    expect(getEventRecordLink(trip, "2026-11-10")).toEqual({ kind: "leave", eventDate: "2026-11-08" });
+    expect(getEventRecordLink(trip, "2026-11-10")).toEqual({ kind: "leave", eventDate: "2026-11-08", lastDate: "2026-11-10" });
   });
 });
 
@@ -47,7 +48,7 @@ describe("getEditEventRecordLink", () => {
 
   it("반복 일정은 고치는 날의 기록을 보거나 그날로 남긴다", () => {
     expect(getEditEventRecordLink(swim, "2026-10-14", today)).toEqual({ kind: "view", recordId: "r1" });
-    expect(getEditEventRecordLink(swim, "2026-10-21", today)).toEqual({ kind: "leave", eventDate: "2026-10-21" });
+    expect(getEditEventRecordLink(swim, "2026-10-21", today)).toEqual({ kind: "leave", eventDate: "2026-10-21", lastDate: "2026-10-21" });
   });
 
   it("반복 일정을 날 없이 열면 버튼을 보여 주지 않는다", () => {
@@ -56,7 +57,7 @@ describe("getEditEventRecordLink", () => {
 
   it("기간 일정은 시작일로 남긴다", () => {
     const trip = { date: "2026-10-30", repeat_rule: null, end_date: "2026-11-01", is_together: true, records: [] };
-    expect(getEditEventRecordLink(trip, undefined, today)).toEqual({ kind: "leave", eventDate: "2026-10-30" });
+    expect(getEditEventRecordLink(trip, undefined, today)).toEqual({ kind: "leave", eventDate: "2026-10-30", lastDate: "2026-11-01" });
   });
 });
 
@@ -78,7 +79,7 @@ describe("omitLinkedRecords", () => {
 describe("toEventRecordHref", () => {
   it("이어진 기록은 상세로, 남길 기록은 일정 id와 날짜를 넘긴 작성 화면으로 간다", () => {
     expect(toEventRecordHref("e1", { kind: "view", recordId: "r1" })).toBe("/dates/r1");
-    expect(toEventRecordHref("e1", { kind: "leave", eventDate: "2026-11-01" })).toBe("/dates/new?event=e1&eventDate=2026-11-01");
+    expect(toEventRecordHref("e1", { kind: "leave", eventDate: "2026-11-01", lastDate: "2026-11-01" })).toBe("/dates/new?event=e1&eventDate=2026-11-01");
   });
 });
 
@@ -133,5 +134,37 @@ describe("toEventRecordPrefill", () => {
   it("기록 칸보다 긴 제목·장소는 칸 길이까지만 채운다", () => {
     const prefill = toEventRecordPrefill({ ...row, title: "가".repeat(120), place: "나".repeat(120) }, "2026-11-01", today);
     expect([prefill?.title.length, prefill?.place.length]).toEqual([100, 100]);
+  });
+});
+
+describe("listLinkableEvents", () => {
+  const base = { startTime: null, place: undefined, authorNickname: undefined, repeatRule: undefined, period: undefined, isTogether: true, recordId: undefined };
+  const walk = { ...base, id: "e1", date: "2026-11-01", title: "산책" };
+
+  it("기록 기간에 보이는 일정 중 기록을 남길 수 있는 일정의 그날을 고른다", () => {
+    expect(listLinkableEvents([walk], today)).toEqual([
+      { eventId: "e1", eventDate: "2026-11-01", title: "산책", startTime: null, repeatRule: undefined, period: undefined },
+    ]);
+  });
+
+  it("이미 기록이 이어진 일정, 한 사람 일정, 아직 끝나지 않은 일정은 고르지 않는다", () => {
+    const events = [
+      { ...walk, recordId: "r1" },
+      { ...walk, id: "e2", isTogether: false },
+      { ...walk, id: "e3", date: "2026-11-10" },
+    ];
+    expect(listLinkableEvents(events, today)).toEqual([]);
+  });
+
+  // 기간 일정은 날마다 한 줄로 펼쳐지지만 연결은 시작일 하나다
+  it("기간 일정은 여러 날에 보여도 시작일 하나로 고른다", () => {
+    const period = { start: "2026-10-30", end: "2026-11-01" };
+    const trip = ["2026-10-30", "2026-10-31", "2026-11-01"].map((date) => ({ ...walk, id: "e4", title: "여행", date, period }));
+    expect(listLinkableEvents(trip, today)).toEqual([{ eventId: "e4", eventDate: "2026-10-30", title: "여행", startTime: null, repeatRule: undefined, period }]);
+  });
+
+  it("반복 일정은 오는 날마다 따로 고른다", () => {
+    const swim = ["2026-10-29", "2026-11-05"].map((date) => ({ ...walk, id: "e5", date, repeatRule: "weekly" as const }));
+    expect(listLinkableEvents(swim, today).map(({ eventDate }) => eventDate)).toEqual(["2026-10-29", "2026-11-05"]);
   });
 });

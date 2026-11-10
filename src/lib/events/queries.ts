@@ -7,8 +7,8 @@ import { toCalendarRecord, type CalendarEvent, type CalendarRecord } from "./cal
 import type { RecordPrefill } from "@/lib/dates/form";
 import { isIsoDate } from "@/lib/form";
 import { toEditableEvent, type EditableEvent } from "./form";
-import { toEventRecordPrefill } from "./record-link";
-import { expandEventRows, expandUpcomingEventRows } from "./recurrence";
+import { listLinkableEvents, toEventRecordPrefill, type LinkableEvent } from "./record-link";
+import { expandEventRows, expandUpcomingEventRows, type DateRange } from "./recurrence";
 
 /** 일정을 불러오지 못했을 때 */
 export class EventLoadError extends Error {
@@ -24,6 +24,18 @@ const EVENT_COLUMNS =
 /** 캘린더는 일정 줄에 "기록 보기"를 달려고 일정에서 남긴 기록도 읽는다(#227). 기록 날짜가 달 밖이어도 빠지지 않는다 */
 const CALENDAR_EVENT_COLUMNS = `${EVENT_COLUMNS}, records:dates(id, event_date)` as const;
 
+type ServerClient = Awaited<ReturnType<typeof createClient>>;
+
+/** 범위와 겹치는 일정을 이어진 기록과 함께 읽는다. 하루 일정은 범위 안의 날만, 반복·기간 일정은 범위 앞에 시작했어도 끝나지 않았으면 읽는다 */
+const selectCalendarEvents = (supabase: ServerClient, { start, end }: DateRange) =>
+  supabase
+    .from("events")
+    .select(CALENDAR_EVENT_COLUMNS)
+    .lte("date", end)
+    // 반복이 아니면 끝나는 날은 늘 비어 있다
+    .or(`date.gte.${start},repeat_rule.not.is.null,end_date.gte.${start}`)
+    .or(`repeat_until.is.null,repeat_until.gte.${start}`);
+
 /**
  * 달력에 그릴 한 달(앞뒤 주 포함)의 일정과 데이트 기록을 함께 읽는다. 기록은 기간이 이 범위와 겹치면 읽는다.
  * 반복 일정은 범위 안의 날마다 펼치고, 일정은 날짜 → 종일 먼저 → 시간 → 만든 순서로 정렬한다.
@@ -37,13 +49,7 @@ export const getCalendarMonth = async (
   const { start, end } = getGridRange(month);
   const supabase = await createClient();
   const [eventsResult, recordsResult] = await Promise.all([
-    supabase
-      .from("events")
-      .select(CALENDAR_EVENT_COLUMNS)
-      .lte("date", end)
-      // 하루 일정은 범위 안의 날만, 반복·기간 일정은 범위 앞에 시작했어도 끝나지 않았으면 읽는다. 반복이 아니면 끝나는 날은 늘 비어 있다
-      .or(`date.gte.${start},repeat_rule.not.is.null,end_date.gte.${start}`)
-      .or(`repeat_until.is.null,repeat_until.gte.${start}`),
+    selectCalendarEvents(supabase, { start, end }),
     supabase
       .from("dates")
       .select("id, date, end_date, title, author:members!dates_author_id_fkey(nickname)")
@@ -132,4 +138,17 @@ export const getEventRecordPrefill = async (
     .maybeSingle();
   if (error) throw new EventLoadError({ cause: error });
   return data ? toEventRecordPrefill(data, eventDate, today) : undefined;
+};
+
+/**
+ * 기록 기간에 있는 일정 중 그 기록을 이을 수 있는 일정의 그날을 읽는다(기록 상세의 "일정과 잇기", #237).
+ * 조건은 캘린더의 "기록 남기기"와 같다: 오늘까지 끝난 함께 일정이고, 그날 이어진 기록이 없다.
+ *
+ * @throws {EventLoadError} 조회가 실패했을 때
+ * @example const events = await getLinkableEvents({ start: record.date, end: record.endDate ?? record.date }, today)
+ */
+export const getLinkableEvents = async (range: DateRange, today: string): Promise<LinkableEvent[]> => {
+  const { data, error } = await selectCalendarEvents(await createClient(), range);
+  if (error) throw new EventLoadError({ cause: error });
+  return listLinkableEvents(expandEventRows(data, range), today);
 };
