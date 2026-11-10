@@ -118,3 +118,13 @@ describe("워크플로 잡의 시간 제한", () => {
     expect(unlimited).toEqual([]);
   });
 });
+
+describe("CI의 커버리지", () => {
+  it("단위 테스트는 커버리지를 재는 명령으로 돌려 바닥값 아래면 실패한다", () => {
+    // pnpm test로 돌리면 커버리지를 재지 않아 바닥값이 있어도 CI가 확인하지 않는다(#256)
+    const runs = Object.values(jobs).flatMap(({ steps = [] }) => steps.map((step) => step.run?.trim()));
+
+    expect(runs).toContain("pnpm test:coverage");
+    expect(runs).not.toContain("pnpm test");
+  });
+});

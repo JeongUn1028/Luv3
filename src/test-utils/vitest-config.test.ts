@@ -31,3 +31,17 @@ describe("vitest가 실행할 테스트 파일", () => {
     expect(testFiles.filter((path) => !isIncluded(path))).toEqual([]);
   });
 });
+
+describe("커버리지 바닥값", () => {
+  it("로직 폴더 src/lib의 바닥값은 줄 75%·분기 80%보다 낮아지지 않는다", () => {
+    // 화면 코드는 E2E가 확인해 단위 테스트 수치가 낮다. 로직만 바닥값을 두어 테스트 없는 로직이 늘면 CI가 잡는다(#256)
+    const thresholds = config.test?.coverage?.thresholds ?? {};
+    const libThreshold = "src/lib/**" in thresholds ? thresholds["src/lib/**"] : undefined;
+    const isObject = typeof libThreshold === "object" && libThreshold !== null;
+    const lines = isObject && "lines" in libThreshold ? libThreshold.lines : undefined;
+    const branches = isObject && "branches" in libThreshold ? libThreshold.branches : undefined;
+
+    expect(lines).toBeGreaterThanOrEqual(75);
+    expect(branches).toBeGreaterThanOrEqual(80);
+  });
+});
