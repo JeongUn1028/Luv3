@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { readSource, readSourceLines } from "@/test-utils/source";
 
 // 홈 화면 앱에는 주소창과 브라우저 버튼이 없어, 오류·없는 주소 화면에서 빠져나갈 길이 화면 안에 있어야 한다(#83).
-// Vitest(node)로는 오류 화면을 띄울 수 없어 소스 규칙으로 고정한다. 조회 실패·오류 화면은 서버가 Supabase를 부르다 실패해야 떠서
-// E2E에서 page.route로 만들 수 없다(#195). 없는 주소·기록·일정·항목 화면은 e2e/status-screens.spec.ts가 잰다.
+// Vitest(node)로는 오류 화면을 띄울 수 없어 소스 규칙으로 고정한다. 조회 실패 화면은 서버가 Supabase를 부르다 실패해야 떠서
+// E2E에서 page.route로 만들 수 없다(#195). 없는 주소·기록·일정·항목 화면과, 화면을 받다 연결이 끊겨 나오는 오류 화면(error.tsx)의
+// 알림·다시 시도·홈으로는 e2e/status-screens.spec.ts가 잰다(#258).
 
 const GLOBAL_ERROR = "app/global-error.tsx";
 const ERROR_SCREEN = "components/ErrorScreen.tsx";

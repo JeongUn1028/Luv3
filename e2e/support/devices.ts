@@ -18,6 +18,32 @@ export const DEVICE_SIZE_SPECS = [
   "tap-target",
 ] as const;
 
+// 이 앱은 아이폰 홈 화면 앱으로 쓴다. 두 대상 기기의 화면과 safe-area로 잰다
+const createDeviceUse = (width: number, height: number, safeAreaTop: number) => ({
+  viewport: { width, height },
+  deviceScaleFactor: 3,
+  isMobile: true,
+  hasTouch: true,
+  safeArea: { top: safeAreaTop, bottom: 34 },
+});
+
+/**
+ * 두 대상 기기. Playwright 기기 프로젝트와, 맨 마지막에 따로 도는 공유 데이터 스펙(`SHARED_DATA_SPECS`)이 같은 값을 쓴다.
+ *
+ * @example test.use(TARGET_DEVICES[0].use)
+ */
+export const TARGET_DEVICES = [
+  { name: "iphone-15-pro", use: createDeviceUse(393, 852, 59) },
+  { name: "iphone-17", use: createDeviceUse(402, 874, 62) },
+] as const;
+
+/**
+ * 두 사람이 하나를 함께 쓰는 데이터(커플 사진)를 실제로 바꾸는 스펙(파일 이름에서 `.spec.ts`를 뺀 것).
+ * 나란히 도는 다른 스펙이 그 데이터를 읽다 깨지지 않게, 기기 프로젝트에서 빼고 다른 테스트가 모두 끝난 뒤 따로 돌린다(#258).
+ * 두 기기 크기는 스펙 안에서 `TARGET_DEVICES`로 차례로 돌린다.
+ */
+export const SHARED_DATA_SPECS = ["couple-photo-change"] as const;
+
 /**
  * `E2E_ALL_DEVICES` 값으로 두 기기 전체를 돌리는지 정한다. CI는 main에 push될 때 켠다.
  *

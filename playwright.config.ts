@@ -1,7 +1,7 @@
 import { availableParallelism } from "node:os";
 import { defineConfig } from "@playwright/test";
 import { BASE_URL, MEMBER_STATE_PATH } from "./e2e/support/constants";
-import { DEVICE_SIZE_SPECS, isAllDevicesRun } from "./e2e/support/devices";
+import { DEVICE_SIZE_SPECS, isAllDevicesRun, SHARED_DATA_SPECS, TARGET_DEVICES } from "./e2e/support/devices";
 import { readLocalSupabase } from "./e2e/support/local-supabase";
 import type { DeviceOptions } from "./e2e/support/test";
 
@@ -13,14 +13,11 @@ process.env.E2E_NOW ??= new Date().toISOString();
 /** 로컬 E2E 작업자 상한. 12개는 Chrome 창이 죽거나 시간 초과가 났고, 4개는 실패 없이 거의 같은 시간에 끝났다(#243) */
 const LOCAL_MAX_WORKERS = 4;
 
-// 이 앱은 아이폰 홈 화면 앱으로 쓴다. 두 대상 기기의 화면과 safe-area로 잰다
-const createDeviceUse = (width: number, height: number, safeAreaTop: number) => ({
-  viewport: { width, height },
-  deviceScaleFactor: 3,
-  isMobile: true,
-  hasTouch: true,
-  safeArea: { top: safeAreaTop, bottom: 34 },
-});
+const [IPHONE_15_PRO, IPHONE_17] = TARGET_DEVICES;
+const toSpecGlobs = (names: readonly string[]): string[] => names.map((name) => `**/${name}.spec.ts`);
+/** 공유 데이터 스펙을 맨 마지막에 돌리려고 두는 빈 프로젝트. 테스트는 없고, 끝난 뒤 돌 프로젝트(teardown)만 정한다 */
+const SHARED_DATA_GATE = "shared-data-gate";
+const SHARED_DATA = "shared-data";
 
 export default defineConfig<DeviceOptions>({
   testDir: "./e2e",
@@ -49,13 +46,21 @@ export default defineConfig<DeviceOptions>({
     trace: "retain-on-first-failure",
   },
   projects: [
-    { name: "iphone-15-pro", use: createDeviceUse(393, 852, 59) },
+    // 기기 프로젝트가 모두 이 프로젝트에 기대므로, 그 테스트가 다 끝나야 teardown(공유 데이터 스펙)이 돈다.
+    // 공유 데이터 스펙을 기기 프로젝트의 dependencies로 먼저 돌리면 실패했을 때 기기 테스트가 모두 건너뛰어지고,
+    // 공유 데이터 프로젝트가 기기 프로젝트에 기대게 하면 --shard가 기대는 프로젝트를 나누지 않아 기기 테스트가 전부 한 대로 몰린다.
+    // 기기 테스트가 있는 대마다(CI 3대) 한 번씩 돌고, 스펙 하나만 돌려도 함께 돈다(빼려면 --no-deps)
+    { name: SHARED_DATA_GATE, testMatch: [], teardown: SHARED_DATA },
+    { name: IPHONE_15_PRO.name, use: IPHONE_15_PRO.use, dependencies: [SHARED_DATA_GATE], testIgnore: toSpecGlobs(SHARED_DATA_SPECS) },
     {
-      name: "iphone-17",
-      use: createDeviceUse(402, 874, 62),
+      name: IPHONE_17.name,
+      use: IPHONE_17.use,
+      dependencies: [SHARED_DATA_GATE],
+      testIgnore: toSpecGlobs(SHARED_DATA_SPECS),
       // 평소에는 크기·배치를 재는 스펙만 돌린다. main에 머지될 때는 전체를 돌려 놓친 차이를 잡는다(#194)
-      ...(isAllDevicesRun(process.env.E2E_ALL_DEVICES) ? {} : { testMatch: DEVICE_SIZE_SPECS.map((name) => `**/${name}.spec.ts`) }),
+      ...(isAllDevicesRun(process.env.E2E_ALL_DEVICES) ? {} : { testMatch: toSpecGlobs(DEVICE_SIZE_SPECS) }),
     },
+    { name: SHARED_DATA, testMatch: toSpecGlobs(SHARED_DATA_SPECS) },
   ],
   webServer: {
     // 다른 워크트리의 실행과 로컬 Supabase·3100번 포트를 함께 쓰므로, 빌드하기 전에 실행 잠금을 잡고 다른 실행이 있으면 멈춘다(#243)
