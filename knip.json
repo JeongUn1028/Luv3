@@ -1,0 +1,9 @@
+{
+  "$schema": "./node_modules/knip/schema.json",
+  "ignore": ["src/lib/supabase/database.types.ts"],
+  "ignoreExportsUsedInFile": true,
+  "playwright": {
+    "config": [],
+    "entry": ["playwright.config.ts", "e2e/**/*.spec.ts", "e2e/global-setup.ts", "e2e/web-server.mts"]
+  }
+}
