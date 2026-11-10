@@ -2,13 +2,20 @@
 
 import { useRef, useState, type ReactElement } from "react";
 import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
+import { useLeavableDelete } from "@/lib/navigation/use-leavable-delete";
 
 interface ConfirmDeleteButtonProps {
   /** 확인 창 제목. 예: "이 기록을 지울까요?" */
   title: string;
   description: string;
-  /** 지우기. 실패하면 던진다(성공하면 보통 다른 화면으로 이동한다) */
+  /** 지우기만 한다. 실패하면 던진다 */
   onConfirm: () => Promise<void>;
+  /** 지운 뒤 할 일(목록으로 옮기기 등). 지우는 사이 화면을 떠났으면 부르지 않고 알림으로 알린다(#261) */
+  onDeleted: () => void;
+  /** 화면을 떠난 뒤 끝났을 때 알림에 쓰는 이름. 받침에 맞는 조사까지 적는다. 예: "기록을" */
+  subject: string;
+  /** 무엇을 지우는지 구분하는 알림 key. 예: `delete:record:${recordId}` */
+  noticeKey: string;
   /** 실패했을 때 확인 창에 보여 줄 문구 */
   failureMessage: string;
   /** 한 화면에 "삭제"가 여럿일 때 무엇을 지우는지 읽어 줄 이름. 예: "댓글 삭제" */
@@ -23,6 +30,9 @@ export const ConfirmDeleteButton = ({
   title,
   description,
   onConfirm,
+  onDeleted,
+  subject,
+  noticeKey,
   failureMessage,
   accessibleName,
   shouldCloseOnSuccess = false,
@@ -31,6 +41,7 @@ export const ConfirmDeleteButton = ({
   const modalRef = useRef<ModalDialogHandle>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [message, setMessage] = useState<string>();
+  const { beginDelete, finishDeleted, finishDeleteFailed } = useLeavableDelete({ noticeKey, subject });
 
   const handleOpen = () => {
     setMessage(undefined);
@@ -41,17 +52,26 @@ export const ConfirmDeleteButton = ({
     if (isDeleting) return;
     setIsDeleting(true);
     setMessage(undefined);
+    beginDelete();
     try {
       await onConfirm();
-      if (shouldCloseOnSuccess) {
-        setIsDeleting(false);
-        modalRef.current?.close();
-      }
     } catch (error) {
       // 사용자에게는 다시 시도할 수 있다는 문구만 보여 주고, 원인은 개발자 도구에서 볼 수 있게 남긴다
       console.error(error);
-      setMessage(failureMessage);
+      // 떠나면 창이 닫히므로(useCloseDialogOnHide), 떠났다가 돌아왔어도 창이 닫혀 있으면 알림이 알린다
+      if (finishDeleteFailed(modalRef.current?.isOpen() ?? false)) setMessage(failureMessage);
       setIsDeleting(false);
+      return;
+    }
+    if (!finishDeleted()) {
+      // 숨겨 둔 화면으로 돌아왔을 때 "지우는 중"에 멈춰 다시 누를 수 없게 되지 않도록 되돌린다
+      setIsDeleting(false);
+      return;
+    }
+    onDeleted();
+    if (shouldCloseOnSuccess) {
+      setIsDeleting(false);
+      modalRef.current?.close();
     }
   };
 
