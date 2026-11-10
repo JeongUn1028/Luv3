@@ -7,6 +7,7 @@ import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from 
 import { RememberedPhoto } from "@/components/RememberedPhoto";
 import { clearCouplePhoto, CouplePhotoError, replaceCouplePhoto } from "@/lib/couple-photo/save";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
+import { useLeavableDelete } from "@/lib/navigation/use-leavable-delete";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
@@ -53,6 +54,7 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
   const [isRefreshing, startRefresh] = useTransition();
   const [message, setMessage] = useState<string>();
   useResetOnHide(() => setMessage(undefined));
+  const { beginDelete, finishDeleted, finishDeleteFailed } = useLeavableDelete({ noticeKey: "delete:couple-photo", subject: "커플 사진을" });
   const [dialogMessage, setDialogMessage] = useState<string>();
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
 
@@ -130,6 +132,7 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
     if (isBusy) return;
     setTask("clear");
     setDialogMessage(undefined);
+    beginDelete();
     try {
       const supabase = createClient();
       await clearCouplePhoto({
@@ -139,10 +142,12 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
       });
       // 움직임을 기다리면 창이 열린 채로 초점을 옮기려다 실패하고, 사라지는 창의 버튼이 "지우기"로 되돌아 보인다
       modalRef.current?.closeImmediately();
-      refreshAfter("clear");
+      // 홈을 떠났으면 도우미가 새로 받고 알린다. 초점을 옮기려 남겨 두면 나중에 홈에 돌아올 때 저절로 버튼으로 튄다
+      if (finishDeleted()) refreshAfter("clear");
     } catch (error) {
       console.error(error);
-      setDialogMessage(toMessage(error));
+      // 홈을 떠나면 창이 닫혀(useCloseDialogOnHide) 창 안의 문구는 보이지 않으므로, 돌아왔어도 창이 닫혀 있으면 알림으로 알린다(#261)
+      if (finishDeleteFailed(modalRef.current?.isOpen() ?? false)) setDialogMessage(toMessage(error));
     } finally {
       setTask(undefined);
     }

@@ -203,7 +203,6 @@ export const EventForm = ({
   const handleDelete = async () => {
     if (!eventId) return;
     await deleteEvent({ eventId, occurrenceDate: deleteOccurrenceDate });
-    goToCalendar(backDate);
   };
 
   return (
@@ -228,7 +227,10 @@ export const EventForm = ({
                 )}
                 <ConfirmDeleteButton
                   {...toDeleteDialog(initialDraft, deleteOccurrenceDate)}
+                  subject="일정을"
+                  noticeKey={`delete:${formKey}`}
                   onConfirm={handleDelete}
+                  onDeleted={() => goToCalendar(backDate)}
                   failureMessage="일정을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
                 />
               </>
