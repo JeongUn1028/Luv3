@@ -1,6 +1,6 @@
 import { createExternalValue } from "@/lib/external-value";
 import { copyScreenLoaded } from "@/lib/navigation/screen-freshness";
-import { RECORDS_PATH, type AlbumTile } from "./album";
+import { RECORDS_PATH } from "./album";
 
 const SEARCH_PARAM = "search";
 const TAG_PARAM = "tag";
@@ -34,8 +34,8 @@ export const toRecordSearchHref = (tag?: string): string => {
 };
 
 /**
- * 기록은 이미 다 받아 두었으니 서버를 다시 부르지 않고 기록 탭 주소만 바꾼다.
- * 내용은 그대로이므로, 돌아왔을 때 새로 부를지는 처음 받은 때로 판단하게 한다.
+ * 찾기 결과는 찾기 화면이 따로 받으므로 화면을 다시 부르지 않고 기록 탭 주소만 바꾼다.
+ * 화면 내용은 그대로이므로, 돌아왔을 때 새로 부를지는 처음 받은 때로 판단하게 한다.
  *
  * @example replaceRecordsAddress(toRecordSearchHref("카페"))
  */
@@ -59,25 +59,3 @@ export const recordTagLinkCount = createExternalValue(0);
  * @example const isFailed = useSyncExternalStore(recordsLoadFailedCount.subscribe, recordsLoadFailedCount.get, () => 0) > 0;
  */
 export const recordsLoadFailedCount = createExternalValue(0);
-
-const toSearchWords = (query: string): string[] =>
-  query
-    .toLowerCase()
-    .split(/\s+/)
-    .map((word) => word.replace(/^#+/, ""))
-    .filter(Boolean);
-
-/**
- * 검색어와 태그에 맞는 기록만 받은 순서대로 고른다. 띄어 쓴 낱말은 모두 담겨 있어야 한다.
- *
- * @example filterAlbumTiles(tiles, { query: "성수 카페", tag: "데이트" })
- */
-export const filterAlbumTiles = (tiles: AlbumTile[], { query, tag }: { query: string; tag: string | undefined }): AlbumTile[] => {
-  const words = toSearchWords(query);
-  const lowerTag = tag?.toLowerCase();
-  return tiles.filter(
-    ({ tags, searchText }) =>
-      (lowerTag === undefined || tags.some((existing) => existing.toLowerCase() === lowerTag)) &&
-      words.every((word) => searchText.includes(word)),
-  );
-};

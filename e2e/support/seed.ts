@@ -76,6 +76,27 @@ export const createDisposableRecord = async ({
 };
 
 /**
+ * 묶음으로 나눠 받는 것을 보려고 사진 없는 기록을 `count`개 한 번에 만든다. 제목은 `${titlePrefix} ${번호}`이고,
+ * 나란히 도는 테스트의 그리드 앞쪽을 가리지 않게 2000년부터 하루씩 둔다(번호가 클수록 최근). 돌려준 함수는 모두 지운다.
+ *
+ * @example const deleteRecords = await createDisposableRecords({ count: 65, titlePrefix: "E2E 묶음 찾기abc" })
+ */
+export const createDisposableRecords = async ({ count, titlePrefix }: { count: number; titlePrefix: string }): Promise<() => Promise<void>> => {
+  const admin = createAdminClient();
+  const authorId = await getMemberId(admin);
+  const firstDay = Date.UTC(2000, 0, 1);
+  const rows = Array.from({ length: count }, (_, index) => ({
+    id: randomUUID(),
+    date: new Date(firstDay + index * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+    title: `${titlePrefix} ${index}`,
+    author_id: authorId,
+  }));
+  assertNoError(await admin.from("dates").insert(rows), "기록 여러 개");
+  const ids = rows.map(({ id }) => id);
+  return async () => assertNoError(await admin.from("dates").delete().in("id", ids), "기록 여러 개 지우기");
+};
+
+/**
  * 기록의 태그를 바꾼다.
  *
  * @example await setRecordTags(id, ["카페"])
