@@ -7,6 +7,7 @@ import { pickDate } from "./support/date-picker";
 import { addPhotoAsPartner, createDisposableRecord, deleteRecordWithFiles, getRecordIdsByTitle, listRecordFiles } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { getSubmitButton, getVisibleLink, pickPhoto } from "./support/actions";
+import { createTestName } from "./support/names";
 
 // 기록 저장이 실패하는 경우를 모은 스펙(#196). 저장하는 사이 다른 화면으로 옮기는 경우는 leave-while-saving.spec.ts에 있다
 
@@ -30,7 +31,7 @@ const loseResponses = async (page: Page, url: string): Promise<void> => {
 test.describe("저장은 됐는데 응답만 끊기면", () => {
   test("새 기록은 다시 저장해도 하나만 남고 사진 파일도 그대로다", async ({ page }, testInfo) => {
     // Arrange
-    const title = `응답 끊김 새 기록 ${testInfo.project.name} ${randomUUID().slice(0, 8)}`;
+    const title = createTestName("응답 끊김 새 기록", testInfo);
     await openScreen(page, "/dates/new", page.locator("#memo").locator("visible=true"));
     await pickPhoto(page, 1);
     // 오늘 날짜면 나란히 도는 홈 테스트의 "최근 기록" 자리를 잠깐 차지한다
@@ -62,7 +63,7 @@ test.describe("저장은 됐는데 응답만 끊기면", () => {
   test("기록 고치기는 다시 저장하면 고친 내용이 저장되고 새 사진 파일도 지워지지 않는다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = `응답 끊김 고치기 ${testInfo.project.name} ${id.slice(0, 8)}`;
+    const title = createTestName("응답 끊김 고치기", testInfo);
     const deleteRecord = await createDisposableRecord({ id, title });
 
     try {
@@ -94,7 +95,7 @@ test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () =>
   test("저장을 거부해 상대의 사진이 지워지지 않고, 최신 내용을 불러와 다시 고칠 수 있다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const title = `오래된 화면 ${testInfo.project.name} ${id.slice(0, 8)}`;
+    const title = createTestName("오래된 화면", testInfo);
     const deleteRecord = await createDisposableRecord({ id, title });
 
     try {
@@ -132,7 +133,7 @@ test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () =>
   test("내가 고쳐 다시 저장한 뒤에는, 앞선 저장을 보고 있던 상대의 저장을 거부한다", async ({ page }, testInfo) => {
     // Arrange: 내 첫 저장은 서버가 처리했지만 응답이 끊기고, 상대는 그 내용으로 화면을 연다
     const id = randomUUID();
-    const title = `고쳐서 다시 ${testInfo.project.name} ${id.slice(0, 8)}`;
+    const title = createTestName("고쳐서 다시", testInfo);
     const deleteRecord = await createDisposableRecord({ id, title });
     const partnerPage = await page.context().newPage();
 
@@ -166,7 +167,7 @@ test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () =>
   test("저장 중 화면을 떠났다 돌아와도 최신 내용을 불러올 수 있다", async ({ page }, testInfo) => {
     // Arrange: 상대가 먼저 고쳤고, 내 저장 요청은 화면을 떠날 때까지 붙잡아 둔다
     const id = randomUUID();
-    const title = `떠났다 돌아옴 ${testInfo.project.name} ${id.slice(0, 8)}`;
+    const title = createTestName("떠났다 돌아옴", testInfo);
     const deleteRecord = await createDisposableRecord({ id, title });
     let releaseRequest = () => {};
     const released = new Promise<void>((resolve) => {

@@ -4,6 +4,7 @@ import { E2E_MEMBER } from "./support/constants";
 import { signInToHome } from "./support/actions";
 import { createComment, createDisposableMember, createDisposableRecord, deleteRecordWithFiles } from "./support/seed";
 import { expect, getScrollArea, getScrollAreaOverflow, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 // 기록 댓글(#18): 두 사람이 서로의 기록에 댓글을 남기고, 지우는 것은 쓴 사람만 한다
 
@@ -22,7 +23,7 @@ test.describe("기록 댓글", () => {
   test("댓글을 남기면 목록 끝에 붙고, 상대 댓글은 지울 수 없고 내 댓글만 지운다", async ({ page }, testInfo) => {
     // Arrange
     const recordId = randomUUID();
-    const deleteRecord = await createDisposableRecord({ id: recordId, title: `E2E 댓글 기록 ${testInfo.project.name}` });
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 댓글 기록", testInfo) });
     const partnerNickname = getPartnerNickname();
     const partner = await createDisposableMember(randomUUID(), partnerNickname);
 
@@ -63,7 +64,7 @@ test.describe("기록 댓글", () => {
   test("200자를 넘기면 남기지 않고, 띄어쓰기 없는 200자 댓글도 화면 폭을 넘지 않는다", async ({ page }, testInfo) => {
     // Arrange
     const recordId = randomUUID();
-    const deleteRecord = await createDisposableRecord({ id: recordId, title: `E2E 긴 댓글 기록 ${testInfo.project.name}` });
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 긴 댓글 기록", testInfo) });
     const longWord = "a".repeat(200);
 
     try {
@@ -94,7 +95,7 @@ test.describe("기록 댓글", () => {
   test("남기지 못하면 쓴 글을 그대로 두고 다시 남기게 한다", async ({ page }, testInfo) => {
     // Arrange
     const recordId = randomUUID();
-    const deleteRecord = await createDisposableRecord({ id: recordId, title: `E2E 댓글 실패 기록 ${testInfo.project.name}` });
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 댓글 실패 기록", testInfo) });
 
     try {
       await openRecord(page, recordId);
@@ -123,7 +124,7 @@ test.describe("기록 댓글", () => {
   test("지운 뒤 목록에 댓글이 남아 있어도 확인 창은 닫힌다", async ({ page }, testInfo) => {
     // Arrange: 다른 기기에서 이미 지웠거나 세션이 바뀌어 0행이 지워지면, 새로 받은 목록에 댓글이 남아 버튼이 사라지지 않는다
     const recordId = randomUUID();
-    const deleteRecord = await createDisposableRecord({ id: recordId, title: `E2E 댓글 0행 기록 ${testInfo.project.name}` });
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 댓글 0행 기록", testInfo) });
 
     try {
       await createComment({ recordId, content: "남아 있는 댓글" });
@@ -146,7 +147,7 @@ test.describe("기록 댓글", () => {
   test("쓰는 사이 상대가 기록을 지우면 다시 시도하라는 대신 기록이 지워졌다고 알린다", async ({ page }, testInfo) => {
     // Arrange
     const recordId = randomUUID();
-    const deleteRecord = await createDisposableRecord({ id: recordId, title: `E2E 지워진 댓글 기록 ${testInfo.project.name}` });
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 지워진 댓글 기록", testInfo) });
 
     try {
       await openRecord(page, recordId);
@@ -167,7 +168,7 @@ test.describe("기록 댓글", () => {
   test("댓글이 많아도 끝까지 내리면 입력 칸과 남기기 버튼이 홈 표시줄 위에 보인다", async ({ page, safeArea }, testInfo) => {
     // Arrange: 입력 칸이 첫 화면 아래로 밀리도록 댓글을 여러 개 단다
     const recordId = randomUUID();
-    const deleteRecord = await createDisposableRecord({ id: recordId, title: `E2E 댓글 많은 기록 ${testInfo.project.name}` });
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 댓글 많은 기록", testInfo) });
 
     try {
       for (const order of [1, 2, 3, 4, 5, 6]) await createComment({ recordId, content: `${order}번째 댓글 `.repeat(12) });
@@ -181,7 +182,8 @@ test.describe("기록 댓글", () => {
       for (const target of [getCommentInput(page), getSendButton(page)]) {
         const box = await target.boundingBox();
         expect(box).not.toBeNull();
-        expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewportHeight - safeArea.bottom);
+        // 제목 줄 수에 따라 위치가 소수점으로 떨어져, 끝까지 내려도 0.5px 미만은 남을 수 있다(screen-fit의 toBeCloseTo(…, 0)과 같은 기준)
+        expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThan(viewportHeight - safeArea.bottom + 0.5);
       }
 
       // Act: 입력 칸을 누르면 칸이 화면 안에 있다(실제 아이폰 키보드는 E2E로 띄울 수 없어 기기에서 따로 본다)
@@ -202,7 +204,7 @@ test.describe("상대 계정으로 들어가면", () => {
   test("E2E 계정이 단 댓글은 지울 수 없고, 상대가 남긴 댓글에는 삭제 버튼이 붙는다", async ({ page }, testInfo) => {
     // Arrange
     const recordId = randomUUID();
-    const deleteRecord = await createDisposableRecord({ id: recordId, title: `E2E 상대 댓글 기록 ${testInfo.project.name}` });
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 상대 댓글 기록", testInfo) });
     const password = randomUUID();
     const partnerNickname = getPartnerNickname();
     const partner = await createDisposableMember(password, partnerNickname);

@@ -4,6 +4,7 @@ import { TODOS_PATH } from "@/lib/todos/list";
 import { pickPhoto } from "./support/actions";
 import { createDisposableTodo } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 const getBackButton = (page: Page): Locator => page.getByRole("link", { name: "뒤로" }).locator("visible=true");
 const getLeaveDialog = (page: Page): Locator => page.getByRole("dialog", { name: "쓰던 내용을 버리고 나갈까요?" });
@@ -75,7 +76,7 @@ test.describe("쓰던 내용을 잃기 전 경고", () => {
   test("고치는 폼에서 바꿨다가 처음 내용으로 되돌리면 경고 없이 돌아간다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
-    const content = `E2E 되돌린 항목 ${testInfo.project.name}`;
+    const content = createTestName("E2E 되돌린 항목", testInfo);
     const deleteTodo = await createDisposableTodo({ id, content });
     try {
       await openScreen(page, `/todos/${id}/edit`, getTodoContent(page));

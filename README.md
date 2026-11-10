@@ -47,6 +47,8 @@ E2E는 대상 기기 두 크기(아이폰 15 Pro, 아이폰 17)에서 앱을 빌
 
 두 기기는 폭 9px, 높이 22px, 위 safe-area 3px만 달라서 평소(로컬·PR)에는 크기와 배치를 재는 스펙(`e2e/support/devices.ts`의 `DEVICE_SIZE_SPECS`)만 두 기기에서 돌리고, 나머지는 더 좁은 아이폰 15 Pro에서만 돌린다. main에 머지되면 CI가 두 기기 전체를 돌려 놓친 차이를 잡는다. 로컬에서 전체를 돌리려면 `E2E_ALL_DEVICES=1 pnpm test:e2e`. 기기의 `safeArea`를 읽는 스펙을 새로 만들면 이 목록에 넣는다(빠지면 단위 테스트가 실패한다).
 
+테스트가 만드는 기록·일정·하고 싶은 것의 이름은 `createTestName`(`e2e/support/names.ts`)으로 만들어 끝에 무작위 조각을 붙인다. 다시 돌리거나 실행이 겹쳐도 남은 데이터와 이름이 부딪치지 않고, 이름으로 찾아 지우는 정리가 그 테스트가 만든 것만 지운다. 스펙에서 기기 이름(`testInfo.project.name`)을 직접 붙여 이름을 만들면 단위 테스트가 실패한다.
+
 로컬 Supabase는 워크트리가 달라도 하나이고 E2E는 시작할 때 전용 계정을 지우므로, 포트를 바꿔도 두 실행을 동시에 돌리면 서로 깨진다.
 
 PR과 main push마다 GitHub Actions(`.github/workflows/ci.yml`)가 같은 검사와 `pnpm build`를 실행한다. PR에는 운영 DB 반영 체크를 보는 검사(`.github/workflows/db-apply.yml`)도 함께 돈다.

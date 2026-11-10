@@ -4,6 +4,7 @@ import { toCalendarHref } from "../src/lib/calendar/month";
 import { E2E_EVENTS } from "./support/constants";
 import { createDisposableEvent } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 test.describe("홈 다음 일정 칸", () => {
   test("일정마다 언제인지 쓰고, 칸의 링크는 첫 일정의 날짜를 연다", async ({ page }) => {
@@ -23,7 +24,7 @@ test.describe("홈 다음 일정 칸", () => {
 
   test("오늘 일정이 칸보다 많으면 못 넣은 수를 쓰고 칸이 정사각형을 유지한다", async ({ page }, testInfo) => {
     // Arrange: 만든 순서가 뒤라 공통 일정을 밀어내지 않는다
-    const deleteEvent = await createDisposableEvent({ id: randomUUID(), title: `E2E 칸 밖 일정 ${testInfo.project.name}` });
+    const deleteEvent = await createDisposableEvent({ id: randomUUID(), title: createTestName("E2E 칸 밖 일정", testInfo) });
 
     try {
       // Act

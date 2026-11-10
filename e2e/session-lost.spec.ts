@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
-import { E2E_EVENTS, E2E_MEMBER, E2E_TODOS } from "./support/constants";
-import { createNonMemberAccount } from "./support/seed";
+import { E2E_MEMBER, E2E_TODOS } from "./support/constants";
+import { createDisposableEvent, createNonMemberAccount, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { getSaveButton, pickPhoto } from "./support/actions";
+import { createTestName } from "./support/names";
 
-const [EVENT] = E2E_EVENTS;
 const [, , TODO] = E2E_TODOS;
 
 const getDialog = (page: Page): Locator => page.getByRole("dialog", { name: "다시 로그인해 주세요" });
@@ -29,24 +29,29 @@ const signInAgain = async (page: Page, password: string, email: string = E2E_MEM
 test.describe("쓰는 중에 로그인이 풀리면", () => {
   test("하고 싶은 것을 저장할 때 다시 로그인하면 적은 내용이 남아 있고 그대로 저장된다", async ({ page }, testInfo) => {
     // Arrange
-    const content = `E2E 세션 ${testInfo.project.name}`;
-    await openScreen(page, "/todos/new", getSaveButton(page));
-    await page.getByRole("textbox").fill(content);
-    await dropSession(page);
+    const content = createTestName("E2E 세션", testInfo);
 
-    // Act: 먼저 틀린 비밀번호로 시도한다
-    await getSaveButton(page).click();
-    await expect(getDialog(page)).toBeVisible();
-    await signInAgain(page, "wrong-password");
-    await expect(getDialog(page).getByRole("alert")).toContainText("맞지 않아요");
-    await signInAgain(page, getMemberPassword());
-    await expect(getDialog(page)).toBeHidden();
+    try {
+      await openScreen(page, "/todos/new", getSaveButton(page));
+      await page.getByRole("textbox").fill(content);
+      await dropSession(page);
 
-    // Assert
-    await expect(page.locator("main").getByRole("textbox")).toHaveValue(content);
-    await getSaveButton(page).click();
-    await page.waitForURL("**/todos");
-    await expect(page.getByText(content).first()).toBeVisible();
+      // Act: 먼저 틀린 비밀번호로 시도한다
+      await getSaveButton(page).click();
+      await expect(getDialog(page)).toBeVisible();
+      await signInAgain(page, "wrong-password");
+      await expect(getDialog(page).getByRole("alert")).toContainText("맞지 않아요");
+      await signInAgain(page, getMemberPassword());
+      await expect(getDialog(page)).toBeHidden();
+
+      // Assert
+      await expect(page.locator("main").getByRole("textbox")).toHaveValue(content);
+      await getSaveButton(page).click();
+      await page.waitForURL("**/todos");
+      await expect(page.getByText(content).first()).toBeVisible();
+    } finally {
+      await deleteTodosByContent(content);
+    }
   });
 
   test("일정을 저장할 때 창이 나오고 닫아도 적은 내용이 남아 있다", async ({ page }) => {
@@ -98,14 +103,25 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
     await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
   });
 
-  test("삭제 확인 창에서 지울 때 그 위에 창이 나온다", async ({ page }) => {
-    await openScreen(page, `/events/${EVENT.id}/edit`, page.locator("#event-memo"));
-    await dropSession(page);
+  test("삭제 확인 창에서 지울 때 그 위에 창이 나온다", async ({ page }, testInfo) => {
+    // Arrange: 지우기가 성공하면 공유 시드 일정이 사라져 다른 테스트가 흔들리므로 이 테스트만 쓰는 일정을 지운다.
+    // 오늘 일정을 세는 홈·캘린더 테스트에 끼지 않게 지난 날에 둔다
+    const id = randomUUID();
+    const deleteEvent = await createDisposableEvent({ id, title: createTestName("E2E 세션 지우기", testInfo), date: "2015-03-10" });
 
-    await page.getByRole("button", { name: "삭제" }).click();
-    await page.getByRole("dialog", { name: "이 일정을 지울까요?" }).getByRole("button", { name: "삭제" }).click();
+    try {
+      await openScreen(page, `/events/${id}/edit`, page.locator("#event-memo"));
+      await dropSession(page);
 
-    await expect(getDialog(page)).toBeVisible();
+      // Act
+      await page.getByRole("button", { name: "삭제" }).click();
+      await page.getByRole("dialog", { name: "이 일정을 지울까요?" }).getByRole("button", { name: "삭제" }).click();
+
+      // Assert
+      await expect(getDialog(page)).toBeVisible();
+    } finally {
+      await deleteEvent();
+    }
   });
 });
 
