@@ -51,7 +51,9 @@ E2E는 대상 기기 두 크기(아이폰 15 Pro, 아이폰 17)에서 앱을 빌
 
 PR과 main push마다 GitHub Actions(`.github/workflows/ci.yml`)가 같은 검사와 `pnpm build`를 실행한다. PR에는 운영 DB 반영 체크를 보는 검사(`.github/workflows/db-apply.yml`)도 함께 돈다.
 
-main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보호의 필수 상태 검사: `lint · type-check · test · build`, `test:db (pgTAP RLS)`, `test:e2e`, `운영 DB 반영 확인`). 필수 검사는 잡 이름으로 등록하므로, 잡 이름을 바꾸면 보호 설정도 같이 고쳐야 PR이 "기다리는 중"에 멈추지 않는다. 그때 이미 열려 있던 PR은 main을 받아 push해야 새 이름으로 다시 검사된다. 긴급 수정은 관리자만 `gh pr merge --admin`으로 검사를 건너뛸 수 있다.
+CI의 E2E는 스펙 파일 단위로 3대에 나눠 동시에 돈다(`test:e2e (1/3)`~`(3/3)`, Playwright `--shard`). 대마다 로컬 Supabase를 따로 띄우므로 서로의 데이터를 건드리지 않는다. 나눈 잡이 끝나면 `test:e2e` 잡이 결과를 모아, 셋 모두 통과해야 통과로 끝난다. 나눈 잡이 실패하거나 취소돼도 이 잡은 건너뛰지 않고 실패로 끝난다(건너뛴 잡은 필수 검사에서 통과로 쳐지기 때문이다). 실패한 대의 보고서는 실행 화면의 Artifacts에 `playwright-report-<대 번호>-of-3`으로 올라간다. 로컬에서 한 대 몫만 돌려 보려면 `pnpm test:e2e --shard=1/3`. 대 수를 바꾸면 `ci.yml`의 `shardIndex`·`shardTotal`을 함께 고친다(`e2e/support/ci-workflow.test.ts`가 둘이 어긋나면 실패한다).
+
+main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보호의 필수 상태 검사: `lint · type-check · test · build`, `test:db (pgTAP RLS)`, `test:e2e`, `운영 DB 반영 확인`). `test:e2e`는 나눈 잡의 결과를 모으는 잡의 이름이다. 필수 검사는 잡 이름으로 등록하므로, 잡 이름을 바꾸면 보호 설정도 같이 고쳐야 PR이 "기다리는 중"에 멈추지 않는다. 그때 이미 열려 있던 PR은 main을 받아 push해야 새 이름으로 다시 검사된다. 긴급 수정은 관리자만 `gh pr merge --admin`으로 검사를 건너뛸 수 있다.
 
 스키마를 바꾸면 `supabase/migrations/`에 새 파일을 추가하고 `pnpm db:reset && pnpm db:types`로 타입을 다시 만든다.
 
