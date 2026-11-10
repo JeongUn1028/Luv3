@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
 import { describe, expect, it } from "vitest";
-import { DEVICE_SIZE_SPECS, isAllDevicesRun } from "./devices";
-import { listSpecPaths, SPEC_SUFFIX } from "./spec-files";
+import { DEVICE_SIZE_SPECS, isAllDevicesRun, SHARED_DATA_SPECS, SPEC_SUFFIX } from "./devices";
+import { listSpecPaths } from "./spec-files";
 
 const SPEC_PATHS = listSpecPaths();
 
@@ -25,6 +25,32 @@ describe("두 기기에서 돌리는 스펙 목록", () => {
       .filter((name) => !listed.includes(name));
 
     expect(unlisted).toEqual([]);
+  });
+});
+
+describe("맨 마지막에 따로 돌리는 공유 데이터 스펙 목록", () => {
+  it("목록에 적은 이름이면 그 이름의 스펙 파일이 있다", () => {
+    const specNames = SPEC_PATHS.map(toSpecName);
+    const missing = SHARED_DATA_SPECS.filter((name) => !specNames.includes(name));
+
+    expect(missing).toEqual([]);
+  });
+
+  it("커플 사진을 실제로 바꾸는 스펙이면 목록에 들어 있다", () => {
+    // 목록에서 빠지면 기기 프로젝트에서 다른 스펙과 나란히 돌아, 커플 사진을 읽는 스펙이 가끔 깨진다
+    const listed: readonly string[] = SHARED_DATA_SPECS;
+    const unlisted = SPEC_PATHS.filter((path) => readFileSync(path, "utf8").includes("switchToE2eCouplePhoto"))
+      .map(toSpecName)
+      .filter((name) => !listed.includes(name));
+
+    expect(unlisted).toEqual([]);
+  });
+
+  it("두 기기에서 돌리는 스펙 목록과 겹치지 않는다", () => {
+    // 공유 데이터 스펙은 기기 프로젝트에서 빼고 스펙 안에서 두 기기를 차례로 돈다
+    const sizeSpecs: readonly string[] = DEVICE_SIZE_SPECS;
+
+    expect(SHARED_DATA_SPECS.filter((name) => sizeSpecs.includes(name))).toEqual([]);
   });
 });
 

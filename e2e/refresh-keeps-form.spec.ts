@@ -5,7 +5,7 @@ import { TODOS_PATH } from "@/lib/todos/list";
 import { PHOTO_FIXTURE_PATH } from "./support/constants";
 import { createDisposableTodo } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getTab } from "./support/actions";
+import { getTab, isScreenRequest } from "./support/actions";
 import { createTestName } from "./support/names";
 
 const NEW_TODO_PATH = "/todos/new";
@@ -45,12 +45,6 @@ const startCouplePhotoSaveAndGoToTodos = async (page: Page) => {
   await getTab(page, TODOS_PATH).tap();
   await page.waitForURL(`**${TODOS_PATH}`);
   return save;
-};
-
-/** 미리 받기가 아닌 화면 요청(이동과 다시 불러오기)인지 */
-const isScreenRequest = (request: Request, pathname: string): boolean => {
-  const headers = request.headers();
-  return headers["rsc"] === "1" && headers["next-router-prefetch"] === undefined && new URL(request.url()).pathname === pathname;
 };
 
 test.describe("다른 화면의 저장이 끝나 새로 받을 때", () => {

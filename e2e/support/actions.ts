@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page, type Request } from "@playwright/test";
 import { toKstDate } from "@/lib/anniversary";
 import { BASE_URL, PHOTO_FIXTURE_PATH } from "./constants";
 
@@ -92,3 +92,28 @@ export const signInToHome = async (page: Page, email: string, password: string):
   await signIn(page, email, password);
   await page.waitForURL(`${BASE_URL}/`);
 };
+
+/**
+ * 미리 받기가 아닌 화면 요청(이동과 다시 불러오기)인지. Next가 화면 내용(RSC)을 받는 요청만 고른다.
+ *
+ * @example page.on("request", (request) => isScreenRequest(request, TODOS_PATH) && refreshes.push(request))
+ */
+export const isScreenRequest = (request: Request, pathname: string): boolean => {
+  const headers = request.headers();
+  return headers["rsc"] === "1" && headers["next-router-prefetch"] === undefined && new URL(request.url()).pathname === pathname;
+};
+
+/**
+ * 홈의 보이는 커플 사진.
+ *
+ * @example await expectImageLoaded(getCouplePhoto(page))
+ */
+export const getCouplePhoto = (page: Page): Locator => page.getByRole("img", { name: "커플 사진" }).locator("visible=true");
+
+/**
+ * 사진을 실제로 받아 그릴 때까지 기다린다. 깨진 사진은 `naturalWidth`가 0이다.
+ *
+ * @example await expectImageLoaded(page.getByRole("img", { name: title }).locator("visible=true"))
+ */
+export const expectImageLoaded = (image: Locator): Promise<void> =>
+  expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
