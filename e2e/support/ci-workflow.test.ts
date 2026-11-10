@@ -7,11 +7,14 @@ import { parse } from "yaml";
 const REQUIRED_E2E_CHECK = "test:e2e";
 /** 잡 시간 제한의 상한. 기본값(6시간)이나 그에 가까운 값으로 되돌리면 실패하게 한다 */
 const MAX_JOB_MINUTES = 30;
+/** `pnpm db:types`가 쓰는 타입 파일 */
+const DATABASE_TYPES_PATH = "src/lib/supabase/database.types.ts";
 const SHARD_ARGUMENT = "--shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}";
 
 interface WorkflowStep {
   run?: string;
   env?: Record<string, string>;
+  "continue-on-error"?: boolean | string;
 }
 
 interface WorkflowJob {
@@ -116,6 +119,28 @@ describe("워크플로 잡의 시간 제한", () => {
       );
 
     expect(unlimited).toEqual([]);
+  });
+});
+
+describe("CI의 DB 타입 파일 확인", () => {
+  it("로컬 Supabase를 띄운 잡이 마이그레이션으로 타입을 다시 만들고 저장된 타입 파일과 다르면 실패한다", () => {
+    // 마이그레이션을 고치고 pnpm db:types를 잊으면 앱 코드가 옛 DB 모양을 믿어도 타입 검사가 통과한다(#256)
+    // 실패를 삼키는 꼬리(`|| true` 등)나 continue-on-error가 붙으면 검사가 꺼진 것이라, 줄이 정확히 같은 한 단계만 인정한다
+    const checksTypes = Object.values(jobs).some(({ steps = [] }) => {
+      const startIndex = steps.findIndex((step) => step.run?.includes("supabase start"));
+      return (
+        startIndex >= 0 &&
+        steps.slice(startIndex + 1).some((step) => {
+          const lines = (step.run ?? "").split("\n").map((line) => line.trim()).filter((line) => line !== "");
+          return (
+            step["continue-on-error"] === undefined &&
+            lines.join("\n") === `pnpm db:types\ngit diff --exit-code -- ${DATABASE_TYPES_PATH}`
+          );
+        })
+      );
+    });
+
+    expect(checksTypes).toBe(true);
   });
 });
 
