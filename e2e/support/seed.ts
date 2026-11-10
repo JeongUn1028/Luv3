@@ -175,13 +175,30 @@ export const createComment = async ({ recordId, content, authorId }: { recordId:
 
 /**
  * 테스트 하나에서만 쓰는 하고 싶은 것을 만든다. `completedAt`을 주면 완료한 항목이 된다. 돌려준 함수는 그 항목을 지운다.
+ * `sortOrder`를 주지 않으면 DB가 목록 맨 뒤 순서를 붙인다.
  *
  * @example const deleteTodo = await createDisposableTodo({ id: randomUUID(), content: "고칠 항목" })
  */
-export const createDisposableTodo = async ({ id, content, completedAt }: { id: string; content: string; completedAt?: string }): Promise<() => Promise<void>> => {
+export const createDisposableTodo = async ({
+  id,
+  content,
+  completedAt,
+  sortOrder,
+}: {
+  id: string;
+  content: string;
+  completedAt?: string;
+  sortOrder?: number;
+}): Promise<() => Promise<void>> => {
   const admin = createAdminClient();
   assertNoError(
-    await admin.from("todos").insert({ id, content, author_id: await getMemberId(admin), ...(completedAt && { completed_at: completedAt }) }),
+    await admin.from("todos").insert({
+      id,
+      content,
+      author_id: await getMemberId(admin),
+      ...(completedAt && { completed_at: completedAt }),
+      ...(sortOrder !== undefined && { sort_order: sortOrder }),
+    }),
     "하고 싶은 것",
   );
   return async () => assertNoError(await admin.from("todos").delete().eq("id", id), "하고 싶은 것 지우기");
@@ -449,13 +466,56 @@ const seedEventsAndTodos = async (admin: AdminClient, authorId: string): Promise
   );
 };
 
-/** 커플 사진이 비어 있을 때만 E2E 사진을 넣는다. 로컬에 이미 있는 사진은 건드리지 않아 잃을 일이 없다 */
-const seedCouplePhoto = async (admin: AdminClient): Promise<void> => {
+const readCouplePhotoPath = async (admin: AdminClient): Promise<string | null> => {
   const { data, error } = await admin.from("couple_photo").select("path").single();
   assertNoError({ error }, "커플 사진 조회");
-  if (data?.path && data.path !== COUPLE_PHOTO_PATH) return;
+  return data?.path ?? null;
+};
+
+/** 커플 사진이 비어 있을 때만 E2E 사진을 넣는다. 로컬에 이미 있는 사진은 건드리지 않아 잃을 일이 없다 */
+const seedCouplePhoto = async (admin: AdminClient): Promise<void> => {
+  const path = await readCouplePhotoPath(admin);
+  if (path && path !== COUPLE_PHOTO_PATH) return;
   await uploadPhoto(admin, COUPLE_PHOTO_PATH);
   assertNoError(await admin.from("couple_photo").update({ path: COUPLE_PHOTO_PATH }).eq("id", true), "커플 사진");
+};
+
+/**
+ * 지금 커플 사진의 경로. 없으면 undefined다.
+ *
+ * @example expect(await getCouplePhotoPath()).not.toBe(COUPLE_PHOTO_PATH)
+ */
+export const getCouplePhotoPath = async (): Promise<string | undefined> => (await readCouplePhotoPath(createAdminClient())) ?? undefined;
+
+/** 커플 사진 폴더(`couple/`)의 파일 경로 목록 */
+const listCouplePhotoFiles = async (admin: AdminClient): Promise<string[]> => {
+  const { data, error } = await admin.storage.from(ALBUM_BUCKET).list("couple", { limit: 1000 });
+  assertNoError({ error }, "커플 사진 파일 조회");
+  return (data ?? []).map(({ name }) => `couple/${name}`);
+};
+
+/**
+ * 커플 사진을 실제로 바꾸는 테스트를 위해 커플 사진을 E2E 사진으로 바꿔 둔다. 이 함수를 쓰는 스펙은 `SHARED_DATA_SPECS`에 넣는다.
+ * 앱은 사진을 바꾸면 밀려난 파일을 지우므로, 로컬에 원래 있던 사진은 경로만 기억해 두고 파일은 앱이 건드리지 않게 한다.
+ * 돌려준 함수는 원래 경로로 되돌리고, 그 사이 `couple/`에 새로 생긴 파일(저장하지 못하고 남은 파일 포함)을 지운다.
+ * 원래 경로가 E2E 사진이면 앱이 지운 파일을 다시 올린다. 브라우저의 올리기·저장이 끝난 뒤(화면을 닫은 뒤)에 부른다.
+ *
+ * @example const restore = await switchToE2eCouplePhoto()
+ */
+export const switchToE2eCouplePhoto = async (): Promise<() => Promise<void>> => {
+  const admin = createAdminClient();
+  const originalPath = await readCouplePhotoPath(admin);
+  const filesBefore = new Set(await listCouplePhotoFiles(admin));
+  await uploadPhoto(admin, COUPLE_PHOTO_PATH);
+  assertNoError(await admin.from("couple_photo").update({ path: COUPLE_PHOTO_PATH }).eq("id", true), "E2E 커플 사진으로 바꾸기");
+
+  return async () => {
+    if (originalPath === COUPLE_PHOTO_PATH) await uploadPhoto(admin, COUPLE_PHOTO_PATH);
+    assertNoError(await admin.from("couple_photo").update({ path: originalPath }).eq("id", true), "커플 사진 되돌리기");
+    const keptPaths = new Set([...filesBefore, COUPLE_PHOTO_PATH]);
+    const addedPaths = (await listCouplePhotoFiles(admin)).filter((path) => !keptPaths.has(path));
+    if (addedPaths.length > 0) assertNoError(await admin.storage.from(ALBUM_BUCKET).remove(addedPaths), "테스트가 올린 커플 사진 지우기");
+  };
 };
 
 const clearCouplePhoto = async (admin: AdminClient): Promise<void> => {

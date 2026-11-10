@@ -3,7 +3,7 @@ import type { Locator, Page, Request } from "@playwright/test";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { PHOTO_RECORD } from "./support/constants";
-import { installClockBeforeMidnight, returnToApp } from "./support/actions";
+import { expectImageLoaded, installClockBeforeMidnight, isScreenRequest, returnToApp } from "./support/actions";
 import { createDisposableTodo } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { createTestName } from "./support/names";
@@ -11,12 +11,6 @@ import { createTestName } from "./support/names";
 const MINUTE_MS = 60_000;
 
 const getTodo = (page: Page, content: string): Locator => page.locator("main").locator("visible=true").getByText(content);
-
-/** 미리 받기가 아닌 화면 요청(이동과 다시 불러오기)인지 */
-const isScreenRequest = (request: Request, pathname: string): boolean => {
-  const headers = request.headers();
-  return headers["rsc"] === "1" && headers["next-router-prefetch"] === undefined && new URL(request.url()).pathname === pathname;
-};
 
 test.describe("홈 화면 앱으로 돌아오면", () => {
   test("받은 지 30분이 지났으면 지금 화면을 새로 받아 상대가 더한 내용이 보인다", async ({ page }, testInfo) => {
@@ -134,6 +128,6 @@ test("사진을 받지 못하면 화면을 새로 받아 다시 받는다", asyn
   // Assert
   await refresh;
   const photo = page.getByRole("img", { name: PHOTO_RECORD.title }).locator("visible=true");
-  await expect.poll(() => photo.evaluate((image: HTMLImageElement) => image.complete && image.naturalWidth > 0)).toBe(true);
+  await expectImageLoaded(photo);
   expect(failedCount).toBe(1);
 });
