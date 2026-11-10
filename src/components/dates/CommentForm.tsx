@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactElement, type SubmitEvent } from "react";
+import { FieldError } from "@/components/FormField";
 import { COMMENT_MAX_LENGTH, validateComment } from "@/lib/comments/comment";
 import { countChars } from "@/lib/form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
@@ -79,11 +80,7 @@ export const CommentForm = ({ recordId }: CommentFormProps): ReactElement => {
         }}
         className="w-full resize-none rounded-[10px] border border-line bg-surface px-4 py-3 leading-[1.5] text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none read-only:opacity-50 aria-[invalid=true]:border-accent"
       />
-      {error && (
-        <p id="comment-error" className="mt-2 text-[12px] text-accent">
-          {error}
-        </p>
-      )}
+      <FieldError id="comment-error" error={error} />
       {notice && (
         <p role="alert" className="mt-2 text-[13px] text-accent">
           {notice}

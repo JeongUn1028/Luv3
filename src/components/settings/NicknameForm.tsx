@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactElement, type SubmitEvent } from "react";
+import { TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { NICKNAME_DB_MAX_CHARS, NICKNAME_MAX_LENGTH, validateNickname } from "@/lib/auth/nickname";
@@ -74,38 +75,28 @@ export const NicknameForm = ({ memberId, initialNickname }: NicknameFormProps): 
   return (
     <PageShell bottomSpace="sm" className="px-4" header={<ScreenHeader back={{ href: SETTINGS_PATH }} title="닉네임 변경" />}>
       <form onSubmit={handleSubmit} noValidate className="mt-3 flex flex-col gap-4">
-        <div className="flex flex-col">
-          <div className="flex items-baseline justify-between">
-            <label htmlFor="nickname" className="text-[13px] text-ink-sub">
-              닉네임
-            </label>
+        <TextField
+          id="nickname"
+          label="닉네임"
+          aside={
             <span id="nickname-count" className="font-display text-[12px] tracking-[1px] text-ink-sub">
               {countGraphemes(nickname.trim())}/{NICKNAME_MAX_LENGTH}
             </span>
-          </div>
-          <input
-            id="nickname"
-            value={nickname}
-            // 6자로 막으면 한글 조합 중에 글자가 잘리고 예전 긴 닉네임도 잘리므로, 길이 안내는 저장할 때 한다. 붙여넣기만 막는다
-            maxLength={NICKNAME_DB_MAX_CHARS * 2}
-            autoComplete="nickname"
-            enterKeyHint="done"
-            disabled={isSaving}
-            aria-invalid={Boolean(error)}
-            aria-describedby={error ? "nickname-count nickname-error" : "nickname-count"}
-            onChange={(event) => {
-              setNickname(event.target.value);
-              setError(undefined);
-              setNotice(undefined);
-            }}
-            className="mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent"
-          />
-          {error && (
-            <p id="nickname-error" className="mt-2 text-[12px] text-accent">
-              {error}
-            </p>
-          )}
-        </div>
+          }
+          describedBy="nickname-count"
+          value={nickname}
+          // 6자로 막으면 한글 조합 중에 글자가 잘리고 예전 긴 닉네임도 잘리므로, 길이 안내는 저장할 때 한다. 붙여넣기만 막는다
+          maxLength={NICKNAME_DB_MAX_CHARS * 2}
+          autoComplete="nickname"
+          enterKeyHint="done"
+          disabled={isSaving}
+          error={error}
+          onChange={(value) => {
+            setNickname(value);
+            setError(undefined);
+            setNotice(undefined);
+          }}
+        />
 
         <div className="flex flex-col">
           {notice && (
