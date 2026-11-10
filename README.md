@@ -76,6 +76,14 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 
 로그인 메일을 쓰지 않으므로 SMTP 설정은 필요 없다.
 
+### 보안 헤더
+
+모든 응답에 콘텐츠 보안 정책(CSP)과 기본 보안 헤더를 붙인다(`src/lib/security/headers.ts`, `next.config.ts`, #170). 스크립트·사진·요청은 앱 자신, Supabase(`NEXT_PUBLIC_SUPABASE_URL`), 카카오 지도(`dapi.kakao.com`, `*.kakaocdn.net`)에서만 받고, 다른 사이트 안에 넣는 것을 막는다. 미리 그려 둔 화면을 지키려고 요청마다 바뀌는 값(nonce)은 쓰지 않고 인라인 스크립트는 허용한다.
+
+- 외부 서비스(스크립트, 이미지, API)를 새로 쓰면 그 주소를 `headers.ts`에 더한다. 빠뜨리면 브라우저 콘솔에 "Content Security Policy" 오류가 나고 그 자원이 막힌다.
+- 카카오가 지도 파일 주소를 바꾸면 지도가 안 나올 수 있다. 기록 지도가 "지도를 불러오지 못했어요"에 머물면 콘솔의 CSP 오류에 나온 주소를 더한다.
+- Supabase 주소가 CSP에 들어가므로 빌드할 때 `NEXT_PUBLIC_SUPABASE_URL`이 있어야 한다(없으면 빌드가 실패한다).
+
 ### 로그인 공개 키
 
 서버는 로그인을 확인할 때(`proxy`, `getCurrentMember` 등) 접속 토큰의 서명을 Supabase 공개 키(JWKS, ES256)로 검사한다. 공개 키를 받으러 가는 시간을 없애려고 운영 공개 키를 `src/lib/supabase/jwks.ts`의 `SUPABASE_JWKS`에 코드 상수로 넣어 두었다(#202). 원래는 서버가 새로 뜰 때마다, 그리고 받은 키를 10분 넘게 쓰면 다시 받으러 갔다.

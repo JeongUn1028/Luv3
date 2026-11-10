@@ -46,6 +46,7 @@
 - **허용목록**: `members` 테이블에 있는 사용자만 통과한다. 계정이 있어도 `members`에 없으면 앱이 로그아웃시키고 RLS가 데이터를 막는다(이중 방어).
 - **DB 보호(RLS)**: 모든 테이블에 `public.is_member()` 조건으로 select/insert/update/delete 정책을 둔다.
   - 보완 이유: 정책 안에서 `select id from members`를 직접 쓰면 `members`의 RLS가 다시 실행돼 무한 재귀 에러가 난다. `security definer` 함수로 한 번 감싼다.
+- **보안 헤더**: 모든 응답에 CSP(스크립트·사진·요청은 앱, Supabase, 카카오 지도에서만, 다른 사이트 안에 넣기 금지)와 nosniff·X-Frame-Options·Referrer-Policy·HSTS를 붙인다(#170). 미리 그려 둔 화면을 지키려고 nonce 대신 인라인 스크립트를 허용한다.
 - **사진 보호**: Storage 버킷 `album`을 private로 두고, 화면에 띄울 때만 만료 시간이 있는 signed URL을 발급한다. 목록은 `createSignedUrls`로 한 번에 발급한다.
 - **검색 노출 차단**: `robots.txt`에 전체 Disallow, 메타 태그 `noindex`.
 - **Proxy**: Next.js 16의 `proxy.ts`(15까지의 `middleware.ts`)에서 세션을 갱신하고, 비로그인 접근은 전부 로그인 페이지로 보낸다.
