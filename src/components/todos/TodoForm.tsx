@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
+import { startTransition, useState, useTransition, type ReactElement, type SubmitEvent } from "react";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -18,6 +18,10 @@ interface TodoDraft {
   content: string;
   /** 새 항목을 저장하다 실패했을 때 쓴 id. 다시 저장할 때 같은 값을 써서 항목이 둘이 되지 않는다 */
   newTodoId: string | undefined;
+  /** 저장해도 되는 판 번호: 불러온 판과, 저장됐을 수 있는 내 앞선 시도의 판(#161) */
+  expectedRevisions: string[];
+  /** 화면을 연 뒤 상대가 내용을 고쳐 저장하지 못했는지. 그러면 저장 대신 최신 내용을 불러오게 한다 */
+  hasConflict: boolean;
 }
 
 const failedSaves = new Map<string, FailedSave<TodoDraft>>();
@@ -27,15 +31,20 @@ interface TodoFormProps {
   initialContent: string;
   /** 고칠 항목의 id. 없으면 새 항목을 목록 맨 아래에 추가한다 */
   todoId?: string;
+  /** 고칠 항목의 판 번호. 화면을 연 뒤 상대가 내용을 고쳤는지 알아본다(#161) */
+  initialRevision?: string;
 }
 
 /** 하고 싶은 것 추가·고치기 폼. 고칠 때는 머리글에서 지울 수도 있다 */
-export const TodoForm = ({ initialContent, todoId }: TodoFormProps): ReactElement => {
+export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormProps): ReactElement => {
   const router = useRouter();
   const formKey = `todo:${todoId ?? "new"}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "하고 싶은 것을", failedSaves });
   const [content, setContent] = useState(failedSave?.draft.content ?? initialContent);
   const [newTodoId, setNewTodoId] = useState(failedSave?.draft.newTodoId);
+  const [expectedRevisions, setExpectedRevisions] = useState(failedSave?.draft.expectedRevisions ?? (initialRevision ? [initialRevision] : []));
+  const [hasConflict, setHasConflict] = useState(failedSave?.draft.hasConflict ?? false);
+  const [isReloading, startReloading] = useTransition();
   // 쓴 내용이 있는지 견줄 처음 내용. 상대가 고쳐 화면을 새로 받아도 폼은 처음 내용 그대로라 이 값과 견준다
   const [baseContent, setBaseContent] = useState(initialContent);
   const [error, setError] = useState<string>();
@@ -63,16 +72,26 @@ export const TodoForm = ({ initialContent, todoId }: TodoFormProps): ReactElemen
     setNotice(undefined);
     setIsSaving(true);
     const saveId = newTodoId ?? crypto.randomUUID();
-    const failure = await saveTodo({ content: content.trim(), todoId, newTodoId: saveId });
+    // 시도마다 새 판 번호를 쓴다. 내용이 바뀌면 판 번호도 바뀌어야 열어 둔 상대의 화면이 알아챈다
+    const revision = crypto.randomUUID();
+    const failure = await saveTodo({ content: content.trim(), todoId, newTodoId: saveId, expectedRevisions, revision });
     if (failure) {
-      // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다
-      const failedTodoId = todoId ? undefined : saveId;
-      setNewTodoId(failedTodoId);
-      // 저장됐다면 숨겨 둔 목록이 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
-      if (failure.mayHaveSaved) markAllScreensStale();
+      const failedDraft: TodoDraft = {
+        content,
+        // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다
+        newTodoId: todoId ? undefined : saveId,
+        // 저장됐을 수 있는 내 판은 다음 시도에서 상대의 저장으로 오해하지 않게 허용한다
+        expectedRevisions: failure.mayHaveSaved ? [...expectedRevisions, revision] : expectedRevisions,
+        hasConflict: failure.hasConflict,
+      };
+      setNewTodoId(failedDraft.newTodoId);
+      setExpectedRevisions(failedDraft.expectedRevisions);
+      setHasConflict(failedDraft.hasConflict);
+      // 저장됐거나 상대가 고쳤다면 숨겨 둔 목록이 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
+      if (failure.mayHaveSaved || failure.hasConflict) markAllScreensStale();
       setNotice(failure.message);
       setIsSaving(false);
-      finishFailed({ draft: { content, newTodoId: failedTodoId }, message: failure.message, isGone: failure.isGone });
+      finishFailed({ draft: failedDraft, message: failure.message, isGone: failure.isGone });
       return;
     }
     finishSaved({
@@ -81,8 +100,16 @@ export const TodoForm = ({ initialContent, todoId }: TodoFormProps): ReactElemen
         setContent(initialContent);
         setBaseContent(initialContent);
         setNewTodoId(undefined);
+        setExpectedRevisions(initialRevision ? [initialRevision] : []);
         setIsSaving(false);
       },
+    });
+  };
+
+  // 페이지가 다시 불러올 때마다 폼을 새로 만들므로, 최신 내용으로 다시 고칠 수 있다
+  const handleReloadLatest = () => {
+    startReloading(() => {
+      router.refresh();
     });
   };
 
@@ -149,13 +176,25 @@ export const TodoForm = ({ initialContent, todoId }: TodoFormProps): ReactElemen
               {notice}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-          >
-            {isSaving ? "저장 중…" : "저장"}
-          </button>
+          {hasConflict ? (
+            // 다시 저장해도 거부되므로 저장 버튼 대신 최신 내용을 불러오는 길을 준다
+            <button
+              type="button"
+              disabled={isReloading}
+              onClick={handleReloadLatest}
+              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
+            >
+              {isReloading ? "불러오는 중…" : "최신 내용 불러오기"}
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={isSaving}
+              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
+            >
+              {isSaving ? "저장 중…" : "저장"}
+            </button>
+          )}
         </div>
       </form>
     </PageShell>

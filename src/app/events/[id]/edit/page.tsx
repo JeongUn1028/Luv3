@@ -55,7 +55,7 @@ const EditEventForm = async ({ params, searchParams }: Pick<PageProps<"/events/[
       eventId={event.id}
       authorNickname={event.authorNickname}
       ownerNickname={toOwnerLabel(event.authorNickname)}
-      initialDraft={toEventDraft(event, occurrenceDate)}
+      initialDraft={{ ...toEventDraft(event, occurrenceDate), expectedRevisions: [event.revision] }}
       occurrence={occurrenceDate ? { date: occurrenceDate, startDate: event.date } : undefined}
       viewedDate={findViewedPeriodDate(event, date)}
       isDetached={event.repeat_parent_id !== null}

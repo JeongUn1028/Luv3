@@ -205,6 +205,38 @@ export const createDisposableTodo = async ({
 };
 
 /**
+ * 상대가 고친 것처럼 하고 싶은 것의 내용을 바꾼다. 판 번호는 DB 트리거가 새로 매긴다(#161).
+ *
+ * @example await renameTodo(id, "상대가 고친 내용")
+ */
+export const renameTodo = async (id: string, content: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("todos").update({ content }).eq("id", id), "하고 싶은 것 고치기");
+};
+
+/**
+ * 상대가 하고 싶은 것을 해냄으로 표시하고 순서를 옮긴 상황을 만든다. 내용이 아니라 판 번호는 그대로다(#161).
+ *
+ * @example await completeAndMoveTodo(id)
+ */
+export const completeAndMoveTodo = async (id: string): Promise<void> => {
+  assertNoError(
+    await createAdminClient().from("todos").update({ completed_at: new Date().toISOString(), sort_order: -1 }).eq("id", id),
+    "하고 싶은 것 해냄 표시",
+  );
+};
+
+/**
+ * 하고 싶은 것의 지금 내용.
+ *
+ * @example expect(await getTodoContent(id)).toBe("벚꽃 보기")
+ */
+export const getTodoContent = async (id: string): Promise<string | undefined> => {
+  const { data, error } = await createAdminClient().from("todos").select("content").eq("id", id).maybeSingle();
+  if (error) throw new Error(`하고 싶은 것 읽기 실패: ${error.message}`);
+  return data?.content;
+};
+
+/**
  * 로그인해 쓸 수 있는 임시 멤버 계정을 만든다. 비밀번호를 바꾸는 테스트처럼 전용 계정을 쓰면 다른 테스트의 로그인이 끊기는 경우에 쓴다.
  * `remove`는 계정을 지운다. 실행이 중간에 끊겨 남은 것은 다음 실행의 `seedE2eData`가 지운다.
  *
@@ -392,6 +424,37 @@ export const deleteEventById = async (id: string): Promise<void> => {
  */
 export const stopEventRepeat = async (id: string): Promise<void> => {
   assertNoError(await createAdminClient().from("events").update({ repeat_rule: null, repeat_until: null }).eq("id", id), "반복 끄기");
+};
+
+/**
+ * 상대가 고친 것처럼 일정 제목을 바꾼다. 판 번호는 DB 트리거가 새로 매긴다(#161).
+ *
+ * @example await renameEvent(id, "상대가 고친 제목")
+ */
+export const renameEvent = async (id: string, title: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("events").update({ title }).eq("id", id), "일정 제목 바꾸기");
+};
+
+/**
+ * 반복 일정에서 따로 고쳤거나 건너뛰는 날 목록.
+ *
+ * @example expect(await getEventExceptionDates(id)).toEqual([])
+ */
+export const getEventExceptionDates = async (id: string): Promise<string[]> => {
+  const { data, error } = await createAdminClient().from("event_exceptions").select("date").eq("event_id", id);
+  if (error) throw new Error(`건너뛰는 날 찾기 실패: ${error.message}`);
+  return data.map(({ date }) => date);
+};
+
+/**
+ * 반복 일정에서 이 날만 고쳐 따로 나온 일정의 id 목록.
+ *
+ * @example expect(await getDetachedEventIds(id)).toHaveLength(1)
+ */
+export const getDetachedEventIds = async (parentId: string): Promise<string[]> => {
+  const { data, error } = await createAdminClient().from("events").select("id").eq("repeat_parent_id", parentId);
+  if (error) throw new Error(`따로 나온 일정 찾기 실패: ${error.message}`);
+  return data.map(({ id }) => id);
 };
 
 /**
