@@ -4,7 +4,7 @@ import { TAG_MAX_LENGTH } from "@/lib/dates/form";
 import { E2E_MEMBER, E2E_TODOS } from "./support/constants";
 import { createDisposableRecord, createDisposableTodo, setRecordSearchFields } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getSubmitButton, getTab, pickPhoto } from "./support/actions";
+import { getSaveButton, getSubmitButton, getTab, pickPhoto } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 입력 오류·실패 안내를 어디에 보이고 언제 지우는지 고정한다(#259)
@@ -119,6 +119,59 @@ test.describe("지난 실패 문구는 다른 화면에 다녀오면 지운다",
 
     // Assert
     await expect(page.getByRole("button", { name: "커플 사진 바꾸기" })).toBeVisible();
+    await expect(alert).toBeHidden();
+  });
+
+  test("댓글을 남기지 못한 안내", async ({ page }, testInfo) => {
+    // Arrange: 남기는 요청만 끊어 댓글은 생기지 않는다(#261)
+    const recordId = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 지난 댓글 실패", testInfo) });
+    const commentInput = page.locator("#comment-content").locator("visible=true");
+
+    try {
+      await openScreen(page, `/dates/${recordId}`, commentInput);
+      await page.route("**/rest/v1/comments*", (route) => (route.request().method() === "POST" ? route.abort() : route.continue()));
+      await commentInput.fill("못 남긴 댓글");
+      await page.getByRole("button", { name: /^남기/ }).locator("visible=true").click();
+      const alert = page.getByRole("alert").filter({ hasText: "댓글을 남기지 못했어요." });
+      await expect(alert).toBeVisible();
+      await page.unroute("**/rest/v1/comments*");
+
+      // Act: 고치기 화면에 다녀온다(상세에는 하단 탭이 없다)
+      await page.getByRole("link", { name: "수정" }).locator("visible=true").click();
+      await page.waitForURL(`**/dates/${recordId}/edit`);
+      await page.goBack();
+      await page.waitForURL(`**/dates/${recordId}`);
+
+      // Assert: 쓴 글은 남기고 지난 실패 안내만 지운다
+      await expect(commentInput).toHaveValue("못 남긴 댓글");
+      await expect(alert).toBeHidden();
+    } finally {
+      await deleteRecord();
+    }
+  });
+
+  test("닉네임을 저장하지 못한 안내", async ({ page }) => {
+    // Arrange: 저장 요청만 실패시켜 함께 쓰는 닉네임은 바뀌지 않는다(#261)
+    const nicknameInput = page.getByLabel("닉네임", { exact: true }).locator("visible=true");
+    await openScreen(page, "/settings", page.getByRole("link", { name: /^닉네임/ }));
+    await page.getByRole("link", { name: /^닉네임/ }).click();
+    await nicknameInput.waitFor();
+    await page.route("**/rest/v1/members*", (route) => (route.request().method() === "PATCH" ? route.fulfill({ status: 500, json: {} }) : route.fallback()));
+    await nicknameInput.fill("못바꾼이름");
+    await getSaveButton(page).click();
+    const alert = page.locator("main").getByRole("alert").filter({ hasText: "저장하지 못했어요" });
+    await expect(alert).toBeVisible();
+    await page.unroute("**/rest/v1/members*");
+
+    // Act: 설정에 다녀온다
+    await page.goBack();
+    await page.waitForURL("**/settings");
+    await page.goForward();
+    await page.waitForURL("**/settings/nickname");
+
+    // Assert
+    await expect(nicknameInput).toBeVisible();
     await expect(alert).toBeHidden();
   });
 

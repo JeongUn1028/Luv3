@@ -215,6 +215,41 @@ test.describe("기록 찾기", () => {
     }
   });
 
+  test("태그와 검색어로 찾다 들어간 상세에서 같은 태그를 눌러도 검색어를 지우고 그 태그의 기록을 모두 보여 준다", async ({ page }) => {
+    // Arrange: 주소의 태그가 그대로라 태그가 바뀌었는지로는 상세에서 온 것을 알 수 없는 경우다(#261)
+    const [firstId, secondId] = [randomUUID(), randomUUID()];
+    const tag = createWord();
+    const titleWord = createWord();
+    const firstTitle = `E2E 같은 태그 찾던 ${titleWord}`;
+    const secondTitle = `E2E 같은 태그 남은 ${createWord()}`;
+    const deleteFirst = await createDisposableRecord({ id: firstId, title: firstTitle });
+    const deleteSecond = await createDisposableRecord({ id: secondId, title: secondTitle });
+    await setRecordTags(firstId, [tag]);
+    await setRecordTags(secondId, [tag]);
+
+    try {
+      await openSearch(page);
+      await page.getByRole("button", { name: tag, exact: true }).click();
+      await page.getByRole("searchbox", { name: "기록 찾기" }).fill(titleWord);
+      await expect(getRecordLink(page, secondTitle)).toHaveCount(0);
+      await getRecordLink(page, firstTitle).click();
+      await page.waitForURL(new RegExp(`/dates/${firstId}$`));
+
+      // Act
+      await page.getByRole("link", { name: tag }).click();
+      await page.waitForURL(/\/records\?/);
+
+      // Assert
+      await expect(page.getByRole("searchbox", { name: "기록 찾기" })).toHaveValue("");
+      await expect(page.getByRole("button", { name: tag, exact: true })).toHaveAttribute("aria-pressed", "true");
+      await expect(getRecordLink(page, firstTitle)).toBeVisible();
+      await expect(getRecordLink(page, secondTitle)).toBeVisible();
+    } finally {
+      await deleteFirst();
+      await deleteSecond();
+    }
+  });
+
   test("아래로 내려 본 기록의 상세에서 태그를 누르면 맨 위부터 보여 준다", async ({ page }) => {
     // Arrange: 기록이 몇 개뿐이어도 스크롤이 생기게 화면을 줄인다
     await page.setViewportSize({ width: 393, height: 420 });

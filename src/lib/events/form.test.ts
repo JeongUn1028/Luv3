@@ -228,22 +228,59 @@ describe("changeDraftScope", () => {
   const occurrence = { date: "2026-11-28", startDate: "2026-11-14" };
 
   it("전체를 고르면 시작하는 날을 채운다", () => {
-    expect(changeDraftScope(draft({ scope: "occurrence", date: "2026-11-28" }), "all", occurrence, true)).toMatchObject({
-      scope: "all",
-      date: "2026-11-14",
-    });
+    const changed = changeDraftScope({ draft: draft({ scope: "occurrence", date: "2026-11-28" }), scope: "all", occurrence, isTogether: true, scopeValues: {} });
+
+    expect(changed.draft).toMatchObject({ scope: "all", date: "2026-11-14" });
   });
 
   it("이 날만을 고르면 누른 날과 반복 전체의 함께 여부로 되돌린다", () => {
-    expect(changeDraftScope(draft({ date: "2026-11-14", isTogether: false }), "occurrence", occurrence, true)).toMatchObject({
-      scope: "occurrence",
-      date: "2026-11-28",
-      isTogether: true,
-    });
+    const changed = changeDraftScope({ draft: draft({ date: "2026-11-14", isTogether: false }), scope: "occurrence", occurrence, isTogether: true, scopeValues: {} });
+
+    expect(changed.draft).toMatchObject({ scope: "occurrence", date: "2026-11-28", isTogether: true });
   });
 
   it("범위를 바꿔도 적어 둔 제목은 남긴다", () => {
-    expect(changeDraftScope(draft({ title: "수영" }), "all", occurrence, true).title).toBe("수영");
+    const changed = changeDraftScope({ draft: draft({ title: "수영" }), scope: "all", occurrence, isTogether: true, scopeValues: {} });
+
+    expect(changed.draft.title).toBe("수영");
+  });
+
+  it("이 날만에서 옮긴 날짜는 전체에 다녀와도 되살린다", () => {
+    // Arrange
+    const moved = draft({ scope: "occurrence", date: "2026-11-30" });
+
+    // Act
+    const toAll = changeDraftScope({ draft: moved, scope: "all", occurrence, isTogether: true, scopeValues: {} });
+    const back = changeDraftScope({ draft: toAll.draft, scope: "occurrence", occurrence, isTogether: true, scopeValues: toAll.scopeValues });
+
+    // Assert
+    expect(back.draft.date).toBe("2026-11-30");
+  });
+
+  it("전체에서 옮긴 시작 날짜도 이 날만에 다녀와도 되살린다", () => {
+    // Arrange
+    const moved = draft({ scope: "all", date: "2026-11-07" });
+
+    // Act
+    const toOccurrence = changeDraftScope({ draft: moved, scope: "occurrence", occurrence, isTogether: true, scopeValues: {} });
+    const back = changeDraftScope({ draft: toOccurrence.draft, scope: "all", occurrence, isTogether: true, scopeValues: toOccurrence.scopeValues });
+
+    // Assert
+    expect(toOccurrence.draft.date).toBe("2026-11-28");
+    expect(back.draft.date).toBe("2026-11-07");
+  });
+
+  it("전체에서 바꾼 함께 여부도 이 날만에 다녀오면 되살린다", () => {
+    // Arrange
+    const changedOwner = draft({ scope: "all", date: "2026-11-14", isTogether: false });
+
+    // Act
+    const toOccurrence = changeDraftScope({ draft: changedOwner, scope: "occurrence", occurrence, isTogether: true, scopeValues: {} });
+    const back = changeDraftScope({ draft: toOccurrence.draft, scope: "all", occurrence, isTogether: true, scopeValues: toOccurrence.scopeValues });
+
+    // Assert
+    expect(toOccurrence.draft.isTogether).toBe(true);
+    expect(back.draft.isTogether).toBe(false);
   });
 });
 

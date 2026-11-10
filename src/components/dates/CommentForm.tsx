@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactElement, type SubmitEvent } from "react";
 import { COMMENT_MAX_LENGTH, validateComment } from "@/lib/comments/comment";
 import { countChars } from "@/lib/form";
+import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { createClient } from "@/lib/supabase/client";
 
 const SAVE_FAILED_MESSAGE = "댓글을 남기지 못했어요. 잠시 후 다시 시도해 주세요.";
@@ -23,6 +24,11 @@ export const CommentForm = ({ recordId }: CommentFormProps): ReactElement => {
   const [notice, setNotice] = useState<string>();
   // 남긴 댓글은 목록 끝에 조용히 붙어 화면 읽기 프로그램이 알 수 없으므로 따로 알린다
   const [announcement, setAnnouncement] = useState("");
+  // 쓴 글은 남기고, 다른 화면에 다녀온 뒤에도 방금 실패한 것처럼 보이는 지난 안내만 지운다(#261)
+  useResetOnHide(() => {
+    setNotice(undefined);
+    setAnnouncement("");
+  });
   const [isPending, startSaving] = useTransition();
 
   const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {

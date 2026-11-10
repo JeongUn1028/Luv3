@@ -1,3 +1,4 @@
+import { createExternalValue } from "@/lib/external-value";
 import { copyScreenLoaded } from "@/lib/navigation/screen-freshness";
 import { RECORDS_PATH, type AlbumTile } from "./album";
 
@@ -42,6 +43,22 @@ export const replaceRecordsAddress = (href: string): void => {
   copyScreenLoaded(window.location.href, href, window.location.href);
   window.history.replaceState(null, "", href);
 };
+
+/**
+ * 상세의 태그로 기록 탭을 연 횟수. 찾기 화면은 이 수가 바뀌면 새 목록을 보러 온 것으로 보고 쓰던 검색어를 지운다.
+ * 이미 같은 태그를 고른 채라면 주소가 그대로여서 주소만으로는 알 수 없다(#261).
+ *
+ * @example recordTagLinkCount.set(recordTagLinkCount.get() + 1)
+ */
+export const recordTagLinkCount = createExternalValue(0);
+
+/**
+ * 기록 탭에 보이는 조회 실패 문구의 수. 0보다 크면 찾을 기록이 없으므로 돋보기는 찾기를 열지 않는다(#261).
+ * 다시 불러오는 사이 예전 문구와 새 문구가 잠깐 함께 있을 수 있어, 켜고 끄는 값이 아니라 수로 센다.
+ *
+ * @example const isFailed = useSyncExternalStore(recordsLoadFailedCount.subscribe, recordsLoadFailedCount.get, () => 0) > 0;
+ */
+export const recordsLoadFailedCount = createExternalValue(0);
 
 const toSearchWords = (query: string): string[] =>
   query
