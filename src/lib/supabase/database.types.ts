@@ -99,14 +99,14 @@ isOneToOne: false
                   ]
                 },"events": {
                   Row: {
-                    "author_id": string,"created_at": string,"date": string,"end_date": string | null,"id": string,"is_together": boolean,"memo": string | null,"place": string | null,"repeat_parent_id": string | null,"repeat_rule": string | null,"repeat_until": string | null,"start_time": string | null,"title": string
+                    "author_id": string,"created_at": string,"date": string,"end_date": string | null,"id": string,"is_together": boolean,"memo": string | null,"place": string | null,"repeat_parent_id": string | null,"repeat_rule": string | null,"repeat_until": string | null,"revision": string,"start_time": string | null,"title": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string,"created_at"?: string,"date": string,"end_date"?: string | null,"id"?: string,"is_together"?: boolean,"memo"?: string | null,"place"?: string | null,"repeat_parent_id"?: string | null,"repeat_rule"?: string | null,"repeat_until"?: string | null,"start_time"?: string | null,"title": string
+                    "author_id"?: string,"created_at"?: string,"date": string,"end_date"?: string | null,"id"?: string,"is_together"?: boolean,"memo"?: string | null,"place"?: string | null,"repeat_parent_id"?: string | null,"repeat_rule"?: string | null,"repeat_until"?: string | null,"revision"?: string,"start_time"?: string | null,"title": string
                   }
                   Update: {
-                    "author_id"?: string,"created_at"?: string,"date"?: string,"end_date"?: string | null,"id"?: string,"is_together"?: boolean,"memo"?: string | null,"place"?: string | null,"repeat_parent_id"?: string | null,"repeat_rule"?: string | null,"repeat_until"?: string | null,"start_time"?: string | null,"title"?: string
+                    "author_id"?: string,"created_at"?: string,"date"?: string,"end_date"?: string | null,"id"?: string,"is_together"?: boolean,"memo"?: string | null,"place"?: string | null,"repeat_parent_id"?: string | null,"repeat_rule"?: string | null,"repeat_until"?: string | null,"revision"?: string,"start_time"?: string | null,"title"?: string
                   }
                   Relationships: [
                     {
@@ -159,14 +159,14 @@ isOneToOne: false
                   ]
                 },"todos": {
                   Row: {
-                    "author_id": string,"completed_at": string | null,"content": string,"created_at": string,"id": string,"sort_order": number
+                    "author_id": string,"completed_at": string | null,"content": string,"created_at": string,"id": string,"revision": string,"sort_order": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string,"completed_at"?: string | null,"content": string,"created_at"?: string,"id"?: string,"sort_order"?: number
+                    "author_id"?: string,"completed_at"?: string | null,"content": string,"created_at"?: string,"id"?: string,"revision"?: string,"sort_order"?: number
                   }
                   Update: {
-                    "author_id"?: string,"completed_at"?: string | null,"content"?: string,"created_at"?: string,"id"?: string,"sort_order"?: number
+                    "author_id"?: string,"completed_at"?: string | null,"content"?: string,"created_at"?: string,"id"?: string,"revision"?: string,"sort_order"?: number
                   }
                   Relationships: [
                     {
@@ -196,7 +196,7 @@ isOneToOne: false
 { Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_event_date"?: string,"p_event_id"?: string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_place_location"?: Json,"p_tags"?: (string)[],"p_title": string }; Returns: string
                            },
 "detach_event_occurrence":
-{ Args: { "p_date": string,"p_event_id": string,"p_memo"?: string,"p_occurrence_date": string,"p_place"?: string,"p_start_time"?: string,"p_title": string }; Returns: string
+{ Args: { "p_date": string,"p_event_id": string,"p_expected_revisions"?: (string)[],"p_memo"?: string,"p_new_event_id"?: string,"p_occurrence_date": string,"p_place"?: string,"p_start_time"?: string,"p_title": string }; Returns: string
                            },
 "is_member":
 { Args: Record<PropertyKey, never>; Returns: boolean
