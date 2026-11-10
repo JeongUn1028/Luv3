@@ -107,7 +107,8 @@ test.describe("인터넷이 끊기면", () => {
 
     await getSaveButton(page).click();
 
-    await expect(page.locator("main").getByRole("alert")).toContainText("저장하지 못했어요");
+    // 요청이 서버에 닿았는지 앱은 알 수 없어, 다시 저장해도 둘이 되지 않는다고 알린다(#161)
+    await expect(page.locator("main").getByRole("alert")).toContainText("저장됐는지 확인하지 못했어요");
     await expect(getSessionLostDialog(page)).toBeHidden();
     await expect(page.locator("main").getByRole("textbox")).toHaveValue(content);
     const notice = await getBox(getOfflineNotice(page));

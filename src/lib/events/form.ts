@@ -28,6 +28,8 @@ export interface EventDraft {
   repeatUntil: string;
   /** 기간 일정의 끝 날짜. undefined면 하루 일정, 빈 문자열이면 기간을 켰지만 아직 고르지 않은 상태다 */
   endDate: string | undefined;
+  /** 새 일정을 저장하다 실패했을 때 쓴 id. 다시 저장할 때 같은 값을 써서 앞선 시도가 저장했어도 일정이 둘이 되지 않는다 */
+  newEventId?: string;
 }
 
 /** 칸 이름 → 화면에 보여 줄 에러 문구 */

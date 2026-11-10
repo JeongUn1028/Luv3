@@ -31,6 +31,7 @@ import { deleteEvent, saveEvent } from "@/lib/events/save";
 import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
 import { clearError, FIX_FIELDS_NOTICE, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
+import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 
 const labelClassName = "text-[13px] text-ink-sub";
@@ -122,7 +123,8 @@ export const EventForm = ({
   const [linkedRecordId, setLinkedRecordId] = useState<string>();
   const shownRecordLink: EventRecordLink | undefined = linkedRecordId ? { kind: "view", recordId: linkedRecordId } : recordLink;
   // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알리므로 묻지 않는다(#104)
-  const shouldConfirmLeave = !isSameFormValue(draft, baseDraft) && !isSaving;
+  // 실패한 저장의 id는 쓴 내용이 아니므로 견주지 않는다
+  const shouldConfirmLeave = !isSameFormValue({ ...draft, newEventId: undefined }, baseDraft) && !isSaving;
   // 캘린더로 돌아가면 일정 날짜가 속한 달을 열고 그날을 고른다
   const backDate = viewedDate ?? initialDraft.date;
   const backHref = toCalendarHref({ date: backDate });
@@ -182,11 +184,17 @@ export const EventForm = ({
     beginSave();
     setNotice(undefined);
     setIsSaving(true);
-    const failure = await saveEvent({ draft, eventId, occurrenceDate: occurrence?.date });
+    const newEventId = draft.newEventId ?? crypto.randomUUID();
+    const failure = await saveEvent({ draft, eventId, occurrenceDate: occurrence?.date, newEventId });
     if (failure) {
+      // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다
+      const failedFields = eventId ? {} : { newEventId };
+      setDraft((current) => ({ ...current, ...failedFields }));
+      // 저장됐다면 숨겨 둔 캘린더가 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
+      if (failure.mayHaveSaved) markAllScreensStale();
       setNotice(failure.message);
       setIsSaving(false);
-      finishFailed({ draft, message: failure.message, isGone: failure.isGone });
+      finishFailed({ draft: { ...draft, ...failedFields }, message: failure.message, isGone: failure.isGone });
       return;
     }
     finishSaved({
