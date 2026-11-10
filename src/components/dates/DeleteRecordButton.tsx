@@ -28,6 +28,9 @@ export const DeleteRecordButton = ({ recordId, filePaths, photoCount }: DeleteRe
       storage: supabase.storage.from(ALBUM_BUCKET),
       deleteRecord: (id) => supabase.from("dates").delete().eq("id", id),
     });
+  };
+
+  const goToList = () => {
     startTransition(() => {
       router.replace(RECORDS_PATH, { transitionTypes: BACK_TRANSITION });
       router.refresh();
@@ -38,7 +41,10 @@ export const DeleteRecordButton = ({ recordId, filePaths, photoCount }: DeleteRe
     <ConfirmDeleteButton
       title="이 기록을 지울까요?"
       description={`사진 ${photoCount}장과 글, 두 사람이 남긴 댓글이 모두 지워지고 되돌릴 수 없어요.`}
+      subject="기록을"
+      noticeKey={`delete:record:${recordId}`}
       onConfirm={handleConfirm}
+      onDeleted={goToList}
       failureMessage="기록을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
     />
   );

@@ -89,7 +89,6 @@ export const TodoForm = ({ initialContent, todoId }: TodoFormProps): ReactElemen
     if (!todoId) return;
     const { error: deleteError } = await createClient().from("todos").delete().eq("id", todoId);
     if (deleteError) throw new Error(`하고 싶은 것을 지우지 못했습니다: ${deleteError.message}`, { cause: deleteError });
-    goToList();
   };
 
   return (
@@ -105,7 +104,10 @@ export const TodoForm = ({ initialContent, todoId }: TodoFormProps): ReactElemen
               <ConfirmDeleteButton
                 title="이 항목을 지울까요?"
                 description={`"${initialContent}" 항목이 두 사람 목록에서 모두 지워져요.`}
+                subject="하고 싶은 것을"
+                noticeKey={`delete:${formKey}`}
                 onConfirm={handleDelete}
+                onDeleted={goToList}
                 failureMessage="지우지 못했어요. 잠시 후 다시 시도해 주세요."
               />
             )

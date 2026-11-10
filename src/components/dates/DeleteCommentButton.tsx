@@ -30,6 +30,9 @@ export const DeleteCommentButton = ({ commentId }: DeleteCommentButtonProps): Re
     // 다른 기기에서 이미 지운 댓글이면 0행이 지워진다. 목록을 새로 받으면 사라지므로 실패로 보지 않는다
     const { error } = await createClient().from("comments").delete().eq("id", commentId);
     if (error) throw new Error(`댓글을 지우지 못했습니다: ${error.message}`, { cause: error });
+  };
+
+  const handleDeleted = () => {
     isDeletedRef.current = true;
     startTransition(() => router.refresh());
   };
@@ -38,7 +41,10 @@ export const DeleteCommentButton = ({ commentId }: DeleteCommentButtonProps): Re
     <ConfirmDeleteButton
       title="이 댓글을 지울까요?"
       description="두 사람 화면에서 모두 지워지고 되돌릴 수 없어요."
+      subject="댓글을"
+      noticeKey={`delete:comment:${commentId}`}
       onConfirm={handleConfirm}
+      onDeleted={handleDeleted}
       failureMessage="댓글을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
       accessibleName="댓글 삭제"
       // 목록을 새로 받기 전에 끊기거나 0행이 지워져 댓글이 남아도 창이 "지우는 중"에 멈추지 않게 닫는다
