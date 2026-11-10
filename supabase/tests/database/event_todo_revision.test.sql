@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(16);
+select plan(18);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@event-revision.test', 'authenticated', 'authenticated'),
@@ -113,6 +113,22 @@ select is(
   (select count(*)::int from public.events where repeat_parent_id = '10000000-0000-0000-0000-000000000001'),
   1,
   '다시 보내도 따로 나온 일정은 하나다'
+);
+
+-- 다시 보내기 전에 고친 내용은 앞서 만든 일정에 반영한다. 반영하지 않으면 저장했다고 알리고 고친 내용을 버린다
+select is(
+  public.detach_event_occurrence(
+    p_event_id => '10000000-0000-0000-0000-000000000001', p_occurrence_date => '2026-11-09', p_date => '2026-11-11', p_title => '이 날만 고침',
+    p_start_time => '19:00', p_place => '강남', p_memo => '메모',
+    p_expected_revisions => array['30000000-0000-0000-0000-000000000003']::uuid[], p_new_event_id => '10000000-0000-0000-0000-000000000002'),
+  '10000000-0000-0000-0000-000000000002'::uuid,
+  '고친 내용으로 다시 보내도 앞서 만든 일정을 돌려준다'
+);
+
+select results_eq(
+  $$select date, start_time, title, place, memo from public.events where id = '10000000-0000-0000-0000-000000000002'$$,
+  $$values ('2026-11-11'::date, '19:00'::time, '이 날만 고침'::text, '강남'::text, '메모'::text)$$,
+  '다시 보내며 고친 날짜·시간·제목·장소·메모가 따로 나온 일정에 반영된다'
 );
 
 -- 다른 날을 같은 id로 보내면 앞선 시도가 아니다

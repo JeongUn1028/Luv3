@@ -136,6 +136,34 @@ test.describe("일정을 고치다 응답만 끊기면", () => {
     }
   });
 
+  test("이 날만 고칠 때 계속 끊겨 제목을 고쳐 다시 저장하면 고친 제목으로 그날 일정이 하나만 남는다", async ({ page }, testInfo) => {
+    // Arrange
+    const id = randomUUID();
+    const title = createTestName("계속 끊긴 이 날만", testInfo);
+    const deleteEvent = await createDisposableRepeatingEvent({ id, title, date: "2045-07-05", repeatRule: "weekly" });
+
+    try {
+      await openScreen(page, `/events/${id}/edit?date=2045-07-19`, getEventTitleField(page));
+      await getEventTitleField(page).fill(`${title} 1`);
+      await loseResponses(page, DETACH_URL);
+      await getSubmitButton(page).tap();
+      await expect(getFormAlert(page)).toContainText(RESPONSE_LOST_MESSAGE);
+
+      // Act
+      await page.unroute(DETACH_URL);
+      await getEventTitleField(page).fill(`${title} 2`);
+      await getSubmitButton(page).tap();
+
+      // Assert
+      await page.waitForURL(`**${CALENDAR_PATH}*`);
+      const detachedIds = await getDetachedEventIds(id);
+      expect(detachedIds).toHaveLength(1);
+      expect(await getEventIdsByTitle(`${title} 2`)).toEqual(detachedIds);
+    } finally {
+      await deleteEvent();
+    }
+  });
+
   test("다시 고쳐 저장하면 내 앞선 저장을 상대의 저장으로 오해하지 않는다", async ({ page }, testInfo) => {
     // Arrange: 첫 저장은 서버가 처리했지만 응답이 오지 않아 판 번호가 바뀐 것을 화면이 모른다
     const id = randomUUID();

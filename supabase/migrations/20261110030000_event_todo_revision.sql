@@ -86,16 +86,23 @@ begin
     raise exception '허용된 사용자만 일정을 고칠 수 있습니다' using errcode = '42501';
   end if;
 
-  select * into parent from public.events where id = p_event_id and repeat_rule is not null for key share;
+  -- for share: 판 번호를 견준 뒤 이 함수가 끝날 때까지 상대가 반복 일정을 고치지 못하게 한다.
+  -- for key share는 키가 아닌 열을 고치는 update를 막지 않아, 견준 직후 상대가 요일을 옮길 수 있다
+  select * into parent from public.events where id = p_event_id and repeat_rule is not null for share;
   if not found then
     raise exception '반복 일정을 찾을 수 없습니다: %', p_event_id using errcode = 'P0002';
   end if;
 
-  -- 앞선 시도가 이미 그날을 떼어 냈다. 그사이 반복 일정이 바뀌었더라도 그 시도는 바뀌기 전에 끝났으므로 성공으로 본다
+  -- 앞선 시도가 이미 그날을 떼어 냈다. 그사이 반복 일정이 바뀌었더라도 그 시도는 바뀌기 전에 끝났으므로 성공으로 본다.
+  -- 다시 보내기 전에 고친 내용이 있을 수 있어 앞서 만든 일정을 이번 값으로 맞춘다
   if p_new_event_id is not null
     and exists (select 1 from public.events where id = p_new_event_id and repeat_parent_id = p_event_id)
     and exists (select 1 from public.event_exceptions where event_id = p_event_id and date = p_occurrence_date)
   then
+    update public.events
+    set date = p_date, start_time = p_start_time, title = p_title, place = p_place, memo = p_memo
+    where id = p_new_event_id;
+    update public.dates set event_date = p_date where event_id = p_new_event_id;
     return p_new_event_id;
   end if;
 
