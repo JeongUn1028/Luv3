@@ -30,7 +30,23 @@ export interface EventDraft {
   endDate: string | undefined;
   /** 새 일정을 저장하다 실패했을 때 쓴 id. 다시 저장할 때 같은 값을 써서 앞선 시도가 저장했어도 일정이 둘이 되지 않는다 */
   newEventId?: string;
+  /** 저장해도 되는 판 번호: 불러온 판과, 저장됐을 수 있는 내 앞선 시도의 판. 이 밖이면 상대가 고친 것이라 거부된다(#161) */
+  expectedRevisions?: string[];
+  /** 상대가 먼저 고쳐 저장이 거부됐는지. 다시 저장해도 거부되므로 최신 내용을 불러오게 한다 */
+  hasConflict?: boolean;
 }
+
+/**
+ * 쓴 내용만 남긴다. 저장을 다시 시도하려고 남긴 값(id·판 번호·거부 여부)은 쓴 내용이 아니라서, 떠날 때 경고할지 견줄 때 뺀다.
+ *
+ * @example const shouldConfirmLeave = !isSameFormValue(toWrittenFields(draft), toWrittenFields(baseDraft))
+ */
+export const toWrittenFields = (draft: EventDraft): EventDraft => ({
+  ...draft,
+  newEventId: undefined,
+  expectedRevisions: undefined,
+  hasConflict: undefined,
+});
 
 /** 칸 이름 → 화면에 보여 줄 에러 문구 */
 export type EventDraftErrors = Partial<Record<"date" | "startTime" | "title" | "place" | "memo" | "repeatUntil" | "endDate", string>>;
@@ -58,6 +74,8 @@ export interface EditableEventRow extends EventRow {
   id: string;
   /** 하루만 고쳐 따로 나온 일정이면 원래 반복 일정 */
   repeat_parent_id: string | null;
+  /** 판 번호. 고치기 화면을 연 뒤 다른 저장이 있었는지 알아본다(#161) */
+  revision: string;
   author: AuthorRow;
   /** 반복 중 건너뛰는 날 */
   exceptions: { date: string }[];

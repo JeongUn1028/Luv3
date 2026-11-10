@@ -40,8 +40,19 @@ export const callWithRetry = async <Result extends { error: SaveErrorCode | null
   return { ...(await call()), mayHaveApplied: true };
 };
 
-/** 저장 결과. `gone`은 고칠 행이 그사이 지워졌다는 뜻이고, `uncertain`은 서버에 저장됐을 수 있다는 뜻이다 */
-export type SaveOutcome = "saved" | "gone" | "failed" | "uncertain";
+/**
+ * 저장 결과. `gone`은 고칠 행이 그사이 지워졌다는 뜻, `conflict`는 화면을 연 뒤 다른 저장이 있어 거부됐다는 뜻,
+ * `uncertain`은 서버에 저장됐을 수 있다는 뜻이다.
+ */
+export type SaveOutcome = "saved" | "gone" | "conflict" | "failed" | "uncertain";
+
+/**
+ * 거절된 요청의 결과. 처리했는지 모르거나 앞선 요청이 저장됐을 수 있으면 `uncertain`이다.
+ *
+ * @example const { error, mayHaveApplied } = await callWithRetry(call); if (error) return toRejectedOutcome(error, mayHaveApplied)
+ */
+export const toRejectedOutcome = (error: SaveErrorCode, mayHaveApplied: boolean): SaveOutcome =>
+  mayHaveApplied || isOutcomeUnknown(error) ? "uncertain" : "failed";
 
 /** 바뀐 행을 돌려받는 고치기 요청의 결과(`.update(...).select("id")`) */
 interface UpdatedRows {
@@ -49,23 +60,36 @@ interface UpdatedRows {
   error: SaveErrorCode | null;
 }
 
+interface UpdateRowWithRetryParams {
+  /** 판 번호 조건(`revision in (불러온 판, 내 판)`)을 붙인 고치기 요청 */
+  update: () => PromiseLike<UpdatedRows>;
+  /** 바뀐 행이 없을 때 그 행이 아직 있는지 읽는 요청(`.select("id").eq("id", id).maybeSingle()`) */
+  readRow: () => PromiseLike<{ data: unknown; error: SaveErrorCode | null }>;
+}
+
 /**
- * 행 하나를 고친다. 응답만 끊기면 한 번 더 보낸다(같은 값으로 고치므로 결과가 같다).
+ * 행 하나를 고친다. 응답만 끊기면 한 번 더 보낸다(같은 값·같은 판 번호로 고치므로 결과가 같다).
+ * 바뀐 행이 없으면 다시 읽어, 행이 있으면 화면을 연 뒤 바뀐 것(`conflict`), 없으면 지워진 것(`gone`)으로 본다.
  *
- * @example const outcome = await updateRowWithRetry(() => supabase.from("todos").update({ content }).eq("id", id).select("id"))
+ * @example
+ * const outcome = await updateRowWithRetry({
+ *   update: () => todos.update({ content, revision }).eq("id", id).in("revision", [...expected, revision]).select("id"),
+ *   readRow: () => todos.select("id").eq("id", id).maybeSingle(),
+ * })
  */
-export const updateRowWithRetry = async (update: () => PromiseLike<UpdatedRows>): Promise<SaveOutcome> => {
+export const updateRowWithRetry = async ({ update, readRow }: UpdateRowWithRetryParams): Promise<SaveOutcome> => {
   const { data, error, mayHaveApplied } = await callWithRetry(update);
-  if (error) return mayHaveApplied || isOutcomeUnknown(error) ? "uncertain" : "failed";
-  // 고치는 사이 상대가 지운 행은 오류 없이 0행이 바뀐다
-  return data && data.length > 0 ? "saved" : "gone";
+  if (error) return toRejectedOutcome(error, mayHaveApplied);
+  if (data && data.length > 0) return "saved";
+  // 판 번호가 달라 거부됐는지, 고치는 사이 상대가 지웠는지는 둘 다 오류 없이 0행이라 다시 읽어 가린다
+  const row = await readRow();
+  if (row.error) return "failed";
+  return row.data ? "conflict" : "gone";
 };
 
-interface CreateRowWithRetryParams {
+interface CreateRowWithRetryParams extends UpdateRowWithRetryParams {
   /** 폼이 미리 정한 id로 만드는 요청. 다시 저장할 때도 같은 id를 쓴다 */
   insert: () => PromiseLike<{ error: SaveErrorCode | null }>;
-  /** 같은 id의 행을 이번 내용으로 고치는 요청 */
-  update: () => PromiseLike<UpdatedRows>;
 }
 
 /**
@@ -74,26 +98,31 @@ interface CreateRowWithRetryParams {
  *
  * @example
  * const outcome = await createRowWithRetry({
- *   insert: () => todos.insert({ id, content }),
- *   update: () => todos.update({ content }).eq("id", id).select("id"),
+ *   insert: () => todos.insert({ id, content, revision }),
+ *   update: () => todos.update({ content, revision }).eq("id", id).in("revision", [...expected, revision]).select("id"),
+ *   readRow: () => todos.select("id").eq("id", id).maybeSingle(),
  * })
  */
-export const createRowWithRetry = async ({ insert, update }: CreateRowWithRetryParams): Promise<SaveOutcome> => {
+export const createRowWithRetry = async ({ insert, update, readRow }: CreateRowWithRetryParams): Promise<SaveOutcome> => {
   const { error, mayHaveApplied } = await callWithRetry(insert);
   if (!error) return "saved";
-  if (!isDuplicateKey(error)) return mayHaveApplied || isOutcomeUnknown(error) ? "uncertain" : "failed";
-  const outcome = await updateRowWithRetry(update);
-  // 앞선 시도가 만든 행은 있으므로, 고치기가 거절돼도 저장되지 않았다고 알리면 안 된다
+  if (!isDuplicateKey(error)) return toRejectedOutcome(error, mayHaveApplied);
+  const outcome = await updateRowWithRetry({ update, readRow });
+  // 앞선 시도가 만든 행은 있다. 그사이 상대가 고쳤으면 그 내용을 두고 저장된 것으로 본다(새 폼에는 불러올 최신 내용이 없다)
+  if (outcome === "conflict") return "saved";
+  // 고치기가 거절돼도 저장되지 않았다고 알리면 안 된다
   return outcome === "failed" ? "uncertain" : outcome;
 };
 
 /** 응답을 받지 못해 저장됐는지 모를 때의 문구. 같은 id·같은 값으로 다시 보내므로 다시 저장해도 된다 */
 export const UNCERTAIN_SAVE_MESSAGE = "저장됐는지 확인하지 못했어요. 다시 저장해도 돼요.";
 
-/** 저장 실패. 화면에 보여 줄 문구와, 고칠 대상이 이미 없는지, 실패로 끝났지만 서버에 저장됐을 수 있는지 */
+/** 저장 실패. 화면에 보여 줄 문구와, 고칠 대상이 이미 없는지, 화면을 연 뒤 바뀌었는지, 실패로 끝났지만 서버에 저장됐을 수 있는지 */
 export interface SaveFailure {
   message: string;
   isGone: boolean;
+  /** 다시 저장해도 거부되므로 최신 내용을 불러오게 한다 */
+  hasConflict: boolean;
   mayHaveSaved: boolean;
 }
 
@@ -101,16 +130,27 @@ export interface SaveFailure {
 interface SaveFailureMessages {
   failedMessage: string;
   goneMessage: string;
+  conflictMessage: string;
 }
+
+const NO_FAILURE_FLAGS = { isGone: false, hasConflict: false, mayHaveSaved: false };
 
 /**
  * 저장 결과를 폼이 보여 줄 실패로 바꾼다. 저장했으면 undefined.
  *
- * @example const failure = toSaveFailure(outcome, { failedMessage: "저장하지 못했어요.", goneMessage: "이미 지워졌어요." })
+ * @example const failure = toSaveFailure(outcome, { failedMessage: "저장하지 못했어요.", goneMessage: "이미 지워졌어요.", conflictMessage: "그사이 바뀌었어요." })
  */
-export const toSaveFailure = (outcome: SaveOutcome, { failedMessage, goneMessage }: SaveFailureMessages): SaveFailure | undefined => {
-  if (outcome === "saved") return undefined;
-  if (outcome === "uncertain") return { message: UNCERTAIN_SAVE_MESSAGE, isGone: false, mayHaveSaved: true };
-  if (outcome === "gone") return { message: goneMessage, isGone: true, mayHaveSaved: false };
-  return { message: failedMessage, isGone: false, mayHaveSaved: false };
+export const toSaveFailure = (outcome: SaveOutcome, { failedMessage, goneMessage, conflictMessage }: SaveFailureMessages): SaveFailure | undefined => {
+  switch (outcome) {
+    case "saved":
+      return undefined;
+    case "uncertain":
+      return { ...NO_FAILURE_FLAGS, message: UNCERTAIN_SAVE_MESSAGE, mayHaveSaved: true };
+    case "gone":
+      return { ...NO_FAILURE_FLAGS, message: goneMessage, isGone: true };
+    case "conflict":
+      return { ...NO_FAILURE_FLAGS, message: conflictMessage, hasConflict: true };
+    case "failed":
+      return { ...NO_FAILURE_FLAGS, message: failedMessage };
+  }
 };

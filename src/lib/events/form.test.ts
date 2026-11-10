@@ -298,6 +298,7 @@ describe("toEditableEvent", () => {
       repeat_until: null,
       end_date: null,
       repeat_parent_id: null,
+      revision: "r1",
       exceptions: [],
       records: [],
     };
@@ -317,6 +318,7 @@ describe("toEditableEvent", () => {
       repeat_until: null,
       end_date: null,
       repeat_parent_id: null,
+      revision: "r1",
       exceptions: [],
       records: [],
       author: null,

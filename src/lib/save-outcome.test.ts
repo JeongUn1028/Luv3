@@ -4,12 +4,21 @@ import {
   createRowWithRetry,
   isDuplicateKey,
   isOutcomeUnknown,
+  toRejectedOutcome,
   toSaveFailure,
   UNCERTAIN_SAVE_MESSAGE,
   updateRowWithRetry,
 } from "./save-outcome";
 
-type RowsResult = { data: { id: string }[] | null; error: { message: string; code?: string } | null };
+interface RowsResult {
+  data: { id: string }[] | null;
+  error: { message: string; code?: string } | null;
+}
+
+interface RowResult {
+  data: { id: string } | null;
+  error: { message: string; code?: string } | null;
+}
 
 const LOST = { message: "TypeError: Failed to fetch", code: "" };
 const REJECTED = { message: "거절", code: "23514" };
@@ -87,25 +96,55 @@ describe("callWithRetry", () => {
   });
 });
 
-describe("updateRowWithRetry", () => {
-  it("한 행이 바뀌면 saved다", async () => {
-    expect(await updateRowWithRetry(respondWith<RowsResult>({ data: [{ id: "a" }], error: null }))).toBe("saved");
+describe("toRejectedOutcome", () => {
+  it("서버가 분명히 거절했으면 failed다", () => {
+    expect(toRejectedOutcome(REJECTED, false)).toBe("failed");
   });
 
-  it("바뀐 행이 없으면(그사이 지워짐) gone이다", async () => {
-    expect(await updateRowWithRetry(respondWith<RowsResult>({ data: [], error: null }))).toBe("gone");
+  it("처리했는지 모르면 uncertain이다", () => {
+    expect(toRejectedOutcome(LOST, false)).toBe("uncertain");
+  });
+
+  it("거절됐어도 앞선 요청이 저장됐을 수 있으면 uncertain이다", () => {
+    expect(toRejectedOutcome(REJECTED, true)).toBe("uncertain");
+  });
+});
+
+/** 바뀐 행이 없을 때 읽어 볼 행. 기본은 행이 그대로 있다(판 번호가 달라 거부됨) */
+const rowStillThere = () => respondWith<RowResult>({ data: { id: "a" }, error: null });
+const rowDeleted = () => respondWith<RowResult>({ data: null, error: null });
+
+describe("updateRowWithRetry", () => {
+  it("한 행이 바뀌면 saved다", async () => {
+    expect(await updateRowWithRetry({ update: respondWith<RowsResult>({ data: [{ id: "a" }], error: null }), readRow: rowStillThere() })).toBe("saved");
+  });
+
+  it("바뀐 행이 없고 그 행이 그대로 있으면 열어 둔 사이 바뀐 것이라 conflict다", async () => {
+    expect(await updateRowWithRetry({ update: respondWith<RowsResult>({ data: [], error: null }), readRow: rowStillThere() })).toBe("conflict");
+  });
+
+  it("바뀐 행이 없고 그 행도 없으면(그사이 지워짐) gone이다", async () => {
+    expect(await updateRowWithRetry({ update: respondWith<RowsResult>({ data: [], error: null }), readRow: rowDeleted() })).toBe("gone");
+  });
+
+  it("바뀐 행이 없는데 다시 읽지 못하면 저장되지 않은 것이라 failed다", async () => {
+    const readRow = respondWith<RowResult>({ data: null, error: REJECTED });
+
+    expect(await updateRowWithRetry({ update: respondWith<RowsResult>({ data: [], error: null }), readRow })).toBe("failed");
   });
 
   it("서버가 분명히 거절하면 failed다", async () => {
-    expect(await updateRowWithRetry(respondWith<RowsResult>({ data: null, error: REJECTED }))).toBe("failed");
+    expect(await updateRowWithRetry({ update: respondWith<RowsResult>({ data: null, error: REJECTED }), readRow: rowStillThere() })).toBe("failed");
   });
 
   it("두 번 다 응답이 끊기면 uncertain이다", async () => {
-    expect(await updateRowWithRetry(respondWith<RowsResult>({ data: null, error: LOST }))).toBe("uncertain");
+    expect(await updateRowWithRetry({ update: respondWith<RowsResult>({ data: null, error: LOST }), readRow: rowStillThere() })).toBe("uncertain");
   });
 
   it("첫 응답이 끊긴 뒤 다시 보낸 것이 거절되면 첫 요청이 저장됐을 수 있어 uncertain이다", async () => {
-    expect(await updateRowWithRetry(respondWith<RowsResult>({ data: null, error: LOST }, { data: null, error: REJECTED }))).toBe("uncertain");
+    const update = respondWith<RowsResult>({ data: null, error: LOST }, { data: null, error: REJECTED });
+
+    expect(await updateRowWithRetry({ update, readRow: rowStillThere() })).toBe("uncertain");
   });
 });
 
@@ -115,7 +154,7 @@ describe("createRowWithRetry", () => {
     const update = respondWith<RowsResult>({ data: [{ id: "a" }], error: null });
 
     // Act
-    const outcome = await createRowWithRetry({ insert: respondWith({ error: null }), update });
+    const outcome = await createRowWithRetry({ insert: respondWith({ error: null }), update, readRow: rowStillThere() });
 
     // Assert
     expect(outcome).toBe("saved");
@@ -128,7 +167,7 @@ describe("createRowWithRetry", () => {
     const update = respondWith<RowsResult>({ data: [{ id: "a" }], error: null });
 
     // Act
-    const outcome = await createRowWithRetry({ insert, update });
+    const outcome = await createRowWithRetry({ insert, update, readRow: rowStillThere() });
 
     // Assert
     expect(outcome).toBe("saved");
@@ -136,10 +175,21 @@ describe("createRowWithRetry", () => {
     expect(update).toHaveBeenCalledTimes(1);
   });
 
+  it("같은 id가 있는데 그사이 상대가 고쳐 고치기가 거부되면, 앞선 시도가 만든 항목은 있으므로 saved다", async () => {
+    const outcome = await createRowWithRetry({
+      insert: respondWith({ error: DUPLICATE }),
+      update: respondWith<RowsResult>({ data: [], error: null }),
+      readRow: rowStillThere(),
+    });
+
+    expect(outcome).toBe("saved");
+  });
+
   it("같은 id가 있는데 고치기가 거절되면 앞선 시도가 저장한 행이 있어 uncertain이다", async () => {
     const outcome = await createRowWithRetry({
       insert: respondWith({ error: DUPLICATE }),
       update: respondWith<RowsResult>({ data: null, error: REJECTED }),
+      readRow: rowStillThere(),
     });
 
     expect(outcome).toBe("uncertain");
@@ -149,40 +199,45 @@ describe("createRowWithRetry", () => {
     const outcome = await createRowWithRetry({
       insert: respondWith({ error: DUPLICATE }),
       update: respondWith<RowsResult>({ data: [], error: null }),
+      readRow: rowDeleted(),
     });
 
     expect(outcome).toBe("gone");
   });
 
   it("서버가 분명히 거절하면 failed다", async () => {
-    expect(await createRowWithRetry({ insert: respondWith({ error: REJECTED }), update: respondWith<RowsResult>({ data: [], error: null }) })).toBe(
-      "failed",
-    );
+    const outcome = await createRowWithRetry({ insert: respondWith({ error: REJECTED }), update: respondWith<RowsResult>({ data: [], error: null }), readRow: rowDeleted() });
+
+    expect(outcome).toBe("failed");
   });
 
   it("두 번 다 응답이 끊기면 uncertain이다", async () => {
-    expect(await createRowWithRetry({ insert: respondWith({ error: LOST }), update: respondWith<RowsResult>({ data: [], error: null }) })).toBe(
-      "uncertain",
-    );
+    const outcome = await createRowWithRetry({ insert: respondWith({ error: LOST }), update: respondWith<RowsResult>({ data: [], error: null }), readRow: rowDeleted() });
+
+    expect(outcome).toBe("uncertain");
   });
 });
 
 describe("toSaveFailure", () => {
-  const messages = { failedMessage: "저장 실패", goneMessage: "이미 지워짐" };
+  const messages = { failedMessage: "저장 실패", goneMessage: "이미 지워짐", conflictMessage: "그사이 바뀜" };
 
   it("saved면 실패가 없다", () => {
     expect(toSaveFailure("saved", messages)).toBeUndefined();
   });
 
   it("failed면 실패 문구를 보여 주고 저장되지 않은 것이다", () => {
-    expect(toSaveFailure("failed", messages)).toEqual({ message: "저장 실패", isGone: false, mayHaveSaved: false });
+    expect(toSaveFailure("failed", messages)).toEqual({ message: "저장 실패", isGone: false, hasConflict: false, mayHaveSaved: false });
   });
 
   it("gone이면 지워졌다는 문구를 보여 준다", () => {
-    expect(toSaveFailure("gone", messages)).toEqual({ message: "이미 지워짐", isGone: true, mayHaveSaved: false });
+    expect(toSaveFailure("gone", messages)).toEqual({ message: "이미 지워짐", isGone: true, hasConflict: false, mayHaveSaved: false });
+  });
+
+  it("conflict면 그사이 바뀌었다고 알리고 저장되지 않은 것이다", () => {
+    expect(toSaveFailure("conflict", messages)).toEqual({ message: "그사이 바뀜", isGone: false, hasConflict: true, mayHaveSaved: false });
   });
 
   it("uncertain이면 저장됐을 수 있다고 알린다", () => {
-    expect(toSaveFailure("uncertain", messages)).toEqual({ message: UNCERTAIN_SAVE_MESSAGE, isGone: false, mayHaveSaved: true });
+    expect(toSaveFailure("uncertain", messages)).toEqual({ message: UNCERTAIN_SAVE_MESSAGE, isGone: false, hasConflict: false, mayHaveSaved: true });
   });
 });
