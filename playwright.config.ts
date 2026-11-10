@@ -54,7 +54,8 @@ export default defineConfig<DeviceOptions>({
     },
   ],
   webServer: {
-    command: `pnpm build && pnpm start -p ${new URL(BASE_URL).port}`,
+    // 다른 워크트리의 실행과 로컬 Supabase·3100번 포트를 함께 쓰므로, 빌드하기 전에 실행 잠금을 잡고 다른 실행이 있으면 멈춘다(#243)
+    command: `node e2e/web-server.mts ${new URL(BASE_URL).port}`,
     url: `${BASE_URL}/login`,
     timeout: 300_000,
     // 다른 빌드를 재지 않도록 떠 있는 서버를 다시 쓰지 않는다
