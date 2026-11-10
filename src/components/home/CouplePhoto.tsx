@@ -7,6 +7,7 @@ import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from 
 import { RememberedPhoto } from "@/components/RememberedPhoto";
 import { clearCouplePhoto, CouplePhotoError, replaceCouplePhoto } from "@/lib/couple-photo/save";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
+import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import type { RememberablePhoto } from "@/lib/photos/remembered-url";
@@ -51,6 +52,7 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
   const [refreshingTask, setRefreshingTask] = useState<Task>();
   const [isRefreshing, startRefresh] = useTransition();
   const [message, setMessage] = useState<string>();
+  useResetOnHide(() => setMessage(undefined));
   const [dialogMessage, setDialogMessage] = useState<string>();
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
 

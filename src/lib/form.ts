@@ -43,6 +43,19 @@ export const clearError = <Errors extends Partial<Record<string, string>>>(error
   return next;
 };
 
+/** 저장할 때 칸에 오류가 있으면 폼 아래에 보이는 안내 */
+export const FIX_FIELDS_NOTICE = "입력한 내용을 확인해 주세요.";
+
+/**
+ * 칸 오류 안내가 떠 있는데 칸 오류를 모두 고쳤는지. 그러면 저장을 다시 누르기 전이라도 안내를 지운다.
+ * 감추기만 하면 값이 남아, 다음에 생긴 칸 오류(같은 태그 등)에 저장을 누르지 않았는데도 다시 보인다.
+ * 다른 안내(저장 실패, 뺀 사진)는 지우지 않는다.
+ *
+ * @example if (isResolvedFieldNotice(notice, errors)) setNotice(undefined);
+ */
+export const isResolvedFieldNotice = (notice: string | undefined, errors: Partial<Record<string, string>>): boolean =>
+  notice === FIX_FIELDS_NOTICE && Object.keys(errors).length === 0;
+
 const isPlainRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
 /**

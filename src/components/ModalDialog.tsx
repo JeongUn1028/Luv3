@@ -152,11 +152,11 @@ export const ModalDialog = ({
       className="modal-dialog m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
     >
       <div ref={contentRef}>
-        <h2 id={titleId} className="font-display text-[17px]">
+        <h2 id={titleId} className="font-display text-[17px] break-words">
           {title}
         </h2>
         {description && (
-          <p id={descriptionId} className="mt-2 text-[14px] leading-[1.6] text-ink-sub">
+          <p id={descriptionId} className="mt-2 text-[14px] leading-[1.6] break-words text-ink-sub">
             {description}
           </p>
         )}

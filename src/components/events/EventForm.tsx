@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
+import { flushSync } from "react-dom";
 import { AuthorTag } from "@/components/AuthorTag";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { DatePickerField } from "@/components/DatePickerField";
@@ -26,7 +27,8 @@ import {
 import type { EventRecordLink } from "@/lib/events/record-link";
 import { formatEventPeriod, formatRepeatRule, REPEAT_RULES } from "@/lib/events/recurrence";
 import { deleteEvent, saveEvent } from "@/lib/events/save";
-import { clearError, isSameFormValue } from "@/lib/form";
+import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
+import { clearError, FIX_FIELDS_NOTICE, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 
@@ -110,6 +112,8 @@ export const EventForm = ({
   const [baseDraft, setBaseDraft] = useState(initialDraft);
   const [errors, setErrors] = useState<EventDraftErrors>({});
   const [notice, setNotice] = useState(failedSave?.message);
+  // 칸 오류를 모두 고치면 저장을 다시 누르기 전이라도 안내를 지운다. 효과로 지우면 한 번 더 그려지므로 그리는 중에 맞춘다
+  if (isResolvedFieldNotice(notice, errors)) setNotice(undefined);
   const [isSaving, setIsSaving] = useState(false);
   // 이미 쓴 기록을 이으면 화면을 새로 받지 않고 버튼만 바꾼다. 새로 받으면 폼을 새로 그려 고치던 내용이 사라진다(#237)
   const [linkedRecordId, setLinkedRecordId] = useState<string>();
@@ -156,13 +160,19 @@ export const EventForm = ({
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSaving) return;
+    const form = event.currentTarget;
 
     const nextErrors = validateEventDraft(draft);
-    setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) {
-      setNotice("입력한 내용을 확인해 주세요.");
+      // 오류 칸이 그려져야 찾을 수 있어 바로 그린다
+      flushSync(() => {
+        setErrors(nextErrors);
+        setNotice(FIX_FIELDS_NOTICE);
+      });
+      focusFirstInvalidField(form);
       return;
     }
+    setErrors(nextErrors);
 
     beginSave();
     setNotice(undefined);
