@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { readSource } from "@/test-utils/source";
-import { APP_RETURN_STALE_AFTER_MS, shouldRefreshOnReturn } from "./app-return";
+import { APP_RETURN_STALE_AFTER_MS, shouldRefreshOnReturn, subscribeToAppReturn } from "./app-return";
 
 // 2026-11-09 12:00 (KST)
 const NOON_KST = new Date("2026-11-09T12:00:00+09:00").getTime();
@@ -32,12 +32,69 @@ describe("shouldRefreshOnReturn", () => {
   });
 });
 
+describe("subscribeToAppReturn", () => {
+  /** 테스트는 node에서 돌아 화면이 없으므로, 알림만 주고받는 document·window를 둔다 */
+  const stubScreen = (visibilityState: DocumentVisibilityState) => {
+    const fakeDocument = Object.assign(new EventTarget(), { visibilityState });
+    const fakeWindow = new EventTarget();
+    vi.stubGlobal("document", fakeDocument);
+    vi.stubGlobal("window", fakeWindow);
+    return { fakeDocument, fakeWindow };
+  };
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("화면이 보이게 되거나 저장된 페이지로 되살아나면 부른다", () => {
+    // Arrange
+    const { fakeDocument, fakeWindow } = stubScreen("visible");
+    const onReturn = vi.fn();
+    subscribeToAppReturn(onReturn);
+
+    // Act
+    fakeDocument.dispatchEvent(new Event("visibilitychange"));
+    fakeWindow.dispatchEvent(new Event("pageshow"));
+
+    // Assert
+    expect(onReturn).toHaveBeenCalledTimes(2);
+  });
+
+  it("화면이 숨겨질 때는 부르지 않는다", () => {
+    // Arrange
+    const { fakeDocument } = stubScreen("hidden");
+    const onReturn = vi.fn();
+    subscribeToAppReturn(onReturn);
+
+    // Act
+    fakeDocument.dispatchEvent(new Event("visibilitychange"));
+
+    // Assert
+    expect(onReturn).not.toHaveBeenCalled();
+  });
+
+  it("듣기를 멈추면 더는 부르지 않는다", () => {
+    // Arrange
+    const { fakeDocument, fakeWindow } = stubScreen("visible");
+    const onReturn = vi.fn();
+    const unsubscribe = subscribeToAppReturn(onReturn);
+
+    // Act
+    unsubscribe();
+    fakeDocument.dispatchEvent(new Event("visibilitychange"));
+    fakeWindow.dispatchEvent(new Event("pageshow"));
+
+    // Assert
+    expect(onReturn).not.toHaveBeenCalled();
+  });
+});
+
 // 루트 레이아웃의 앱 복귀, 화면이 다시 보일 때 새로 받기, 쓰던 폼 지키기, 기록을 되돌아간 화면 적기는 e2e/app-return.spec.ts가 잰다
 describe("앱 복귀 연결", () => {
   it("저장된 페이지로 돌아올 때도 확인하고, 로그인을 확인하는 새로 받기를 쓴다", () => {
     const source = readSource("components/AppReturn.tsx");
 
-    expect(source).toContain('window.addEventListener("pageshow", handleReturn)');
+    expect(source).toContain("subscribeToAppReturn(handleReturn)");
     // 로그아웃 상태로 앱에 돌아오는 경우는 E2E가 지나지 않는다(#102)
     expect(source).toContain("refreshSignedInScreen(");
   });
