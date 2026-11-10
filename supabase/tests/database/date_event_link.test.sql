@@ -139,6 +139,9 @@ select results_eq(
   '일정을 지워도 기록은 남고 연결만 끊긴다'
 );
 
+-- 회원은 표를 직접 고칠 수 없으므로(#170) 값 제약은 표 소유자로 확인한다
+reset role;
+
 select throws_ok(
   $$update public.dates set event_id = '30000000-0000-0000-0000-000000000002', event_date = null
     where id = '10000000-0000-0000-0000-000000000003'$$,

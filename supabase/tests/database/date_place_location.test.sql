@@ -87,6 +87,9 @@ select results_eq(
   '빈 객체를 넘기면 좌표를 지운다'
 );
 
+-- 회원은 표를 직접 고칠 수 없으므로(#170) 값 제약은 표 소유자로 확인한다
+reset role;
+
 select throws_ok(
   $$ update public.dates set place_lat = 37.5 where id = '70000000-0000-0000-0000-000000000002' $$,
   '23514', null,
