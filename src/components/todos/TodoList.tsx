@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useOptimistic, useState, type ReactElement } from "react";
+import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, type ReactElement } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
@@ -12,6 +12,9 @@ import { applyTodoAction, groupTodos, TODOS_PATH, type Todo, type TodoAction } f
 
 const SAVE_FAILED_MESSAGE = "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
 const ALREADY_DELETED_MESSAGE = "이미 지워진 항목이에요. 목록을 새로 불러왔어요.";
+
+/** 항목의 완료 체크 id. 다른 목록으로 옮겨 그린 뒤 초점을 돌려줄 때 찾는다 */
+const toCheckboxId = (todoId: string): string => `todo-${todoId}-done`;
 
 const MOVE_BUTTON_CLASS_NAME =
   "flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink press-icon aria-disabled:opacity-25 aria-disabled:hover:text-ink-sub";
@@ -58,6 +61,15 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
     setAnnouncement("");
   });
   const { open, done } = groupTodos(optimisticTodos);
+  // 완료를 바꾸면 항목이 다른 목록으로 옮겨 그려져 체크가 새로 만들어지고 초점이 문서 처음으로 빠진다.
+  // 저장이 실패해 되돌아갈 때도 같으므로, 저장이 끝나 목록이 정해질 때까지 초점이 빠질 때마다 그 항목의 체크로 돌려준다
+  const focusedToggleIdRef = useRef<string>(undefined);
+  useLayoutEffect(() => {
+    const todoId = focusedToggleIdRef.current;
+    if (!todoId) return;
+    if (document.activeElement === null || document.activeElement === document.body) document.getElementById(toCheckboxId(todoId))?.focus();
+    if (optimisticTodos === todos) focusedToggleIdRef.current = undefined;
+  });
 
   const runAction = (action: TodoAction) => {
     setNotice(undefined);
@@ -87,6 +99,8 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
   };
 
   const handleToggle = (todo: Todo, isCompleted: boolean) => {
+    // 화면을 눌러 초점이 없던 경우(아이폰)는 초점을 만들지 않는다
+    focusedToggleIdRef.current = document.activeElement?.id === toCheckboxId(todo.id) ? todo.id : undefined;
     runAction({ type: "complete", id: todo.id, completedAt: isCompleted ? new Date().toISOString() : undefined });
   };
 
@@ -178,6 +192,7 @@ const TodoItem = ({ todo, onToggle, children }: TodoItemProps): ReactElement => 
     <li className="flex min-h-[60px] items-center border-b border-line">
       <label className="flex size-11 shrink-0 cursor-pointer items-center justify-center">
         <input
+          id={toCheckboxId(todo.id)}
           type="checkbox"
           checked={isCompleted}
           aria-label={`${todo.content} 완료`}
