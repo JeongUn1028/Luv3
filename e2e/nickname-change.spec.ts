@@ -5,6 +5,7 @@ import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { createDisposableMember, createMemberContent } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
 import { getSaveButton, getTab, signInToHome } from "./support/actions";
+import { createTestName } from "./support/names";
 
 const MEMBERS_URL = "**/rest/v1/members*";
 const LONG_NICKNAME = "가나다라마바사아자차카타파하가나다라마바";
@@ -41,7 +42,7 @@ test.describe("닉네임 변경", () => {
   test("설정에서 들어가 바꾸면 설정으로 돌아오고 지난 기록과 일정, 숨겨 둔 화면까지 새 닉네임으로 보인다", async ({ page }, testInfo) => {
     // Arrange: 캘린더 탭을 먼저 봐서 예전 닉네임이 그려진 화면이 숨겨져 남게 한다
     await useMember("예전이름");
-    const label = `E2E 닉네임 ${testInfo.project.name} ${randomUUID().slice(0, 4)}`;
+    const label = createTestName("E2E 닉네임", testInfo);
     const { recordId, eventId } = await createMemberContent({ memberId, label });
     await signInToHome(page, email, password);
     await getTab(page, CALENDAR_PATH).click();
@@ -220,7 +221,7 @@ test.describe("닉네임 변경", () => {
   test("6자를 넘는 예전 닉네임도 설정과 폼이 깨지지 않고, 줄여서 저장할 수 있다", async ({ page }, testInfo) => {
     // Arrange
     await useMember(LONG_NICKNAME);
-    const label = `E2E 긴 닉네임 ${testInfo.project.name} ${randomUUID().slice(0, 4)}`;
+    const label = createTestName("E2E 긴 닉네임", testInfo);
     const { eventId } = await createMemberContent({ memberId, label });
     await signInToHome(page, email, password);
 
@@ -252,7 +253,7 @@ test.describe("닉네임 변경", () => {
   test("넓은 글자 6자는 일정 폼 버튼과 캘린더 이름표에서 줄지 않고, 설정 줄도 넘치지 않는다", async ({ page }, testInfo) => {
     // Arrange
     await useMember(WIDE_NICKNAME);
-    const label = `E2E 넓은 닉네임 ${testInfo.project.name} ${randomUUID().slice(0, 4)}`;
+    const label = createTestName("E2E 넓은 닉네임", testInfo);
     const { eventId } = await createMemberContent({ memberId, label });
     await signInToHome(page, email, password);
 

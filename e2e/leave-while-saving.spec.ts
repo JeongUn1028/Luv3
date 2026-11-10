@@ -8,6 +8,7 @@ import { pickDate } from "./support/date-picker";
 import { createDisposableEvent, createDisposableRecord, createDisposableTodo, deleteEventsByTitle, deleteRecordWithFiles, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { getSubmitButton, getTab, pickPhoto } from "./support/actions";
+import { createTestName } from "./support/names";
 
 const CREATE_RECORD_URL = "**/rest/v1/rpc/create_date_record";
 const UPDATE_RECORD_URL = "**/rest/v1/rpc/update_date_record";
@@ -65,7 +66,7 @@ const getRecordId = (requestBody: string): string => {
 test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
   test("기록 저장이 끝나도 보던 화면에 남고, 저장했다고 알리며, 알림에서 새 기록을 볼 수 있다", async ({ page }, testInfo) => {
     // Arrange
-    const title = `E2E 나가도 저장 ${testInfo.project.name}`;
+    const title = createTestName("E2E 나가도 저장", testInfo);
     await fillNewRecord(page, title);
     const save = await holdSaveRequest(page, CREATE_RECORD_URL);
     await getSubmitButton(page).tap();
@@ -94,7 +95,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
 
   test("기록 저장이 끝난 뒤 브라우저 뒤로 가기로 숨겨 둔 목록에 돌아가도 새 기록이 보인다", async ({ page }, testInfo) => {
     // Arrange
-    const title = `E2E 뒤로 가기 ${testInfo.project.name}`;
+    const title = createTestName("E2E 뒤로 가기", testInfo);
     await fillNewRecord(page, title);
     const save = await holdSaveRequest(page, CREATE_RECORD_URL);
     await getSubmitButton(page).tap();
@@ -117,7 +118,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
 
   test("기록 저장에 실패하면 닫을 때까지 알리고, 돌아가면 쓴 내용과 사진이 남아 있으며 다시 저장할 수 있다", async ({ page }, testInfo) => {
     // Arrange
-    const title = `E2E 나가서 실패 ${testInfo.project.name}`;
+    const title = createTestName("E2E 나가서 실패", testInfo);
     await fillNewRecord(page, title);
     await page.locator("#memo").fill("지워지면 안 되는 글");
     const save = await holdSaveRequest(page, CREATE_RECORD_URL, failRequest);
@@ -160,7 +161,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
   });
 
   test("여러 화면을 다녀와 폼이 사라져도 저장에 실패한 내용과 사진은 돌아가면 남아 있다", async ({ page }, testInfo) => {
-    const title = `E2E 멀리 나가서 실패 ${testInfo.project.name}`;
+    const title = createTestName("E2E 멀리 나가서 실패", testInfo);
     await fillNewRecord(page, title);
     const save = await holdSaveRequest(page, CREATE_RECORD_URL, failRequest);
     await getSubmitButton(page).tap();
@@ -188,7 +189,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
   test("기록 고치기에 실패해도 돌아가면 고친 글이 남아 있다", async ({ page }, testInfo) => {
     // Arrange: 고치기 화면은 열 때마다 새로 만들어지므로, 그냥 돌아가면 고친 내용이 사라진다
     const id = randomUUID();
-    const deleteRecord = await createDisposableRecord({ id, title: `E2E 고치다 실패 ${testInfo.project.name}` });
+    const deleteRecord = await createDisposableRecord({ id, title: createTestName("E2E 고치다 실패", testInfo) });
     try {
       await openScreen(page, `/dates/${id}/edit`, page.locator("#memo").locator("visible=true"));
       await page.locator("#memo").fill("고친 글");
@@ -212,7 +213,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
   });
 
   test("저장 중에 나갔다가 폼으로 돌아와 있으면 평소처럼 목록으로 가고 알림은 띄우지 않는다", async ({ page }, testInfo) => {
-    const title = `E2E 돌아와서 저장 ${testInfo.project.name}`;
+    const title = createTestName("E2E 돌아와서 저장", testInfo);
     await fillNewRecord(page, title);
     const save = await holdSaveRequest(page, CREATE_RECORD_URL);
     await getSubmitButton(page).tap();
@@ -237,7 +238,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
 
   test("하고 싶은 것 저장이 끝나도 다른 폼에 쓰던 내용을 지우지 않고, 나중에 목록을 열면 보인다", async ({ page }, testInfo) => {
     // Arrange
-    const content = `E2E 나가도 저장 ${testInfo.project.name}`;
+    const content = createTestName("E2E 나가도 저장", testInfo);
     await openScreen(page, "/todos/new", page.locator("#todo-content"));
     await page.locator("#todo-content").fill(content);
     const save = await holdSaveRequest(page, TODOS_URL);
@@ -271,7 +272,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
 
   test("하고 싶은 것을 고치다 실패해도 돌아가면 고친 내용이 남아 있다", async ({ page }, testInfo) => {
     const id = randomUUID();
-    const deleteTodo = await createDisposableTodo({ id, content: `E2E 고칠 항목 ${testInfo.project.name}` });
+    const deleteTodo = await createDisposableTodo({ id, content: createTestName("E2E 고칠 항목", testInfo) });
     try {
       await openScreen(page, `/todos/${id}/edit`, page.locator("#todo-content"));
       await page.locator("#todo-content").fill("고친 항목");
@@ -296,7 +297,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
   test("고치기를 저장한 뒤 숨겨 둔 폼으로 돌아오면 저장한 값이 보인다", async ({ page }, testInfo) => {
     // Arrange: 예전 값이 남아 있으면 다시 저장할 때 방금 고친 내용을 덮어쓴다
     const id = randomUUID();
-    const deleteTodo = await createDisposableTodo({ id, content: `E2E 고쳐 저장 ${testInfo.project.name}` });
+    const deleteTodo = await createDisposableTodo({ id, content: createTestName("E2E 고쳐 저장", testInfo) });
     try {
       await openScreen(page, `/todos/${id}/edit`, page.locator("#todo-content"));
       await page.locator("#todo-content").fill("고쳐서 저장한 항목");
@@ -321,7 +322,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
 
   test("다른 폼을 쓰는 중에 저장이 끝나도 뒤로 가기로 돌아간 목록에 새 항목이 보인다", async ({ page }, testInfo) => {
     // Arrange
-    const content = `E2E 폼에서 뒤로 ${testInfo.project.name}`;
+    const content = createTestName("E2E 폼에서 뒤로", testInfo);
     await openScreen(page, "/todos/new", page.locator("#todo-content"));
     await page.locator("#todo-content").fill(content);
     const save = await holdSaveRequest(page, TODOS_URL);
@@ -353,7 +354,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
 
   test("실패 알림은 다른 길로 폼에 돌아와도 사라지고, 실패한 내용은 한 번만 채운다", async ({ page }, testInfo) => {
     // Arrange
-    const content = `E2E 한 번만 ${testInfo.project.name}`;
+    const content = createTestName("E2E 한 번만", testInfo);
     await openScreen(page, "/todos/new", page.locator("#todo-content"));
     await page.locator("#todo-content").fill(content);
     const save = await holdSaveRequest(page, TODOS_URL, failRequest);
@@ -386,7 +387,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
 
   test("고치는 항목이 이미 지워져 실패하면 쓴 내용이 남아 있다고 안내하지 않는다", async ({ page }, testInfo) => {
     const id = randomUUID();
-    const deleteTodo = await createDisposableTodo({ id, content: `E2E 지워질 항목 ${testInfo.project.name}` });
+    const deleteTodo = await createDisposableTodo({ id, content: createTestName("E2E 지워질 항목", testInfo) });
     try {
       await openScreen(page, `/todos/${id}/edit`, page.locator("#todo-content"));
       await page.locator("#todo-content").fill("고친 항목");
@@ -410,7 +411,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
   });
 
   test("일정 저장이 끝나도 보던 화면에 남고, 알림에서 일정을 볼 수 있다", async ({ page }, testInfo) => {
-    const title = `E2E 나가도 일정 ${testInfo.project.name}`;
+    const title = createTestName("E2E 나가도 일정", testInfo);
     await openScreen(page, "/events/new", page.locator("#event-memo"));
     await page.locator("#event-title").fill(title);
     const save = await holdSaveRequest(page, EVENTS_URL);
@@ -435,7 +436,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
 
   test("일정을 고치다 실패해도 돌아가면 고친 내용이 남아 있다", async ({ page }, testInfo) => {
     const id = randomUUID();
-    const deleteEvent = await createDisposableEvent({ id, title: `E2E 고칠 일정 ${testInfo.project.name}` });
+    const deleteEvent = await createDisposableEvent({ id, title: createTestName("E2E 고칠 일정", testInfo) });
     try {
       await openScreen(page, `/events/${id}/edit`, page.locator("#event-memo"));
       await page.locator("#event-title").fill("고친 일정");

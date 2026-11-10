@@ -6,6 +6,7 @@ import { TODOS_PATH } from "@/lib/todos/list";
 import { PHOTO_RECORD } from "./support/constants";
 import { createDisposableTodo } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 const MINUTE_MS = 60_000;
 
@@ -23,7 +24,7 @@ const isScreenRequest = (request: Request, pathname: string): boolean => {
 test.describe("홈 화면 앱으로 돌아오면", () => {
   test("받은 지 30분이 지났으면 지금 화면을 새로 받아 상대가 더한 내용이 보인다", async ({ page }, testInfo) => {
     // Arrange
-    const content = `E2E 30분 뒤 복귀 ${testInfo.project.name}`;
+    const content = createTestName("E2E 30분 뒤 복귀", testInfo);
     await page.clock.install();
     await openScreen(page, TODOS_PATH, page.locator("main ul"));
     const deleteTodo = await createDisposableTodo({ id: randomUUID(), content });
@@ -41,7 +42,7 @@ test.describe("홈 화면 앱으로 돌아오면", () => {
 
   test("잠깐 다녀왔으면 새로 받지 않는다", async ({ page }, testInfo) => {
     // Arrange
-    const content = `E2E 잠깐 복귀 ${testInfo.project.name}`;
+    const content = createTestName("E2E 잠깐 복귀", testInfo);
     await page.clock.install();
     await openScreen(page, TODOS_PATH, page.locator("main ul"));
     const deleteTodo = await createDisposableTodo({ id: randomUUID(), content });
@@ -65,7 +66,7 @@ test.describe("홈 화면 앱으로 돌아오면", () => {
 
   test("한국 날짜가 바뀌었으면 30분이 안 돼도 새로 받는다", async ({ page }, testInfo) => {
     // Arrange: 오늘 0시 10분 전에 연 것으로 친다. 로그인 토큰이 만료로 보이지 않게 지난 시각을 쓴다
-    const content = `E2E 자정 넘겨 복귀 ${testInfo.project.name}`;
+    const content = createTestName("E2E 자정 넘겨 복귀", testInfo);
     const todayMidnight = new Date(`${toKstDate(new Date())}T00:00:00+09:00`).getTime();
     await page.clock.install({ time: todayMidnight - 10 * MINUTE_MS });
     await openScreen(page, TODOS_PATH, page.locator("main ul"));
@@ -84,7 +85,7 @@ test.describe("홈 화면 앱으로 돌아오면", () => {
 
   test("폼을 쓰는 중이면 쓰던 내용을 지키고, 목록으로 돌아가면 새로 받는다", async ({ page }, testInfo) => {
     // Arrange
-    const content = `E2E 폼에서 복귀 ${testInfo.project.name}`;
+    const content = createTestName("E2E 폼에서 복귀", testInfo);
     await page.clock.install();
     await openScreen(page, TODOS_PATH, page.locator("main ul"));
     await page.locator('a[href="/todos/new"]').locator("visible=true").first().tap();

@@ -8,6 +8,7 @@ import {
   skipEventDate,
 } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 // 다른 테스트가 쓰지 않는 지난 달. 기기마다 달을 나눠 두 기기가 함께 돌아도(main 머지 때) 날짜 칸의 기록 수가 섞이지 않는다
 const getMonth = (testInfo: TestInfo): string => (testInfo.project.name === "iphone-17" ? "2020-06" : "2020-05");
@@ -25,7 +26,7 @@ test.describe("캘린더에서 일정과 이어진 기록", () => {
     // Arrange
     const date = `${getMonth(testInfo)}-04`;
     const eventId = randomUUID();
-    const title = `E2E 합치기 하루 ${testInfo.project.name}`;
+    const title = createTestName("E2E 합치기 하루", testInfo);
     const linkedTitle = `${title} 남긴 글`;
     const writtenTitle = `${title} 직접 쓴 글`;
     const deleteEvent = await createDisposableEvent({ id: eventId, title, date });
@@ -51,7 +52,7 @@ test.describe("캘린더에서 일정과 이어진 기록", () => {
     // Arrange
     const month = getMonth(testInfo);
     const eventId = randomUUID();
-    const title = `E2E 합치기 기간 ${testInfo.project.name}`;
+    const title = createTestName("E2E 합치기 기간", testInfo);
     const linkedTitle = `${title} 남긴 글`;
     const deleteEvent = await createDisposablePeriodEvent({ id: eventId, title, date: `${month}-10`, endDate: `${month}-12` });
     const linkedId = randomUUID();
@@ -83,7 +84,7 @@ test.describe("캘린더에서 일정과 이어진 기록", () => {
     // Arrange: 상대가 그날 일정만 지운 경우다
     const month = getMonth(testInfo);
     const eventId = randomUUID();
-    const title = `E2E 합치기 반복 ${testInfo.project.name}`;
+    const title = createTestName("E2E 합치기 반복", testInfo);
     const linkedTitle = `${title} 남긴 글`;
     const deleteEvent = await createDisposableRepeatingEvent({ id: eventId, title, date: `${month}-17`, repeatRule: "weekly", repeatUntil: `${month}-30` });
     const deleteLinked = await createDisposableRecord({ id: randomUUID(), title: linkedTitle, date: `${month}-24`, eventLink: { eventId, eventDate: `${month}-24` } });

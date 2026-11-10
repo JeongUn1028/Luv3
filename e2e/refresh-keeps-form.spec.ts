@@ -6,6 +6,7 @@ import { PHOTO_FIXTURE_PATH } from "./support/constants";
 import { createDisposableTodo } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { getTab } from "./support/actions";
+import { createTestName } from "./support/names";
 
 const NEW_TODO_PATH = "/todos/new";
 
@@ -121,7 +122,7 @@ test.describe("다른 화면의 저장이 끝나 새로 받을 때", () => {
 
   test("하고 싶은 것을 체크하는 사이 폼 링크를 누르면 저장이 끝난 뒤 폼이 열리고, 쓴 내용이 남으며, 목록에 돌아가면 체크돼 있다", async ({ page }, testInfo) => {
     // Arrange
-    const content = `E2E 체크 중 폼 ${testInfo.project.name}`;
+    const content = createTestName("E2E 체크 중 폼", testInfo);
     const deleteTodo = await createDisposableTodo({ id: randomUUID(), content });
     try {
       await openScreen(page, TODOS_PATH, page.getByRole("checkbox", { name: `${content} 완료` }));

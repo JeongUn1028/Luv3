@@ -3,6 +3,7 @@ import type { Page } from "@playwright/test";
 import { createDisposableRecord, deleteRecordWithFiles, getRecordIdsByTitle, getRecordLocation, setRecordLocation } from "./support/seed";
 import { pickPhoto } from "./support/actions";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
+import { createTestName } from "./support/names";
 
 const SEONGSU = { id: "1", name: "성수 카페", address: "서울 성동구 연무장길 1", lat: 37.5445, lng: 127.0561 };
 
@@ -241,7 +242,7 @@ test.describe("기록 장소 찾기", () => {
 
   test("저장한 뒤 새 기록 폼을 다시 열면 지난 찾기 결과가 남아 있지 않다", async ({ page }, testInfo) => {
     // Arrange
-    const title = `E2E 찾기 결과 비우기 ${testInfo.project.name}`;
+    const title = createTestName("E2E 찾기 결과 비우기", testInfo);
     await fakePlaceSearch(page, { items: [SEONGSU] });
     await openScreen(page, "/dates/new", page.locator("#memo"));
     await pickPhoto(page, 1);
