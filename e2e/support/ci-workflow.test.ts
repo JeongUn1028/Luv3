@@ -1,10 +1,12 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
 /** main 보호의 필수 상태 검사로 등록한 E2E 잡 이름(README "필수 상태 검사", #189) */
 const REQUIRED_E2E_CHECK = "test:e2e";
+/** 잡 시간 제한의 상한. 기본값(6시간)이나 그에 가까운 값으로 되돌리면 실패하게 한다 */
+const MAX_JOB_MINUTES = 30;
 const SHARD_ARGUMENT = "--shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}";
 
 interface WorkflowStep {
@@ -16,6 +18,8 @@ interface WorkflowJob {
   name?: string;
   needs?: string | string[];
   if?: string;
+  "timeout-minutes"?: number;
+  uses?: string;
   strategy?: { "fail-fast"?: boolean; matrix?: Record<string, unknown> };
   steps?: WorkflowStep[];
 }
@@ -26,16 +30,16 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const isNumberList = (value: unknown): value is number[] =>
   Array.isArray(value) && value.every((item) => typeof item === "number");
 
-const readJobs = (): Record<string, WorkflowJob> => {
-  const workflow: unknown = parse(
-    readFileSync(join(import.meta.dirname, "..", "..", ".github", "workflows", "ci.yml"), "utf8"),
-  );
-  if (!isRecord(workflow) || !isRecord(workflow.jobs)) throw new Error("ci.yml에 jobs가 없습니다");
+const WORKFLOW_DIR = join(import.meta.dirname, "..", "..", ".github", "workflows");
+
+const readJobs = (fileName: string): Record<string, WorkflowJob> => {
+  const workflow: unknown = parse(readFileSync(join(WORKFLOW_DIR, fileName), "utf8"));
+  if (!isRecord(workflow) || !isRecord(workflow.jobs)) throw new Error(`${fileName}에 jobs가 없습니다`);
   // 잡의 세부 칸은 아래 단언이 하나씩 확인한다
   return workflow.jobs as Record<string, WorkflowJob>;
 };
 
-const jobs = readJobs();
+const jobs = readJobs("ci.yml");
 
 const toList = (value: string | string[] | undefined): string[] => (value === undefined ? [] : [value].flat());
 
@@ -92,5 +96,25 @@ describe("CI의 E2E 나눠 돌리기", () => {
       expect(shardIndex).toEqual(Array.from({ length: shardTotal[0] }, (_, index) => index + 1));
       expect((steps ?? []).some((step) => step.run?.includes(SHARD_ARGUMENT))).toBe(true);
     }
+  });
+});
+
+describe("워크플로 잡의 시간 제한", () => {
+  it("잡이 멈추면 정해 둔 시간 안에 끝난다", () => {
+    // 시간 제한이 없으면 멈춘 잡이 기본 6시간 동안 러너를 잡고 필수 검사도 그동안 기다린다(#241)
+    const unlimited = readdirSync(WORKFLOW_DIR)
+      .filter((fileName) => /\.ya?ml$/.test(fileName))
+      .flatMap((fileName) =>
+        Object.entries(readJobs(fileName))
+          // 다른 워크플로를 불러 쓰는 잡은 timeout-minutes를 받지 않는다(불려 간 워크플로의 잡이 제한을 둔다)
+          .filter(([, job]) => job.uses === undefined)
+          .filter(([, job]) => {
+            const minutes = job["timeout-minutes"];
+            return typeof minutes !== "number" || minutes <= 0 || minutes > MAX_JOB_MINUTES;
+          })
+          .map(([id]) => `${fileName}: ${id}`),
+      );
+
+    expect(unlimited).toEqual([]);
   });
 });
