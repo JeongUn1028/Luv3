@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { listAlbumObjects } from "../../src/lib/photos/album-files.ts";
 import { ALBUM_BUCKET } from "../../src/lib/photos/limits.ts";
 import { parseLastMigration, pickServiceKey, toBackupFile, type BackupFile, type ProjectApiKey } from "./lib.mts";
 
@@ -15,9 +16,6 @@ export interface SupabaseConnection {
 }
 
 const CLI_PATH = path.join(REPO_ROOT, "node_modules/supabase/dist/supabase.js");
-const LIST_PAGE_SIZE = 1000;
-// 대시보드에서 폴더를 만들면 생기는 빈 표시 파일이다. 사진이 아니고 버킷 형식 제한에도 걸린다
-const FOLDER_PLACEHOLDER = ".emptyFolderPlaceholder";
 // 글자만 담긴 덤프라 이 크기를 넘을 일은 없다. 넘으면 잘린 파일을 남기지 않고 실패한다
 const MAX_DUMP_BYTES = 512 * 1024 ** 2;
 const LAST_MIGRATION_QUERY = "select max(version) as version from supabase_migrations.schema_migrations";
@@ -115,28 +113,8 @@ export const getLinkedConnection = (): SupabaseConnection => {
  *
  * @example const files = await listAlbumFiles(client);
  */
-export const listAlbumFiles = async (client: SupabaseClient, prefix = ""): Promise<BackupFile[]> => {
-  const files: BackupFile[] = [];
-
-  for (let offset = 0; ; offset += LIST_PAGE_SIZE) {
-    const { data, error } = await client.storage
-      .from(ALBUM_BUCKET)
-      .list(prefix, { limit: LIST_PAGE_SIZE, offset, sortBy: { column: "name", order: "asc" } });
-
-    if (error) throw new Error(`파일 목록을 받지 못했습니다(${prefix || "맨 위"}): ${error.message}`);
-
-    for (const item of data) {
-      if (item.name === FOLDER_PLACEHOLDER) continue;
-
-      const itemPath = prefix ? `${prefix}/${item.name}` : item.name;
-      // Storage 목록에서 id가 없는 항목은 폴더다
-      if (item.id === null) files.push(...(await listAlbumFiles(client, itemPath)));
-      else files.push(toBackupFile(itemPath, item.metadata?.size));
-    }
-
-    if (data.length < LIST_PAGE_SIZE) return files;
-  }
-};
+export const listAlbumFiles = async (client: SupabaseClient): Promise<BackupFile[]> =>
+  (await listAlbumObjects(client.storage.from(ALBUM_BUCKET))).map((file) => toBackupFile(file.path, file.size));
 
 /**
  * 폴더 아래 파일의 크기를 `/`로 구분한 상대 경로 기준으로 돌려준다. 폴더가 없으면 비어 있다.
