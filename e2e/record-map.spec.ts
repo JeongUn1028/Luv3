@@ -1,53 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { RECORDS_MAP_PATH } from "@/lib/dates/map";
+import { createUniqueLocation, fakeMapSdk, KAKAO_SDK_URL, type FakeWindow } from "./support/fake-kakao-map";
 import { createDisposableRecord, setRecordLocation } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
-
-const SDK_URL = "**/dapi.kakao.com/v2/maps/sdk.js*";
-
-/** 실제 카카오를 부르지 않게 지도 SDK를 대신한다. 그린 핀과 지도 수를 창에 남겨 테스트가 읽고 누른다 */
-const FAKE_SDK = `
-window.fakeMap = { markers: [], mapCount: 0, boundsCount: 0, centerCount: 0 };
-window.kakao = {
-  maps: {
-    load: (callback) => callback(),
-    LatLng: class { constructor(lat, lng) { this.lat = lat; this.lng = lng; } },
-    LatLngBounds: class { extend() {} },
-    Map: class {
-      constructor() { window.fakeMap.mapCount += 1; }
-      setBounds() { window.fakeMap.boundsCount += 1; }
-      setCenter() { window.fakeMap.centerCount += 1; }
-      relayout() {}
-    },
-    Marker: class {
-      constructor({ position, title }) { this.position = position; this.title = title; }
-      setMap(map) {
-        window.fakeMap.markers = window.fakeMap.markers.filter((marker) => marker !== this);
-        if (map) window.fakeMap.markers.push(this);
-      }
-    },
-    event: { addListener: (target, type, handler) => { target[type] = handler; } },
-  },
-};
-`;
-
-/** 페이지에서 읽는 가짜 지도의 모양 */
-interface FakeWindow extends Window {
-  fakeMap: {
-    markers: { title: string; click: () => void }[];
-    mapCount: number;
-    boundsCount: number;
-    centerCount: number;
-  };
-}
-
-const fakeMapSdk = async (page: Page): Promise<void> => {
-  await page.route(SDK_URL, (route) => route.fulfill({ contentType: "text/javascript", body: FAKE_SDK }));
-};
-
-/** 나란히 도는 다른 테스트의 기록과 같은 핀으로 묶이지 않도록 테스트마다 자리를 따로 쓴다 */
-const createUniqueLocation = (): { lat: number; lng: number } => ({ lat: 33 + Math.random() * 5, lng: 125 + Math.random() * 5 });
 
 const createPinnedRecord = async ({ title, place, lat, lng }: { title: string; place: string; lat: number; lng: number }): Promise<{ id: string; remove: () => Promise<void> }> => {
   const id = randomUUID();
@@ -75,7 +31,11 @@ const waitForMarker = async (page: Page, title: string): Promise<void> => {
 const pressMarker = async (page: Page, title: string): Promise<void> => {
   await waitForMarker(page, title);
   await page.evaluate((name) => {
-    (window as unknown as FakeWindow).fakeMap.markers.find((marker) => marker.title === name)?.click();
+    const { fakeMap } = window as unknown as FakeWindow;
+    fakeMap.fire(
+      fakeMap.markers.find((marker) => marker.title === name),
+      "click",
+    );
   }, title);
 };
 
@@ -293,7 +253,7 @@ test.describe("기록 지도", () => {
     // Arrange
     const place = `E2E 지도 실패 ${randomUUID()}`;
     const { remove } = await createPinnedRecord({ title: "E2E 지도 실패 기록", place, ...createUniqueLocation() });
-    await page.route(SDK_URL, (route) => route.abort());
+    await page.route(KAKAO_SDK_URL, (route) => route.abort());
 
     try {
       // Act
@@ -303,7 +263,7 @@ test.describe("기록 지도", () => {
       await expect(page.getByRole("alert").filter({ hasText: "지도를 불러오지 못했어요" })).toBeVisible();
 
       // Act
-      await page.unroute(SDK_URL);
+      await page.unroute(KAKAO_SDK_URL);
       await fakeMapSdk(page);
       await page.getByRole("button", { name: "다시 시도" }).click();
 
@@ -315,14 +275,10 @@ test.describe("기록 지도", () => {
     }
   });
 
-  test("SDK는 주소에 autoload=false를 붙여 부른다", async ({ page }) => {
+  test("SDK는 주소에 autoload=false와 묶음 기능(clusterer)을 붙여 부른다", async ({ page }) => {
     // Arrange
     const { remove } = await createPinnedRecord({ title: "E2E SDK 주소", place: `E2E SDK ${randomUUID()}`, ...createUniqueLocation() });
-    const urls: string[] = [];
-    await page.route(SDK_URL, (route) => {
-      urls.push(route.request().url());
-      return route.fulfill({ contentType: "text/javascript", body: FAKE_SDK });
-    });
+    const urls = await fakeMapSdk(page);
 
     try {
       // Act
@@ -333,6 +289,7 @@ test.describe("기록 지도", () => {
       const { searchParams, protocol } = new URL(urls[0] ?? "");
       expect(protocol).toBe("https:");
       expect(searchParams.get("autoload")).toBe("false");
+      expect(searchParams.get("libraries")).toBe("clusterer");
       expect(searchParams.get("appkey")).toBe("e2e-dummy");
     } finally {
       await remove();

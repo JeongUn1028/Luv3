@@ -2,12 +2,10 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { catchLoadError } from "@/lib/load";
-import { readAllRows } from "@/lib/supabase/read-all-rows";
 import { getHomePhotoSignedUrls, getSignedUrls } from "@/lib/photos/signed-urls";
 import { toLatestRecord, toTagSuggestions, type LatestRecord } from "./album";
 import type { AlbumFirstPage } from "./album-pages";
 import { isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
-import { compareNewestFirst, toMapPins, type MapPin } from "./map";
 import { ALL_RECORDS_FIRST_PAGE, loadRecordPage } from "./search-queries";
 
 /** 앨범 그리드를 불러오지 못했을 때 */
@@ -70,35 +68,6 @@ export const getLatestRecord = async (): Promise<LatestRecord | undefined> => {
   if (signError) throw new AlbumLoadError({ cause: signError });
 
   return toLatestRecord(rows, signed);
-};
-
-/** 지도의 핀을 불러오지 못했을 때 */
-export class MapPinLoadError extends Error {
-  constructor(options?: ErrorOptions) {
-    super("지도에 표시할 기록을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", options);
-    this.name = "MapPinLoadError";
-  }
-}
-
-/**
- * 좌표가 있는 기록을 최신순으로 읽어 지도의 핀으로 묶는다. 1000개가 넘어도 잘리지 않게 끝까지 나눠 읽는다(#272).
- *
- * @throws {MapPinLoadError} 조회가 실패했을 때
- * @example const pins = await getMapPins()
- */
-export const getMapPins = async (): Promise<MapPin[]> => {
-  const supabase = await createClient();
-  const rows = await readAllRows({
-    fetchPage: (afterId, limit) => {
-      const query = supabase
-        .from("dates")
-        .select("id, title, date, end_date, place, place_lat, place_lng, created_at")
-        .not("place_lat", "is", null);
-      return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
-    },
-    toError: (cause) => new MapPinLoadError({ cause }),
-  });
-  return toMapPins(rows.toSorted(compareNewestFirst));
 };
 
 class TagSuggestionLoadError extends Error {

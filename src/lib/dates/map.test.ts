@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { compareNewestFirst, toMapPins, toMapPinsSignature, type MapRow } from "./map";
+import { buildMapPins, toMapPins, toMapPinsSignature, type MapPins, type MapRow } from "./map";
+import { compareNewestFirst } from "./map-spots";
+import type { MapPhotoRow } from "./map-spots";
 
 const createRow = (overrides: Partial<MapRow> = {}): MapRow => ({
   id: "1",
@@ -87,24 +89,72 @@ describe("compareNewestFirst", () => {
   });
 });
 
+const createRecordRow = (overrides: Partial<MapRow> = {}) => ({ ...createRow(overrides), created_at: "2026-11-01T10:00:00+00:00" });
+
+const createPhotoRow = (overrides: Partial<MapPhotoRow> = {}): MapPhotoRow => ({
+  id: "p1",
+  date_id: "1",
+  sort_order: 0,
+  place: "성동구 성수1가1동",
+  place_lat: 37.5444,
+  place_lng: 127.0396,
+  record: { date: "2026-11-01", created_at: "2026-11-01T10:00:00+00:00" },
+  ...overrides,
+});
+
+describe("buildMapPins", () => {
+  it("사진에 위치가 있는 기록은 사진 핀으로만 그리고, 사진 위치가 없는 기록은 기록 장소 핀으로 그린다", () => {
+    // Arrange
+    const records = [createRecordRow({ id: "1" }), createRecordRow({ id: "2", place: "망원 카페", place_lng: 126.9 })];
+    const photos = [createPhotoRow({ id: "p1", date_id: "1" })];
+
+    // Act
+    const { photoSpots, recordPins } = buildMapPins({ records, photos });
+
+    // Assert
+    expect(photoSpots.map(({ key, photoIds }) => ({ key, photoIds }))).toEqual([{ key: "p1", photoIds: ["p1"] }]);
+    expect(recordPins.map(({ place, records: pinRecords }) => ({ place, ids: pinRecords.map(({ id }) => id) }))).toEqual([{ place: "망원 카페", ids: ["2"] }]);
+  });
+
+  it("기록 장소 핀은 최신순으로 묶는다", () => {
+    // Arrange
+    const older = { ...createRecordRow({ id: "예전", date: "2026-10-01" }) };
+    const newer = { ...createRecordRow({ id: "최근", date: "2026-11-01" }) };
+
+    // Act
+    const { recordPins } = buildMapPins({ records: [older, newer], photos: [] });
+
+    // Assert
+    expect(recordPins[0]?.records.map(({ id }) => id)).toEqual(["최근", "예전"]);
+  });
+});
+
 describe("toMapPinsSignature", () => {
+  const withRecordPins = (rows: MapRow[]): MapPins => ({ photoSpots: [], recordPins: toMapPins(rows) });
+  const withPhotos = (photos: MapPhotoRow[]): MapPins => buildMapPins({ records: [], photos });
+
   it("새로 받았어도 내용이 같으면 같다", () => {
-    expect(toMapPinsSignature(toMapPins([createRow()]))).toBe(toMapPinsSignature(toMapPins([createRow()])));
+    expect(toMapPinsSignature(withRecordPins([createRow()]))).toBe(toMapPinsSignature(withRecordPins([createRow()])));
   });
 
   it("기록이 더해지면 달라진다", () => {
-    expect(toMapPinsSignature(toMapPins([createRow()]))).not.toBe(toMapPinsSignature(toMapPins([createRow(), createRow({ id: "2" })])));
+    expect(toMapPinsSignature(withRecordPins([createRow()]))).not.toBe(toMapPinsSignature(withRecordPins([createRow(), createRow({ id: "2" })])));
   });
 
   it("자리가 옮겨지면 달라진다", () => {
-    expect(toMapPinsSignature(toMapPins([createRow()]))).not.toBe(toMapPinsSignature(toMapPins([createRow({ place_lat: 35 })])));
+    expect(toMapPinsSignature(withRecordPins([createRow()]))).not.toBe(toMapPinsSignature(withRecordPins([createRow({ place_lat: 35 })])));
   });
 
   it("핀의 이름이 바뀌면 달라진다", () => {
-    expect(toMapPinsSignature(toMapPins([createRow()]))).not.toBe(toMapPinsSignature(toMapPins([createRow({ place: "새 이름" })])));
+    expect(toMapPinsSignature(withRecordPins([createRow()]))).not.toBe(toMapPinsSignature(withRecordPins([createRow({ place: "새 이름" })])));
   });
 
   it("지도에 그리지 않는 제목만 바뀌면 같다", () => {
-    expect(toMapPinsSignature(toMapPins([createRow()]))).toBe(toMapPinsSignature(toMapPins([createRow({ title: "새 제목" })])));
+    expect(toMapPinsSignature(withRecordPins([createRow()]))).toBe(toMapPinsSignature(withRecordPins([createRow({ title: "새 제목" })])));
+  });
+
+  it("사진 핀에 사진이 더해지면 달라진다", () => {
+    const first = createPhotoRow();
+    expect(toMapPinsSignature(withPhotos([first]))).not.toBe(toMapPinsSignature(withPhotos([first, createPhotoRow({ id: "p2", sort_order: 1 })])));
   });
 });

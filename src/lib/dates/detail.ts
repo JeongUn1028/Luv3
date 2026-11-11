@@ -19,6 +19,21 @@ export interface DetailPhoto {
 export const RECORD_PHOTO_PARAM = "photo";
 
 /**
+ * 기록 상세 주소.
+ *
+ * @example toRecordHref("r1") // "/dates/r1"
+ */
+export const toRecordHref = (recordId: string): string => `/dates/${recordId}`;
+
+/**
+ * 그 사진부터 펼치는 기록 상세 주소. 지도의 사진 줄에서 고른 사진으로 갈 때 쓴다.
+ *
+ * @example toRecordPhotoHref({ recordId: "r1", photoId: "p2" }) // "/dates/r1?photo=p2"
+ */
+export const toRecordPhotoHref = ({ recordId, photoId }: { recordId: string; photoId: string }): string =>
+  `${toRecordHref(recordId)}?${new URLSearchParams({ [RECORD_PHOTO_PARAM]: photoId }).toString()}`;
+
+/**
  * 주소에 지정한 사진의 순서. 지정하지 않았거나 그사이 지워진 사진이면 첫 사진(0)부터 보여 준다.
  *
  * @example findStartPhotoIndex(record.photos, "p2") // 1
