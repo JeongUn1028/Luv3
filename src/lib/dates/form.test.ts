@@ -5,18 +5,24 @@ import {
   addTag,
   getMinEndDate,
   hasRecordDraftChanges,
+  isSamePhotoLocation,
   movePhoto,
   normalizeTag,
   parseRecordPrefill,
   pickTagSuggestions,
   removePhoto,
+  setPhotoLocation,
   toCreateRecordArgs,
   validateDraft,
   type DateRecordDraft,
+  type PhotoLocation,
 } from "./form";
 
+const ONION: PhotoLocation = { place: "어니언 성수", lat: 37.5447, lng: 127.0582 };
+const FOREST: PhotoLocation = { place: "서울숲", lat: 37.5444, lng: 127.0374 };
+
 const TODAY = "2026-11-02";
-const photo = (id: string, caption = "") => ({ id, caption });
+const photo = (id: string, caption = "", location: PhotoLocation | undefined = undefined) => ({ id, caption, location });
 const draft = (overrides: Partial<DateRecordDraft> = {}): DateRecordDraft => ({
   date: "2026-11-01",
   endDate: undefined,
@@ -144,6 +150,38 @@ describe("movePhoto", () => {
   });
 });
 
+describe("setPhotoLocation", () => {
+  it("고른 사진의 위치만 바꾸고 나머지 사진은 그대로 둔다", () => {
+    // Arrange
+    const photos = [photo("a", "", ONION), photo("b")];
+
+    // Act
+    const changed = setPhotoLocation(photos, "b", FOREST);
+
+    // Assert
+    expect(changed.map(({ location }) => location)).toEqual([ONION, FOREST]);
+    expect(changed[0]).toBe(photos[0]);
+  });
+
+  it("undefined를 넘기면 그 사진의 위치를 지운다", () => {
+    expect(setPhotoLocation([photo("a", "", ONION)], "a", undefined)[0]?.location).toBeUndefined();
+  });
+});
+
+describe("isSamePhotoLocation", () => {
+  it("이름과 좌표가 모두 같거나 둘 다 없으면 같은 곳이다", () => {
+    expect([isSamePhotoLocation(ONION, { ...ONION }), isSamePhotoLocation(undefined, undefined)]).toEqual([true, true]);
+  });
+
+  it("이름이나 좌표 하나라도 다르거나 한쪽만 있으면 다른 곳이다", () => {
+    expect([
+      isSamePhotoLocation(ONION, { ...ONION, place: "어니언" }),
+      isSamePhotoLocation(ONION, { ...ONION, lng: 127 }),
+      isSamePhotoLocation(ONION, undefined),
+    ]).toEqual([false, false, false]);
+  });
+});
+
 describe("toCreateRecordArgs", () => {
   it("기록 작성 함수 인자로 바꾸고 앞뒤 공백을 지운다", () => {
     const args = toCreateRecordArgs(
@@ -163,13 +201,27 @@ describe("toCreateRecordArgs", () => {
       p_place: "성수",
       p_memo: "좋았다",
       p_photos: [
-        { id: "a", caption: "카페" },
-        { id: "b", caption: "" },
+        { id: "a", caption: "카페", location: null },
+        { id: "b", caption: "", location: null },
       ],
       p_cover_photo_id: "b",
       p_tags: [],
       p_place_location: {},
     });
+  });
+
+  it("사진 위치는 이름·좌표만 넘기고, 위치가 없는 사진은 null로 넘겨 지우게 한다", () => {
+    // Arrange
+    const withPreview = { ...photo("a", "", ONION), previewUrl: "blob:a" };
+
+    // Act
+    const args = toCreateRecordArgs("r1", draft({ photos: [withPreview, photo("b")], coverPhotoId: "a" }));
+
+    // Assert
+    expect(args.p_photos).toEqual([
+      { id: "a", caption: "", location: ONION },
+      { id: "b", caption: "", location: null },
+    ]);
   });
 
   it("태그를 넘겨 다 지운 기록도 빈 목록으로 저장한다", () => {
@@ -310,7 +362,7 @@ describe("pickTagSuggestions", () => {
 });
 
 describe("hasRecordDraftChanges", () => {
-  it("쓴 내용(칸·사진·사진 한마디·태그)이 처음과 다르면 바뀌었다고 본다", () => {
+  it("쓴 내용(칸·사진·사진 한마디·태그·사진 위치)이 처음과 다르면 바뀌었다고 본다", () => {
     const initial = draft();
 
     expect([
@@ -318,7 +370,8 @@ describe("hasRecordDraftChanges", () => {
       hasRecordDraftChanges(initial, draft({ photos: [photo("p1"), photo("p2")] })),
       hasRecordDraftChanges(initial, draft({ photos: [photo("p1", "카페")] })),
       hasRecordDraftChanges(initial, draft({ tags: ["산책"] })),
-    ]).toEqual([true, true, true, true]);
+      hasRecordDraftChanges(initial, draft({ photos: [photo("p1", "", ONION)] })),
+    ]).toEqual([true, true, true, true, true]);
   });
 
   // 저장 시도에 쓰는 판 번호와, 다시 연 폼에서 새로 만드는 미리보기 주소는 쓴 내용이 아니다

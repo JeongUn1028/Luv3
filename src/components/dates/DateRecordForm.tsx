@@ -21,6 +21,7 @@ import {
   hasRecordDraftChanges,
   movePhoto,
   removePhoto,
+  setPhotoLocation,
   validateDraft,
   type DateRecordDraft,
   type DraftErrors,
@@ -204,6 +205,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
     const picked = images.map((file) => ({
       id: crypto.randomUUID(),
       caption: "",
+      location: undefined,
       file,
       previewUrl: previews.create(file),
     }));
@@ -359,6 +361,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
           coverPhotoId={draft.coverPhotoId}
           errors={errors}
           isDisabled={isSaving}
+          canSearchPlace={canSearchPlace}
           onAdd={handleAddPhotos}
           onRemove={handleRemovePhoto}
           onMove={(index, offset) => setDraft({ ...draft, photos: movePhoto(draft.photos, index, offset) })}
@@ -370,6 +373,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
             setErrors((current) => clearError(current, `caption:${photoId}`));
           }}
           onCoverChange={(photoId) => setDraft({ ...draft, coverPhotoId: photoId })}
+          onLocationChange={(photoId, location) => setDraft({ ...draft, photos: setPhotoLocation(draft.photos, photoId, location) })}
         />
 
         <div className="flex flex-col">

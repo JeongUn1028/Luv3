@@ -29,3 +29,6 @@ export const COUPLE_PHOTO_PATH = "couple/e2e00000-0000-4000-8000-000000000031.jp
 export const PHOTO_COUNT = 3;
 
 export const PHOTO_FIXTURE_PATH = "e2e/fixtures/photo.jpg";
+
+/** 창(ModalDialog)이 열린 직후 누름을 받지 않는 시간(DOUBLE_TAP_GUARD_MS)보다 조금 길게. 연 다음 이만큼 기다린 뒤 창 안을 누른다 */
+export const MODAL_OPEN_GUARD_WAIT_MS = 350;

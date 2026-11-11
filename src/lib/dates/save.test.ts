@@ -25,8 +25,8 @@ const draft: DateRecordDraft = {
   tags: [],
   location: undefined,
   photos: [
-    { id: PHOTO_A, caption: "카페" },
-    { id: PHOTO_B, caption: "" },
+    { id: PHOTO_A, caption: "카페", location: undefined },
+    { id: PHOTO_B, caption: "", location: undefined },
   ],
   coverPhotoId: PHOTO_A,
 };
@@ -228,8 +228,8 @@ describe("updateDateRecord", () => {
   const editedDraft: DateRecordDraft = {
     ...draft,
     photos: [
-      { id: PHOTO_C, caption: "새 사진" },
-      { id: PHOTO_A, caption: "카페" },
+      { id: PHOTO_C, caption: "새 사진", location: undefined },
+      { id: PHOTO_A, caption: "카페", location: undefined },
     ],
     coverPhotoId: PHOTO_C,
   };
@@ -257,8 +257,8 @@ describe("updateDateRecord", () => {
       expect.objectContaining({
         p_id: RECORD_ID,
         p_photos: [
-          { id: PHOTO_C, caption: "새 사진" },
-          { id: PHOTO_A, caption: "카페" },
+          { id: PHOTO_C, caption: "새 사진", location: null },
+          { id: PHOTO_A, caption: "카페", location: null },
         ],
         p_cover_photo_id: PHOTO_C,
       }),
@@ -274,7 +274,7 @@ describe("updateDateRecord", () => {
 
     await updateDateRecord({
       recordId: RECORD_ID,
-      draft: { ...draft, photos: [{ id: PHOTO_A, caption: "" }], coverPhotoId: PHOTO_A },
+      draft: { ...draft, photos: [{ id: PHOTO_A, caption: "", location: undefined }], coverPhotoId: PHOTO_A },
       files: new Map(),
       storage,
       resize,

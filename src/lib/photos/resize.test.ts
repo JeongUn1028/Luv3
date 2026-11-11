@@ -3,7 +3,7 @@ import heic2any from "heic2any";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PhotoError } from "./errors";
 import { BUCKET_FILE_SIZE_LIMIT } from "./limits";
-import { isAcceptedPhoto, isHeic, resizeCouplePhoto, resizePhoto } from "./resize";
+import { isAcceptedPhoto, isHeic, PHOTO_INPUT_ACCEPT, resizeCouplePhoto, resizePhoto } from "./resize";
 
 // 실제 리사이즈는 브라우저 canvas가 필요해 단위 테스트에서는 라이브러리를 대신하고,
 // 어떤 옵션으로 몇 번 부르는지와 결과 처리만 확인한다. 실제 크기는 브라우저 확인에서 본다.
@@ -35,6 +35,18 @@ describe("isAcceptedPhoto", () => {
     expect(isAcceptedPhoto(new File([], "a.gif", { type: "image/gif" }))).toBe(false);
     expect(isAcceptedPhoto(new File([], "a.svg", { type: "image/svg+xml" }))).toBe(false);
     expect(isAcceptedPhoto(new File([], "memo.txt", { type: "text/plain" }))).toBe(false);
+  });
+});
+
+describe("PHOTO_INPUT_ACCEPT", () => {
+  // 아이폰은 HEIC를 받는다고 알리지 않는 칸에 사진을 JPEG로 바꿔 넘기며 위치 정보(GPS)를 지운다(#249, 2026-11-10 실기기 확인).
+  // 빼면 사진 위치 자동 채우기가 조용히 멈추므로 고정한다
+  it("HEIC를 MIME 타입과 확장자로 받는다고 알린다", () => {
+    // Arrange
+    const accepted = PHOTO_INPUT_ACCEPT.split(",");
+
+    // Assert
+    expect(accepted).toEqual(expect.arrayContaining(["image/heic", "image/heif", ".heic", ".heif"]));
   });
 });
 

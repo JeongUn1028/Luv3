@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page, TestInfo } from "@playwright/test";
+import { MODAL_OPEN_GUARD_WAIT_MS } from "./support/constants";
 import { createDisposableEvent, createDisposableRecord } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { createTestName } from "./support/names";
@@ -16,14 +17,12 @@ const getViewLink = (page: Page, title: string): Locator =>
 const getRecordRow = (page: Page, title: string): Locator =>
   page.getByRole("link", { name: new RegExp(`^기록 ${title}( |$)`) }).locator("visible=true");
 const getDialog = (page: Page): Locator => page.getByRole("dialog").locator("visible=true");
-/** ModalDialog의 DOUBLE_TAP_GUARD_MS보다 조금 길게 */
-const OPEN_GUARD_WAIT_MS = 350;
 
 // 고르면 바로 잇는 창은 두 번 누르기를 막으려고 열린 직후 잠깐 누름을 받지 않으므로 그 시간을 기다린다
 const openChooser = async (page: Page, trigger: Locator): Promise<void> => {
   await trigger.click();
   await getDialog(page).waitFor();
-  await page.waitForTimeout(OPEN_GUARD_WAIT_MS);
+  await page.waitForTimeout(MODAL_OPEN_GUARD_WAIT_MS);
 };
 
 test.describe("이미 쓴 기록을 일정에 잇기", () => {

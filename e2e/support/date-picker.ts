@@ -1,7 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
-
-/** ModalDialog의 DOUBLE_TAP_GUARD_MS보다 조금 길게 */
-const OPEN_GUARD_WAIT_MS = 350;
+import { MODAL_OPEN_GUARD_WAIT_MS } from "./constants";
 
 /** 지금 열린 날짜 선택 창 */
 export const getDatePicker = (page: Page): Locator => page.getByRole("dialog").locator("visible=true");
@@ -20,7 +18,7 @@ export const getPickerMonthTitle = (page: Page): Locator => getDatePicker(page).
 export const openDatePicker = async (page: Page, fieldSelector: string): Promise<void> => {
   await page.locator(fieldSelector).locator("visible=true").click();
   await getDatePicker(page).waitFor();
-  await page.waitForTimeout(OPEN_GUARD_WAIT_MS);
+  await page.waitForTimeout(MODAL_OPEN_GUARD_WAIT_MS);
 };
 
 const toMonthNumber = (month: string): number => {

@@ -139,14 +139,14 @@ isOneToOne: false
                   ]
                 },"photos": {
                   Row: {
-                    "caption": string | null,"created_at": string,"date_id": string,"id": string,"path": string,"sort_order": number,"thumb_path": string
+                    "caption": string | null,"created_at": string,"date_id": string,"id": string,"path": string,"place": string | null,"place_lat": number | null,"place_lng": number | null,"sort_order": number,"taken_at": string | null,"thumb_path": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "caption"?: string | null,"created_at"?: string,"date_id": string,"id"?: string,"path": string,"sort_order"?: number,"thumb_path": string
+                    "caption"?: string | null,"created_at"?: string,"date_id": string,"id"?: string,"path": string,"place"?: string | null,"place_lat"?: number | null,"place_lng"?: number | null,"sort_order"?: number,"taken_at"?: string | null,"thumb_path": string
                   }
                   Update: {
-                    "caption"?: string | null,"created_at"?: string,"date_id"?: string,"id"?: string,"path"?: string,"sort_order"?: number,"thumb_path"?: string
+                    "caption"?: string | null,"created_at"?: string,"date_id"?: string,"id"?: string,"path"?: string,"place"?: string | null,"place_lat"?: number | null,"place_lng"?: number | null,"sort_order"?: number,"taken_at"?: string | null,"thumb_path"?: string
                   }
                   Relationships: [
                     {
