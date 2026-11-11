@@ -17,8 +17,8 @@ const row: DetailRow = {
   event_date: null,
   event: null,
   photos: [
-    { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1, place: null, place_lat: null, place_lng: null },
-    { id: "p1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", caption: "카페", sort_order: 0, place: "어니언 성수", place_lat: 37.5447, place_lng: 127.0582 },
+    { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1, place: null, place_lat: null, place_lng: null, taken_at: null },
+    { id: "p1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", caption: "카페", sort_order: 0, place: "어니언 성수", place_lat: 37.5447, place_lng: 127.0582, taken_at: null },
   ],
 };
 
@@ -78,6 +78,23 @@ describe("toDateRecordDetail", () => {
 
   it("작성자를 읽지 못하면 작성자 없이 둔다", () => {
     expect(toDateRecordDetail({ ...row, author: null }, []).authorNickname).toBeUndefined();
+  });
+
+  it("위치가 있는 사진이 두 곳 이상이면 동선을 붙이고, 한 곳뿐이면 붙이지 않는다", () => {
+    // Arrange
+    const secondSpot = { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1, place: "성수 서울숲", place_lat: 37.5443, place_lng: 127.0374, taken_at: null };
+    const [, firstSpot] = row.photos;
+
+    // Act
+    const withRoute = toDateRecordDetail({ ...row, photos: [secondSpot, ...(firstSpot ? [firstSpot] : [])] }, []);
+    const withoutRoute = toDateRecordDetail(row, []);
+
+    // Assert
+    expect(withRoute.route?.points.map(({ number, place }) => [number, place])).toEqual([
+      [1, "어니언 성수"],
+      [2, "성수 서울숲"],
+    ]);
+    expect(withoutRoute.route).toBeUndefined();
   });
 
   it("서명 URL을 받지 못한 사진은 URL 없이 둔다", () => {
