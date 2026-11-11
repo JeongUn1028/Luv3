@@ -1,4 +1,5 @@
-import { callWithRetry, createRowWithRetry, toRejectedOutcome, toSaveFailure, updateRowWithRetry, type SaveFailure, type SaveOutcome } from "@/lib/save-outcome";
+import { saveRowAtRevision } from "@/lib/revision";
+import { callWithRetry, toRejectedOutcome, toSaveFailure, type SaveFailure, type SaveOutcome } from "@/lib/save-outcome";
 import { createClient } from "@/lib/supabase/client";
 import { toEventValues, type EventDraft } from "./form";
 
@@ -50,16 +51,15 @@ const saveOccurrence = async ({ draft, eventId, occurrenceDate, newEventId }: Sa
   return toRejectedOutcome(error, mayHaveApplied);
 };
 
-const saveRow = async ({ draft, eventId, newEventId, revision }: SaveEventParams): Promise<SaveOutcome> => {
-  const events = createClient().from("events");
-  const values = { ...toEventValues(draft), revision };
-  // 불러온 판과 내 앞선 시도의 판만 허용한다. 내 이번 판도 허용해야 응답만 끊긴 요청을 그대로 다시 보낼 수 있다
-  const allowedRevisions = [...(draft.expectedRevisions ?? []), revision];
-  const update = (id: string) => () => events.update(values).eq("id", id).in("revision", allowedRevisions).select("id");
-  const readRow = (id: string) => () => events.select("id").eq("id", id).maybeSingle();
-  if (eventId) return updateRowWithRetry({ update: update(eventId), readRow: readRow(eventId) });
-  return createRowWithRetry({ insert: () => events.insert({ ...values, id: newEventId }), update: update(newEventId), readRow: readRow(newEventId) });
-};
+const saveRow = ({ draft, eventId, newEventId, revision }: SaveEventParams): Promise<SaveOutcome> =>
+  saveRowAtRevision({
+    table: createClient().from("events"),
+    rowId: eventId,
+    newRowId: newEventId,
+    values: toEventValues(draft),
+    expectedRevisions: draft.expectedRevisions,
+    revision,
+  });
 
 /**
  * 일정을 저장한다. 새 일정을 만들거나, 일정 전체를 고치거나, 반복 중 하루만 고친다.

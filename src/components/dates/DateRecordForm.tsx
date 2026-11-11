@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useTransition, useEffectEvent, useLayoutEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
+import { startTransition, useEffectEvent, useLayoutEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { DateField, TextAreaField, TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
+import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { toKstDate } from "@/lib/anniversary";
 import { RECORDS_PATH } from "@/lib/dates/album";
@@ -33,6 +34,7 @@ import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
 import { BACK_TRANSITION, FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { useDiscardOnLeave } from "@/lib/navigation/use-discard-on-leave";
+import { addMaybeSavedRevision } from "@/lib/revision";
 import type { EditableRecord } from "@/lib/dates/detail";
 import {
   DateRecordAlreadyLinkedError,
@@ -121,7 +123,6 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
   // 미리보기는 모두 여기서 만들어, 화면을 떠날 때 빠짐없이 해제한다
   const previews = usePreviewUrls();
   const [draft, setDraft] = useState(() => (failedSave ? withNewPreviews(failedSave.draft, previews.create) : initialDraft));
-  const [isReloading, startReloading] = useTransition();
   const [errors, setErrors] = useState<DraftErrors>({});
   const [tagInput, setTagInput] = useState("");
   // 찾기 결과는 PlaceField 안에 있어, 저장 뒤 숨겨진 폼을 되돌릴 때 key를 바꿔 함께 비운다
@@ -312,8 +313,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       const failedFields = {
         hasConflict,
         uncertainSaveRecordId: mayHaveSaved ? recordId : nextDraft.uncertainSaveRecordId,
-        // 저장됐을 수 있는 내 판은 다음 시도에서 상대의 저장으로 오해하지 않게 허용한다
-        expectedRevisions: mayHaveSaved && nextDraft.nextRevision ? [...(nextDraft.expectedRevisions ?? []), nextDraft.nextRevision] : nextDraft.expectedRevisions,
+        expectedRevisions: addMaybeSavedRevision({ expectedRevisions: nextDraft.expectedRevisions, revision: nextDraft.nextRevision, mayHaveSaved }),
       };
       setDraft((current) => ({ ...current, ...failedFields }));
       // 저장됐거나 상대가 고쳤다면 숨겨 둔 목록·상세가 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
@@ -325,13 +325,6 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       setProgress(undefined);
       finishFailed({ draft: { ...nextDraft, ...failedFields }, message, isGone });
     }
-  };
-
-  // 페이지가 다시 불러올 때마다 폼을 새로 만들므로, 최신 기록으로 다시 고칠 수 있다
-  const handleReloadLatest = () => {
-    startReloading(() => {
-      router.refresh();
-    });
   };
 
   // 기록을 지웠을 때(DeleteRecordButton)와 같이 옮기면서 다시 불러온다
@@ -517,15 +510,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
               남긴 기록 보기
             </Link>
           ) : draft.hasConflict ? (
-            // 다시 저장해도 거부되므로 저장 버튼 대신 최신 내용을 불러오는 길을 준다
-            <button
-              type="button"
-              disabled={isReloading}
-              onClick={handleReloadLatest}
-              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-            >
-              {isReloading ? "불러오는 중…" : "최신 내용 불러오기"}
-            </button>
+            <ReloadLatestButton />
           ) : (
             <button
               type="submit"
