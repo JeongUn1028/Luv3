@@ -5,6 +5,7 @@ import {
   addTag,
   getMinEndDate,
   hasRecordDraftChanges,
+  isSameExceptReadingPhotoInfo,
   isSamePhotoLocation,
   movePhoto,
   normalizeTag,
@@ -224,6 +225,20 @@ describe("toCreateRecordArgs", () => {
     ]);
   });
 
+  it("사진에서 읽은 찍은 시각은 있는 사진만 넘긴다", () => {
+    // Arrange
+    const taken = { ...photo("a"), takenAt: "2026-11-10T14:03:22+09:00" };
+
+    // Act
+    const args = toCreateRecordArgs("r1", draft({ photos: [taken, photo("b")], coverPhotoId: "a" }));
+
+    // Assert
+    expect(args.p_photos).toEqual([
+      { id: "a", caption: "", location: null, taken_at: "2026-11-10T14:03:22+09:00" },
+      { id: "b", caption: "", location: null },
+    ]);
+  });
+
   it("태그를 넘겨 다 지운 기록도 빈 목록으로 저장한다", () => {
     expect(toCreateRecordArgs("r1", draft({ tags: ["카페", "여행"] })).p_tags).toEqual(["카페", "여행"]);
     expect(toCreateRecordArgs("r1", draft()).p_tags).toEqual([]);
@@ -380,5 +395,37 @@ describe("hasRecordDraftChanges", () => {
     const current = { ...draft({ expectedRevisions: ["r1", "r2"], nextRevision: "r3", hasConflict: true }), photos: [{ ...photo("p1"), previewUrl: "blob:b" }] };
 
     expect(hasRecordDraftChanges(initial, current)).toBe(false);
+  });
+});
+
+describe("isSameExceptReadingPhotoInfo", () => {
+  const reading = (id: string, location: PhotoLocation | undefined = undefined, takenAt: string | undefined = undefined) => ({
+    ...photo(id, "", location),
+    takenAt,
+    isReadingInfo: location === undefined && takenAt === undefined,
+  });
+  const withPhotos = (photos: ReturnType<typeof reading>[]): DateRecordDraft<ReturnType<typeof reading>> => ({ ...draft(), photos });
+
+  // 나가기를 고른 뒤 늦게 온 사진 정보가 #284의 되돌리기를 막지 않게 한다
+  it("읽는 중이던 사진에 찍은 곳·찍은 시각만 채워졌으면 같다고 본다", () => {
+    // Arrange
+    const discarded = withPhotos([reading("p1"), { ...reading("p2", ONION), isReadingInfo: false }]);
+    const current = withPhotos([
+      { ...reading("p1", FOREST, "2026-11-10T14:03:22+09:00"), isReadingInfo: false },
+      { ...reading("p2", ONION), isReadingInfo: false },
+    ]);
+
+    // Act & Assert
+    expect(isSameExceptReadingPhotoInfo(discarded, current)).toBe(true);
+  });
+
+  it("다른 칸이나 다 읽은 사진의 위치가 바뀌었으면 다르다고 본다", () => {
+    // Arrange
+    const discarded = withPhotos([reading("p1"), { ...reading("p2", ONION), isReadingInfo: false }]);
+    const titleChanged = { ...discarded, title: "두 번째 데이트" };
+    const readLocationChanged = withPhotos([reading("p1"), { ...reading("p2", FOREST), isReadingInfo: false }]);
+
+    // Act & Assert
+    expect([isSameExceptReadingPhotoInfo(discarded, titleChanged), isSameExceptReadingPhotoInfo(discarded, readLocationChanged)]).toEqual([false, false]);
   });
 });

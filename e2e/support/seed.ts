@@ -159,6 +159,34 @@ export const getRecordPhotoLocations = async (
 };
 
 /**
+ * 기록의 사진마다 위치·찍은 시각과 원본 파일 경로를 사진 순서대로 읽는다.
+ *
+ * @example const [photo] = await getRecordPhotoDetails(id)
+ */
+export const getRecordPhotoDetails = async (
+  recordId: string,
+): Promise<{ place: string | null; place_lat: number | null; place_lng: number | null; taken_at: string | null; path: string }[]> => {
+  const { data, error } = await createAdminClient()
+    .from("photos")
+    .select("place, place_lat, place_lng, taken_at, path")
+    .eq("date_id", recordId)
+    .order("sort_order");
+  if (error) throw new Error(`사진 정보 읽기 실패: ${error.message}`);
+  return data;
+};
+
+/**
+ * 앨범 버킷에 올라간 파일을 받는다. 올린 사진에 위치 정보가 남지 않았는지 볼 때 쓴다.
+ *
+ * @example const bytes = await downloadAlbumFile(photo.path)
+ */
+export const downloadAlbumFile = async (path: string): Promise<Uint8Array> => {
+  const { data, error } = await createAdminClient().storage.from(ALBUM_BUCKET).download(path);
+  if (error) throw new Error(`사진 받기 실패: ${error.message}`);
+  return new Uint8Array(await data.arrayBuffer());
+};
+
+/**
  * 화면에서 저장한 기록의 id를 제목으로 찾는다. 제목은 `createTestName`으로 만들어 다른 테스트·실행의 기록을 잡지 않게 한다.
  *
  * @example for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id)
