@@ -282,3 +282,15 @@ node "<리포>/node_modules/supabase/dist/supabase.js" storage cp -r album ss://
 이 명령은 `album/`을 통째로 올리므로 그동안 지운 사진도 함께 올라간다. 앱에는 보이지 않고 용량만 차지하며, #31(주인 없는 파일 정리)에서 치운다.
 
 그다음 위 "운영 Supabase 설정"의 2·3·5번을 새 프로젝트 기준으로 다시 맞추고 Vercel에서 재배포한다. 계정은 함께 되살아나므로 4번은 건너뛴다.
+
+## 데이터 출처
+
+사진 좌표(EXIF GPS)에 붙이는 동네 이름(행정동 "구 + 동")은 서버 경로 `/api/places/region`이 리포에 둔 행정동 경계(`data/admdong-boundaries.json`)로 계산한다(#249). 카카오 로컬 API 결과는 저장할 수 없어(약관) 쓰지 않는다. 경계 밖(해외·바다)이면 이름 없이(`{ "name": null }`) 답하고, 기록 폼은 그 사진 위치를 "찍은 곳"으로 둔다.
+
+- 원본: [vuski/admdongkor](https://github.com/vuski/admdongkor) `ver20261001/HangJeongDong_ver20261001.geojson`(약 35MB)
+- 만드는 법: `pnpm admdong:build <내려받은 GeoJSON> <판 이름>`. 고리마다 약 10m보다 작은 굴곡을 버리고 좌표를 약 1m 정수로 적어 약 3MB로 줄인다(`scripts/admdong/build.mts`). 새 판이 나오면 다시 만들고 아래 출처와 설정 화면의 판 이름을 고친다
+- 줄인 경계로 찾은 동은 경계 ±200m 안 표본 2만 개에서 원본과 99.5% 안팎 같았다(나머지는 옆 동, 여러 번 재서 99.4~99.6%). 경계 바로 밖 약 50m까지는 가장 가까운 동으로 본다
+
+출처 표기(앱 설정 화면에도 둔다):
+
+> 본 데이터는 통계청 통계지리정보서비스(SGIS, https://sgis.kostat.go.kr)에서 공공누리 제1유형으로 개방한 행정동 경계를 가공한 것이며(가공: vuski/admdongkor, https://github.com/vuski/admdongkor), CC BY 4.0으로 배포됩니다.
