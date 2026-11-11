@@ -5,13 +5,16 @@ import { AlbumGrid } from "@/components/dates/AlbumGrid";
 import { FILLED_TAG_CHIP_CLASS_NAME, OUTLINED_TAG_CHIP_CLASS_NAME } from "@/components/dates/tagChip";
 import { LoadMoreTrigger } from "@/components/LoadMoreTrigger";
 import { RetryButton } from "@/components/RetryButton";
-import type { AlbumTile } from "@/lib/dates/album";
 import { SEARCH_TEXT_MAX_LENGTH } from "@/lib/dates/search-api";
 import { recordTagLinkCount, replaceRecordsAddress, toRecordSearchHref } from "@/lib/dates/search";
+import type { UseAlbumPagesResult } from "@/lib/dates/use-album-pages";
 import { useRecordSearch, type RecordSearchStatus } from "@/lib/dates/use-record-search";
 
 interface RecordSearchProps {
-  tiles: AlbumTile[];
+  /** 기록 탭 그리드. 검색어와 태그가 모두 비면 이것을 그대로 보여 주고 이어 받는다 */
+  grid: UseAlbumPagesResult;
+  /** 모든 기록의 판 번호. 바뀌면(누가 기록을 쓰거나 고치거나 지움) 같은 조건이라도 다시 찾는다 */
+  refreshKey: string;
   /** 태그 줄. 많이 쓴 순서로 서버가 센 것이다 */
   tags: string[];
   /** 고른 태그. 전체면 undefined */
@@ -20,10 +23,6 @@ interface RecordSearchProps {
 
 /** 글자를 칠 때마다 서버를 부르지 않고, 이만큼 멈추면 찾는다 */
 const SEARCH_DELAY_MS = 300;
-
-// 칸에 보이는 내용만 비교한다. 썸네일 서명 주소는 내용이 같아도 새로 받을 때 바뀔 수 있다
-const toTilesSignature = (tiles: AlbumTile[]): string =>
-  tiles.map(({ id, date, endDate, title, place, tags }) => JSON.stringify([id, date, endDate, title, place, tags])).join("\n");
 
 const toResultLabel = (status: RecordSearchStatus, total: number | undefined): string => {
   if (status === "loading") return "찾는 중…";
@@ -34,22 +33,14 @@ const toResultLabel = (status: RecordSearchStatus, total: number | undefined): s
 /**
  * 검색 칸 + 태그 줄 + 찾은 기록. 태그만 보려는 경우가 많아 칸에 초점을 주지 않아, 키보드가 결과를 가리지 않게 한다.
  * 받침을 쓰는 중에도 글자가 끊기지 않게 검색어는 주소가 아닌 이 화면의 상태로 둔다. 찾기를 닫으면 함께 사라진다.
- * 찾기는 서버가 한다(#273). 검색어와 태그가 모두 비면 받아 둔 그리드(`tiles`)를 그대로 보여 준다.
+ * 찾기는 서버가 한다(#273). 검색어와 태그가 모두 비면 받아 둔 그리드(`grid`)를 그대로 보여 주고 이어 받는다.
+ * 앱 복귀·뒤로 가기로 화면을 새로 받아도 기록이 그대로면(판 번호가 같으면) 이어 받은 결과와 스크롤 위치를 지킨다.
  *
- * @example <RecordSearch tiles={tiles} tags={tags} tag="카페" />
+ * @example <RecordSearch grid={grid} refreshKey={firstPage.version} tags={tags} tag="카페" />
  */
-export const RecordSearch = ({ tiles, tags, tag }: RecordSearchProps): ReactElement => {
+export const RecordSearch = ({ grid, refreshKey, tags, tag }: RecordSearchProps): ReactElement => {
   const [query, setQuery] = useState("");
   const [searchedQuery, setSearchedQuery] = useState("");
-  // 기록을 쓰거나 고치거나 지운 뒤 화면을 새로 받으면 찾은 결과도 맞지 않을 수 있으니 다시 찾는다.
-  // 앱 복귀·뒤로 가기도 화면을 새로 받으므로 내용이 그대로면 이어 받은 결과와 스크롤 위치를 지킨다
-  const tilesSignature = toTilesSignature(tiles);
-  const [seenSignature, setSeenSignature] = useState(tilesSignature);
-  const [refreshKey, setRefreshKey] = useState(0);
-  if (tilesSignature !== seenSignature) {
-    setSeenSignature(tilesSignature);
-    setRefreshKey((key) => key + 1);
-  }
   const [shownTag, setShownTag] = useState(tag);
   const [pressedTag, setPressedTag] = useState(tag);
   // 상세의 태그를 누른 횟수. 같은 태그를 누르면 주소가 그대로라 태그만 보고는 알 수 없다(#261)
@@ -76,8 +67,9 @@ export const RecordSearch = ({ tiles, tags, tag }: RecordSearchProps): ReactElem
   // 지운 것은 기다리지 않는다. 기다리면 지운 뒤에도 앞 검색어로 찾은 결과가 잠깐 남는다
   const search = useRecordSearch({ query: query.trim() === "" ? "" : searchedQuery, tag, refreshKey });
   // 기록이 하나도 없으면 그리드의 빈 화면이 이미 알려 준다
-  const isFiltering = tiles.length > 0 && search.status !== "idle";
-  const shownTiles = search.status === "idle" ? tiles : search.items;
+  const isFiltering = grid.items.length > 0 && search.status !== "idle";
+  const isIdle = search.status === "idle";
+  const shownTiles = isIdle ? grid.items : search.items;
   // 태그 줄을 못 읽었거나 아직 세지 않은 태그로 들어와도 고른 태그와 "전체"는 보여 줘야 풀 수 있다
   const shownTags = tag === undefined || tags.some((name) => name.toLowerCase() === tag.toLowerCase()) ? tags : [tag, ...tags];
   const tagRowRef = useRef<HTMLUListElement>(null);
@@ -164,7 +156,8 @@ export const RecordSearch = ({ tiles, tags, tag }: RecordSearchProps): ReactElem
         </div>
       ) : (
         <>
-          {(shownTiles.length > 0 || tiles.length === 0) && <AlbumGrid tiles={shownTiles} />}
+          {(shownTiles.length > 0 || grid.items.length === 0) && <AlbumGrid tiles={shownTiles} />}
+          {isIdle && <LoadMoreTrigger hasMore={grid.hasMore} isLoading={grid.isLoadingMore} isFailed={grid.isMoreFailed} onLoad={grid.loadMore} />}
           {search.status === "done" && (
             <LoadMoreTrigger hasMore={search.hasMore} isLoading={search.isLoadingMore} isFailed={search.isMoreFailed} onLoad={search.loadMore} />
           )}

@@ -10,7 +10,7 @@ vi.mock("@/lib/dates/search-queries", async (importOriginal) => ({
 }));
 vi.mock("server-only", () => ({}));
 
-const PAGE = { items: [{ id: "a", date: "2026-11-02", endDate: undefined, title: "산책", place: undefined, tags: [], thumbUrl: undefined }], total: 1, next: undefined };
+const PAGE = { items: [{ id: "a", date: "2026-11-02", endDate: undefined, title: "산책", place: undefined, tags: [], thumbUrl: undefined }], total: 1, next: undefined, loadedAt: 1 };
 
 const requestWith = (search: string): Request => new Request(`http://localhost/api/records/search?${search}`);
 
@@ -45,7 +45,7 @@ describe("GET /api/records/search", () => {
     // Assert
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    await expect(response.json()).resolves.toEqual({ items: [{ id: "a", date: "2026-11-02", title: "산책", tags: [] }], total: 1 });
+    await expect(response.json()).resolves.toEqual({ items: [{ id: "a", date: "2026-11-02", title: "산책", tags: [] }], total: 1, loadedAt: 1 });
     expect(searchRecords).toHaveBeenCalledWith({ query: "성수", tag: "카페", after: undefined });
   });
 
