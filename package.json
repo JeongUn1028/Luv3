@@ -21,6 +21,7 @@
     "test:e2e": "playwright test",
     "backup": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/backup/backup.mts",
     "backup:restore": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/backup/restore.mts",
+    "admdong:build": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/admdong/build.mts",
     "db:types": "supabase gen types typescript --local --schema public > src/lib/supabase/database.types.ts"
   },
   "dependencies": {
