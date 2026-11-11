@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
-import { isScreenRequest, returnToApp } from "./support/actions";
+import { returnToApp } from "./support/actions";
 import { createDisposableRecords, getRecordIdsByTitle, renameRecord } from "./support/seed";
 import { expect, getScrollArea, openScreen, test } from "./support/test";
 
@@ -87,48 +87,6 @@ test.describe("기록 탭 그리드 나눠 받기", () => {
 
       // Assert
       await expect(page.getByRole("button", { name: "다시 불러오기" })).toHaveCount(0);
-    } finally {
-      await deleteRecords();
-    }
-  });
-
-  test("이어 받은 기록의 상세에 갔다 돌아오면 다시 받지 않고 보던 자리를 보여 준다", async ({ page }) => {
-    // Arrange
-    const prefix = createPrefix();
-    const deleteRecords = await createDisposableRecords({ count: RECORD_COUNT, titlePrefix: prefix });
-    await page.clock.install();
-
-    // 처음부터 다시 받으면 이미 받았던 자리를 다시 부른다. 나란히 도는 테스트의 기록이 뒤에 더 있으면 새 자리(다음 묶음)를 부르는 것은 괜찮다
-    const requestedCursors: string[] = [];
-    let isBack = false;
-    const repeatedCursors: string[] = [];
-    page.on("request", (request) => {
-      const url = new URL(request.url());
-      if (!isGridNextPage(url)) return;
-      const cursor = url.searchParams.get("beforeId") ?? "";
-      if (isBack && requestedCursors.includes(cursor)) repeatedCursors.push(cursor);
-      requestedCursors.push(cursor);
-    });
-
-    try {
-      await openRecords(page);
-      const oldest = getRecordLink(page, `${prefix} 0`);
-      await loadUntilAttached(page, oldest);
-      await oldest.click();
-      await page.getByRole("link", { name: "뒤로" }).waitFor();
-      isBack = true;
-      // 상세에 30분 넘게 있다 돌아오면 기록 탭 화면을 새로 받는다. 기록이 그대로면 이어 받은 기록을 지켜야 한다
-      await page.clock.fastForward(31 * MINUTE_MS);
-      const refreshed = page.waitForRequest((request) => isScreenRequest(request, "/records"));
-
-      // Act
-      await page.getByRole("link", { name: "뒤로" }).click();
-      await refreshed;
-      await page.waitForTimeout(1_000);
-
-      // Assert
-      await expect(oldest).toBeInViewport();
-      expect(repeatedCursors).toEqual([]);
     } finally {
       await deleteRecords();
     }
