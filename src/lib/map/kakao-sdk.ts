@@ -7,18 +7,41 @@ export type KakaoLatLng = object;
 export interface KakaoMap {
   setBounds: (bounds: KakaoLatLngBounds) => void;
   setCenter: (latLng: KakaoLatLng) => void;
+  /** 지금 화면에 보이는 범위 */
+  getBounds: () => KakaoLatLngBounds;
   relayout: () => void;
 }
 
 /** 지도에 보여 줄 범위 */
 export interface KakaoLatLngBounds {
   extend: (latLng: KakaoLatLng) => void;
+  contain: (latLng: KakaoLatLng) => boolean;
 }
 
 /** 핀 */
 export interface KakaoMarker {
   setMap: (map: KakaoMap | null) => void;
 }
+
+/** 지도 위에 띄우는 HTML 요소(사진 핀) */
+export interface KakaoCustomOverlay {
+  setMap: (map: KakaoMap | null) => void;
+  /** 지금 지도에 보이면 그 지도. 묶음 동그라미 안으로 들어가 숨겨졌으면 null */
+  getMap: () => KakaoMap | null;
+  getPosition: () => KakaoLatLng;
+}
+
+/** 묶음 동그라미 하나에 쓰는 CSS. 카카오가 그대로 붙인다 */
+export type KakaoClusterStyle = Record<string, string>;
+
+/** 가까운 핀을 숫자 동그라미로 묶는 기능(clusterer 라이브러리). 화면이 멈출 때마다 다시 묶고 `clustered`를 알린다 */
+export interface KakaoMarkerClusterer {
+  addMarkers: (markers: (KakaoMarker | KakaoCustomOverlay)[]) => void;
+  clear: () => void;
+}
+
+type KakaoEventTarget = KakaoMap | KakaoMarker | KakaoMarkerClusterer;
+type KakaoEventType = "click" | "clustered";
 
 /** SDK가 `window.kakao.maps`에 내놓는 것 */
 export interface KakaoMaps {
@@ -27,7 +50,18 @@ export interface KakaoMaps {
   LatLngBounds: new () => KakaoLatLngBounds;
   Map: new (container: HTMLElement, options: { center: KakaoLatLng; level: number }) => KakaoMap;
   Marker: new (options: { position: KakaoLatLng; title: string; clickable: boolean }) => KakaoMarker;
-  event: { addListener: (target: KakaoMap | KakaoMarker, type: "click", handler: () => void) => void };
+  CustomOverlay: new (options: { position: KakaoLatLng; content: HTMLElement; xAnchor: number; yAnchor: number; clickable: boolean }) => KakaoCustomOverlay;
+  MarkerClusterer: new (options: {
+    map: KakaoMap;
+    gridSize: number;
+    minClusterSize: number;
+    averageCenter: boolean;
+    styles: KakaoClusterStyle[];
+  }) => KakaoMarkerClusterer;
+  event: {
+    addListener: (target: KakaoEventTarget, type: KakaoEventType, handler: () => void) => void;
+    removeListener: (target: KakaoEventTarget, type: KakaoEventType, handler: () => void) => void;
+  };
 }
 
 declare global {
@@ -74,7 +108,8 @@ const injectSdk = (appKey: string): Promise<KakaoMaps> =>
       });
     };
     // 페이지가 그려진 뒤에 넣는 스크립트는 autoload=false와 load 콜백으로 불러야 한다(카카오 문서의 kakao.maps.load)
-    script.src = `${SDK_URL}?${new URLSearchParams({ appkey: appKey, autoload: "false" }).toString()}`;
+    // 사진 핀을 숫자 동그라미로 묶는 기능은 clusterer 라이브러리를 함께 불러야 쓸 수 있다(#249)
+    script.src = `${SDK_URL}?${new URLSearchParams({ appkey: appKey, autoload: "false", libraries: "clusterer" }).toString()}`;
     document.head.append(script);
   });
 

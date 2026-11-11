@@ -152,7 +152,12 @@ export const setRecordPhotoLocation = async (recordId: string, { place, lat, lng
  */
 export const addRecordPhoto = async (
   recordId: string,
-  { sortOrder, caption, location }: { sortOrder: number; caption?: string; location?: { place: string; lat: number; lng: number } },
+  {
+    sortOrder,
+    caption,
+    location,
+    takenAt,
+  }: { sortOrder: number; caption?: string; location?: { place: string; lat: number; lng: number }; takenAt?: string },
 ): Promise<string> => {
   const admin = createAdminClient();
   const path = `${recordId}/${randomUUID()}.jpg`;
@@ -169,10 +174,50 @@ export const addRecordPhoto = async (
       place: location?.place,
       place_lat: location?.lat,
       place_lng: location?.lng,
+      taken_at: takenAt,
     }),
     "사진 행 더하기",
   );
   return id;
+};
+
+/**
+ * 기록에 같은 위치의 사진 행을 `count`개 더한다. 파일은 새로 올리지 않고 첫 사진 파일을 같이 가리켜, 많은 사진이 필요한 테스트를 빠르게 준비한다.
+ * 기록을 지우면 행도 함께 지워진다. 돌려준 id는 사진 순서대로다.
+ *
+ * @example const photoIds = await addLocatedPhotoRows(id, { count: 13, location: FOREST })
+ */
+export const addLocatedPhotoRows = async (
+  recordId: string,
+  { count, location }: { count: number; location: { place: string; lat: number; lng: number } },
+): Promise<string[]> => {
+  const admin = createAdminClient();
+  const { data: first, error } = await admin.from("photos").select("path").eq("date_id", recordId).order("sort_order").limit(1).single();
+  assertNoError({ error }, "첫 사진 읽기");
+  if (!first) throw new Error("E2E 데이터 준비 실패(첫 사진 읽기): 사진이 없습니다");
+  const rows = Array.from({ length: count }, (_, index) => ({
+    id: randomUUID(),
+    date_id: recordId,
+    path: first.path,
+    thumb_path: first.path,
+    sort_order: index + 1,
+    place: location.place,
+    place_lat: location.lat,
+    place_lng: location.lng,
+  }));
+  assertNoError(await admin.from("photos").insert(rows), "사진 행 여러 개 더하기");
+  return rows.map(({ id }) => id);
+};
+
+/**
+ * 기록의 사진 id를 사진 순서대로 읽는다.
+ *
+ * @example const [firstPhotoId] = await getRecordPhotoIds(id)
+ */
+export const getRecordPhotoIds = async (recordId: string): Promise<string[]> => {
+  const { data, error } = await createAdminClient().from("photos").select("id").eq("date_id", recordId).order("sort_order");
+  if (error) throw new Error(`사진 id 읽기 실패: ${error.message}`);
+  return data.map(({ id }) => id);
 };
 
 /**

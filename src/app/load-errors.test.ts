@@ -10,6 +10,7 @@ const LOAD_CALLS = [
   { at: "app/records/page.tsx", query: "getAlbumFirstPage", errorClass: "AlbumLoadError" },
   { at: "app/api/records/search/route.ts", query: "searchRecords", errorClass: "RecordSearchLoadError" },
   { at: "app/records/map/page.tsx", query: "getMapPins", errorClass: "MapPinLoadError" },
+  { at: "app/api/records/map-photos/route.ts", query: "getMapPhotos", errorClass: "MapPhotoLoadError" },
   { at: "app/calendar/page.tsx", query: "getCalendarMonth", errorClass: "EventLoadError" },
   { at: "app/todos/page.tsx", query: "getTodos", errorClass: "TodoLoadError" },
   { at: "app/dates/new/page.tsx", query: "getEventRecordPrefill", errorClass: "EventLoadError" },

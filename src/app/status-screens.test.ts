@@ -169,7 +169,7 @@ describe("고치기 화면의 조회 실패", () => {
 });
 
 describe("화면 안 조회 실패 문구", () => {
-  it.each(["app/records/page.tsx", "app/calendar/page.tsx", "app/todos/page.tsx", "app/records/map/page.tsx", "app/dates/[id]/page.tsx"])(
+  it.each(["app/records/page.tsx", "app/calendar/page.tsx", "app/todos/page.tsx", "components/dates/map/RecordMapPins.tsx", "app/dates/[id]/page.tsx"])(
     "%s 화면은 같은 문구 틀을 쓴다",
     (at) => {
       expect(readSource(at)).toContain("<LoadErrorMessage message=");
