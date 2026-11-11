@@ -3,10 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { catchLoadError } from "@/lib/load";
 import { readAllRows } from "@/lib/supabase/read-all-rows";
-import { getHomePhotoSignedUrls, getSignedUrls, type GetSignedUrls } from "@/lib/photos/signed-urls";
-import { toAlbumTiles, toLatestRecord, toTagSuggestions, type AlbumTile, type LatestRecord } from "./album";
+import { getHomePhotoSignedUrls, getSignedUrls } from "@/lib/photos/signed-urls";
+import { toLatestRecord, toTagSuggestions, type LatestRecord } from "./album";
+import type { AlbumFirstPage } from "./album-pages";
 import { isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
 import { compareNewestFirst, toMapPins, type MapPin } from "./map";
+import { ALL_RECORDS_FIRST_PAGE, loadRecordPage } from "./search-queries";
 
 /** 앨범 그리드를 불러오지 못했을 때 */
 export class AlbumLoadError extends Error {
@@ -16,47 +18,57 @@ export class AlbumLoadError extends Error {
   }
 }
 
-/**
- * 최신순(날짜 → 작성 시각) 기록을 `limit`개까지(없으면 전부) 읽고 대표 사진 썸네일을 `sign`으로 서명한다.
- * 홈은 7일 주소(`getHomePhotoSignedUrls`), 기록 탭은 2시간 주소(`getSignedUrls`)를 쓴다
- */
-const loadLatestRows = async (sign: GetSignedUrls, limit?: number) => {
+class RecordsVersionLoadError extends Error {
+  constructor(options?: ErrorOptions) {
+    super("기록 판 번호를 불러오지 못했어요.", options);
+    this.name = "RecordsVersionLoadError";
+  }
+}
+
+const loadRecordsVersion = async (): Promise<string> => {
   const supabase = await createClient();
-  const query = supabase
-    .from("dates")
-    .select("id, date, end_date, title, place, tags, cover:photos!dates_cover_photo_id_fkey(thumb_path)")
-    .order("date", { ascending: false })
-    .order("created_at", { ascending: false });
-  const { data: rows, error } = await (limit === undefined ? query : query.limit(limit));
-  if (error) throw new AlbumLoadError({ cause: error });
-
-  const thumbPaths = rows.flatMap(({ cover }) => (cover ? [cover.thumb_path] : []));
-  const { data: signed, error: signError } = await sign(supabase.storage.from(ALBUM_BUCKET), thumbPaths);
-  if (signError) throw new AlbumLoadError({ cause: signError });
-
-  return { rows, signed };
+  const { data, error } = await supabase.rpc("date_records_version");
+  if (error) throw new RecordsVersionLoadError({ cause: error });
+  return data;
 };
 
 /**
- * 앨범 그리드에 그릴 기록을 최신순(날짜 → 작성 시각)으로 불러온다. 대표 사진 썸네일에 서명 URL을 붙인다.
+ * 기록 탭 그리드의 첫 묶음(최신순 60개)과 모든 기록의 판 번호를 불러온다(#274). 나머지는 화면이 내리면서 이어 받는다.
+ * 판 번호로 화면을 새로 받았을 때 이어 받아 둔 기록이 아직 맞는지 판단한다.
+ * 판 번호를 먼저 읽는다. 그 사이 기록이 바뀌면 다음에 새로 받을 때 판 번호가 달라 처음부터 다시 받는다(거꾸로면 예전 기록을 맞다고 본다).
+ * 판 번호를 못 읽어도 그리드는 보여 준다. 로그만 남기고 매번 다른 값을 줘, 새로 받을 때마다 처음부터 다시 받게 한다.
  *
  * @throws {AlbumLoadError} 기록 조회나 서명 URL 발급이 실패했을 때
- * @example const tiles = await getAlbumTiles()
+ * @example const firstPage = await getAlbumFirstPage()
  */
-export const getAlbumTiles = async (): Promise<AlbumTile[]> => {
-  const { rows, signed } = await loadLatestRows(getSignedUrls);
-  return toAlbumTiles(rows, signed);
+export const getAlbumFirstPage = async (): Promise<AlbumFirstPage> => {
+  const version = await catchLoadError(loadRecordsVersion, RecordsVersionLoadError);
+  const { items, next, loadedAt } = await loadRecordPage(ALL_RECORDS_FIRST_PAGE, (cause) => new AlbumLoadError({ cause }));
+  return { items, next, loadedAt, version: version instanceof RecordsVersionLoadError ? `unknown:${crypto.randomUUID()}` : version };
 };
 
 /**
  * 가장 최근 데이트 기록 하나(홈). 기록 탭 그리드의 첫 칸과 같은 기록이다.
+ * 휴대폰이 주소를 기억해 다시 쓰므로(#219) 7일 주소(`getHomePhotoSignedUrls`)로 서명한다.
  *
  * @returns 기록이 없으면 undefined
  * @throws {AlbumLoadError} 기록 조회나 서명 URL 발급이 실패했을 때
  * @example const latest = await getLatestRecord()
  */
 export const getLatestRecord = async (): Promise<LatestRecord | undefined> => {
-  const { rows, signed } = await loadLatestRows(getHomePhotoSignedUrls, 1);
+  const supabase = await createClient();
+  const { data: rows, error } = await supabase
+    .from("dates")
+    .select("id, date, end_date, title, place, tags, cover:photos!dates_cover_photo_id_fkey(thumb_path)")
+    .order("date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error) throw new AlbumLoadError({ cause: error });
+
+  const thumbPaths = rows.flatMap(({ cover }) => (cover ? [cover.thumb_path] : []));
+  const { data: signed, error: signError } = await getHomePhotoSignedUrls(supabase.storage.from(ALBUM_BUCKET), thumbPaths);
+  if (signError) throw new AlbumLoadError({ cause: signError });
+
   return toLatestRecord(rows, signed);
 };
 

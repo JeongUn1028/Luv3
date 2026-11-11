@@ -43,8 +43,8 @@ export const toLoggedCause = (cause: unknown): Record<string, string | number> =
  * `error.tsx`로 가지 않아 Next가 기록하지 않으므로, 잡은 에러의 원인은 여기서 서버 로그에 남긴다.
  *
  * @example
- * const tiles = await catchLoadError(getAlbumTiles, AlbumLoadError)
- * if (tiles instanceof AlbumLoadError) return <LoadErrorMessage message={tiles.message} />
+ * const firstPage = await catchLoadError(getAlbumFirstPage, AlbumLoadError)
+ * if (firstPage instanceof AlbumLoadError) return <LoadErrorMessage message={firstPage.message} />
  */
 export const catchLoadError = async <Result, LoadError extends Error>(
   load: () => Promise<Result>,

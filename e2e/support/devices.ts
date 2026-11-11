@@ -44,11 +44,12 @@ export const TARGET_DEVICES = [
 ] as const;
 
 /**
- * 두 사람이 하나를 함께 쓰는 데이터(커플 사진)를 실제로 바꾸는 스펙(파일 이름에서 `.spec.ts`를 뺀 것).
- * 나란히 도는 다른 스펙이 그 데이터를 읽다 깨지지 않게, 기기 프로젝트에서 빼고 다른 테스트가 모두 끝난 뒤 따로 돌린다(#258).
+ * 나란히 도는 다른 스펙과 섞이면 흔들리는 스펙(파일 이름에서 `.spec.ts`를 뺀 것). 기기 프로젝트에서 빼고 다른 테스트가 모두 끝난 뒤 따로 돌린다.
+ * - 두 사람이 하나를 함께 쓰는 데이터(커플 사진)를 실제로 바꿔, 그 데이터를 읽는 다른 스펙을 깨뜨린다(#258)
+ * - 모든 기록의 판 번호가 그대로일 때의 동작을 본다. 다른 스펙이 기록을 쓰면 판 번호가 바뀐다(#274)
  * 두 기기 크기는 스펙 안에서 `TARGET_DEVICES`로 차례로 돌린다.
  */
-export const SHARED_DATA_SPECS = ["couple-photo-change"] as const;
+export const SHARED_DATA_SPECS = ["couple-photo-change", "record-pages-refresh"] as const;
 
 /**
  * `E2E_ALL_DEVICES` 값으로 두 기기 전체를 돌리는지 정한다. CI는 main에 push될 때 켠다.

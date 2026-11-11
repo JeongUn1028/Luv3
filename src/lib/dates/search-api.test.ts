@@ -55,21 +55,23 @@ describe("parseRecordSearchParams", () => {
 
 describe("parseRecordSearchPage", () => {
   it("빠진 칸은 undefined로 읽고 다음 자리를 그대로 둔다", () => {
-    expect(parseRecordSearchPage({ items: [TILE], total: 61, next: CURSOR })).toEqual({
+    expect(parseRecordSearchPage({ items: [TILE], total: 61, next: CURSOR, loadedAt: 1 })).toEqual({
       items: [TILE],
       total: 61,
       next: CURSOR,
+      loadedAt: 1,
     });
   });
 
   it("다음 자리가 없으면 마지막 묶음이다", () => {
-    expect(parseRecordSearchPage({ items: [], total: 0 }).next).toBeUndefined();
+    expect(parseRecordSearchPage({ items: [], total: 0, loadedAt: 1 }).next).toBeUndefined();
   });
 
   it("모양이 다르면 찾기 실패로 본다", () => {
-    expect(() => parseRecordSearchPage({ items: [{ ...TILE, tags: [1] }], total: 1 })).toThrow(RecordSearchError);
-    expect(() => parseRecordSearchPage({ items: [], total: "0" })).toThrow(RecordSearchError);
-    expect(() => parseRecordSearchPage({ items: [], total: 0, next: { date: "2026-11-02" } })).toThrow(RecordSearchError);
+    expect(() => parseRecordSearchPage({ items: [{ ...TILE, tags: [1] }], total: 1, loadedAt: 1 })).toThrow(RecordSearchError);
+    expect(() => parseRecordSearchPage({ items: [], total: "0", loadedAt: 1 })).toThrow(RecordSearchError);
+    expect(() => parseRecordSearchPage({ items: [], total: 0, next: { date: "2026-11-02" }, loadedAt: 1 })).toThrow(RecordSearchError);
+    expect(() => parseRecordSearchPage({ items: [], total: 0 })).toThrow(RecordSearchError);
     expect(() => parseRecordSearchPage("<html>")).toThrow(RecordSearchError);
   });
 });
