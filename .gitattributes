@@ -1,1 +1,3 @@
 * text=auto eol=lf
+# 행정동 경계는 스크립트가 만드는 한 줄짜리 큰 파일이라 줄 비교를 하지 않는다(scripts/admdong/build.mts, #249)
+data/admdong-boundaries.json -diff linguist-generated
