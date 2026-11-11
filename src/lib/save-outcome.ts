@@ -55,7 +55,7 @@ export const toRejectedOutcome = (error: SaveErrorCode, mayHaveApplied: boolean)
   mayHaveApplied || isOutcomeUnknown(error) ? "uncertain" : "failed";
 
 /** 바뀐 행을 돌려받는 고치기 요청의 결과(`.update(...).select("id")`) */
-interface UpdatedRows {
+export interface UpdatedRows {
   data: unknown[] | null;
   error: SaveErrorCode | null;
 }
@@ -68,7 +68,8 @@ interface UpdateRowWithRetryParams {
 }
 
 /**
- * 행 하나를 고친다. 응답만 끊기면 한 번 더 보낸다(같은 값·같은 판 번호로 고치므로 결과가 같다).
+ * 행 하나를 고친다. 판 번호가 있는 표는 허용 목록 규칙까지 담은 `saveRowAtRevision`(`@/lib/revision`)을 쓴다.
+ * 응답만 끊기면 한 번 더 보낸다(같은 값·같은 판 번호로 고치므로 결과가 같다).
  * 바뀐 행이 없으면 다시 읽어, 행이 있으면 화면을 연 뒤 바뀐 것(`conflict`), 없으면 지워진 것(`gone`)으로 본다.
  *
  * @example
@@ -93,7 +94,7 @@ interface CreateRowWithRetryParams extends UpdateRowWithRetryParams {
 }
 
 /**
- * 폼이 미리 정한 id로 행을 만든다. 응답만 끊기면 한 번 더 보내고, 같은 id가 이미 있으면 앞선 시도가 저장한 것이라
+ * 폼이 미리 정한 id로 행을 만든다. 판 번호가 있는 표는 `saveRowAtRevision`(`@/lib/revision`)을 쓴다. 응답만 끊기면 한 번 더 보내고, 같은 id가 이미 있으면 앞선 시도가 저장한 것이라
  * 마지막에 누른 내용이 남도록 그 행을 이번 내용으로 고친다. 다시 저장해도 행이 둘이 되지 않는다.
  *
  * @example

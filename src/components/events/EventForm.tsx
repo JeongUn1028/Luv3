@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useState, useTransition, type ReactElement, type SubmitEvent } from "react";
+import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { AuthorTag } from "@/components/AuthorTag";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { EventRecordAction } from "@/components/events/EventRecordAction";
 import { DateField, FIELD_LABEL_CLASS_NAME, TextAreaField, TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
+import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { getEventKinds, getHighlightClassNames } from "@/lib/calendar/highlight";
 import { formatDayHeading, toCalendarHref } from "@/lib/calendar/month";
@@ -34,6 +35,7 @@ import { clearError, FIX_FIELDS_NOTICE, isResolvedFieldNotice, isSameFormValue }
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
+import { addMaybeSavedRevision } from "@/lib/revision";
 
 const choiceClassName =
   "flex h-[51px] min-w-0 items-center justify-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-[15px] text-ink-sub has-checked:border-accent has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent has-disabled:opacity-50";
@@ -121,7 +123,6 @@ export const EventForm = ({
   const shownRecordLink: EventRecordLink | undefined = linkedRecordId ? { kind: "view", recordId: linkedRecordId } : recordLink;
   // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알리므로 묻지 않는다(#104)
   const shouldConfirmLeave = !isSameFormValue(toWrittenFields(draft), toWrittenFields(baseDraft)) && !isSaving;
-  const [isReloading, startReloading] = useTransition();
   // 캘린더로 돌아가면 일정 날짜가 속한 달을 열고 그날을 고른다
   const backDate = viewedDate ?? initialDraft.date;
   const backHref = toCalendarHref({ date: backDate });
@@ -190,8 +191,7 @@ export const EventForm = ({
         // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다(이 날만 고치면 따로 나올 일정의 id)
         newEventId,
         hasConflict: failure.hasConflict,
-        // 저장됐을 수 있는 내 판은 다음 시도에서 상대의 저장으로 오해하지 않게 허용한다
-        expectedRevisions: failure.mayHaveSaved ? [...(draft.expectedRevisions ?? []), revision] : draft.expectedRevisions,
+        expectedRevisions: addMaybeSavedRevision({ expectedRevisions: draft.expectedRevisions, revision, mayHaveSaved: failure.mayHaveSaved }),
       };
       setDraft((current) => ({ ...current, ...failedFields }));
       // 저장됐거나 상대가 고쳤다면 숨겨 둔 캘린더가 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
@@ -209,13 +209,6 @@ export const EventForm = ({
         setScopeValues({});
         setIsSaving(false);
       },
-    });
-  };
-
-  // 페이지가 다시 불러올 때마다 폼을 새로 만들므로, 최신 일정으로 다시 고칠 수 있다
-  const handleReloadLatest = () => {
-    startReloading(() => {
-      router.refresh();
     });
   };
 
@@ -457,15 +450,7 @@ export const EventForm = ({
             </p>
           )}
           {draft.hasConflict ? (
-            // 다시 저장해도 거부되므로 저장 버튼 대신 최신 내용을 불러오는 길을 준다
-            <button
-              type="button"
-              disabled={isReloading}
-              onClick={handleReloadLatest}
-              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-            >
-              {isReloading ? "불러오는 중…" : "최신 내용 불러오기"}
-            </button>
+            <ReloadLatestButton />
           ) : (
             <button
               type="submit"
