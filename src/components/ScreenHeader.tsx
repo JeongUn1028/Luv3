@@ -11,9 +11,9 @@ interface ScreenHeaderProps {
   /**
    * 왼쪽 뒤로 버튼. 없으면 제목이 본문과 같은 왼쪽 여백에서 시작한다.
    * `href`는 앱 안에 돌아갈 화면이 없을 때 갈 주소이고, `skipsHistory`면 돌아갈 화면이 있어도 이 주소로 간다.
-   * `shouldConfirmLeave`면 폼에 저장하지 않은 내용이 있어 누를 때 버리고 나갈지 묻는다.
+   * `shouldConfirmLeave`면 폼에 저장하지 않은 내용이 있어 누를 때 버리고 나갈지 묻고, 나가기를 고르면 `onConfirmLeave`를 부른다.
    */
-  back?: { href: string; skipsHistory?: boolean; shouldConfirmLeave?: boolean };
+  back?: { href: string; skipsHistory?: boolean; shouldConfirmLeave?: boolean; onConfirmLeave?: () => void };
   /** 화면 제목(h1). 본문에 따로 h1이 있는 화면(기록 상세)은 비운다 */
   title?: string;
   /** true면 제목을 화면에 그리지 않고 스크린 리더에만 읽힌다(홈) */
@@ -38,7 +38,13 @@ export const ScreenHeader = ({ back, title, isTitleHidden = false, titleAddon, a
   <header className="relative flex min-h-11 shrink-0 items-center justify-between px-2">
     <div className="flex min-w-0 items-center">
       {back && (
-        <BackLink href={back.href} skipsHistory={back.skipsHistory} shouldConfirmLeave={back.shouldConfirmLeave} className={SCREEN_HEADER_ICON_CLASS_NAME}>
+        <BackLink
+          href={back.href}
+          skipsHistory={back.skipsHistory}
+          shouldConfirmLeave={back.shouldConfirmLeave}
+          onConfirmLeave={back.onConfirmLeave}
+          className={SCREEN_HEADER_ICON_CLASS_NAME}
+        >
           <BackIcon className="size-[22px]" />
         </BackLink>
       )}
