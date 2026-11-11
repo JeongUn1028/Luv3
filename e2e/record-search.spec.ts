@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
-import { isScreenRequest, returnToApp } from "./support/actions";
+import { returnToApp } from "./support/actions";
 import { createDisposableRecord, createDisposableRecords, getRecordIdsByTitle, renameRecord, setRecordSearchFields, setRecordTags } from "./support/seed";
 import { expect, getScrollArea, getScrollAreaOverflow, openScreen, test } from "./support/test";
 
@@ -391,40 +391,6 @@ test.describe("기록 찾기", () => {
   test.describe("한 묶음(60개)보다 많이 찾으면", () => {
     const RECORD_COUNT = 65;
     const MINUTE_MS = 60_000;
-
-    test("기록이 그대로인 채 화면을 새로 받으면 이어 받은 결과를 다시 받지 않는다", async ({ page }) => {
-      // Arrange
-      const word = createWord();
-      const deleteRecords = await createDisposableRecords({ count: RECORD_COUNT, titlePrefix: `E2E 묶음 새로 ${word}` });
-      await page.clock.install();
-
-      try {
-        await openSearch(page);
-        await page.getByRole("searchbox", { name: "기록 찾기" }).fill(word);
-        const links = getRecordLink(page, `E2E 묶음 새로 ${word}`);
-        await expect(links).toHaveCount(60);
-        await getScrollArea(page).evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
-        await expect(links).toHaveCount(RECORD_COUNT);
-        const firstPageRequests: string[] = [];
-        page.on("request", (request) => {
-          const url = new URL(request.url());
-          if (url.pathname === "/api/records/search" && !url.searchParams.has("beforeId")) firstPageRequests.push(request.url());
-        });
-        const refreshed = page.waitForRequest((request) => isScreenRequest(request, "/records"));
-
-        // Act: 받은 지 30분이 지나 앱으로 돌아오면 기록 탭 화면을 새로 받는다
-        await page.clock.fastForward(31 * MINUTE_MS);
-        await returnToApp(page);
-        await refreshed;
-        await page.waitForTimeout(1_000);
-
-        // Assert
-        expect(firstPageRequests).toEqual([]);
-        await expect(links).toHaveCount(RECORD_COUNT);
-      } finally {
-        await deleteRecords();
-      }
-    });
 
     test("상대가 고친 뒤 화면을 새로 받으면 찾은 결과도 다시 받는다", async ({ page }) => {
       // Arrange

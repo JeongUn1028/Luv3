@@ -36,6 +36,8 @@ export interface RecordSearchPage {
   total: number;
   /** 다음 묶음을 받을 자리. 더 없으면 undefined */
   next: RecordCursor | undefined;
+  /** 서버가 받은 시각(ms). 사진 주소를 언제까지 쓸 수 있는지 가늠한다 */
+  loadedAt: number;
 }
 
 /** 기록을 찾지 못했을 때. 우리 API의 상태 코드가 있으면 `status`에 담는다 */
@@ -129,9 +131,9 @@ const isAlbumTile = (value: unknown): value is AlbumTile =>
  * @example parseRecordSearchPage(await response.json())
  */
 export const parseRecordSearchPage = (body: unknown): RecordSearchPage => {
-  if (!isObject(body) || !Array.isArray(body.items) || !body.items.every(isAlbumTile) || typeof body.total !== "number") {
+  if (!isObject(body) || !Array.isArray(body.items) || !body.items.every(isAlbumTile) || typeof body.total !== "number" || typeof body.loadedAt !== "number") {
     throw new RecordSearchError();
   }
   if (body.next !== undefined && !isRecordCursor(body.next)) throw new RecordSearchError();
-  return { items: body.items, total: body.total, next: body.next };
+  return { items: body.items, total: body.total, next: body.next, loadedAt: body.loadedAt };
 };
