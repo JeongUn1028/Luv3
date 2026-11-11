@@ -1,13 +1,12 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page, Route } from "@playwright/test";
-import { toKstDate } from "@/lib/anniversary";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { pickDate } from "./support/date-picker";
 import { createDisposableEvent, createDisposableRecord, createDisposableTodo, deleteEventsByTitle, deleteRecordWithFiles, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getSubmitButton, getTab, pickPhoto } from "./support/actions";
+import { getKstYesterday, getSubmitButton, getTab, pickPhoto } from "./support/actions";
 import { createTestName } from "./support/names";
 
 const CREATE_RECORD_URL = "**/rest/v1/rpc/create_date_record";
@@ -41,13 +40,11 @@ const holdSaveRequest = async (page: Page, url: string, finish: (route: Route) =
 
 const failRequest = (route: Route) => route.fulfill({ status: 500, json: { message: "E2E 저장 실패" } });
 
-const getYesterday = (): string => toKstDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
-
 const fillNewRecord = async (page: Page, title: string): Promise<void> => {
   await openScreen(page, "/dates/new", page.locator("#memo").locator("visible=true"));
   await pickPhoto(page, 1);
   // 오늘 날짜면 나란히 도는 홈 테스트의 "최근 기록" 자리를 잠깐 차지하므로 어제로 둔다
-  await pickDate(page, "#date", getYesterday());
+  await pickDate(page, "#date", getKstYesterday());
   await page.locator("#title").fill(title);
 };
 

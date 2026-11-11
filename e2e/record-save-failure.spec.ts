@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
-import { toKstDate } from "@/lib/anniversary";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { PHOTO_RECORD } from "./support/constants";
 import { pickDate } from "./support/date-picker";
 import { addPhotoAsPartner, createDisposableRecord, deleteRecordWithFiles, getRecordIdsByTitle, listRecordFiles } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getSubmitButton, getVisibleLink, pickPhoto } from "./support/actions";
+import { getKstYesterday, getSubmitButton, getVisibleLink, pickPhoto } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 기록 저장이 실패하는 경우를 모은 스펙(#196). 저장하는 사이 다른 화면으로 옮기는 경우는 leave-while-saving.spec.ts에 있다
@@ -35,7 +34,7 @@ test.describe("저장은 됐는데 응답만 끊기면", () => {
     await openScreen(page, "/dates/new", page.locator("#memo").locator("visible=true"));
     await pickPhoto(page, 1);
     // 오늘 날짜면 나란히 도는 홈 테스트의 "최근 기록" 자리를 잠깐 차지한다
-    await pickDate(page, "#date", toKstDate(new Date(Date.now() - 24 * 60 * 60 * 1000)));
+    await pickDate(page, "#date", getKstYesterday());
     await getTitleField(page).fill(title);
     await loseResponses(page, CREATE_RECORD_URL);
 

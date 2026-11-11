@@ -15,6 +15,13 @@ const MINUTE_MS = 60_000;
 export const returnToApp = (page: Page): Promise<void> => page.evaluate(() => void document.dispatchEvent(new Event("visibilitychange")));
 
 /**
+ * 한국 날짜로 어제(YYYY-MM-DD). 화면에서 저장하는 기록·일정을 오늘에 두면 나란히 도는 홈 테스트의 "최근 기록"·일정 자리를 잠깐 차지하므로 어제로 둔다.
+ *
+ * @example await pickDate(page, "#date", getKstYesterday())
+ */
+export const getKstYesterday = (): string => toKstDate(new Date(Date.now() - 24 * 60 * MINUTE_MS));
+
+/**
  * 브라우저 시계를 한국 날짜로 오늘 0시 10분 전에 맞춘다. 로그인 토큰이 만료로 보이지 않게 지난 시각을 쓴다.
  * 그 뒤 `page.clock.fastForward`로 자정을 넘긴다.
  *
