@@ -10,20 +10,15 @@ import { fetchMapPhotos } from "@/lib/dates/fetch-map-photos";
 import { toMapPinsSignature, type MapPin, type MapPins } from "@/lib/dates/map";
 import { MAP_PHOTOS_UNAUTHORIZED_STATUS, MapPhotosError, planThumbRequests, type CachedThumb } from "@/lib/dates/map-photos";
 import type { MapPhotoSpot } from "@/lib/dates/map-spots";
-import type { KakaoMap, KakaoMarkerClusterer, KakaoMaps } from "@/lib/map/kakao-sdk";
+import type { KakaoMarkerClusterer } from "@/lib/map/kakao-sdk";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { createClusterer, drawPins, findVisiblePhotoPins, type DrawnPhotoPin, type DrawnPins } from "./map-drawing";
 import { MapPhotoStrip } from "./MapPhotoStrip";
 import { MapRecordList } from "./MapRecordList";
+import type { LoadedKakaoMap } from "./use-kakao-map";
 
 /** 서버가 읽은 지도 핀. 읽지 못했으면 화면에 보여 줄 문구를 담는다 */
 export type MapPinsResult = { status: "loaded"; pins: MapPins } | { status: "failed"; message: string };
-
-/** 불러온 지도. SDK와 지도 객체를 함께 넘긴다 */
-export interface LoadedKakaoMap {
-  maps: KakaoMaps;
-  map: KakaoMap;
-}
 
 interface RecordMapPinsProps {
   pinsPromise: Promise<MapPinsResult>;
