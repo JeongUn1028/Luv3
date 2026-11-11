@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRecordDate, formatRecordMonthDay, formatRecordPeriod, findStartPhotoIndex, formatRecordShortDate, isRecordId, toDateRecordDetail, toEditableRecord, type DetailRow } from "./detail";
+import { formatRecordDate, formatRecordMonthDay, formatRecordPeriod, findStartPhotoIndex, formatRecordShortDate, isRecordId, toRecordHref, toRecordPhotoHref, toDateRecordDetail, toEditableRecord, type DetailRow } from "./detail";
 
 const row: DetailRow = {
   id: "r1",
@@ -161,6 +161,18 @@ describe("formatRecordMonthDay", () => {
   it("연도 없이 MM.DD와 요일로 쓴다", () => {
     expect(formatRecordMonthDay("2026-11-02")).toBe("11.02 월요일");
     expect(formatRecordMonthDay("2025-12-24")).toBe("12.24 수요일");
+  });
+});
+
+describe("toRecordHref", () => {
+  it("기록 id로 상세 주소를 만든다", () => {
+    expect(toRecordHref("r1")).toBe("/dates/r1");
+  });
+});
+
+describe("toRecordPhotoHref", () => {
+  it("기록 상세 주소에 처음 펼칠 사진을 붙인다", () => {
+    expect(toRecordPhotoHref({ recordId: "r1", photoId: "p2" })).toBe("/dates/r1?photo=p2");
   });
 });
 

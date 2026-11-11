@@ -5,6 +5,7 @@ import { useEffect, useState, type ReactElement } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, MapPinIcon } from "@/components/icons";
 import { SignedPhoto } from "@/components/SignedPhoto";
 import type { DetailPhoto } from "@/lib/dates/detail";
+import { useResetOnLinkReopen } from "@/lib/navigation/use-reset-on-link-reopen";
 
 interface PhotoCarouselProps {
   photos: DetailPhoto[];
@@ -24,6 +25,14 @@ export const PhotoCarousel = ({ photos, title, startIndex = 0 }: PhotoCarouselPr
   const total = photos.length;
   // 숨겨 둔 상세를 다른 사진 주소로 다시 열면 화면은 그대로지만, Embla가 바뀐 시작 순서로 다시 맞추고(reInit) 아래에서 상태도 맞춘다
   const current = photos[selectedIndex];
+
+  // 숨겨 둔 상세를 같은 사진 주소로 다시 열면 시작 순서가 그대로라 Embla가 다시 맞추지 않아, 마지막에 넘겨 본 사진이 남는다.
+  // 링크로 다시 열었을 때만 주소의 사진으로 돌리고, 뒤로 가기로 돌아왔을 때는 보던 사진을 둔다(#249)
+  useResetOnLinkReopen(() => {
+    emblaApi?.scrollTo(startIndex, true);
+    // 숨겨진 동안 select 알림을 듣지 않아 상태도 직접 맞춘다
+    setSelectedIndex(startIndex);
+  });
 
   // Embla(외부 라이브러리)가 넘긴 위치를 화면 상태와 맞춘다
   useEffect(() => {

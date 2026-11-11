@@ -1,4 +1,5 @@
 import type { PlaceLocation } from "@/lib/places/search";
+import { compareNewestFirst, toPhotoSpots, type MapPhotoRow, type MapPhotoSpot } from "./map-spots";
 
 /** 기록 지도 화면 주소 */
 export const RECORDS_MAP_PATH = "/records/map";
@@ -35,20 +36,6 @@ export interface MapRow {
   place_lng: number | null;
 }
 
-/**
- * 기록을 최신순(날짜 → 작성 시각)으로 줄 세우는 비교 함수. 끝까지 나눠 읽은 기록을 화면 순서로 되돌릴 때 쓴다(#272).
- *
- * @example rows.toSorted(compareNewestFirst)
- */
-export const compareNewestFirst = (
-  left: { id: string; date: string; created_at: string },
-  right: { id: string; date: string; created_at: string },
-): number =>
-  right.date.localeCompare(left.date) ||
-  Date.parse(right.created_at) - Date.parse(left.created_at) ||
-  // DB는 마이크로초까지 저장하지만 Date.parse는 밀리초까지만 읽어, 같아 보이는 기록도 늘 같은 순서가 되게 id로 정한다
-  right.id.localeCompare(left.id)
-
 /** 이름은 좌표와 함께 저장되지만, 없어도 핀은 그릴 수 있게 대신 쓰는 말 */
 const FALLBACK_PLACE = "이 장소";
 
@@ -70,10 +57,31 @@ export const toMapPins = (rows: MapRow[]): MapPin[] => {
   return [...pins.values()];
 };
 
+/** 지도에 그릴 핀. 사진 위치가 하나도 없는 기록만 기록 장소 핀으로 그린다(#249) */
+export interface MapPins {
+  photoSpots: MapPhotoSpot[];
+  recordPins: MapPin[];
+}
+
+/**
+ * 끝까지 읽은 기록·사진 행으로 지도의 핀을 만든다. 사진에 위치가 하나라도 있는 기록은 사진 핀으로만 보여 기록 장소 핀을 그리지 않는다.
+ *
+ * @example buildMapPins({ records, photos }) // { photoSpots: [...], recordPins: [...] }
+ */
+export const buildMapPins = ({ records, photos }: { records: (MapRow & { created_at: string })[]; photos: MapPhotoRow[] }): MapPins => {
+  const photoSpots = toPhotoSpots(photos);
+  const recordIdsWithPhotoSpots = new Set(photos.map(({ date_id: recordId }) => recordId));
+  const recordsWithoutPhotoSpots = records.filter(({ id }) => !recordIdsWithPhotoSpots.has(id));
+  return { photoSpots, recordPins: toMapPins(recordsWithoutPhotoSpots.toSorted(compareNewestFirst)) };
+};
+
 /**
  * 지도에 그릴 내용을 나타내는 글자. 다시 불러와도 이 값이 같으면 핀을 다시 그리지 않아 보던 자리가 움직이지 않는다.
  *
  * @example if (toMapPinsSignature(pins) !== drawnSignature) redraw()
  */
-export const toMapPinsSignature = (pins: MapPin[]): string =>
-  JSON.stringify(pins.map(({ key, place, records }) => [key, place, records.map(({ id }) => id)]));
+export const toMapPinsSignature = ({ photoSpots, recordPins }: MapPins): string =>
+  JSON.stringify([
+    photoSpots.map(({ key, place, photoIds }) => [key, place, photoIds]),
+    recordPins.map(({ key, place, records }) => [key, place, records.map(({ id }) => id)]),
+  ]);
