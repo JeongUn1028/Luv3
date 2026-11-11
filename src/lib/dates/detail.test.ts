@@ -17,8 +17,8 @@ const row: DetailRow = {
   event_date: null,
   event: null,
   photos: [
-    { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1 },
-    { id: "p1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", caption: "카페", sort_order: 0 },
+    { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1, place: null, place_lat: null, place_lng: null },
+    { id: "p1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", caption: "카페", sort_order: 0, place: "어니언 성수", place_lat: 37.5447, place_lng: 127.0582 },
   ],
 };
 
@@ -92,7 +92,7 @@ describe("toEditableRecord", () => {
     expect(toEditableRecord({ ...row, place_lat: 37.5, place_lng: null }, []).location).toBeUndefined();
   });
 
-  it("수정 화면 초기값으로 바꾼다: 사진은 순서대로 썸네일 미리보기, 빈 값은 빈 문자열", () => {
+  it("수정 화면 초기값으로 바꾼다: 사진은 순서대로 썸네일 미리보기·위치, 빈 값은 빈 문자열", () => {
     const editable = toEditableRecord(row, [{ path: "r1/p1_thumb.jpg", signedUrl: "https://example.test/t1" }]);
     expect(editable).toEqual({
       revision: "30000000-0000-4000-8000-000000000001",
@@ -106,8 +106,8 @@ describe("toEditableRecord", () => {
       tags: ["카페", "여행"],
       location: undefined,
       photos: [
-        { id: "p1", caption: "카페", previewUrl: "https://example.test/t1" },
-        { id: "p2", caption: "", previewUrl: undefined },
+        { id: "p1", caption: "카페", location: { place: "어니언 성수", lat: 37.5447, lng: 127.0582 }, previewUrl: "https://example.test/t1" },
+        { id: "p2", caption: "", location: undefined, previewUrl: undefined },
       ],
     });
   });

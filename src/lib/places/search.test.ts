@@ -26,6 +26,11 @@ describe("parseKakaoPlaces", () => {
     expect(parseKakaoPlaces({ documents })).toEqual([]);
   });
 
+  // 공백뿐인 이름을 사진 위치로 고르면 DB가 이름 없는 위치로 거부해 사진까지 올린 뒤 저장이 실패한다
+  it("이름이 공백뿐인 항목은 뺀다", () => {
+    expect(parseKakaoPlaces({ documents: [{ ...SEONGSU, place_name: "   " }] })).toEqual([]);
+  });
+
   it("공백뿐인 좌표나 지구 범위를 벗어난 좌표는 뺀다", () => {
     const documents = [
       { ...SEONGSU, x: " " },

@@ -137,6 +137,28 @@ export const getRecordLocation = async (id: string): Promise<{ place_lat: number
 };
 
 /**
+ * 기록의 모든 사진에 같은 위치를 넣는다(#249). `createDisposableRecord`의 사진 1장짜리 기록에 쓴다.
+ *
+ * @example await setRecordPhotoLocation(id, { place: "어니언 성수", lat: 37.54, lng: 127.05 })
+ */
+export const setRecordPhotoLocation = async (recordId: string, { place, lat, lng }: { place: string; lat: number; lng: number }): Promise<void> => {
+  assertNoError(await createAdminClient().from("photos").update({ place, place_lat: lat, place_lng: lng }).eq("date_id", recordId), "사진 위치");
+};
+
+/**
+ * 기록의 사진 위치를 사진 순서대로 읽는다.
+ *
+ * @example expect(await getRecordPhotoLocations(id)).toEqual([{ place: null, place_lat: null, place_lng: null }])
+ */
+export const getRecordPhotoLocations = async (
+  recordId: string,
+): Promise<{ place: string | null; place_lat: number | null; place_lng: number | null }[]> => {
+  const { data, error } = await createAdminClient().from("photos").select("place, place_lat, place_lng").eq("date_id", recordId).order("sort_order");
+  if (error) throw new Error(`사진 위치 읽기 실패: ${error.message}`);
+  return data;
+};
+
+/**
  * 화면에서 저장한 기록의 id를 제목으로 찾는다. 제목은 `createTestName`으로 만들어 다른 테스트·실행의 기록을 잡지 않게 한다.
  *
  * @example for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id)

@@ -39,7 +39,7 @@ const isCoordinateText = (value: unknown): value is string => typeof value === "
 const toKakaoPlace = (document: unknown): PlaceResult[] => {
   if (!isRecord(document)) return [];
   const { id, place_name: name, road_address_name: roadAddress, address_name: address, x, y } = document;
-  if (typeof name !== "string" || name === "" || !isCoordinateText(x) || !isCoordinateText(y)) return [];
+  if (typeof name !== "string" || name.trim() === "" || !isCoordinateText(x) || !isCoordinateText(y)) return [];
   const [lat, lng] = [Number(y), Number(x)];
   // 범위를 벗어난 좌표는 DB 제약에 걸려 사진까지 올린 뒤 저장이 실패하므로 고를 수 없게 한다. NaN도 여기서 걸러진다
   if (!(Math.abs(lat) <= 90) || !(Math.abs(lng) <= 180)) return [];

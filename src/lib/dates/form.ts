@@ -16,10 +16,17 @@ const TAG_SUGGESTION_LIMIT = 12;
 /** 기록 하나에 올릴 수 있는 사진 수(create_date_record와 같다) */
 export const MAX_PHOTOS = 10;
 
+/** 사진 한 장의 위치. 이름과 좌표가 늘 함께 있다(photos_place_location_valid 제약과 같다) */
+export interface PhotoLocation extends PlaceLocation {
+  place: string;
+}
+
 export interface DraftPhoto {
   /** 업로드 전에 정해 두는 사진 id. Storage 경로와 `photos.id`에 같은 값을 쓴다 */
   id: string;
   caption: string;
+  /** 사진을 찍은 곳. 없으면 undefined */
+  location: PhotoLocation | undefined;
 }
 
 /** 작성 화면의 입력값. 날짜는 YYYY-MM-DD 문자열 */
@@ -198,6 +205,22 @@ export const movePhoto = <Photo>(photos: Photo[], index: number, offset: -1 | 1)
 };
 
 /**
+ * 사진 하나의 위치를 바꾼다. `undefined`면 지운다.
+ *
+ * @example setPhotoLocation(photos, photoId, { place: "서울숲", lat: 37.54, lng: 127.03 })
+ */
+export const setPhotoLocation = <Photo extends DraftPhoto>(photos: Photo[], photoId: string, location: PhotoLocation | undefined): Photo[] =>
+  photos.map((photo) => (photo.id === photoId ? { ...photo, location } : photo));
+
+/**
+ * 두 위치가 같은 곳인지(이름·좌표가 모두 같은지) 알려 준다. 둘 다 없어도 같다.
+ *
+ * @example isSamePhotoLocation(previous, current) // true면 "앞 사진과 같은 곳"을 고를 필요가 없다
+ */
+export const isSamePhotoLocation = (left: PhotoLocation | undefined, right: PhotoLocation | undefined): boolean =>
+  left?.place === right?.place && left?.lat === right?.lat && left?.lng === right?.lng;
+
+/**
  * 적은 태그를 다듬는다. 앞의 #은 습관처럼 붙이므로 지운다.
  *
  * @example normalizeTag(" #카페 ") // "카페"
@@ -254,7 +277,12 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_title: draft.title.trim(),
     p_place: draft.place.trim(),
     p_memo: draft.memo.trim(),
-    p_photos: draft.photos.map(({ id, caption }) => ({ id, caption: caption.trim() })),
+    // 위치는 늘 넘긴다. null이면 지우고, 키를 빼면 DB 함수가 있던 위치를 그대로 둔다(예전 코드용)
+    p_photos: draft.photos.map(({ id, caption, location }) => ({
+      id,
+      caption: caption.trim(),
+      location: location ? { place: location.place, lat: location.lat, lng: location.lng } : null,
+    })),
     p_cover_photo_id: draft.coverPhotoId,
     p_event_id: draft.eventLink?.eventId,
     p_event_date: draft.eventLink?.eventDate,
@@ -271,7 +299,7 @@ const toWrittenContent = ({ date, endDate, title, place, memo, photos, coverPhot
   title,
   place,
   memo,
-  photos: photos.map(({ id, caption }) => ({ id, caption })),
+  photos: photos.map((photo) => ({ id: photo.id, caption: photo.caption, location: photo.location })),
   coverPhotoId,
   tags,
   location,

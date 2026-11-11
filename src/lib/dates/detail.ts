@@ -1,4 +1,5 @@
 import type { PlaceLocation } from "@/lib/places/search";
+import type { PhotoLocation } from "./form";
 import type { AuthorRow } from "@/lib/author";
 import type { SignedUrl } from "@/lib/photos/signed-urls";
 import { isRepeatRule } from "@/lib/events/calendar";
@@ -49,7 +50,7 @@ export interface EditableRecord {
   tags: string[];
   location: PlaceLocation | undefined;
   /** 이미 저장된 사진. 미리보기는 썸네일 서명 URL */
-  photos: { id: string; caption: string; previewUrl: string | undefined }[];
+  photos: { id: string; caption: string; location: PhotoLocation | undefined; previewUrl: string | undefined }[];
 }
 
 /** `dates` + `photos` 조회 결과 한 행 */
@@ -70,11 +71,24 @@ export interface DetailRow {
   event_date: string | null;
   /** 기록을 남긴 일정. 직접 쓴 기록이거나 일정이 지워졌으면 null */
   event: { id: string; title: string; repeat_rule: string | null } | null;
-  photos: { id: string; path: string; thumb_path: string; caption: string | null; sort_order: number }[];
+  photos: {
+    id: string;
+    path: string;
+    thumb_path: string;
+    caption: string | null;
+    sort_order: number;
+    place: string | null;
+    place_lat: number | null;
+    place_lng: number | null;
+  }[];
 }
 
 const toUrlByPath = (signed: SignedUrl[]): Map<string, string> =>
   new Map(signed.flatMap(({ path, signedUrl }) => (path && signedUrl ? [[path, signedUrl] as const] : [])));
+
+// 이름과 좌표는 DB 제약으로 함께 있거나 함께 없다
+const toPhotoLocation = ({ place, place_lat: lat, place_lng: lng }: DetailRow["photos"][number]): PhotoLocation | undefined =>
+  place !== null && lat !== null && lng !== null ? { place, lat, lng } : undefined;
 
 const sortPhotos = (photos: DetailRow["photos"]): DetailRow["photos"] =>
   photos.toSorted((a, b) => a.sort_order - b.sort_order);
@@ -140,10 +154,11 @@ export const toEditableRecord = (row: DetailRow, signedThumbs: SignedUrl[]): Edi
     coverPhotoId: row.cover_photo_id ?? photos[0]?.id,
     tags: row.tags,
     location: row.place_lat !== null && row.place_lng !== null ? { lat: row.place_lat, lng: row.place_lng } : undefined,
-    photos: photos.map(({ id, caption, thumb_path }) => ({
-      id,
-      caption: caption ?? "",
-      previewUrl: urlByPath.get(thumb_path),
+    photos: photos.map((photo) => ({
+      id: photo.id,
+      caption: photo.caption ?? "",
+      location: toPhotoLocation(photo),
+      previewUrl: urlByPath.get(photo.thumb_path),
     })),
   };
 };

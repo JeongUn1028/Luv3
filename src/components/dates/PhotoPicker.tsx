@@ -1,10 +1,13 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent, type ReactElement } from "react";
+import { flushSync } from "react-dom";
 import { FIELD_LABEL_CLASS_NAME, FieldError } from "@/components/FormField";
-import { CAPTION_MAX_LENGTH, MAX_PHOTOS, type DraftErrors, type DraftPhoto } from "@/lib/dates/form";
+import { ChevronRightIcon, MapPinIcon } from "@/components/icons";
+import { CAPTION_MAX_LENGTH, MAX_PHOTOS, type DraftErrors, type DraftPhoto, type PhotoLocation } from "@/lib/dates/form";
 import { runKeepingFocus } from "@/lib/keep-focus";
 import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/resize";
+import { PhotoLocationDialog, type PhotoLocationDialogHandle } from "./PhotoLocationDialog";
 
 export interface PickedPhoto extends DraftPhoto {
   /** 이번에 새로 고른 사진의 파일. 이미 저장된 사진(수정 화면)은 undefined */
@@ -18,11 +21,14 @@ interface PhotoPickerProps {
   coverPhotoId: string | undefined;
   errors: DraftErrors;
   isDisabled: boolean;
+  /** 사진 위치 창에서 장소 찾기를 쓸 수 있는지(서버에 키가 있는지) */
+  canSearchPlace: boolean;
   onAdd: (files: File[]) => void;
   onRemove: (photoId: string) => void;
   onMove: (index: number, offset: -1 | 1) => void;
   onCaptionChange: (photoId: string, caption: string) => void;
   onCoverChange: (photoId: string) => void;
+  onLocationChange: (photoId: string, location: PhotoLocation | undefined) => void;
 }
 
 interface PhotoPreviewProps {
@@ -61,21 +67,34 @@ const PhotoPreview = ({ src, alt }: PhotoPreviewProps): ReactElement => {
 const smallButtonClassName =
   "press-icon relative h-9 min-w-9 rounded-[8px] border border-line px-2 text-[12px] text-ink-sub after:absolute after:-inset-[5px] hover:text-ink disabled:opacity-30 aria-disabled:opacity-30";
 
-/** 사진 고르기 + 고른 사진 목록(미리보기, 한마디, 대표 사진, 순서, 빼기) */
+/** 사진 고르기 + 고른 사진 목록(미리보기, 한마디, 위치, 대표 사진, 순서, 빼기) */
 export const PhotoPicker = ({
   photos,
   coverPhotoId,
   errors,
   isDisabled,
+  canSearchPlace,
   onAdd,
   onRemove,
   onMove,
   onCaptionChange,
   onCoverChange,
+  onLocationChange,
 }: PhotoPickerProps): ReactElement => {
   const inputRef = useRef<HTMLInputElement>(null);
   const pickButtonRef = useRef<HTMLButtonElement>(null);
+  const locationDialogRef = useRef<PhotoLocationDialogHandle>(null);
+  // 창은 하나만 두고 연 사진을 바꾼다. 창이 닫히는 움직임 동안에도 제목이 남도록 닫을 때 지우지 않는다
+  const [locationPhotoId, setLocationPhotoId] = useState<string>();
+  const locationPhotoIndex = photos.findIndex(({ id }) => id === locationPhotoId);
+  const locationPhoto = photos[locationPhotoIndex];
   const isFull = photos.length >= MAX_PHOTOS;
+
+  const openLocationDialog = (photoId: string) => {
+    // 창이 열릴 때 제목과 설명이 이 사진 것이어야 화면 읽기가 앞 사진 제목을 읽지 않는다
+    flushSync(() => setLocationPhotoId(photoId));
+    locationDialogRef.current?.open();
+  };
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
     onAdd(Array.from(event.target.files ?? []));
@@ -126,6 +145,18 @@ export const PhotoPicker = ({
                       {captionError}
                     </p>
                   )}
+                  {/* 고르는 일은 창에서 해 사진 줄이 위치 한 줄만큼만 길어진다(#249, 2026-11-11 사용자 결정) */}
+                  <button
+                    type="button"
+                    disabled={isDisabled}
+                    onClick={() => openLocationDialog(photo.id)}
+                    className={`press-icon flex h-9 min-w-0 items-center gap-1.5 text-left text-[13px] disabled:opacity-50 ${photo.location ? "text-ink" : "text-ink-sub"}`}
+                  >
+                    <MapPinIcon className={`size-4 shrink-0 ${photo.location ? "text-accent" : ""}`} />
+                    <span className="sr-only">{index + 1}번째 사진 위치: </span>
+                    <span className="min-w-0 flex-1 truncate">{photo.location?.place ?? "위치 추가"}</span>
+                    <ChevronRightIcon className="size-4 shrink-0 text-ink-sub" />
+                  </button>
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="relative flex h-9 items-center gap-1.5 text-[12px] text-ink-sub after:absolute after:-inset-1">
                       <input
@@ -196,6 +227,16 @@ export const PhotoPicker = ({
         {isFull ? "사진은 10장까지 올릴 수 있어요" : "사진 고르기"}
       </button>
       <FieldError id="photos-error" error={errors.photos} />
+      <PhotoLocationDialog
+        ref={locationDialogRef}
+        photoNumber={locationPhotoIndex + 1}
+        location={locationPhoto?.location}
+        previousLocation={photos[locationPhotoIndex - 1]?.location}
+        canSearch={canSearchPlace}
+        onChange={(location) => {
+          if (locationPhoto) onLocationChange(locationPhoto.id, location);
+        }}
+      />
     </fieldset>
   );
 };

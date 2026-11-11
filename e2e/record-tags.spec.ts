@@ -55,7 +55,7 @@ test.describe("기록 태그", () => {
       await page.locator("#tag-input").press("Enter");
       await expect(page).toHaveURL(new RegExp(`/dates/${id}/edit`));
       await page.locator("#tag-input").fill("여행");
-      await page.getByRole("button", { name: "추가" }).click();
+      await page.getByRole("button", { name: "추가", exact: true }).click();
       await page.getByRole("button", { name: "저장" }).click();
       await page.waitForURL(new RegExp(`/dates/${id}$`));
 
@@ -169,7 +169,7 @@ test.describe("기록 태그", () => {
       await page.locator("#title").fill(title);
       await openTagField(page);
       await page.locator("#tag-input").fill("새태그");
-      await page.getByRole("button", { name: "추가" }).click();
+      await page.getByRole("button", { name: "추가", exact: true }).click();
       await page.getByRole("button", { name: "저장" }).click();
       await page.waitForURL(/\/records/);
       await page.getByRole("link", { name: new RegExp(title) }).click();
