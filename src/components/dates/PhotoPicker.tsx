@@ -103,6 +103,7 @@ export const PhotoPicker = ({
           {photos.map((photo, index) => {
             const captionError = errors[`caption:${photo.id}`];
             return (
+              // key는 사진 id로 둔다. 다른 화면에 다녀오면 미리보기 주소가 해제돼 있어, 미리보기를 다시 만들면 깨진다(#280, usePreviewUrls)
               <li key={photo.id} className="flex gap-3 rounded-[10px] bg-surface p-3">
                 <PhotoPreview src={photo.previewUrl} alt={`${index + 1}번째 사진`} />
                 <div className="flex min-w-0 flex-1 flex-col gap-2">
