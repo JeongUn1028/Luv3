@@ -32,6 +32,7 @@ import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
 import { BACK_TRANSITION, FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
+import { useDiscardOnLeave } from "@/lib/navigation/use-discard-on-leave";
 import type { EditableRecord } from "@/lib/dates/detail";
 import {
   DateRecordAlreadyLinkedError,
@@ -160,6 +161,24 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
     return subscribeToAppReturn(moveUntouchedDateToToday);
   }, [hasDefaultDate]);
 
+  /** 폼을 `nextDraft`로 처음부터 다시 쓰는 상태로 되돌린다. 저장한 뒤와 쓴 내용을 버리고 나갈 때 쓴다 */
+  const resetForm = (nextDraft: RecordDraft) => {
+    setInitialDraft(nextDraft);
+    setDraft(nextDraft);
+    setTagInput("");
+    setPlaceFieldKey((key) => key + 1);
+    setIsTagFieldOpen(nextDraft.tags.length > 0);
+    setErrors({});
+    setNotice(undefined);
+    setLinkedRecordId(undefined);
+    setProgress(undefined);
+    setIsSaving(false);
+  };
+
+  // 새 기록 폼은 다시 열면 숨겨 둔 폼을 그대로 보여 주므로, 경고 창에서 버리기로 했으면 숨겨질 때 처음 내용으로 되돌린다(#284).
+  // 고친 기록 폼은 열 때마다 새로 만들어져 되돌릴 필요가 없다. 미리보기는 숨겨질 때 usePreviewUrls가 해제한다
+  const discardOnLeave = useDiscardOnLeave({ content: draft, reset: () => resetForm(createEmptyDraft(prefill)) });
+
   const updatePlace = (changes: Partial<Pick<RecordDraft, "place" | "location">>) => {
     setDraft((current) => ({ ...current, ...changes }));
     setErrors((current) => clearError(current, "place"));
@@ -284,21 +303,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       draft.photos.forEach(({ previewUrl }) => previews.revoke(previewUrl));
       // 목록은 날짜 내림차순이라 새 기록은 맨 위에 있다. 보던 위치로 돌아가면 저장되지 않은 것처럼 보인다
       if (!record) forgetScrollPosition("records");
-      finishSaved({
-        href: savedHref,
-        reset: () => {
-          const emptyDraft = record ? toEditDraft(record) : createEmptyDraft();
-          setInitialDraft(emptyDraft);
-          setDraft(emptyDraft);
-          setTagInput("");
-          setPlaceFieldKey((key) => key + 1);
-          setIsTagFieldOpen(Boolean(record?.tags.length));
-          setErrors({});
-          setNotice(undefined);
-          setProgress(undefined);
-          setIsSaving(false);
-        },
-      });
+      finishSaved({ href: savedHref, reset: () => resetForm(record ? toEditDraft(record) : createEmptyDraft()) });
     } catch (error) {
       const message = toSaveErrorMessage(error);
       const isGone = error instanceof DateRecordGoneError;
@@ -345,7 +350,11 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       header={
         <ScreenHeader
           // 지워진 기록의 상세는 찾을 수 없음 화면이라 기록을 되돌아가지 않고 목록으로 간다
-          back={record && !isRecordGone ? { href: `/dates/${record.id}`, shouldConfirmLeave } : { href: RECORDS_PATH, skipsHistory: isRecordGone, shouldConfirmLeave }}
+          back={
+            record && !isRecordGone
+              ? { href: `/dates/${record.id}`, shouldConfirmLeave }
+              : { href: RECORDS_PATH, skipsHistory: isRecordGone, shouldConfirmLeave, onConfirmLeave: record ? undefined : discardOnLeave }
+          }
           title={record ? "기록 고치기" : "기록 남기기"}
         />
       }
