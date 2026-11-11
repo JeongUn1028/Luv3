@@ -27,6 +27,8 @@ export interface DraftPhoto {
   caption: string;
   /** 사진을 찍은 곳. 없으면 undefined */
   location: PhotoLocation | undefined;
+  /** 새로 고른 사진 파일에서 읽은 찍은 시각(시간대가 붙은 ISO 문자열). 저장된 사진의 시각은 DB가 바꾸지 않아 넘기지 않는다 */
+  takenAt?: string;
 }
 
 /** 작성 화면의 입력값. 날짜는 YYYY-MM-DD 문자열 */
@@ -278,10 +280,11 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_place: draft.place.trim(),
     p_memo: draft.memo.trim(),
     // 위치는 늘 넘긴다. null이면 지우고, 키를 빼면 DB 함수가 있던 위치를 그대로 둔다(예전 코드용)
-    p_photos: draft.photos.map(({ id, caption, location }) => ({
+    p_photos: draft.photos.map(({ id, caption, location, takenAt }) => ({
       id,
       caption: caption.trim(),
       location: location ? { place: location.place, lat: location.lat, lng: location.lng } : null,
+      ...(takenAt !== undefined && { taken_at: takenAt }),
     })),
     p_cover_photo_id: draft.coverPhotoId,
     p_event_id: draft.eventLink?.eventId,
@@ -312,3 +315,19 @@ const toWrittenContent = ({ date, endDate, title, place, memo, photos, coverPhot
  */
 export const hasRecordDraftChanges = (initial: DateRecordDraft, current: DateRecordDraft): boolean =>
   !isSameFormValue(toWrittenContent(initial), toWrittenContent(current));
+
+/**
+ * `discarded`에서 사진 정보를 읽는 중이던 사진에 찍은 곳·찍은 시각이 채워진 것 말고는 쓴 내용이 같은지 알려 준다.
+ * 나가기를 고른 뒤 늦게 도착한 사진 정보는 사람이 계속 쓴 것이 아니므로, 숨겨질 때 그대로 버린다(#284, #249).
+ *
+ * @example isSameExceptReadingPhotoInfo(draftWhenDiscarded, draft) // true
+ */
+export const isSameExceptReadingPhotoInfo = <Photo extends DraftPhoto & { isReadingInfo: boolean }>(
+  discarded: DateRecordDraft<Photo>,
+  current: DateRecordDraft<Photo>,
+): boolean => {
+  const readingIds = new Set(discarded.photos.filter(({ isReadingInfo }) => isReadingInfo).map(({ id }) => id));
+  const withoutReadingInfo = (draft: DateRecordDraft<Photo>): DateRecordDraft =>
+    ({ ...draft, photos: draft.photos.map((photo) => (readingIds.has(photo.id) ? { ...photo, location: undefined } : photo)) });
+  return !hasRecordDraftChanges(withoutReadingInfo(discarded), withoutReadingInfo(current));
+};

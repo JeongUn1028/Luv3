@@ -14,6 +14,8 @@ export interface PickedPhoto extends DraftPhoto {
   file: File | undefined;
   /** 새 사진은 object URL(빼거나 화면을 떠날 때 해제), 저장된 사진은 썸네일 서명 URL */
   previewUrl: string | undefined;
+  /** 새로 고른 사진에서 찍은 곳·찍은 시각을 읽는 중인지. 그동안 위치 칸과 저장 버튼을 막는다 */
+  isReadingInfo: boolean;
 }
 
 interface PhotoPickerProps {
@@ -145,17 +147,20 @@ export const PhotoPicker = ({
                       {captionError}
                     </p>
                   )}
-                  {/* 고르는 일은 창에서 해 사진 줄이 위치 한 줄만큼만 길어진다(#249, 2026-11-11 사용자 결정) */}
+                  {/* 고르는 일은 창에서 해 사진 줄이 위치 한 줄만큼만 길어진다(#249, 2026-11-11 사용자 결정).
+                      사진에서 위치를 읽는 동안은 고른 값이 읽은 값에 덮이지 않게 누를 수 없다 */}
                   <button
                     type="button"
-                    disabled={isDisabled}
+                    disabled={isDisabled || photo.isReadingInfo}
                     onClick={() => openLocationDialog(photo.id)}
                     className={`press-icon flex h-9 min-w-0 items-center gap-1.5 text-left text-[13px] disabled:opacity-50 ${photo.location ? "text-ink" : "text-ink-sub"}`}
                   >
                     <MapPinIcon className={`size-4 shrink-0 ${photo.location ? "text-accent" : ""}`} />
                     <span className="sr-only">{index + 1}번째 사진 위치: </span>
-                    <span className="min-w-0 flex-1 truncate">{photo.location?.place ?? "위치 추가"}</span>
-                    <ChevronRightIcon className="size-4 shrink-0 text-ink-sub" />
+                    <span className="min-w-0 flex-1 truncate">
+                      {photo.isReadingInfo ? "위치 읽는 중…" : (photo.location?.place ?? "위치 추가")}
+                    </span>
+                    {!photo.isReadingInfo && <ChevronRightIcon className="size-4 shrink-0 text-ink-sub" />}
                   </button>
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="relative flex h-9 items-center gap-1.5 text-[12px] text-ink-sub after:absolute after:-inset-1">
