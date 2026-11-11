@@ -5,7 +5,8 @@ export type KakaoLatLng = object;
 
 /** 지도 객체 */
 export interface KakaoMap {
-  setBounds: (bounds: KakaoLatLngBounds) => void;
+  /** 범위가 모두 보이게 옮긴다. 여백(px)을 주면 가장자리 핀이 잘리지 않는다 */
+  setBounds: (bounds: KakaoLatLngBounds, paddingTop?: number, paddingRight?: number, paddingBottom?: number, paddingLeft?: number) => void;
   setCenter: (latLng: KakaoLatLng) => void;
   /** 지금 화면에 보이는 범위 */
   getBounds: () => KakaoLatLngBounds;
@@ -31,6 +32,11 @@ export interface KakaoCustomOverlay {
   getPosition: () => KakaoLatLng;
 }
 
+/** 지도 위에 그리는 선(동선, #251) */
+export interface KakaoPolyline {
+  setMap: (map: KakaoMap | null) => void;
+}
+
 /** 묶음 동그라미 하나에 쓰는 CSS. 카카오가 그대로 붙인다 */
 export type KakaoClusterStyle = Record<string, string>;
 
@@ -50,7 +56,15 @@ export interface KakaoMaps {
   LatLngBounds: new () => KakaoLatLngBounds;
   Map: new (container: HTMLElement, options: { center: KakaoLatLng; level: number }) => KakaoMap;
   Marker: new (options: { position: KakaoLatLng; title: string; clickable: boolean }) => KakaoMarker;
-  CustomOverlay: new (options: { position: KakaoLatLng; content: HTMLElement; xAnchor: number; yAnchor: number; clickable: boolean }) => KakaoCustomOverlay;
+  CustomOverlay: new (options: {
+    position: KakaoLatLng;
+    content: HTMLElement;
+    xAnchor: number;
+    yAnchor: number;
+    clickable: boolean;
+    zIndex?: number;
+  }) => KakaoCustomOverlay;
+  Polyline: new (options: { path: KakaoLatLng[]; strokeWeight: number; strokeColor: string; strokeOpacity: number }) => KakaoPolyline;
   MarkerClusterer: new (options: {
     map: KakaoMap;
     gridSize: number;

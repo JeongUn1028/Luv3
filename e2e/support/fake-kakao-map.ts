@@ -14,6 +14,7 @@ export interface FakeViewBox {
 /**
  * 실제 카카오를 부르지 않게 지도 SDK를 대신하는 스크립트. 그린 핀과 지도 수를 창에 남겨 테스트가 읽고 누른다.
  * 사진 핀(CustomOverlay)은 실제처럼 지도 요소 안에 붙여 버튼을 누를 수 있다. 위치는 흉내 내지 않아 핀이 모두 왼쪽 위에 겹친다.
+ * 선(Polyline)은 그린 좌표와 색만 남긴다(#251).
  * 묶음 기능(MarkerClusterer)은 묶지 않고 모든 핀을 낱개로 보여 주며, 핀을 넣을 때와 `fakeMap.idle()` 때 `clustered`를 알린다.
  * "화면 안"은 `fakeMap.viewBox`로 정한다(`bounds.contain`).
  */
@@ -21,7 +22,7 @@ const buildFakeSdk = (viewBox: FakeViewBox | undefined): string => `
 const handlersOf = (target) => (target.__handlers ??= {});
 const fire = (target, type, argument) => [...(handlersOf(target)[type] ?? [])].forEach((handler) => handler(argument));
 window.fakeMap = {
-  markers: [], overlays: [], mapCount: 0, boundsCount: 0, centerCount: 0, viewBox: ${JSON.stringify(viewBox ?? null)},
+  markers: [], overlays: [], polylines: [], mapCount: 0, boundsCount: 0, centerCount: 0, viewBox: ${JSON.stringify(viewBox ?? null)},
   fire,
   idle: () => {
     fire(window.fakeMap.map, "idle");
@@ -64,6 +65,13 @@ window.kakao = {
       getMap() { return this.map; }
       getPosition() { return this.position; }
     },
+    Polyline: class {
+      constructor({ path, strokeColor }) { this.path = path.map(({ lat, lng }) => ({ lat, lng })); this.strokeColor = strokeColor; }
+      setMap(map) {
+        window.fakeMap.polylines = window.fakeMap.polylines.filter((polyline) => polyline !== this);
+        if (map) window.fakeMap.polylines.push(this);
+      }
+    },
     MarkerClusterer: class {
       constructor({ map }) { this.map = map; this.items = []; window.fakeMap.clusterer = this; }
       addMarkers(items) { this.items.push(...items); items.forEach((item) => item.setMap(this.map)); fire(this, "clustered", []); }
@@ -81,6 +89,7 @@ window.kakao = {
 export interface FakeWindow extends Window {
   fakeMap: {
     markers: { title: string }[];
+    polylines: { path: { lat: number; lng: number }[]; strokeColor: string }[];
     mapCount: number;
     boundsCount: number;
     centerCount: number;

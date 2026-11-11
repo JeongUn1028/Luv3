@@ -5,6 +5,7 @@ import type { SignedUrl } from "@/lib/photos/signed-urls";
 import { isRepeatRule } from "@/lib/events/calendar";
 import { toEventEditHref } from "@/lib/events/recurrence";
 import { formatPeriodMonthDay, toMonthDay, type RecordPeriod } from "./album";
+import { buildPhotoRoute, type PhotoRoute } from "./route";
 
 export interface DetailPhoto {
   id: string;
@@ -60,6 +61,8 @@ export interface DateRecordDetail {
   linkedEvent: { id: string; title: string; href: string } | undefined;
   /** sort_order 순서 */
   photos: DetailPhoto[];
+  /** 사진 위치를 찍은 순서대로 이은 동선(#251). 이을 곳이 둘 미만이면 undefined */
+  route: PhotoRoute | undefined;
   /** 기록을 지울 때 함께 지울 Storage 파일(원본·썸네일) */
   filePaths: string[];
 }
@@ -108,6 +111,7 @@ export interface DetailRow {
     place: string | null;
     place_lat: number | null;
     place_lng: number | null;
+    taken_at: string | null;
   }[];
 }
 
@@ -159,6 +163,7 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): D
     eventHref: linkedEvent?.href,
     linkedEvent,
     photos: photos.map(({ id, path, caption, place }) => ({ id, url: urlByPath.get(path), caption: caption ?? undefined, place: place ?? undefined })),
+    route: buildPhotoRoute(photos),
     filePaths: photos.flatMap(({ path, thumb_path }) => [path, thumb_path]),
   };
 };

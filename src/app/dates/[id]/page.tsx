@@ -11,6 +11,7 @@ import { PageShell } from "@/components/PageShell";
 import { RecordComments } from "@/components/dates/RecordComments";
 import { RecordDetailSkeleton } from "@/components/dates/RecordDetailSkeleton";
 import { LinkEventButton, LinkedEventRow } from "@/components/dates/RecordEventLink";
+import { RecordRoute } from "@/components/dates/route/RecordRoute";
 import { RecordTagLink } from "@/components/dates/RecordTagLink";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { toKstDate } from "@/lib/anniversary";
@@ -60,6 +61,8 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
     );
   }
   if (!record) notFound();
+  // 지도 키가 없으면 동선 지도를 그리지 않는다(기록 탭의 지도 버튼과 같다)
+  const mapKey = process.env.NEXT_PUBLIC_KAKAO_MAP_KEY;
 
   return (
     <>
@@ -112,6 +115,8 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
           {record.memo && (
             <p className="mt-5 text-[15px] leading-[1.75] break-words whitespace-pre-wrap text-ink">{record.memo}</p>
           )}
+          {/* 사진 위치를 찍은 순서대로 이은 동선(#251). 이을 곳이 둘 미만이면 그리지 않는다 */}
+          {record.route && mapKey && <RecordRoute route={record.route} appKey={mapKey} />}
           {/* 이미 쓴 기록도 일정과 잇고, 잘못 이었으면 연결만 끊는다(#237). 이을 일정은 기록을 그린 뒤에 읽어 화면을 늦추지 않고, 늦게 나타나도 글을 밀지 않게 본문 끝에 둔다 */}
           {record.linkedEvent ? (
             <LinkedEventRow recordId={record.id} event={record.linkedEvent} />
