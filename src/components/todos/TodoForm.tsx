@@ -1,14 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useState, useTransition, type ReactElement, type SubmitEvent } from "react";
+import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
+import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
+import { addMaybeSavedRevision } from "@/lib/revision";
 import { createClient } from "@/lib/supabase/client";
 import { TODO_CONTENT_MAX_LENGTH, validateTodoContent } from "@/lib/todos/form";
 import { TODOS_PATH } from "@/lib/todos/list";
@@ -45,7 +47,6 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
   const [newTodoId, setNewTodoId] = useState(failedSave?.draft.newTodoId);
   const [expectedRevisions, setExpectedRevisions] = useState(failedSave?.draft.expectedRevisions ?? (initialRevision ? [initialRevision] : []));
   const [hasConflict, setHasConflict] = useState(failedSave?.draft.hasConflict ?? false);
-  const [isReloading, startReloading] = useTransition();
   // 쓴 내용이 있는지 견줄 처음 내용. 상대가 고쳐 화면을 새로 받아도 폼은 처음 내용 그대로라 이 값과 견준다
   const [baseContent, setBaseContent] = useState(initialContent);
   const [error, setError] = useState<string>();
@@ -81,8 +82,7 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
         content,
         // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다
         newTodoId: todoId ? undefined : saveId,
-        // 저장됐을 수 있는 내 판은 다음 시도에서 상대의 저장으로 오해하지 않게 허용한다
-        expectedRevisions: failure.mayHaveSaved ? [...expectedRevisions, revision] : expectedRevisions,
+        expectedRevisions: addMaybeSavedRevision({ expectedRevisions, revision, mayHaveSaved: failure.mayHaveSaved }),
         hasConflict: failure.hasConflict,
       };
       setNewTodoId(failedDraft.newTodoId);
@@ -104,13 +104,6 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
         setExpectedRevisions(initialRevision ? [initialRevision] : []);
         setIsSaving(false);
       },
-    });
-  };
-
-  // 페이지가 다시 불러올 때마다 폼을 새로 만들므로, 최신 내용으로 다시 고칠 수 있다
-  const handleReloadLatest = () => {
-    startReloading(() => {
-      router.refresh();
     });
   };
 
@@ -167,15 +160,7 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
             </p>
           )}
           {hasConflict ? (
-            // 다시 저장해도 거부되므로 저장 버튼 대신 최신 내용을 불러오는 길을 준다
-            <button
-              type="button"
-              disabled={isReloading}
-              onClick={handleReloadLatest}
-              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-            >
-              {isReloading ? "불러오는 중…" : "최신 내용 불러오기"}
-            </button>
+            <ReloadLatestButton />
           ) : (
             <button
               type="submit"

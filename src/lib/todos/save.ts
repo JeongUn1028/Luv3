@@ -1,4 +1,5 @@
-import { createRowWithRetry, toSaveFailure, updateRowWithRetry, type SaveFailure } from "@/lib/save-outcome";
+import { saveRowAtRevision } from "@/lib/revision";
+import { toSaveFailure, type SaveFailure } from "@/lib/save-outcome";
 import { createClient } from "@/lib/supabase/client";
 
 const MESSAGES = {
@@ -29,13 +30,6 @@ interface SaveTodoParams {
  * @example const failure = await saveTodo({ content: "벚꽃 보기", todoId, newTodoId: crypto.randomUUID(), expectedRevisions: [revision], revision: crypto.randomUUID() })
  */
 export const saveTodo = async ({ content, todoId, newTodoId, expectedRevisions, revision }: SaveTodoParams): Promise<SaveFailure | undefined> => {
-  const todos = createClient().from("todos");
-  // 불러온 판과 내 앞선 시도의 판만 허용한다. 내 이번 판도 허용해야 응답만 끊긴 요청을 그대로 다시 보낼 수 있다
-  const allowedRevisions = [...expectedRevisions, revision];
-  const update = (id: string) => () => todos.update({ content, revision }).eq("id", id).in("revision", allowedRevisions).select("id");
-  const readRow = (id: string) => () => todos.select("id").eq("id", id).maybeSingle();
-  const outcome = todoId
-    ? await updateRowWithRetry({ update: update(todoId), readRow: readRow(todoId) })
-    : await createRowWithRetry({ insert: () => todos.insert({ id: newTodoId, content, revision }), update: update(newTodoId), readRow: readRow(newTodoId) });
+  const outcome = await saveRowAtRevision({ table: createClient().from("todos"), rowId: todoId, newRowId: newTodoId, values: { content }, expectedRevisions, revision });
   return toSaveFailure(outcome, MESSAGES);
 };
