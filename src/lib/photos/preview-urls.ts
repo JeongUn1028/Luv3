@@ -40,6 +40,8 @@ export const createPreviewUrls = (): PreviewUrls => {
 
 /**
  * 화면에서 쓰는 미리보기 주소 묶음. 화면을 떠나면 남은 미리보기를 모두 해제한다(브라우저 메모리 = 외부 자원).
+ * 다른 화면에 다녀오느라 숨겨질 때(Activity)도 해제된다. 이미 그려진 사진은 그대로 보이지만 같은 주소로 사진을 새로 그리면
+ * 깨지므로, 고른 사진의 미리보기 `<img>`는 다시 만들지 않는다(칸의 key는 사진 id로 둔다. #280, `e2e/photo-preview-return.spec.ts`).
  *
  * @example
  * const previews = usePreviewUrls();
