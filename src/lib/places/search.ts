@@ -111,3 +111,33 @@ export const searchKakaoPlaces = async ({
     throw new PlaceSearchError({ cause });
   }));
 };
+
+/** 로그인이 풀려 장소를 찾지 못했을 때의 상태 코드. 화면은 이 자리에서 다시 로그인하는 창을 띄운다 */
+export const PLACE_SEARCH_UNAUTHORIZED_STATUS = 401;
+const PLACE_SEARCH_OVER_LIMIT_STATUS = 429;
+
+/**
+ * 화면에서 우리 장소 찾기 API(`PLACE_SEARCH_PATH`)를 부른다.
+ *
+ * @throws {PlaceSearchError} 로그인이 풀렸거나(401) 서버가 실패를 알렸거나 응답이 잘못됐을 때
+ * @example const places = await fetchPlaceResults({ query: "성수" })
+ */
+export const fetchPlaceResults = async ({ query, fetcher = fetch }: { query: string; fetcher?: typeof fetch }): Promise<PlaceResult[]> => {
+  const response = await fetcher(`${PLACE_SEARCH_PATH}?${new URLSearchParams({ q: query }).toString()}`);
+  // 로그인이 풀리면 서버가 로그인 화면으로 보내고, fetch는 그 화면을 성공(200)으로 받아 온다
+  if (response.redirected) throw new PlaceSearchError({ status: PLACE_SEARCH_UNAUTHORIZED_STATUS });
+  if (!response.ok) throw new PlaceSearchError({ status: response.status });
+  return parsePlaceResults(await response.json());
+};
+
+/**
+ * 장소를 찾지 못했을 때 보여 줄 문구. `fallbackHint`는 찾지 못해도 할 수 있는 일을 덧붙인다(로그인이 풀렸을 때는 붙이지 않는다).
+ *
+ * @example toPlaceSearchFailureNotice(error, " 적은 이름 그대로 저장할 수 있어요.")
+ */
+export const toPlaceSearchFailureNotice = (error: unknown, fallbackHint = ""): string => {
+  const status = error instanceof PlaceSearchError ? error.status : undefined;
+  if (status === PLACE_SEARCH_UNAUTHORIZED_STATUS) return "로그인한 뒤 다시 찾아 주세요.";
+  if (status === PLACE_SEARCH_OVER_LIMIT_STATUS) return `오늘은 장소를 더 찾을 수 없어요.${fallbackHint}`;
+  return `장소를 찾지 못했어요.${fallbackHint}`;
+};

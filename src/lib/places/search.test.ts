@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { PlaceSearchError, parseKakaoPlaces, parsePlaceResults, searchKakaoPlaces } from "./search";
+import { fetchPlaceResults, PlaceSearchError, parseKakaoPlaces, parsePlaceResults, searchKakaoPlaces, toPlaceSearchFailureNotice } from "./search";
 
 const SEONGSU = {
   id: "1",
@@ -103,5 +103,47 @@ describe("searchKakaoPlaces", () => {
 
     // Act & Assert
     await expect(searchKakaoPlaces({ query: "성수", apiKey: "키", fetcher })).rejects.toBeInstanceOf(PlaceSearchError);
+  });
+});
+
+describe("fetchPlaceResults", () => {
+  it("검색어를 우리 API 주소에 넣어 부르고 결과를 읽는다", async () => {
+    // Arrange
+    const fetcher = vi.fn(async () => Response.json({ items: [RESULT] }));
+
+    // Act
+    const places = await fetchPlaceResults({ query: "성수 & 카페", fetcher });
+
+    // Assert
+    expect(places).toEqual([RESULT]);
+    expect(fetcher).toHaveBeenCalledWith("/api/places/search?q=%EC%84%B1%EC%88%98+%26+%EC%B9%B4%ED%8E%98");
+  });
+
+  it("로그인 화면으로 넘어가면 401로 알린다", async () => {
+    // Arrange
+    const redirected = new Response("<html></html>");
+    Object.defineProperty(redirected, "redirected", { value: true });
+    const fetcher = vi.fn(async () => redirected);
+
+    // Act & Assert
+    await expect(fetchPlaceResults({ query: "성수", fetcher })).rejects.toMatchObject({ status: 401 });
+  });
+
+  it("서버가 실패를 알리면 상태 코드를 담아 알린다", async () => {
+    const fetcher = vi.fn(async () => new Response("{}", { status: 503 }));
+    await expect(fetchPlaceResults({ query: "성수", fetcher })).rejects.toMatchObject({ status: 503 });
+  });
+});
+
+describe("toPlaceSearchFailureNotice", () => {
+  it("로그인이 풀렸으면 덧붙일 말 없이 다시 로그인하라고 알린다", () => {
+    expect(toPlaceSearchFailureNotice(new PlaceSearchError({ status: 401 }), " 덧붙임.")).toBe("로그인한 뒤 다시 찾아 주세요.");
+  });
+
+  it("한도를 넘었거나 다른 이유로 실패하면 덧붙일 말을 붙인다", () => {
+    expect([
+      toPlaceSearchFailureNotice(new PlaceSearchError({ status: 429 }), " 덧붙임."),
+      toPlaceSearchFailureNotice(new TypeError("연결 끊김")),
+    ]).toEqual(["오늘은 장소를 더 찾을 수 없어요. 덧붙임.", "장소를 찾지 못했어요."]);
   });
 });
