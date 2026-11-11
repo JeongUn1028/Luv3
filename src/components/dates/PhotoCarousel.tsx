@@ -2,7 +2,7 @@
 
 import useEmblaCarousel from "embla-carousel-react";
 import { useEffect, useState, type ReactElement } from "react";
-import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, MapPinIcon } from "@/components/icons";
 import { SignedPhoto } from "@/components/SignedPhoto";
 import type { DetailPhoto } from "@/lib/dates/detail";
 
@@ -10,16 +10,19 @@ interface PhotoCarouselProps {
   photos: DetailPhoto[];
   /** 사진 대체 텍스트에 쓰는 기록 제목 */
   title: string;
+  /** 처음 펼칠 사진의 순서. 지도에서 고른 사진부터 보여 줄 때 쓴다(#249) */
+  startIndex?: number;
 }
 
 const navButtonClassName =
   "press-icon flex size-11 items-center justify-center text-ink-sub hover:text-ink disabled:opacity-30 disabled:hover:text-ink-sub";
 
-/** 화면 폭으로 넘겨 보는 사진과 지금 사진의 한마디 */
-export const PhotoCarousel = ({ photos, title }: PhotoCarouselProps): ReactElement => {
-  const [viewportRef, emblaApi] = useEmblaCarousel();
-  const [selectedIndex, setSelectedIndex] = useState(0);
+/** 화면 폭으로 넘겨 보는 사진과 지금 사진의 한마디·장소 */
+export const PhotoCarousel = ({ photos, title, startIndex = 0 }: PhotoCarouselProps): ReactElement => {
+  const [viewportRef, emblaApi] = useEmblaCarousel({ startIndex });
+  const [selectedIndex, setSelectedIndex] = useState(startIndex);
   const total = photos.length;
+  // 숨겨 둔 상세를 다른 사진 주소로 다시 열면 화면은 그대로지만, Embla가 바뀐 시작 순서로 다시 맞추고(reInit) 아래에서 상태도 맞춘다
   const current = photos[selectedIndex];
 
   // Embla(외부 라이브러리)가 넘긴 위치를 화면 상태와 맞춘다
@@ -48,8 +51,8 @@ export const PhotoCarousel = ({ photos, title }: PhotoCarouselProps): ReactEleme
                 <SignedPhoto
                   src={photo.url}
                   alt={photo.caption ?? `${title} 사진 ${index + 1}`}
-                  // 첫 사진은 바로 보이므로 먼저 받고, 나머지는 넘길 때 받는다
-                  loading={index === 0 ? "eager" : "lazy"}
+                  // 처음 펼친 사진은 바로 보이므로 먼저 받고, 나머지는 넘길 때 받는다
+                  loading={index === startIndex ? "eager" : "lazy"}
                   draggable={false}
                   className="size-full object-contain"
                 />
@@ -59,10 +62,18 @@ export const PhotoCarousel = ({ photos, title }: PhotoCarouselProps): ReactEleme
         </div>
       </div>
 
-      <div className="flex min-h-11 items-center gap-2 px-4 pt-2">
-        <p aria-live="polite" className="min-w-0 flex-1 text-[14px] leading-[1.5] break-words text-ink">
-          {current?.caption ?? ""}
-        </p>
+      <div className="flex min-h-11 items-start gap-2 px-4 pt-2">
+        {/* 넘길 때 한마디와 장소를 함께 읽어 준다. 장소는 한마디 아래 한 줄(#249, 2026-11-11 사용자 결정) */}
+        <div aria-live="polite" className="flex min-w-0 flex-1 flex-col gap-0.5 pt-2.5">
+          <p className="text-[14px] leading-[1.5] break-words text-ink">{current?.caption ?? ""}</p>
+          {current?.place && (
+            <p className="flex items-center gap-1 text-[13px] text-ink-sub">
+              <MapPinIcon className="size-3.5 shrink-0" />
+              <span className="sr-only">찍은 곳: </span>
+              <span className="min-w-0 break-words">{current.place}</span>
+            </p>
+          )}
+        </div>
         {total > 1 && (
           <div className="-mr-3 flex shrink-0 items-center">
             <button

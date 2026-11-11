@@ -11,7 +11,20 @@ export interface DetailPhoto {
   /** 원본(긴 변 2000px) 서명 URL. 받지 못했으면 빈 칸으로 그린다 */
   url: string | undefined;
   caption: string | undefined;
+  /** 사진을 찍은 곳의 이름(#249). 없으면 장소 줄을 그리지 않는다 */
+  place: string | undefined;
 }
+
+/** 기록 상세에서 처음 펼칠 사진을 고르는 주소 이름(`/dates/<id>?photo=<사진 id>`) */
+export const RECORD_PHOTO_PARAM = "photo";
+
+/**
+ * 주소에 지정한 사진의 순서. 지정하지 않았거나 그사이 지워진 사진이면 첫 사진(0)부터 보여 준다.
+ *
+ * @example findStartPhotoIndex(record.photos, "p2") // 1
+ */
+export const findStartPhotoIndex = (photos: { id: string }[], photoId: string | undefined): number =>
+  Math.max(0, photos.findIndex(({ id }) => id === photoId));
 
 /** 기록 상세 화면에 그리는 값 */
 export interface DateRecordDetail {
@@ -130,7 +143,7 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): D
     authorNickname: row.author?.nickname,
     eventHref: linkedEvent?.href,
     linkedEvent,
-    photos: photos.map(({ id, path, caption }) => ({ id, url: urlByPath.get(path), caption: caption ?? undefined })),
+    photos: photos.map(({ id, path, caption, place }) => ({ id, url: urlByPath.get(path), caption: caption ?? undefined, place: place ?? undefined })),
     filePaths: photos.flatMap(({ path, thumb_path }) => [path, thumb_path]),
   };
 };

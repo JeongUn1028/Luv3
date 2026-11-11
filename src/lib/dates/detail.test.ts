@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRecordDate, formatRecordMonthDay, formatRecordPeriod, formatRecordShortDate, isRecordId, toDateRecordDetail, toEditableRecord, type DetailRow } from "./detail";
+import { formatRecordDate, formatRecordMonthDay, formatRecordPeriod, findStartPhotoIndex, formatRecordShortDate, isRecordId, toDateRecordDetail, toEditableRecord, type DetailRow } from "./detail";
 
 const row: DetailRow = {
   id: "r1",
@@ -47,8 +47,8 @@ describe("toDateRecordDetail", () => {
       tags: ["카페", "여행"],
       authorNickname: "진아",
       photos: [
-        { id: "p1", url: "https://example.test/p1", caption: "카페" },
-        { id: "p2", url: "https://example.test/p2", caption: undefined },
+        { id: "p1", url: "https://example.test/p1", caption: "카페", place: "어니언 성수" },
+        { id: "p2", url: "https://example.test/p2", caption: undefined, place: undefined },
       ],
       filePaths: ["r1/p1.jpg", "r1/p1_thumb.jpg", "r1/p2.jpg", "r1/p2_thumb.jpg"],
     });
@@ -161,5 +161,18 @@ describe("formatRecordMonthDay", () => {
   it("연도 없이 MM.DD와 요일로 쓴다", () => {
     expect(formatRecordMonthDay("2026-11-02")).toBe("11.02 월요일");
     expect(formatRecordMonthDay("2025-12-24")).toBe("12.24 수요일");
+  });
+});
+
+describe("findStartPhotoIndex", () => {
+  const photos = [{ id: "p1" }, { id: "p2" }, { id: "p3" }];
+
+  it("주소에 지정한 사진의 순서를 돌려준다", () => {
+    expect(findStartPhotoIndex(photos, "p3")).toBe(2);
+  });
+
+  // 지워진 사진이나 잘못 적은 주소로 열어도 상세는 보여야 한다
+  it("지정하지 않았거나 없는 사진이면 첫 사진(0)부터 보여 준다", () => {
+    expect([findStartPhotoIndex(photos, undefined), findStartPhotoIndex(photos, "gone")]).toEqual([0, 0]);
   });
 });

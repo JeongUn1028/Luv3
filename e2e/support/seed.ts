@@ -146,6 +146,36 @@ export const setRecordPhotoLocation = async (recordId: string, { place, lat, lng
 };
 
 /**
+ * `createDisposableRecord`로 만든 기록에 사진을 한 장 더 붙인다. 파일은 기록 폴더에 올려 기록을 지울 때 함께 지워진다.
+ *
+ * @example const photoId = await addRecordPhoto(id, { sortOrder: 1, caption: "창가 자리", location: FOREST })
+ */
+export const addRecordPhoto = async (
+  recordId: string,
+  { sortOrder, caption, location }: { sortOrder: number; caption?: string; location?: { place: string; lat: number; lng: number } },
+): Promise<string> => {
+  const admin = createAdminClient();
+  const path = `${recordId}/${randomUUID()}.jpg`;
+  await uploadPhoto(admin, path);
+  const id = randomUUID();
+  assertNoError(
+    await admin.from("photos").insert({
+      id,
+      date_id: recordId,
+      path,
+      thumb_path: path,
+      sort_order: sortOrder,
+      caption,
+      place: location?.place,
+      place_lat: location?.lat,
+      place_lng: location?.lng,
+    }),
+    "사진 행 더하기",
+  );
+  return id;
+};
+
+/**
  * 기록의 사진 위치를 사진 순서대로 읽는다.
  *
  * @example expect(await getRecordPhotoLocations(id)).toEqual([{ place: null, place_lat: null, place_lng: null }])
