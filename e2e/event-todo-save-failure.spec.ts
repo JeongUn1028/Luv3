@@ -1,10 +1,9 @@
 import type { Page } from "@playwright/test";
-import { toKstDate } from "@/lib/anniversary";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { deleteEventsByTitle, deleteTodosByContent, getEventIdsByTitle, getTodoIdsByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getSubmitButton } from "./support/actions";
+import { getKstYesterday, getSubmitButton } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 일정·하고 싶은 것 저장이 실패하는 경우를 모은 스펙(#161). 기록은 record-save-failure.spec.ts에 있다
@@ -34,10 +33,9 @@ const loseResponses = async (page: Page, url: string, times = Number.POSITIVE_IN
 };
 
 // 오늘이면 나란히 도는 홈 테스트의 "다가오는 일정" 자리를 차지하므로 지난날로 둔다
-const getYesterday = (): string => toKstDate(new Date(Date.now() - 24 * 60 * 60 * 1000));
 
 const openNewEventForm = async (page: Page, title: string): Promise<void> => {
-  await openScreen(page, `/events/new?date=${getYesterday()}`, getEventTitleField(page));
+  await openScreen(page, `/events/new?date=${getKstYesterday()}`, getEventTitleField(page));
   await getEventTitleField(page).fill(title);
 };
 
