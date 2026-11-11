@@ -19,6 +19,7 @@ import {
   addTag,
   getMinEndDate,
   hasRecordDraftChanges,
+  isSameExceptReadingPhotoInfo,
   movePhoto,
   removePhoto,
   setPhotoLocation,
@@ -48,6 +49,7 @@ import {
 } from "@/lib/dates/save";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
+import { readPhotoInfo } from "@/lib/photos/photo-info";
 import { usePreviewUrls } from "@/lib/photos/preview-urls";
 import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
 import { createClient } from "@/lib/supabase/client";
@@ -89,7 +91,7 @@ const toEditDraft = ({ revision, date, endDate, title, place, memo, coverPhotoId
   coverPhotoId,
   tags,
   location,
-  photos: photos.map((photo) => ({ ...photo, file: undefined })),
+  photos: photos.map((photo) => ({ ...photo, file: undefined, isReadingInfo: false })),
 });
 
 type RecordDraft = DateRecordDraft<PickedPhoto>;
@@ -142,6 +144,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
   const hasWrittenContent = hasRecordDraftChanges(initialDraft, draft) || tagInput.trim() !== "";
   // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알린다(#104). 지워진 기록은 저장할 곳이 없어 묻지 않는다
   const shouldConfirmLeave = hasWrittenContent && !isSaving && !isRecordGone;
+  const isReadingPhotoInfo = draft.photos.some(({ isReadingInfo }) => isReadingInfo);
   const today = toKstDate(new Date());
   const isPeriod = draft.endDate !== undefined;
 
@@ -179,7 +182,12 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
 
   // 새 기록 폼은 다시 열면 숨겨 둔 폼을 그대로 보여 주므로, 경고 창에서 버리기로 했으면 숨겨질 때 처음 내용으로 되돌린다(#284).
   // 고친 기록 폼은 열 때마다 새로 만들어져 되돌릴 필요가 없다. 미리보기는 숨겨질 때 usePreviewUrls가 해제한다
-  const discardOnLeave = useDiscardOnLeave({ content: draft, reset: () => resetForm(createEmptyDraft(prefill)) });
+  // 나가기를 고른 뒤 숨겨지기 전에 사진 정보가 도착해도 버린다
+  const discardOnLeave = useDiscardOnLeave({
+    content: draft,
+    reset: () => resetForm(createEmptyDraft(prefill)),
+    isSameContent: isSameExceptReadingPhotoInfo,
+  });
 
   const updatePlace = (changes: Partial<Pick<RecordDraft, "place" | "location">>) => {
     setDraft((current) => ({ ...current, ...changes }));
@@ -208,11 +216,26 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
       location: undefined,
       file,
       previewUrl: previews.create(file),
+      isReadingInfo: true,
     }));
     const result = addPhotos(draft, picked);
-    picked.slice(picked.length - result.droppedCount).forEach(({ previewUrl }) => previews.revoke(previewUrl));
-    setDraft(result.draft);
+    const kept = picked.slice(0, picked.length - result.droppedCount);
+    picked.slice(kept.length).forEach(({ previewUrl }) => previews.revoke(previewUrl));
+    // 앞서 고른 사진의 정보가 아직 그려지기 전에 도착했을 수 있어, 그 값을 덮지 않게 최신 상태에 더한다.
+    // 정보를 읽기 시작하는 `kept`만 더해, 읽지 않는 사진이 "읽는 중"으로 남아 저장을 막는 일이 없게 한다
+    setDraft((current) => addPhotos(current, kept).draft);
     setErrors((current) => clearError(current, "photos"));
+    kept.forEach(({ id, file }) => {
+      // 줄이거나 HEIC를 바꾸면 사진 정보가 사라지므로 고른 원본에서 읽는다. readPhotoInfo는 실패해도 빈 값으로 끝난다
+      void readPhotoInfo({ file }).then(({ location, takenAt }) => {
+        setDraft((current) => ({
+          ...current,
+          photos: current.photos.map((photo) =>
+            photo.id === id ? { ...photo, isReadingInfo: false, takenAt, location: photo.location ?? location } : photo,
+          ),
+        }));
+      });
+    });
 
     const skipped = files.length - images.length;
     const messages = [
@@ -226,7 +249,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
   const handleRemovePhoto = (photoId: string) => {
     const removed = draft.photos.find(({ id }) => id === photoId);
     if (removed) previews.revoke(removed.previewUrl);
-    setDraft(removePhoto(draft, photoId));
+    setDraft((current) => removePhoto(current, photoId));
   };
 
   const handleOpenTagField = () => {
@@ -237,7 +260,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
 
   const handleAddTag = (text: string) => {
     const { tags, error } = addTag(draft.tags, text);
-    setDraft({ ...draft, tags });
+    setDraft((current) => ({ ...current, tags }));
     setErrors((current) => (error ? { ...current, tags: error } : clearError(current, "tags")));
     // 전에 쓴 태그를 눌렀을 때는 적던 글자를 그대로 둔다
     if (!error && text === tagInput) setTagInput("");
@@ -245,7 +268,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
 
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isSaving) return;
+    // 사진 정보를 읽는 중에 저장하면 그 사진의 위치·찍은 시각이 빠진다. 찍은 시각은 나중에 되살릴 수 없다
+    if (isSaving || isReadingPhotoInfo) return;
     const form = event.currentTarget;
 
     // 적어 두고 추가를 누르지 않은 태그를 잃지 않게 함께 저장한다
@@ -364,16 +388,19 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
           canSearchPlace={canSearchPlace}
           onAdd={handleAddPhotos}
           onRemove={handleRemovePhoto}
-          onMove={(index, offset) => setDraft({ ...draft, photos: movePhoto(draft.photos, index, offset) })}
+          // 사진 정보는 고른 뒤 따로 도착해 draft를 바꾼다. 그 값을 덮지 않게 사진 칸은 최신 상태에 맞춰 바꾼다
+          onMove={(index, offset) => setDraft((current) => ({ ...current, photos: movePhoto(current.photos, index, offset) }))}
           onCaptionChange={(photoId, caption) => {
-            setDraft({
-              ...draft,
-              photos: draft.photos.map((photo) => (photo.id === photoId ? { ...photo, caption } : photo)),
-            });
+            setDraft((current) => ({
+              ...current,
+              photos: current.photos.map((photo) => (photo.id === photoId ? { ...photo, caption } : photo)),
+            }));
             setErrors((current) => clearError(current, `caption:${photoId}`));
           }}
-          onCoverChange={(photoId) => setDraft({ ...draft, coverPhotoId: photoId })}
-          onLocationChange={(photoId, location) => setDraft({ ...draft, photos: setPhotoLocation(draft.photos, photoId, location) })}
+          onCoverChange={(photoId) => setDraft((current) => ({ ...current, coverPhotoId: photoId }))}
+          onLocationChange={(photoId, location) =>
+            setDraft((current) => ({ ...current, photos: setPhotoLocation(current.photos, photoId, location) }))
+          }
         />
 
         <div className="flex flex-col">
@@ -463,7 +490,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
             }}
             onAdd={handleAddTag}
             onRemove={(tag) => {
-              setDraft({ ...draft, tags: draft.tags.filter((existing) => existing !== tag) });
+              setDraft((current) => ({ ...current, tags: current.tags.filter((existing) => existing !== tag) }));
               setErrors((current) => clearError(current, "tags"));
             }}
           />
@@ -518,10 +545,10 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
           ) : (
             <button
               type="submit"
-              disabled={isSaving}
+              disabled={isSaving || isReadingPhotoInfo}
               className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
             >
-              {progress ? toProgressLabel(progress) : isSaving ? "저장 중…" : "저장"}
+              {progress ? toProgressLabel(progress) : isSaving ? "저장 중…" : isReadingPhotoInfo ? "사진 정보 읽는 중…" : "저장"}
             </button>
           )}
           <p aria-live="polite" className="sr-only">
