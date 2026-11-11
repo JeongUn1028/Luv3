@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
+import { TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import {
@@ -50,30 +51,19 @@ interface PasswordFieldProps {
 }
 
 const PasswordField = ({ id, label, autoComplete, placeholder, value, error, isReadOnly, onChange }: PasswordFieldProps): ReactElement => (
-  <div className="flex flex-col">
-    <label htmlFor={id} className="text-[13px] text-ink-sub">
-      {label}
-    </label>
-    <input
-      id={id}
-      name={id}
-      type="password"
-      autoComplete={autoComplete}
-      placeholder={placeholder}
-      value={value}
-      // disabled는 비밀번호 관리자가 제출된 값을 읽지 못하게 할 수 있어 쓰지 않는다
-      readOnly={isReadOnly}
-      aria-invalid={Boolean(error)}
-      aria-describedby={error ? `${id}-error` : undefined}
-      onChange={(event) => onChange(event.target.value)}
-      className="mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent"
-    />
-    {error && (
-      <p id={`${id}-error`} className="mt-2 text-[12px] text-accent">
-        {error}
-      </p>
-    )}
-  </div>
+  <TextField
+    id={id}
+    label={label}
+    name={id}
+    type="password"
+    autoComplete={autoComplete}
+    placeholder={placeholder}
+    value={value}
+    // disabled는 비밀번호 관리자가 제출된 값을 읽지 못하게 할 수 있어 쓰지 않는다
+    readOnly={isReadOnly}
+    error={error}
+    onChange={onChange}
+  />
 );
 
 interface PasswordFormProps {

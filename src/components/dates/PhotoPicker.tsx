@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type ChangeEvent, type ReactElement } from "react";
+import { FIELD_LABEL_CLASS_NAME, FieldError } from "@/components/FormField";
 import { CAPTION_MAX_LENGTH, MAX_PHOTOS, type DraftErrors, type DraftPhoto } from "@/lib/dates/form";
 import { runKeepingFocus } from "@/lib/keep-focus";
 import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/resize";
@@ -85,7 +86,7 @@ export const PhotoPicker = ({
   return (
     // 오류 문구는 첫 오류 칸이 되는 사진 고르기 버튼이 설명으로 읽는다. 묶음에도 두면 같은 문구를 두 번 읽는다
     <fieldset className="flex flex-col">
-      <legend className="text-[13px] text-ink-sub">
+      <legend className={FIELD_LABEL_CLASS_NAME}>
         사진 <span className="font-display tracking-[1px]">{photos.length}/{MAX_PHOTOS}</span>
       </legend>
       <input
@@ -193,11 +194,7 @@ export const PhotoPicker = ({
       >
         {isFull ? "사진은 10장까지 올릴 수 있어요" : "사진 고르기"}
       </button>
-      {errors.photos && (
-        <p id="photos-error" className="mt-2 text-[12px] text-accent">
-          {errors.photos}
-        </p>
-      )}
+      <FieldError id="photos-error" error={errors.photos} />
     </fieldset>
   );
 };

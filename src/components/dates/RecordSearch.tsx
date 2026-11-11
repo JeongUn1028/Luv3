@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactElement } from "react";
 import { AlbumGrid } from "@/components/dates/AlbumGrid";
 import { FILLED_TAG_CHIP_CLASS_NAME, OUTLINED_TAG_CHIP_CLASS_NAME } from "@/components/dates/tagChip";
+import { FIELD_BOX_CLASS_NAME } from "@/components/FormField";
 import { LoadMoreTrigger } from "@/components/LoadMoreTrigger";
 import { RetryButton } from "@/components/RetryButton";
 import type { AlbumTile } from "@/lib/dates/album";
@@ -117,7 +118,7 @@ export const RecordSearch = ({ tiles, tags, tag }: RecordSearchProps): ReactElem
         maxLength={SEARCH_TEXT_MAX_LENGTH}
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={handleKeyDown}
-        className="mt-1 h-[51px] w-full shrink-0 appearance-none rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none"
+        className={`mt-1 w-full shrink-0 appearance-none px-4 ${FIELD_BOX_CLASS_NAME}`}
       />
       {shownTags.length > 0 && (
         // 옆으로 밀리는 줄은 위아래가 잘리므로, 넓힌 누름 영역만큼 안쪽을 비운다

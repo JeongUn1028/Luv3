@@ -2,14 +2,11 @@
 
 import { useEffect, useState, type SubmitEvent } from "react";
 import { useSearchParams } from "next/navigation";
+import { TextField } from "@/components/FormField";
 import { forgetAllPhotoUrls } from "@/components/RememberedPhoto";
 import { createClient } from "@/lib/supabase/client";
 import { getSafeNextPath } from "@/lib/auth/paths";
 import { getLoginErrorMessage, getSignInErrorMessage } from "@/lib/auth/login-messages";
-
-const labelClassName = "text-[13px] text-ink-sub";
-const inputClassName =
-  "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none";
 
 /**
  * 로그인 화면의 쿼리(next, error)가 바뀌면 폼을 새로 마운트해 입력값과 안내 문구를 초기화한다.
@@ -65,30 +62,25 @@ const PasswordLoginForm = ({ nextPath, initialMessage }: PasswordLoginFormProps)
   return (
     <div className="flex flex-col">
       <form onSubmit={handleSubmit} className="flex flex-col">
-        <label htmlFor="email" className={labelClassName}>
-          이메일
-        </label>
-        <input
+        <TextField
           id="email"
+          label="이메일"
           type="email"
           autoComplete="username"
           placeholder="name@example.com"
           required
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          className={inputClassName}
+          onChange={setEmail}
         />
-        <label htmlFor="password" className={`${labelClassName} mt-4`}>
-          비밀번호
-        </label>
-        <input
+        <TextField
           id="password"
+          label="비밀번호"
           type="password"
           autoComplete="current-password"
           required
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className={inputClassName}
+          onChange={setPassword}
+          className="mt-4"
         />
         <button
           type="submit"
