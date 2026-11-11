@@ -17,7 +17,7 @@ import { toKstDate } from "@/lib/anniversary";
 import { getCurrentMember } from "@/lib/auth/member";
 import { CommentLoadError, getRecordComments } from "@/lib/comments/queries";
 import { RECORDS_PATH } from "@/lib/dates/album";
-import { formatRecordPeriod } from "@/lib/dates/detail";
+import { findStartPhotoIndex, formatRecordPeriod, RECORD_PHOTO_PARAM } from "@/lib/dates/detail";
 import { DateRecordLoadError, getDateRecordDetail } from "@/lib/dates/queries";
 import { EventLoadError, getLinkableEvents } from "@/lib/events/queries";
 import { catchLoadError } from "@/lib/load";
@@ -38,10 +38,13 @@ const LinkEventSuggestion = async ({ recordId, date, endDate }: { recordId: stri
   return <LinkEventButton recordId={recordId} events={events} />;
 };
 
-const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => {
+const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id]">, "params" | "searchParams">) => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
   const member = await getCurrentMember();
-  const { id } = await params;
+  const [{ id }, query] = await Promise.all([params, searchParams]);
+  const photoParam = query[RECORD_PHOTO_PARAM];
+  // 같은 이름이 여러 번 오면 첫 값을 쓴다
+  const startPhotoId = Array.isArray(photoParam) ? photoParam[0] : photoParam;
   // 댓글은 기록을 기다리지 않고 함께 읽는다. 댓글을 못 읽어도 기록은 보여 준다
   const [record, comments] = await Promise.all([
     catchLoadError(() => getDateRecordDetail(id), DateRecordLoadError),
@@ -86,7 +89,8 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
         }
       />
       <article className="flex flex-col">
-        <PhotoCarousel photos={record.photos} title={record.title} />
+        {/* 지도의 사진 미리보기에서 고른 사진부터 펼친다(#249) */}
+        <PhotoCarousel photos={record.photos} title={record.title} startIndex={findStartPhotoIndex(record.photos, startPhotoId)} />
         <div className="flex flex-col px-4 pt-6">
           <div className="flex items-center justify-between gap-3">
             <p className="min-w-0 text-[13px] break-words text-ink-sub">
@@ -123,7 +127,7 @@ const RecordDetail = async ({ params }: { params: Promise<{ id: string }> }) => 
   );
 };
 
-const DateRecordPage = ({ params }: PageProps<"/dates/[id]">) => (
+const DateRecordPage = ({ params, searchParams }: PageProps<"/dates/[id]">) => (
   <PageShell bottomSpace="md">
     {/* 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents). 수정·삭제는 기록을 읽은 뒤 보인다 */}
     <LoadingSuspense
@@ -134,7 +138,7 @@ const DateRecordPage = ({ params }: PageProps<"/dates/[id]">) => (
         </>
       }
     >
-      <RecordDetail params={params} />
+      <RecordDetail params={params} searchParams={searchParams} />
     </LoadingSuspense>
   </PageShell>
 );
