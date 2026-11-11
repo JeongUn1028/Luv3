@@ -14,6 +14,8 @@ interface BackLinkProps {
   skipsHistory?: boolean;
   /** 저장하지 않은 내용이 있으면 true. 누르면 버리고 나갈지 먼저 묻는다(#165) */
   shouldConfirmLeave?: boolean;
+  /** 경고 창에서 나가기를 고르면 부른다. 폼이 쓴 내용을 버리게 한다(#284) */
+  onConfirmLeave?: () => void;
   className: string;
   children: ReactNode;
 }
@@ -25,7 +27,7 @@ interface BackLinkProps {
  *
  * @example <BackLink href="/records" className="size-11"><BackIcon /></BackLink>
  */
-export const BackLink = ({ href, skipsHistory = false, shouldConfirmLeave = false, className, children }: BackLinkProps): ReactElement => {
+export const BackLink = ({ href, skipsHistory = false, shouldConfirmLeave = false, onConfirmLeave, className, children }: BackLinkProps): ReactElement => {
   const router = useRouter();
   const modalRef = useRef<ModalDialogHandle>(null);
 
@@ -44,6 +46,7 @@ export const BackLink = ({ href, skipsHistory = false, shouldConfirmLeave = fals
   const handleConfirmLeave = () => {
     // 창을 띄운 채 화면이 숨겨지면 앱을 막으므로, 옮기기 전에 바로 닫는다(#155)
     modalRef.current?.closeImmediately();
+    onConfirmLeave?.();
     if (!skipsHistory && goBackInHistory()) return;
     router.push(href, { transitionTypes: BACK_TRANSITION });
   };
