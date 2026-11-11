@@ -10,6 +10,7 @@ import {
   getRecordIdsByTitle,
   getRecordPhotoDetails,
   getRecordPhotoLocations,
+  addRecordPhoto,
   setRecordPhotoLocation,
 } from "./support/seed";
 import { getSaveButton, getSubmitButton, pickPhoto } from "./support/actions";
@@ -291,5 +292,35 @@ test.describe("사진 정보로 위치·찍은 시각 채우기", () => {
 
     // Assert
     await expect(getLocationButton(page, 1)).toHaveAccessibleName("1번째 사진 위치: 성동구 성수1가1동");
+  });
+});
+
+test.describe("기록 상세의 사진별 장소", () => {
+  test("사진을 지정한 주소로 열면 그 사진부터 보이고, 한마디 아래에 그 사진의 장소가 나온다", async ({ page }) => {
+    // Arrange
+    const id = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id, title: "E2E 사진별 장소" });
+    const carousel = page.getByRole("region", { name: "사진" });
+
+    try {
+      const secondPhotoId = await addRecordPhoto(id, { sortOrder: 1, caption: "창가 자리", location: { place: FOREST.name, lat: FOREST.lat, lng: FOREST.lng } });
+
+      // Act
+      await openScreen(page, `/dates/${id}?photo=${secondPhotoId}`, page.getByRole("heading", { name: "E2E 사진별 장소" }));
+
+      // Assert
+      await expect(carousel.getByText("2 / 2")).toBeVisible();
+      await expect(carousel.getByText("창가 자리")).toBeVisible();
+      await expect(carousel.getByText(FOREST.name)).toBeVisible();
+
+      // Act: 장소가 없는 첫 사진으로 넘기면 장소 줄이 없다
+      await carousel.getByRole("button", { name: "이전 사진" }).click();
+
+      // Assert
+      await expect(carousel.getByText("1 / 2")).toBeVisible();
+      await expect(carousel.getByText(FOREST.name)).toHaveCount(0);
+    } finally {
+      await deleteRecord();
+    }
   });
 });
