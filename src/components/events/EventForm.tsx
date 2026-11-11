@@ -5,8 +5,8 @@ import { startTransition, useState, useTransition, type ReactElement, type Submi
 import { flushSync } from "react-dom";
 import { AuthorTag } from "@/components/AuthorTag";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
-import { DatePickerField } from "@/components/DatePickerField";
 import { EventRecordAction } from "@/components/events/EventRecordAction";
+import { DateField, FIELD_LABEL_CLASS_NAME, TextAreaField, TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { getEventKinds, getHighlightClassNames } from "@/lib/calendar/highlight";
@@ -35,10 +35,6 @@ import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 
-const labelClassName = "text-[13px] text-ink-sub";
-const inputClassName =
-  "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent";
-const errorClassName = "mt-2 text-[12px] text-accent";
 const choiceClassName =
   "flex h-[51px] min-w-0 items-center justify-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-[15px] text-ink-sub has-checked:border-accent has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent has-disabled:opacity-50";
 
@@ -266,7 +262,7 @@ export const EventForm = ({
       <form onSubmit={handleSubmit} noValidate className="mt-3 flex flex-1 flex-col gap-4">
         {occurrence && (
           <fieldset className="flex flex-col">
-            <legend className={labelClassName}>고칠 범위</legend>
+            <legend className={FIELD_LABEL_CLASS_NAME}>고칠 범위</legend>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {EDIT_SCOPES.map(({ scope, label }) => (
                 <label key={scope} className={choiceClassName}>
@@ -285,30 +281,19 @@ export const EventForm = ({
           </fieldset>
         )}
 
-        <div className="flex flex-col">
-          <label htmlFor="event-title" className={labelClassName}>
-            제목
-          </label>
-          <input
-            id="event-title"
-            value={draft.title}
-            placeholder="무엇을 하나요?"
-            maxLength={EVENT_TITLE_MAX_LENGTH * 2}
-            disabled={isSaving}
-            aria-invalid={Boolean(errors.title)}
-            aria-describedby={errors.title ? "event-title-error" : undefined}
-            onChange={(event) => updateField("title", event.target.value)}
-            className={inputClassName}
-          />
-          {errors.title && (
-            <p id="event-title-error" className={errorClassName}>
-              {errors.title}
-            </p>
-          )}
-        </div>
+        <TextField
+          id="event-title"
+          label="제목"
+          value={draft.title}
+          placeholder="무엇을 하나요?"
+          maxLength={EVENT_TITLE_MAX_LENGTH * 2}
+          disabled={isSaving}
+          error={errors.title}
+          onChange={(value) => updateField("title", value)}
+        />
 
         <fieldset className="flex flex-col">
-          <legend className={labelClassName}>누구 일정</legend>
+          <legend className={FIELD_LABEL_CLASS_NAME}>누구 일정</legend>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {getEventKinds(ownerNickname).map(({ isTogether, highlight, label }) => (
               <label key={highlight} className={choiceClassName}>
@@ -332,26 +317,14 @@ export const EventForm = ({
           </div>
         </fieldset>
 
-        <div className="flex flex-col">
-          <label htmlFor="event-date" className={labelClassName}>
-            {dateLabel}
-          </label>
-          <DatePickerField
-            id="event-date"
-            label={dateLabel}
-            value={draft.date}
-            isDisabled={isSaving}
-            isInvalid={Boolean(errors.date)}
-            describedBy={errors.date ? "event-date-error" : undefined}
-            onChange={(date) => updateField("date", date)}
-            className={inputClassName}
-          />
-          {errors.date && (
-            <p id="event-date-error" className={errorClassName}>
-              {errors.date}
-            </p>
-          )}
-        </div>
+        <DateField
+          id="event-date"
+          label={dateLabel}
+          value={draft.date}
+          isDisabled={isSaving}
+          error={errors.date}
+          onChange={(date) => updateField("date", date)}
+        />
 
         <div className="flex flex-col">
           {/* 기간과 반복을 같은 줄에 두어 폼 높이가 늘지 않게 한다. 일정 폼은 높이 여유가 거의 없다(#57) */}
@@ -409,123 +382,73 @@ export const EventForm = ({
             )}
           </div>
           {canEditSpan && (isPeriod || draft.repeatRule) && (
-            <p className={labelClassName}>기간과 반복은 함께 쓸 수 없어요.</p>
+            <p className={FIELD_LABEL_CLASS_NAME}>기간과 반복은 함께 쓸 수 없어요.</p>
           )}
           {canEditSpan && isPeriod && (
-            <>
-              <label htmlFor="event-end-date" className={`${labelClassName} mt-3`}>
-                끝 날짜
-              </label>
-              <DatePickerField
-                id="event-end-date"
-                label="끝 날짜"
-                min={getMinDateAfterStart(draft.date)}
-                value={draft.endDate ?? ""}
-                openDate={draft.date}
-                isDisabled={isSaving}
-                isInvalid={Boolean(errors.endDate)}
-                describedBy={errors.endDate ? "event-end-date-error" : undefined}
-                onChange={(date) => updateField("endDate", date)}
-                className={inputClassName}
-              />
-              {errors.endDate && (
-                <p id="event-end-date-error" className={errorClassName}>
-                  {errors.endDate}
-                </p>
-              )}
-            </>
+            <DateField
+              id="event-end-date"
+              label="끝 날짜"
+              min={getMinDateAfterStart(draft.date)}
+              value={draft.endDate ?? ""}
+              openDate={draft.date}
+              isDisabled={isSaving}
+              error={errors.endDate}
+              onChange={(date) => updateField("endDate", date)}
+              className="mt-3"
+            />
           )}
           {!draft.isAllDay && (
-            <>
-              <label htmlFor="event-time" className={`${labelClassName} mt-3`}>
-                시간
-              </label>
-              <input
-                id="event-time"
-                type="time"
-                value={draft.startTime}
-                disabled={isSaving}
-                aria-invalid={Boolean(errors.startTime)}
-                aria-describedby={errors.startTime ? "event-time-error" : undefined}
-                onChange={(event) => updateField("startTime", event.target.value)}
-                className={inputClassName}
-              />
-              {errors.startTime && (
-                <p id="event-time-error" className={errorClassName}>
-                  {errors.startTime}
-                </p>
-              )}
-            </>
+            <TextField
+              id="event-time"
+              label="시간"
+              type="time"
+              value={draft.startTime}
+              disabled={isSaving}
+              error={errors.startTime}
+              onChange={(value) => updateField("startTime", value)}
+              className="mt-3"
+            />
           )}
           {canEditSpan && draft.repeatRule && (
-            <>
-              <label htmlFor="event-repeat-until" className={`${labelClassName} mt-3`}>
-                끝나는 날 <span className="text-ink-placeholder">(선택)</span>
-              </label>
-              <DatePickerField
-                id="event-repeat-until"
-                label="끝나는 날"
-                min={getMinDateAfterStart(draft.date)}
-                value={draft.repeatUntil}
-                openDate={draft.date}
-                isClearable
-                isDisabled={isSaving}
-                isInvalid={Boolean(errors.repeatUntil)}
-                describedBy={errors.repeatUntil ? "event-repeat-until-error" : undefined}
-                onChange={(date) => updateField("repeatUntil", date)}
-                className={inputClassName}
-              />
-              {errors.repeatUntil && (
-                <p id="event-repeat-until-error" className={errorClassName}>
-                  {errors.repeatUntil}
-                </p>
-              )}
-            </>
+            <DateField
+              id="event-repeat-until"
+              label="끝나는 날"
+              hint="선택"
+              min={getMinDateAfterStart(draft.date)}
+              value={draft.repeatUntil}
+              openDate={draft.date}
+              isClearable
+              isDisabled={isSaving}
+              error={errors.repeatUntil}
+              onChange={(date) => updateField("repeatUntil", date)}
+              className="mt-3"
+            />
           )}
         </div>
 
-        <div className="flex flex-col">
-          <label htmlFor="event-place" className={labelClassName}>
-            장소 <span className="text-ink-placeholder">(선택)</span>
-          </label>
-          <input
-            id="event-place"
-            value={draft.place}
-            maxLength={EVENT_PLACE_MAX_LENGTH * 2}
-            disabled={isSaving}
-            aria-invalid={Boolean(errors.place)}
-            aria-describedby={errors.place ? "event-place-error" : undefined}
-            onChange={(event) => updateField("place", event.target.value)}
-            className={inputClassName}
-          />
-          {errors.place && (
-            <p id="event-place-error" className={errorClassName}>
-              {errors.place}
-            </p>
-          )}
-        </div>
+        <TextField
+          id="event-place"
+          label="장소"
+          hint="선택"
+          value={draft.place}
+          maxLength={EVENT_PLACE_MAX_LENGTH * 2}
+          disabled={isSaving}
+          error={errors.place}
+          onChange={(value) => updateField("place", value)}
+        />
 
-        <div className="flex grow flex-col">
-          <label htmlFor="event-memo" className={labelClassName}>
-            메모 <span className="text-ink-placeholder">(선택)</span>
-          </label>
-          <textarea
-            id="event-memo"
-            value={draft.memo}
-            rows={4}
-            maxLength={EVENT_MEMO_MAX_LENGTH * 2}
-            disabled={isSaving}
-            aria-invalid={Boolean(errors.memo)}
-            aria-describedby={errors.memo ? "event-memo-error" : undefined}
-            onChange={(event) => updateField("memo", event.target.value)}
-            className={`${inputClassName} h-auto grow resize-y py-3 leading-[1.5]`}
-          />
-          {errors.memo && (
-            <p id="event-memo-error" className={errorClassName}>
-              {errors.memo}
-            </p>
-          )}
-        </div>
+        <TextAreaField
+          id="event-memo"
+          label="메모"
+          hint="선택"
+          value={draft.memo}
+          rows={4}
+          maxLength={EVENT_MEMO_MAX_LENGTH * 2}
+          disabled={isSaving}
+          error={errors.memo}
+          onChange={(value) => updateField("memo", value)}
+          className="grow"
+        />
 
         <div className="flex flex-col">
           {notice && (

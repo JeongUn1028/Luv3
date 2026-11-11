@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useTransition, useEffect, useEffectEvent, useLayoutEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
-import { DatePickerField } from "@/components/DatePickerField";
+import { DateField, TextAreaField, TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { toKstDate } from "@/lib/anniversary";
@@ -49,11 +49,6 @@ import { createClient } from "@/lib/supabase/client";
 import { PhotoPicker, type PickedPhoto } from "./PhotoPicker";
 import { PlaceField } from "@/components/dates/PlaceField";
 import { TagField } from "./TagField";
-
-const labelClassName = "text-[13px] text-ink-sub";
-const inputClassName =
-  "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent";
-const errorClassName = "mt-2 text-[12px] text-accent";
 
 const toProgressLabel = ({ step, done, total }: SaveProgress): string => {
   if (step === "resizing") return `사진 준비 중… ${done + 1}/${total}`;
@@ -388,25 +383,15 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
         />
 
         <div className="flex flex-col">
-          <label htmlFor="date" className={labelClassName}>
-            {isPeriod ? "시작 날짜" : "날짜"}
-          </label>
-          <DatePickerField
+          <DateField
             id="date"
             label={isPeriod ? "시작 날짜" : "날짜"}
             max={today}
             value={draft.date}
             isDisabled={isSaving}
-            isInvalid={Boolean(errors.date)}
-            describedBy={errors.date ? "date-error" : undefined}
+            error={errors.date}
             onChange={(date) => updateField("date", date)}
-            className={inputClassName}
           />
-          {errors.date && (
-            <p id="date-error" className={errorClassName}>
-              {errors.date}
-            </p>
-          )}
           <label className="mt-1 flex h-11 w-fit items-center gap-2 text-[13px] text-ink-sub">
             <input
               type="checkbox"
@@ -418,53 +403,31 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
             기간으로 남기기
           </label>
           {isPeriod && (
-            <>
-              <label htmlFor="endDate" className={`${labelClassName} mt-2`}>
-                끝 날짜
-              </label>
-              <DatePickerField
-                id="endDate"
-                label="끝 날짜"
-                min={getMinEndDate(draft.date, today)}
-                max={today}
-                value={draft.endDate ?? ""}
-                openDate={draft.date}
-                isDisabled={isSaving}
-                isInvalid={Boolean(errors.endDate)}
-                describedBy={errors.endDate ? "endDate-error" : undefined}
-                onChange={(date) => updateField("endDate", date)}
-                className={inputClassName}
-              />
-              {errors.endDate && (
-                <p id="endDate-error" className={errorClassName}>
-                  {errors.endDate}
-                </p>
-              )}
-            </>
+            <DateField
+              id="endDate"
+              label="끝 날짜"
+              min={getMinEndDate(draft.date, today)}
+              max={today}
+              value={draft.endDate ?? ""}
+              openDate={draft.date}
+              isDisabled={isSaving}
+              error={errors.endDate}
+              onChange={(date) => updateField("endDate", date)}
+              className="mt-2"
+            />
           )}
         </div>
 
-        <div className="flex flex-col">
-          <label htmlFor="title" className={labelClassName}>
-            제목
-          </label>
-          <input
-            id="title"
-            value={draft.title}
-            placeholder="어떤 데이트였나요?"
-            maxLength={TITLE_MAX_LENGTH * 2}
-            disabled={isSaving}
-            aria-invalid={Boolean(errors.title)}
-            aria-describedby={errors.title ? "title-error" : undefined}
-            onChange={(event) => updateField("title", event.target.value)}
-            className={inputClassName}
-          />
-          {errors.title && (
-            <p id="title-error" className={errorClassName}>
-              {errors.title}
-            </p>
-          )}
-        </div>
+        <TextField
+          id="title"
+          label="제목"
+          value={draft.title}
+          placeholder="어떤 데이트였나요?"
+          maxLength={TITLE_MAX_LENGTH * 2}
+          disabled={isSaving}
+          error={errors.title}
+          onChange={(value) => updateField("title", value)}
+        />
 
         <PlaceField
           key={placeFieldKey}
@@ -512,33 +475,25 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
           />
         )}
 
-        <div className="flex grow flex-col">
-          <div className="flex items-baseline justify-between">
-            <label htmlFor="memo" className={labelClassName}>
-              정리 글 <span className="text-ink-placeholder">(선택)</span>
-            </label>
+        <TextAreaField
+          id="memo"
+          label="정리 글"
+          hint="선택"
+          aside={
             <span id="memo-count" className="font-display text-[12px] tracking-[1px] text-ink-sub">
               {countChars(draft.memo.trim()).toLocaleString()}/{MEMO_MAX_LENGTH.toLocaleString()}
             </span>
-          </div>
-          <textarea
-            id="memo"
-            value={draft.memo}
-            // 최소 4줄. 남은 공간은 grow로 채우고, 사진·오류 문구로 내용이 길어지면 4줄을 남기고 페이지가 스크롤된다
-            rows={4}
-            placeholder="오늘 하루를 길게 남겨 두세요"
-            disabled={isSaving}
-            aria-invalid={Boolean(errors.memo)}
-            aria-describedby={errors.memo ? "memo-count memo-error" : "memo-count"}
-            onChange={(event) => updateField("memo", event.target.value)}
-            className={`${inputClassName} h-auto grow resize-y py-3 leading-[1.5]`}
-          />
-          {errors.memo && (
-            <p id="memo-error" className={errorClassName}>
-              {errors.memo}
-            </p>
-          )}
-        </div>
+          }
+          describedBy="memo-count"
+          value={draft.memo}
+          // 최소 4줄. 남은 공간은 grow로 채우고, 사진·오류 문구로 내용이 길어지면 4줄을 남기고 페이지가 스크롤된다
+          rows={4}
+          placeholder="오늘 하루를 길게 남겨 두세요"
+          disabled={isSaving}
+          error={errors.memo}
+          onChange={(value) => updateField("memo", value)}
+          className="grow"
+        />
 
         <div className="flex flex-col">
           {notice && (

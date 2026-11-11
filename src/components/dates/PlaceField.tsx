@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, type KeyboardEvent, type ReactElement, type ReactNode } from "react";
+import { FieldError, FieldLabel, FIELD_BOX_CLASS_NAME } from "@/components/FormField";
 import { SearchIcon } from "@/components/icons";
 import { SESSION_LOST_EVENT } from "@/lib/auth/session-lost";
 import { PLACE_MAX_LENGTH } from "@/lib/dates/form";
@@ -94,12 +95,7 @@ export const PlaceField = ({ value, location, error, isDisabled, canSearch, labe
 
   return (
     <div className="flex flex-col">
-      <div className="flex items-baseline justify-between">
-        <label htmlFor="place" className="text-[13px] text-ink-sub">
-          장소 <span className="text-ink-placeholder">(선택)</span>
-        </label>
-        {labelAction}
-      </div>
+      <FieldLabel htmlFor="place" label="장소" hint="선택" aside={labelAction} />
       <div className="relative mt-2">
         <input
           id="place"
@@ -114,7 +110,7 @@ export const PlaceField = ({ value, location, error, isDisabled, canSearch, labe
             onChange(event.target.value);
           }}
           onKeyDown={handleKeyDown}
-          className={`h-[51px] w-full rounded-[10px] border border-line bg-surface pl-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent ${canSearch ? "pr-12" : "pr-4"}`}
+          className={`w-full pl-4 ${FIELD_BOX_CLASS_NAME} ${canSearch ? "pr-12" : "pr-4"}`}
         />
         {canSearch && (
           <button
@@ -128,11 +124,7 @@ export const PlaceField = ({ value, location, error, isDisabled, canSearch, labe
           </button>
         )}
       </div>
-      {error && (
-        <p id="place-error" className="mt-2 text-[12px] text-accent">
-          {error}
-        </p>
-      )}
+      <FieldError id="place-error" error={error} />
       {location && (
         <p className="mt-2 flex items-center justify-between text-[12px] text-ink-sub">
           지도에 표시되는 장소예요

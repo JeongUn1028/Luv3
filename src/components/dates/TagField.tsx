@@ -1,5 +1,6 @@
 import type { KeyboardEvent, ReactElement, RefObject } from "react";
 import { FILLED_TAG_CHIP_CLASS_NAME, OUTLINED_TAG_CHIP_CLASS_NAME } from "@/components/dates/tagChip";
+import { FieldError, FieldLabel, FIELD_BOX_CLASS_NAME } from "@/components/FormField";
 import { MAX_TAGS, TAG_MAX_LENGTH, pickTagSuggestions } from "@/lib/dates/form";
 import { runKeepingFocus } from "@/lib/keep-focus";
 
@@ -35,9 +36,7 @@ export const TagField = ({ inputRef, tags, suggestions, input, error, isDisabled
 
   return (
     <div className="flex flex-col">
-      <label htmlFor="tag-input" className="text-[13px] text-ink-sub">
-        태그 <span className="text-ink-placeholder">(선택, {MAX_TAGS}개까지)</span>
-      </label>
+      <FieldLabel htmlFor="tag-input" label="태그" hint={`선택, ${MAX_TAGS}개까지`} />
       <div className="mt-2 flex gap-2">
         <input
           ref={inputRef}
@@ -52,7 +51,7 @@ export const TagField = ({ inputRef, tags, suggestions, input, error, isDisabled
           aria-describedby={error ? "tag-error" : undefined}
           onChange={(event) => onInputChange(event.target.value)}
           onKeyDown={handleKeyDown}
-          className="h-[51px] min-w-0 flex-1 rounded-[10px] border border-line bg-surface px-4 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent"
+          className={`min-w-0 flex-1 px-4 ${FIELD_BOX_CLASS_NAME}`}
         />
         <button
           type="button"
@@ -63,11 +62,7 @@ export const TagField = ({ inputRef, tags, suggestions, input, error, isDisabled
           추가
         </button>
       </div>
-      {error && (
-        <p id="tag-error" className="mt-2 text-[12px] text-accent">
-          {error}
-        </p>
-      )}
+      <FieldError id="tag-error" error={error} />
       {tags.length > 0 && (
         <ul aria-label="붙인 태그" className="mt-[18px] flex flex-wrap gap-x-1.5 gap-y-[18px]">
           {tags.map((tag) => (

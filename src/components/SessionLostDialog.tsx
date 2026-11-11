@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, type ReactElement, type SubmitEvent } from "react";
+import { TextField } from "@/components/FormField";
 import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
 import { getSignInErrorMessage, NOT_MEMBER_MESSAGE, SIGN_IN_UNAVAILABLE_MESSAGE } from "@/lib/auth/login-messages";
 import { isSessionLostError, SESSION_LOST_EVENT } from "@/lib/auth/session-lost";
 import { createClient } from "@/lib/supabase/client";
-
-const labelClassName = "text-[13px] text-ink-sub";
-const inputClassName =
-  "mt-2 h-[51px] w-full rounded-[10px] border border-line bg-background px-4 text-ink focus:border-accent focus:outline-none";
 
 /** 로그인에 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
 const signInAgain = async (email: string, password: string): Promise<string | undefined> => {
@@ -54,29 +51,17 @@ const SessionLostForm = ({ isPending, onPendingChange, onClose }: SessionLostFor
 
   return (
     <form onSubmit={handleSubmit} className="mt-4 flex flex-col">
-      <label htmlFor={emailId} className={labelClassName}>
-        이메일
-      </label>
-      <input
-        id={emailId}
-        type="email"
-        autoComplete="username"
-        required
-        value={email}
-        onChange={(event) => setEmail(event.target.value)}
-        className={inputClassName}
-      />
-      <label htmlFor={passwordId} className={`${labelClassName} mt-4`}>
-        비밀번호
-      </label>
-      <input
+      <TextField id={emailId} label="이메일" type="email" autoComplete="username" required value={email} onChange={setEmail} isInDialog />
+      <TextField
         id={passwordId}
+        label="비밀번호"
         type="password"
         autoComplete="current-password"
         required
         value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        className={inputClassName}
+        onChange={setPassword}
+        isInDialog
+        className="mt-4"
       />
       {message && <ModalMessage>{message}</ModalMessage>}
       <ModalActions cancelLabel="닫기" onCancel={onClose} confirmLabel={isPending ? "확인 중…" : "로그인"} isSubmit isDisabled={isPending} />
