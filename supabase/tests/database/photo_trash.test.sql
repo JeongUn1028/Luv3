@@ -1,5 +1,6 @@
 -- 지운 사진 휴지통(#311): 기록을 지우거나 고치기에서 사진을 빼면 파일 경로와 기록 날짜·제목이 휴지통에 남는지,
 -- 회원은 휴지통을 직접 고칠 수 없는지 확인한다. 파일은 앱이 지우지 않고 매달 정리 작업이 보관 기간이 지난 것만 지운다.
+-- 휴지통 표는 개발 DB에 E2E 등이 남긴 행이 있을 수 있어, 이 테스트가 만든 사진·기록만 본다
 begin;
 create extension if not exists pgtap with schema extensions;
 
@@ -35,7 +36,7 @@ reset role;
 
 select results_eq(
   $$select photo_id, date_id, path, thumb_path, record_date, record_title, deleted_with_record, deleted_by
-    from public.photo_trash$$,
+    from public.photo_trash where date_id = '10000000-0000-0000-0000-000000000001'$$,
   $$values ('20000000-0000-0000-0000-000000000002'::uuid, '10000000-0000-0000-0000-000000000001'::uuid,
             '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000002.jpg',
             '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000002_thumb.jpg',
@@ -44,7 +45,8 @@ select results_eq(
 );
 
 select ok(
-  (select deleted_at > now() - interval '1 minute' and deleted_at <= now() from public.photo_trash),
+  (select deleted_at > now() - interval '1 minute' and deleted_at <= now() from public.photo_trash
+    where photo_id = '20000000-0000-0000-0000-000000000002'),
   '지운 시각을 남긴다'
 );
 
@@ -74,7 +76,7 @@ reset role;
 
 select results_eq(
   $$select photo_id, record_date, record_title, deleted_with_record, deleted_by from public.photo_trash
-    where deleted_with_record order by photo_id$$,
+    where date_id = '10000000-0000-0000-0000-000000000001' and deleted_with_record order by photo_id$$,
   $$values
     ('20000000-0000-0000-0000-000000000001'::uuid, '2026-11-01'::date, '성수 산책', true, '00000000-0000-0000-0000-00000000000a'::uuid),
     ('20000000-0000-0000-0000-000000000003'::uuid, '2026-11-01'::date, '성수 산책', true, '00000000-0000-0000-0000-00000000000a'::uuid)$$,
