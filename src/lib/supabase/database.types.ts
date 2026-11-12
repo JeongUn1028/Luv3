@@ -254,6 +254,9 @@ isOneToOne: false
               "group_id": string,"photo": Json,"sort_order": number
             }[]
                            },
+"is_kept_album_file":
+{ Args: { "p_name": string }; Returns: boolean
+                           },
 "is_member":
 { Args: Record<PropertyKey, never>; Returns: boolean
                            },
