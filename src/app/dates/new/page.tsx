@@ -20,8 +20,8 @@ const MemberOnlyForm = async ({ searchParams }: Pick<PageProps<"/dates/new">, "s
   const params = await searchParams;
   const today = toKstDate(new Date());
   const { event: eventId, eventDate } = params;
-  // 캘린더의 지난 일정에서 넘어오면 일정을 읽어 날짜·제목·장소·메모를 채우고 그 일정과 잇는다(#227).
-  // 없는 일정이거나 그날로 남길 수 없으면 연결 없이 쓴다. 예전 주소(날짜·제목·장소 쿼리)도 그대로 받는다
+  // 캘린더의 지난 일정에서 넘어오면 일정을 읽어 날짜·제목·메모를 채우고 그 일정과 잇는다(#227).
+  // 없는 일정이거나 그날로 남길 수 없으면 연결 없이 쓴다. 예전 주소(날짜·제목 쿼리)도 그대로 받는다
   const [eventPrefill, tagSuggestions] = await Promise.all([
     typeof eventId === "string" && typeof eventDate === "string"
       ? catchLoadError(() => getEventRecordPrefill({ eventId, eventDate }, today), EventLoadError)
@@ -39,7 +39,6 @@ const MemberOnlyForm = async ({ searchParams }: Pick<PageProps<"/dates/new">, "s
       key={prefill ? crypto.randomUUID() : "empty"}
       prefill={prefill}
       tagSuggestions={tagSuggestions}
-      canSearchPlace={Boolean(process.env.KAKAO_REST_API_KEY)}
     />
   );
 };

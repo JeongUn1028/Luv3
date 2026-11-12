@@ -1,6 +1,6 @@
 import type { PhotoLocation } from "@/lib/dates/form";
 import { fetchPlaceRegionName, UNKNOWN_PHOTO_PLACE } from "@/lib/places/region";
-import type { PlaceLocation } from "@/lib/places/search";
+import type { PlaceLocation } from "@/lib/places/location";
 import { readPhotoExif, type PhotoExif } from "./exif";
 
 /** 고른 사진에서 채울 값. 읽지 못한 것은 undefined */

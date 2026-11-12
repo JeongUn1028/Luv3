@@ -105,7 +105,7 @@ export const RecordSearch = ({ grid, refreshKey, tags, tag }: RecordSearchProps)
         type="search"
         value={query}
         aria-label="기록 찾기"
-        placeholder="제목, 장소, 글, 한마디"
+        placeholder="제목, 글, 한마디"
         enterKeyHint="search"
         maxLength={SEARCH_TEXT_MAX_LENGTH}
         onChange={(event) => setQuery(event.target.value)}

@@ -1,4 +1,4 @@
-import type { PlaceLocation } from "@/lib/places/search";
+import type { PlaceLocation } from "@/lib/places/location";
 
 /** 사진 파일에서 읽은 정보. 읽지 못한 것은 undefined */
 export interface PhotoExif {

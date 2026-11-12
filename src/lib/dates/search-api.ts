@@ -119,7 +119,6 @@ const isAlbumTile = (value: unknown): value is AlbumTile =>
   typeof value.date === "string" &&
   isOptionalString(value.endDate) &&
   typeof value.title === "string" &&
-  isOptionalString(value.place) &&
   Array.isArray(value.tags) &&
   value.tags.every((tag) => typeof tag === "string") &&
   isOptionalString(value.thumbUrl);

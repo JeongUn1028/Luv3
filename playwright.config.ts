@@ -73,8 +73,6 @@ export default defineConfig<DeviceOptions>({
     env: {
       NEXT_PUBLIC_SUPABASE_URL: supabase.url,
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: supabase.publishableKey,
-      // 장소 찾기 버튼을 켜려는 값이다. 카카오를 실제로 부르지 않게 E2E는 우리 API의 응답을 정해 둔다
-      KAKAO_REST_API_KEY: "e2e-dummy",
       // 지도 버튼을 켜려는 값이다. 카카오를 실제로 부르지 않게 E2E는 SDK를 가짜로 대신한다
       NEXT_PUBLIC_KAKAO_MAP_KEY: "e2e-dummy",
     },

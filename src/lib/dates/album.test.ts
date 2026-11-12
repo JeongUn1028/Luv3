@@ -1,12 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { formatPeriodMonthDay, formatTileLabel, groupByMonth, toAlbumTiles, toLatestRecord, toTagSuggestions, type AlbumRow, type AlbumTile } from "./album";
+import { formatPeriodMonthDay, groupByMonth, toAlbumTiles, toLatestRecord, toTagSuggestions, type AlbumRow, type AlbumTile } from "./album";
 
 const tile = (overrides: Partial<AlbumTile>): AlbumTile => ({
   id: "r",
   date: "2026-11-02",
   endDate: undefined,
   title: "기록",
-  place: undefined,
   thumbUrl: undefined,
   tags: [],
   ...overrides,
@@ -50,42 +49,27 @@ describe("formatPeriodMonthDay", () => {
   });
 });
 
-describe("formatTileLabel", () => {
-  it("기간이면 기간과 장소를 가운뎃점으로 잇는다", () => {
-    expect(formatTileLabel(tile({ date: "2026-11-01", endDate: "2026-11-03", place: "제주" }))).toBe("11.01–11.03 · 제주");
-  });
-
-  it("월.일과 장소를 가운뎃점으로 잇는다", () => {
-    expect(formatTileLabel(tile({ date: "2026-11-02", place: "성수동" }))).toBe("11.02 · 성수동");
-  });
-
-  it("장소가 없으면 날짜만 쓴다", () => {
-    expect(formatTileLabel(tile({ date: "2026-01-09" }))).toBe("01.09");
-  });
-});
-
 describe("toAlbumTiles", () => {
   const row: AlbumRow = {
     id: "a",
     date: "2026-11-02",
     end_date: null,
     title: "산책",
-    place: null,
     tags: [],
     cover: null,
   };
 
-  it("대표 사진 썸네일 경로에 서명 URL을 붙이고, 빈 장소는 undefined로 바꾼다", () => {
+  it("대표 사진 썸네일 경로에 서명 URL을 붙이고, 빈 끝 날짜는 undefined로 바꾼다", () => {
     const tiles = toAlbumTiles(
       [
-        { ...row, id: "a", date: "2026-11-02", end_date: "2026-11-03", title: "산책", place: "성수동", cover: { thumb_path: "a/p_thumb.jpg" } },
+        { ...row, id: "a", date: "2026-11-02", end_date: "2026-11-03", title: "산책", cover: { thumb_path: "a/p_thumb.jpg" } },
         { ...row, id: "b", date: "2026-11-01", title: "카페" },
       ],
       [{ path: "a/p_thumb.jpg", signedUrl: "https://example.test/a" }],
     );
     expect(tiles).toEqual([
-      { id: "a", date: "2026-11-02", endDate: "2026-11-03", title: "산책", place: "성수동", thumbUrl: "https://example.test/a", tags: [] },
-      { id: "b", date: "2026-11-01", endDate: undefined, title: "카페", place: undefined, thumbUrl: undefined, tags: [] },
+      { id: "a", date: "2026-11-02", endDate: "2026-11-03", title: "산책", thumbUrl: "https://example.test/a", tags: [] },
+      { id: "b", date: "2026-11-01", endDate: undefined, title: "카페", thumbUrl: undefined, tags: [] },
     ]);
   });
 
@@ -120,7 +104,6 @@ describe("toLatestRecord", () => {
     date: "2026-11-02",
     end_date: null,
     title: "산책",
-    place: null,
     tags: [],
     cover: { thumb_path: "a/p_thumb.jpg" },
   };

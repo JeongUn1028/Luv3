@@ -1,4 +1,4 @@
-import type { PlaceLocation } from "./search";
+import type { PlaceLocation } from "./location";
 
 /** 좌표 → 동네 이름 주소. 화면과 API 경로가 함께 쓴다. 이름은 서버의 행정동 경계로 계산한다(admdong.ts) */
 export const PLACE_REGION_PATH = "/api/places/region";

@@ -33,19 +33,19 @@ test.describe("기록 찾기", () => {
     await expect(searchBox).toHaveValue("");
   });
 
-  test("제목·장소·정리 글·사진 한마디로 찾는다", async ({ page }) => {
+  test("제목·정리 글·사진 한마디로 찾는다", async ({ page }) => {
     // Arrange
     const id = randomUUID();
-    const [titleWord, placeWord, memoWord, captionWord] = [createWord(), createWord(), createWord(), createWord()];
+    const [titleWord, memoWord, captionWord] = [createWord(), createWord(), createWord()];
     const title = `E2E 찾기 ${titleWord}`;
     const deleteRecord = await createDisposableRecord({ id, title });
-    await setRecordSearchFields(id, { place: placeWord, memo: memoWord, caption: captionWord });
+    await setRecordSearchFields(id, { memo: memoWord, caption: captionWord });
 
     try {
       await openSearch(page);
       const searchBox = page.getByRole("searchbox", { name: "기록 찾기" });
 
-      for (const word of [titleWord, placeWord, memoWord, captionWord]) {
+      for (const word of [titleWord, memoWord, captionWord]) {
         // Act
         await searchBox.fill(word);
 

@@ -20,10 +20,8 @@ const draft: DateRecordDraft = {
   date: "2026-11-01",
   endDate: undefined,
   title: "첫 데이트",
-  place: "성수",
   memo: "",
   tags: [],
-  location: undefined,
   photos: [
     { id: PHOTO_A, caption: "카페", location: undefined },
     { id: PHOTO_B, caption: "", location: undefined },

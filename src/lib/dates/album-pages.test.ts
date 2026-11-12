@@ -9,7 +9,6 @@ const tile = (id: string, thumbUrl?: string): AlbumTile => ({
   date: "2026-11-02",
   endDate: undefined,
   title: id,
-  place: undefined,
   tags: [],
   thumbUrl,
 });

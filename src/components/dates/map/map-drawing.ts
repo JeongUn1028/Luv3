@@ -1,6 +1,6 @@
-import type { MapPin, MapPins } from "@/lib/dates/map";
+import type { MapPins } from "@/lib/dates/map";
 import type { MapPhotoSpot } from "@/lib/dates/map-spots";
-import type { KakaoClusterStyle, KakaoCustomOverlay, KakaoMap, KakaoMarker, KakaoMarkerClusterer, KakaoMaps } from "@/lib/map/kakao-sdk";
+import type { KakaoClusterStyle, KakaoCustomOverlay, KakaoMap, KakaoMarkerClusterer, KakaoMaps } from "@/lib/map/kakao-sdk";
 import { createPhotoPinElement, type PhotoPinElement } from "./photo-pin";
 
 /** 핀이 하나일 때의 확대 레벨. 동네가 보이는 정도다 */
@@ -34,7 +34,6 @@ export interface DrawnPhotoPin {
 /** 그린 핀 전체. 다시 그릴 때 지우려고 들고 있는다 */
 export interface DrawnPins {
   photoPins: DrawnPhotoPin[];
-  recordMarkers: KakaoMarker[];
 }
 
 interface DrawPinsParams {
@@ -43,7 +42,6 @@ interface DrawPinsParams {
   clusterer: KakaoMarkerClusterer;
   pins: MapPins;
   onPressSpot: (spot: MapPhotoSpot) => void;
-  onPressRecordPin: (pin: MapPin) => void;
 }
 
 /**
@@ -55,12 +53,12 @@ export const createClusterer = (maps: KakaoMaps, map: KakaoMap): KakaoMarkerClus
   new maps.MarkerClusterer({ map, gridSize: CLUSTER_GRID_SIZE, minClusterSize: 2, averageCenter: true, styles: [CLUSTER_STYLE] });
 
 /**
- * 사진 핀(동그라미)과 기록 장소 핀을 묶음 기능에 넣고, 모든 핀이 보이게 범위를 맞춘다. 앞서 그린 핀은 지운다.
+ * 사진 핀(동그라미)을 묶음 기능에 넣고, 모든 핀이 보이게 범위를 맞춘다. 앞서 그린 핀은 지운다.
  * 사진 핀은 대표 사진 좌표 한가운데에 놓는다.
  *
- * @example drawn = drawPins({ maps, map, clusterer, pins, onPressSpot, onPressRecordPin })
+ * @example drawn = drawPins({ maps, map, clusterer, pins, onPressSpot })
  */
-export const drawPins = ({ maps, map, clusterer, pins, onPressSpot, onPressRecordPin }: DrawPinsParams): DrawnPins => {
+export const drawPins = ({ maps, map, clusterer, pins, onPressSpot }: DrawPinsParams): DrawnPins => {
   clusterer.clear();
   const bounds = new maps.LatLngBounds();
 
@@ -73,23 +71,13 @@ export const drawPins = ({ maps, map, clusterer, pins, onPressSpot, onPressRecor
     return { spot, overlay, pin };
   });
 
-  const recordMarkers = pins.recordPins.map((recordPin) => {
-    const position = new maps.LatLng(recordPin.lat, recordPin.lng);
-    const marker = new maps.Marker({ position, title: recordPin.place, clickable: true });
-    maps.event.addListener(marker, "click", () => onPressRecordPin(recordPin));
-    bounds.extend(position);
-    return marker;
-  });
-
-  clusterer.addMarkers([...photoPins.map(({ overlay }) => overlay), ...recordMarkers]);
+  clusterer.addMarkers(photoPins.map(({ overlay }) => overlay));
 
   // 핀 하나로 범위를 맞추면 가장 크게 확대되므로 자리만 옮기고 레벨은 그대로 둔다
   const [onlySpot] = pins.photoSpots;
-  const [onlyRecordPin] = pins.recordPins;
-  const onlyPin = photoPins.length + recordMarkers.length === 1 ? (onlySpot ?? onlyRecordPin) : undefined;
-  if (onlyPin) map.setCenter(new maps.LatLng(onlyPin.lat, onlyPin.lng));
-  else if (photoPins.length + recordMarkers.length > 1) map.setBounds(bounds);
-  return { photoPins, recordMarkers };
+  if (photoPins.length === 1 && onlySpot) map.setCenter(new maps.LatLng(onlySpot.lat, onlySpot.lng));
+  else if (photoPins.length > 1) map.setBounds(bounds);
+  return { photoPins };
 };
 
 /**

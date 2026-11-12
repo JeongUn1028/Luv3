@@ -28,12 +28,10 @@ const draft = (overrides: Partial<DateRecordDraft> = {}): DateRecordDraft => ({
   date: "2026-11-01",
   endDate: undefined,
   title: "첫 데이트",
-  place: "",
   memo: "",
   photos: [photo("p1")],
   coverPhotoId: "p1",
   tags: [],
-  location: undefined,
   ...overrides,
 });
 
@@ -80,14 +78,12 @@ describe("validateDraft", () => {
     const errors = validateDraft(
       draft({
         title: "가".repeat(101),
-        place: "가".repeat(101),
         memo: "가".repeat(10_001),
         photos: [photo("p1", "가".repeat(101))],
       }),
       TODAY,
     );
     expect(errors.title).toBe("제목은 100자까지 적을 수 있어요.");
-    expect(errors.place).toBe("장소는 100자까지 적을 수 있어요.");
     expect(errors.memo).toBe("정리 글은 10,000자까지 적을 수 있어요.");
     expect(errors["caption:p1"]).toBe("한마디는 100자까지 적을 수 있어요.");
   });
@@ -189,7 +185,6 @@ describe("toCreateRecordArgs", () => {
       "r1",
       draft({
         title: " 첫 데이트 ",
-        place: " 성수 ",
         memo: "좋았다",
         photos: [photo("a", " 카페 "), photo("b")],
         coverPhotoId: "b",
@@ -199,7 +194,7 @@ describe("toCreateRecordArgs", () => {
       p_id: "r1",
       p_date: "2026-11-01",
       p_title: "첫 데이트",
-      p_place: "성수",
+      p_place: "",
       p_memo: "좋았다",
       p_photos: [
         { id: "a", caption: "카페", location: null },
@@ -244,11 +239,6 @@ describe("toCreateRecordArgs", () => {
     expect(toCreateRecordArgs("r1", draft()).p_tags).toEqual([]);
   });
 
-  it("좌표가 있으면 넘기고, 없으면 지우라는 빈 객체를 넘긴다", () => {
-    expect(toCreateRecordArgs("r1", draft({ location: { lat: 37.5, lng: 127 } })).p_place_location).toEqual({ lat: 37.5, lng: 127 });
-    expect(toCreateRecordArgs("r1", draft()).p_place_location).toEqual({});
-  });
-
   it("기간이면 끝 날짜를 넘기고, 하루짜리면 넘기지 않아 DB 함수가 비워 둔다", () => {
     const withPeriod = toCreateRecordArgs("r1", draft({ endDate: "2026-11-02" }));
     expect(withPeriod.p_end_date).toBe("2026-11-02");
@@ -274,12 +264,13 @@ describe("parseRecordPrefill", () => {
     expect(parseRecordPrefill({}, TODAY)).toBeUndefined();
   });
 
-  it("주소 쿼리의 날짜·제목·장소를 작성 폼 처음 값으로 읽는다", () => {
+  it("주소 쿼리의 날짜·제목을 작성 폼 처음 값으로 읽고, 예전 주소의 장소는 읽지 않는다", () => {
     expect(parseRecordPrefill({ date: "2026-11-01", title: " 전시 보기 ", place: "미술관" }, TODAY)).toEqual({
       date: "2026-11-01",
+      endDate: undefined,
       title: "전시 보기",
-      place: "미술관",
     });
+    expect(parseRecordPrefill({ place: "미술관" }, TODAY)).toBeUndefined();
   });
 
   it("날짜 쿼리가 없으면 오늘로 둔다", () => {
@@ -292,10 +283,9 @@ describe("parseRecordPrefill", () => {
     expect(parseRecordPrefill({ date: ["2026-11-01", "2026-10-31"], title: "a" }, TODAY)?.date).toBe("");
   });
 
-  it("글자 수 제한을 넘는 제목·장소는 제한까지만 채운다", () => {
-    const prefill = parseRecordPrefill({ title: "가".repeat(150), place: "😀".repeat(120) }, TODAY);
-    expect(prefill?.title).toBe("가".repeat(100));
-    expect(prefill?.place).toBe("😀".repeat(100));
+  it("글자 수 제한을 넘는 제목은 제한까지만 채운다", () => {
+    const prefill = parseRecordPrefill({ title: "😀".repeat(120) }, TODAY);
+    expect(prefill?.title).toBe("😀".repeat(100));
   });
 
   it("끝 날짜 쿼리를 작성 폼 처음 값으로 읽는다", () => {

@@ -1,11 +1,10 @@
-import type { PlaceLocation } from "@/lib/places/search";
+import type { PlaceLocation } from "@/lib/places/location";
 import { toNextDay } from "@/lib/calendar/month";
 import { countChars, isIsoDate, isSameFormValue } from "@/lib/form";
 import type { Database } from "@/lib/supabase/database.types";
 
 // 글자 수 제한은 DB check 제약(마이그레이션)과 같아야 한다
 export const TITLE_MAX_LENGTH = 100;
-export const PLACE_MAX_LENGTH = 100;
 export const MEMO_MAX_LENGTH = 10_000;
 export const CAPTION_MAX_LENGTH = 100;
 export const TAG_MAX_LENGTH = 10;
@@ -45,13 +44,10 @@ export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
   /** 기간의 끝 날짜. undefined면 하루짜리, ""면 기간을 켰지만 아직 고르지 않은 상태 */
   endDate: string | undefined;
   title: string;
-  place: string;
   memo: string;
   photos: Photo[];
   coverPhotoId: string | undefined;
   tags: string[];
-  /** 장소의 지도 좌표. 찾아서 고른 장소에만 있고, 이름을 직접 고치면 지운다 */
-  location: PlaceLocation | undefined;
   /** 일정에서 남기는 기록이면 어느 일정의 어느 날인지. 직접 쓰거나 고치는 기록은 없다 */
   eventLink?: RecordEventLink;
 }
@@ -63,7 +59,7 @@ export interface RecordEventLink {
 }
 
 /** 칸 이름 → 화면에 보여 줄 에러 문구. 사진 한마디는 `caption:<사진 id>` */
-export type DraftErrors = Partial<Record<"date" | "endDate" | "title" | "place" | "memo" | "photos" | "tags" | `caption:${string}`, string>>;
+export type DraftErrors = Partial<Record<"date" | "endDate" | "title" | "memo" | "photos" | "tags" | `caption:${string}`, string>>;
 
 export type CreateDateRecordArgs = Database["public"]["Functions"]["create_date_record"]["Args"];
 
@@ -97,7 +93,6 @@ export const validateDraft = (draft: DateRecordDraft, today: string): DraftError
   if (draft.title.trim() === "") errors.title = "제목을 적어 주세요.";
   else if (tooLong(draft.title.trim(), TITLE_MAX_LENGTH)) errors.title = "제목은 100자까지 적을 수 있어요.";
 
-  if (tooLong(draft.place.trim(), PLACE_MAX_LENGTH)) errors.place = "장소는 100자까지 적을 수 있어요.";
   if (tooLong(draft.memo.trim(), MEMO_MAX_LENGTH)) errors.memo = "정리 글은 10,000자까지 적을 수 있어요.";
 
   if (draft.photos.length === 0) errors.photos = "사진을 한 장 이상 골라 주세요.";
@@ -125,8 +120,7 @@ export interface RecordPrefill {
   /** 기간 일정에서 넘어오면 끝 날짜 */
   endDate?: string | undefined;
   title: string;
-  place: string;
-  /** 일정의 메모(#227). 예전 주소(날짜·제목·장소 쿼리)로 열면 없다 */
+  /** 일정의 메모(#227). 예전 주소(날짜·제목 쿼리)로 열면 없다 */
   memo?: string | undefined;
   /** 이 기록을 이을 일정. 예전 주소로 열면 없다 */
   eventLink?: RecordEventLink | undefined;
@@ -143,14 +137,15 @@ export const takeChars = (text: string, max: number): string => Array.from(text.
  * 작성 화면 주소 쿼리를 폼 처음 값으로 읽는다. 쿼리가 없으면 undefined.
  * 주소는 손으로 바꿀 수 있어서, 없는 날짜·앞으로의 날짜는 비워 두고(저장 전에 날짜를 고르라고 알린다) 글자 수는 제한까지만 받는다.
  *
- * @example parseRecordPrefill({ date: "2026-11-01", title: "산책" }, "2026-11-02") // { date: "2026-11-01", title: "산책", place: "" }
+ * @example parseRecordPrefill({ date: "2026-11-01", title: "산책" }, "2026-11-02") // { date: "2026-11-01", title: "산책" }
  */
 export const parseRecordPrefill = (
   params: Record<string, string | string[] | undefined>,
   today: string,
 ): RecordPrefill | undefined => {
-  const { date, endDate, title, place } = params;
-  if (date === undefined && title === undefined && place === undefined) return undefined;
+  // 예전 주소의 장소 쿼리는 기록 장소 칸을 없애(#296) 읽지 않는다
+  const { date, endDate, title } = params;
+  if (date === undefined && title === undefined) return undefined;
   // 날짜를 받았는데 쓸 수 없으면 오늘로 바꾸지 않고 비워 둔다: 일정과 다른 날로 저장되지 않게 직접 고르게 한다
   const startDate = date === undefined ? today : typeof date === "string" && isIsoDate(date) && date <= today ? date : "";
   return {
@@ -158,7 +153,6 @@ export const parseRecordPrefill = (
     // 쓸 수 없는 끝 날짜는 받지 않아 하루 기록으로 시작한다
     endDate: typeof endDate === "string" && isIsoDate(endDate) && startDate !== "" && startDate < endDate && endDate <= today ? endDate : undefined,
     title: typeof title === "string" ? takeChars(title, TITLE_MAX_LENGTH) : "",
-    place: typeof place === "string" ? takeChars(place, PLACE_MAX_LENGTH) : "",
   };
 };
 
@@ -265,7 +259,7 @@ export const pickTagSuggestions = (suggestions: string[], tags: string[]): strin
 };
 
 /**
- * 입력값을 기록 작성 함수(`create_date_record`) 인자로 바꾼다. 빈 장소·글·한마디와 넘기지 않은 끝 날짜는 DB 함수가 null로 저장한다.
+ * 입력값을 기록 작성 함수(`create_date_record`) 인자로 바꾼다. 빈 글·한마디와 넘기지 않은 끝 날짜는 DB 함수가 null로 저장한다.
  *
  * @throws {Error} 대표 사진이 없으면(검증을 거치지 않은 코드 실수)
  * @example await supabase.rpc("create_date_record", toCreateRecordArgs(recordId, draft))
@@ -277,7 +271,8 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_date: draft.date,
     p_end_date: draft.endDate,
     p_title: draft.title.trim(),
-    p_place: draft.place.trim(),
+    // 기록 장소 칸은 없앴다(#296). 그 칸을 지우는 마이그레이션 전까지는 빈 값을 넘겨 고칠 때 함께 지운다
+    p_place: "",
     p_memo: draft.memo.trim(),
     // 위치는 늘 넘긴다. null이면 지우고, 키를 빼면 DB 함수가 있던 위치를 그대로 둔다(예전 코드용)
     p_photos: draft.photos.map(({ id, caption, location, takenAt }) => ({
@@ -290,22 +285,20 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_event_id: draft.eventLink?.eventId,
     p_event_date: draft.eventLink?.eventDate,
     p_tags: draft.tags,
-    // 빈 객체는 좌표를 지우라는 뜻이다. 넘기지 않으면 고칠 때 있던 좌표가 남는다
-    p_place_location: draft.location ? { lat: draft.location.lat, lng: draft.location.lng } : {},
+    // 빈 객체는 좌표를 지우라는 뜻이다
+    p_place_location: {},
   };
 };
 
 // 저장 시도에 쓰는 칸(판 번호 등)과 사진 파일·미리보기 주소는 사용자가 쓴 내용이 아니라 비교에서 뺀다
-const toWrittenContent = ({ date, endDate, title, place, memo, photos, coverPhotoId, tags, location }: DateRecordDraft) => ({
+const toWrittenContent = ({ date, endDate, title, memo, photos, coverPhotoId, tags }: DateRecordDraft) => ({
   date,
   endDate,
   title,
-  place,
   memo,
   photos: photos.map((photo) => ({ id: photo.id, caption: photo.caption, location: photo.location })),
   coverPhotoId,
   tags,
-  location,
 });
 
 /**

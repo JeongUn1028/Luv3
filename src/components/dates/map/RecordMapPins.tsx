@@ -1,20 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { use, useEffect, useRef, useState, type ReactElement } from "react";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { ScreenMessage } from "@/components/ScreenMessage";
-import { toRecordHref } from "@/lib/dates/detail";
 import { fetchMapPhotos } from "@/lib/dates/fetch-map-photos";
-import { toMapPinsSignature, type MapPin, type MapPins } from "@/lib/dates/map";
+import { toMapPinsSignature, type MapPins } from "@/lib/dates/map";
 import { MAP_PHOTOS_UNAUTHORIZED_STATUS, MapPhotosError, planThumbRequests, type CachedThumb } from "@/lib/dates/map-photos";
 import type { MapPhotoSpot } from "@/lib/dates/map-spots";
 import type { KakaoMarkerClusterer } from "@/lib/map/kakao-sdk";
-import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { createClusterer, drawPins, findVisiblePhotoPins, type DrawnPhotoPin, type DrawnPins } from "./map-drawing";
 import { MapPhotoStrip } from "./MapPhotoStrip";
-import { MapRecordList } from "./MapRecordList";
 import type { LoadedKakaoMap } from "./use-kakao-map";
 
 /** 서버가 읽은 지도 핀. 읽지 못했으면 화면에 보여 줄 문구를 담는다 */
@@ -45,7 +40,6 @@ const showThumb = (pinsByCover: Map<string, DrawnPhotoPin>, photoId: string, url
  */
 export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): ReactElement => {
   const result = use(pinsPromise);
-  const router = useRouter();
   const clustererRef = useRef<KakaoMarkerClusterer | undefined>(undefined);
   const drawnRef = useRef<DrawnState | undefined>(undefined);
   const thumbsRef = useRef(new Map<string, CachedThumb>());
@@ -53,18 +47,13 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
   /** 받아 봤지만 주소가 없던 사진. 지도를 움직일 때마다 다시 묻지 않는다 */
   const unavailableThumbsRef = useRef(new Set<string>());
   const [openSpotKey, setOpenSpotKey] = useState<string | undefined>();
-  const [openPinKey, setOpenPinKey] = useState<string | undefined>();
   const pins = result.status === "loaded" ? result.pins : undefined;
   const openSpot = pins?.photoSpots.find(({ key }) => key === openSpotKey);
-  const openPin = pins?.recordPins.find(({ key }) => key === openPinKey);
 
   // 지도의 빈 곳을 누르면 열린 칸을 닫는다
   useEffect(() => {
     if (!kakao) return;
-    const handleMapClick = () => {
-      setOpenSpotKey(undefined);
-      setOpenPinKey(undefined);
-    };
+    const handleMapClick = () => setOpenSpotKey(undefined);
     kakao.maps.event.addListener(kakao.map, "click", handleMapClick);
     return () => kakao.maps.event.removeListener(kakao.map, "click", handleMapClick);
   }, [kakao]);
@@ -76,26 +65,12 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
     clustererRef.current ??= createClusterer(maps, map);
     const clusterer = clustererRef.current;
 
-    const handlePressSpot = (spot: MapPhotoSpot) => {
-      setOpenPinKey(undefined);
-      setOpenSpotKey(spot.key);
-    };
-    const handlePressRecordPin = (pin: MapPin) => {
-      setOpenSpotKey(undefined);
-      const [record] = pin.records;
-      if (pin.records.length === 1 && record) {
-        // 화면이 숨겨져도 상태는 남으므로, 돌아왔을 때 방금 본 기록과 상관없는 목록이 덮고 있지 않게 닫는다
-        setOpenPinKey(undefined);
-        router.push(toRecordHref(record.id), { transitionTypes: FORWARD_TRANSITION });
-      } else {
-        setOpenPinKey(pin.key);
-      }
-    };
+    const handlePressSpot = (spot: MapPhotoSpot) => setOpenSpotKey(spot.key);
 
     // 돌아온 화면은 서버에서 다시 받아 배열이 새것이어도 내용이 같을 수 있다. 내용이 바뀌었을 때만 다시 그려 보던 자리를 지킨다
     const signature = toMapPinsSignature(pins);
     if (drawnRef.current?.signature !== signature) {
-      drawnRef.current = { signature, ...drawPins({ maps, map, clusterer, pins, onPressSpot: handlePressSpot, onPressRecordPin: handlePressRecordPin }) };
+      drawnRef.current = { signature, ...drawPins({ maps, map, clusterer, pins, onPressSpot: handlePressSpot }) };
     }
     const { photoPins } = drawnRef.current;
     // 사진 핀의 key가 대표 사진 id다
@@ -146,7 +121,7 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
     // 이미 묶어 둔 뒤라 알림이 다시 오지 않을 수 있다(돌아온 화면, 바로 묶는 경우)
     loadVisibleThumbs();
     return () => maps.event.removeListener(clusterer, "clustered", loadVisibleThumbs);
-  }, [kakao, pins, router]);
+  }, [kakao, pins]);
 
   if (result.status === "failed") {
     return (
@@ -155,10 +130,10 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
       </div>
     );
   }
-  if (result.pins.photoSpots.length === 0 && result.pins.recordPins.length === 0) {
+  if (result.pins.photoSpots.length === 0) {
     return (
       <div className="absolute inset-0 flex flex-col bg-background">
-        <ScreenMessage message="아직 지도에 표시할 기록이 없어요. 기록을 쓸 때 장소를 고르거나 위치가 있는 사진을 올리면 여기에 나와요." />
+        <ScreenMessage message="아직 지도에 표시할 사진이 없어요. 위치가 있는 사진을 올리면 여기에 나와요." />
       </div>
     );
   }
@@ -166,33 +141,17 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
   return (
     <>
       {/* 지도의 핀은 묶이면 숨겨지고 스크린 리더로 찾기 어려워, 같은 자리를 목록으로도 둔다 */}
-      <ul aria-label="지도에 있는 사진과 기록" className="sr-only">
+      <ul aria-label="지도에 있는 사진" className="sr-only">
         {result.pins.photoSpots.map(({ key, place, photoIds }) => (
           <li key={key}>
-            <button
-              type="button"
-              onClick={() => {
-                setOpenPinKey(undefined);
-                setOpenSpotKey(key);
-              }}
-            >
+            <button type="button" onClick={() => setOpenSpotKey(key)}>
               {place} 사진 {photoIds.length}장
             </button>
           </li>
         ))}
-        {result.pins.recordPins.flatMap(({ key, records }) =>
-          records.map(({ id, title, place }) => (
-            <li key={`${key}:${id}`}>
-              <Link href={toRecordHref(id)} transitionTypes={FORWARD_TRANSITION}>
-                {title} · {place}
-              </Link>
-            </li>
-          )),
-        )}
       </ul>
 
       {openSpot && <MapPhotoStrip key={openSpot.key} spot={openSpot} onClose={() => setOpenSpotKey(undefined)} />}
-      {openPin && <MapRecordList pin={openPin} onClose={() => setOpenPinKey(undefined)} />}
     </>
   );
 };

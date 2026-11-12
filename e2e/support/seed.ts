@@ -106,34 +106,14 @@ export const setRecordTags = async (id: string, tags: string[]): Promise<void> =
 };
 
 /**
- * 기록의 장소·정리 글과 사진 한마디를 채운다(찾기 테스트).
+ * 기록의 정리 글과 사진 한마디를 채운다(찾기 테스트).
  *
- * @example await setRecordSearchFields(id, { place: "성수동", memo: "오래 걸었다", caption: "노을" })
+ * @example await setRecordSearchFields(id, { memo: "오래 걸었다", caption: "노을" })
  */
-export const setRecordSearchFields = async (id: string, { place, memo, caption }: { place: string; memo: string; caption: string }): Promise<void> => {
+export const setRecordSearchFields = async (id: string, { memo, caption }: { memo: string; caption: string }): Promise<void> => {
   const admin = createAdminClient();
-  assertNoError(await admin.from("dates").update({ place, memo }).eq("id", id), "기록 장소·글");
+  assertNoError(await admin.from("dates").update({ memo }).eq("id", id), "기록 글");
   assertNoError(await admin.from("photos").update({ caption }).eq("date_id", id), "사진 한마디");
-};
-
-/**
- * 찾기로 고른 것처럼 기록의 장소와 좌표를 넣는다.
- *
- * @example await setRecordLocation(id, { place: "성수", lat: 37.54, lng: 127.05 })
- */
-export const setRecordLocation = async (id: string, { place, lat, lng }: { place: string; lat: number; lng: number }): Promise<void> => {
-  assertNoError(await createAdminClient().from("dates").update({ place, place_lat: lat, place_lng: lng }).eq("id", id), "기록 좌표");
-};
-
-/**
- * 기록에 저장된 좌표를 읽는다.
- *
- * @example expect(await getRecordLocation(id)).toEqual({ place_lat: null, place_lng: null })
- */
-export const getRecordLocation = async (id: string): Promise<{ place_lat: number | null; place_lng: number | null }> => {
-  const { data, error } = await createAdminClient().from("dates").select("place_lat, place_lng").eq("id", id).single();
-  if (error) throw new Error(`기록 좌표 읽기 실패: ${error.message}`);
-  return data;
 };
 
 /**

@@ -142,7 +142,7 @@ export const getEventRecordPrefill = async (
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")
-    .select("id, date, title, place, memo, is_together, repeat_rule, repeat_until, end_date, exceptions:event_exceptions(date)")
+    .select("id, date, title, memo, is_together, repeat_rule, repeat_until, end_date, exceptions:event_exceptions(date)")
     .eq("id", eventId)
     .maybeSingle();
   if (error) throw new EventLoadError({ cause: error });
