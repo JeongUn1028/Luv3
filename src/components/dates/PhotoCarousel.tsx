@@ -55,6 +55,7 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
 
   return (
     <section aria-roledescription="carousel" aria-label="사진" className="flex flex-col">
+      {/* 넘기는 영역은 화면 폭 그대로 두어 화면 끝에서 시작한 손짓도 넘긴다 */}
       <div ref={viewportRef} className="overflow-hidden">
         <div className="flex touch-pan-y">
           {photos.map((photo, index) => (
@@ -63,18 +64,23 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
               role="group"
               aria-roledescription="slide"
               aria-label={`${index + 1} / ${total}`}
-              className="aspect-[4/5] min-w-0 shrink-0 grow-0 basis-full bg-surface"
+              // 양옆 16px 여백과 16px 모서리는 홈 커플 사진과 같다(#321). 사진 왼쪽 끝이 아래 글자와 줄이 맞고, 넘기는 동안 사진 사이가 32px 벌어진다
+              className="min-w-0 shrink-0 grow-0 basis-full px-4"
             >
-              {photo.url && (
-                <SignedPhoto
-                  src={photo.url}
-                  alt={`${title} 사진 ${index + 1}`}
-                  // 처음 펼친 사진은 바로 보이므로 먼저 받고, 나머지는 넘길 때 받는다
-                  loading={index === startIndex ? "eager" : "lazy"}
-                  draggable={false}
-                  className="size-full object-contain"
-                />
-              )}
+              {/* 4:5가 아닌 사진은 자르지 않고 전체를 보여 틀 안에서 위아래나 양옆이 빈다(사용자 결정) */}
+              <div className="aspect-[4/5] rounded-[16px] bg-surface">
+                {photo.url && (
+                  <SignedPhoto
+                    src={photo.url}
+                    alt={`${title} 사진 ${index + 1}`}
+                    // 처음 펼친 사진은 바로 보이므로 먼저 받고, 나머지는 넘길 때 받는다
+                    loading={index === startIndex ? "eager" : "lazy"}
+                    draggable={false}
+                    // 넘기는 동안 움직이는 줄 안에서 자르기(overflow-hidden)가 풀리는 WebKit 문제를 피해 사진에 직접 모서리를 준다
+                    className="size-full rounded-[16px] object-contain"
+                  />
+                )}
+              </div>
             </div>
           ))}
         </div>

@@ -8,9 +8,9 @@ const TILE_KEYS = ["a", "b", "c", "d", "e", "f"] as const;
 export const AlbumGridSkeleton = (): ReactElement => (
   <SkeletonArea className="mt-[11px]">
     <SkeletonBlock className="h-[22px] w-24 rounded-[4px]" />
-    <div className="mt-2 grid grid-cols-2 gap-1">
+    <div className="mt-2 grid grid-cols-2 gap-1.5">
       {TILE_KEYS.map((key) => (
-        <SkeletonBlock key={key} className="aspect-[4/5]" />
+        <SkeletonBlock key={key} className="aspect-[4/5] rounded-[8px]" />
       ))}
     </div>
   </SkeletonArea>

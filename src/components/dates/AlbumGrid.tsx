@@ -26,15 +26,21 @@ export const AlbumGrid = ({ tiles }: AlbumGridProps): ReactElement => {
           <h2 id={`month-${key}`} className="px-0.5 font-display text-[15px] tracking-[3px] text-label">
             {label}
           </h2>
-          <ul className="mt-2 grid grid-cols-2 gap-1">
+          {/* 간격이 4px이면 둥근 모서리가 거의 보이지 않아 6px로 둔다(#321) */}
+          <ul className="mt-2 grid grid-cols-2 gap-1.5">
             {monthTiles.map((tile) => (
               <li key={tile.id}>
-                <Link href={`/dates/${tile.id}`} transitionTypes={FORWARD_TRANSITION} className="press-card relative block aspect-[4/5] bg-surface">
+                <Link
+                  href={`/dates/${tile.id}`}
+                  transitionTypes={FORWARD_TRANSITION}
+                  className="press-card relative block aspect-[4/5] rounded-[8px] bg-surface"
+                >
+                  {/* 누르는 동안 넓히는 영역이 잘리지 않게 링크에 overflow-hidden을 쓰지 않고, 홈 최근 데이트 칸처럼 사진과 그림자에 직접 모서리를 준다 */}
                   {tile.thumbUrl && (
-                    <SignedPhoto src={tile.thumbUrl} alt={tile.title} loading="lazy" className="absolute inset-0 size-full object-cover" />
+                    <SignedPhoto src={tile.thumbUrl} alt={tile.title} loading="lazy" className="absolute inset-0 size-full rounded-[8px] object-cover" />
                   )}
                   {/* 밝은 사진 위에서도 글자가 읽히도록 아래쪽만 어둡게 깐다 */}
-                  <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-background/80 to-transparent px-2.5 pt-6 pb-2.5 text-[12px] text-ink">
+                  <span className="absolute inset-x-0 bottom-0 truncate rounded-b-[8px] bg-gradient-to-t from-background/80 to-transparent px-2.5 pt-6 pb-2.5 text-[12px] text-ink">
                     {!tile.thumbUrl && <span className="sr-only">{tile.title}, </span>}
                     {formatPeriodMonthDay(tile)}
                   </span>
