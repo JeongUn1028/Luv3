@@ -1,7 +1,16 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useEffect, useEffectEvent, useRef, useState, type ComponentPropsWithoutRef, type ReactElement } from "react";
+import {
+  startTransition,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type ComponentPropsWithoutRef,
+  type ReactElement,
+  type SyntheticEvent,
+} from "react";
 import { refreshSignedInScreen } from "@/lib/navigation/refresh-signed-in";
 import { photoRefreshGate } from "@/lib/photos/photo-retry";
 
@@ -11,6 +20,11 @@ export interface SignedPhotoProps extends Omit<ComponentPropsWithoutRef<"img">, 
   alt: string;
   /** 받지 못했을 때 먼저 불린다. true를 돌려주면 부른 쪽이 다른 주소로 다시 그리므로 화면을 새로 받지 않는다 */
   onLoadFailed?: () => boolean;
+  /**
+   * 사진을 다 받으면 불린다. 서버가 그린 사진을 화면이 연결되기 전에 다 받아 `onLoad`를 놓쳐도, 붙은 뒤에 알린다.
+   * 받은 사진 요소를 넘겨 크기(`naturalWidth`·`naturalHeight`)를 읽을 수 있다. 같은 사진에 두 번 불릴 수 있다
+   */
+  onLoaded?: (image: HTMLImageElement) => void;
 }
 
 /**
@@ -21,7 +35,7 @@ export interface SignedPhotoProps extends Omit<ComponentPropsWithoutRef<"img">, 
  *
  * @example <SignedPhoto src={tile.thumbUrl} alt={tile.title} loading="lazy" className="size-full object-cover" />
  */
-export const SignedPhoto = ({ src, alt, onLoadFailed, ...props }: SignedPhotoProps): ReactElement => {
+export const SignedPhoto = ({ src, alt, onLoadFailed, onLoad, onLoaded, ...props }: SignedPhotoProps): ReactElement => {
   const router = useRouter();
   const imageRef = useRef<HTMLImageElement>(null);
   const [retriedSrc, setRetriedSrc] = useState<string>();
@@ -38,16 +52,24 @@ export const SignedPhoto = ({ src, alt, onLoadFailed, ...props }: SignedPhotoPro
     );
   };
 
-  const handleBrokenBeforeMount = useEffectEvent(handleError);
+  const handleLoad = (event: SyntheticEvent<HTMLImageElement>) => {
+    onLoad?.(event);
+    onLoaded?.(event.currentTarget);
+  };
 
-  // 서버가 그린 사진은 화면이 연결되기 전에 실패하면 onError를 놓치므로, 붙은 뒤에 이미 깨졌는지 본다
+  const handleBrokenBeforeMount = useEffectEvent(handleError);
+  const handleLoadedBeforeMount = useEffectEvent((image: HTMLImageElement) => onLoaded?.(image));
+
+  // 서버가 그린 사진은 화면이 연결되기 전에 끝나면 onLoad·onError를 놓치므로, 붙은 뒤에 이미 받았거나 깨졌는지 본다
   useEffect(() => {
     const image = imageRef.current;
-    if (image?.complete && image.naturalWidth === 0) handleBrokenBeforeMount();
+    if (!image?.complete) return;
+    if (image.naturalWidth === 0) handleBrokenBeforeMount();
+    else handleLoadedBeforeMount(image);
   }, [src]);
 
   return (
     // eslint-disable-next-line @next/next/no-img-element -- 업로드 때 이미 줄인 사진이라 next/image 최적화를 다시 거치지 않는다
-    <img key={isRetried ? `${src}#retry` : src} ref={imageRef} src={src} alt={alt} onError={handleError} {...props} />
+    <img key={isRetried ? `${src}#retry` : src} ref={imageRef} src={src} alt={alt} onError={handleError} onLoad={handleLoad} {...props} />
   );
 };
