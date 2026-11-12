@@ -13,7 +13,7 @@ interface RecordMapProps {
 }
 
 /**
- * 기록·사진 위치를 핀으로 보여 주는 지도의 틀. 지도는 핀을 기다리지 않고 먼저 불러오고, 핀은 읽히는 대로 `RecordMapPins`가 채운다.
+ * 사진 위치를 핀으로 보여 주는 지도의 틀. 지도는 핀을 기다리지 않고 먼저 불러오고, 핀은 읽히는 대로 `RecordMapPins`가 채운다.
  *
  * @example <RecordMap pinsPromise={pinsPromise} appKey={appKey} />
  */

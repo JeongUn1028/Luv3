@@ -98,7 +98,6 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
           <div className="flex items-center justify-between gap-3">
             <p className="min-w-0 text-[13px] break-words text-ink-sub">
               <time dateTime={record.date}>{formatRecordPeriod(record)}</time>
-              {record.place && <span> · {record.place}</span>}
             </p>
             {record.authorNickname && <AuthorTag nickname={record.authorNickname} />}
           </div>

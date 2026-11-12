@@ -47,7 +47,7 @@ const SCREENS: Screen[] = [
     name: "지도",
     path: "/records/map",
     // 나란히 도는 다른 테스트가 좌표를 넣으면 빈 안내 대신 지도가 나온다
-    ready: (page) => page.getByText("아직 지도에 표시할 기록이 없어요").or(page.getByRole("list", { name: "지도에 있는 기록" })),
+    ready: (page) => page.getByText("아직 지도에 표시할 사진이 없어요").or(page.getByRole("list", { name: "지도에 있는 사진" })),
   },
   { name: "캘린더", path: "/calendar", ready: (page) => page.locator('button[aria-pressed="true"]') },
   { name: "Todo", path: "/todos", ready: (page) => page.getByText(TODO.content) },

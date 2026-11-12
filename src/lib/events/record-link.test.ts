@@ -88,7 +88,6 @@ describe("toEventRecordPrefill", () => {
     id: "e1",
     date: "2026-11-01",
     title: "전시",
-    place: "국립현대미술관",
     memo: "도슨트 2시",
     is_together: true,
     repeat_rule: null,
@@ -97,19 +96,18 @@ describe("toEventRecordPrefill", () => {
     exceptions: [],
   };
 
-  it("일정의 날짜·제목·장소·메모를 채우고 일정과 잇는다", () => {
+  it("일정의 날짜·제목·메모를 채우고 일정과 잇는다(일정 장소는 기록에 칸이 없어 넘기지 않는다)", () => {
     expect(toEventRecordPrefill(row, "2026-11-01", today)).toEqual({
       date: "2026-11-01",
       endDate: undefined,
       title: "전시",
-      place: "국립현대미술관",
       memo: "도슨트 2시",
       eventLink: { eventId: "e1", eventDate: "2026-11-01" },
     });
   });
 
-  it("비어 있는 장소·메모는 빈 글자로 채운다", () => {
-    expect(toEventRecordPrefill({ ...row, place: null, memo: null }, "2026-11-01", today)).toMatchObject({ place: "", memo: "" });
+  it("비어 있는 메모는 빈 글자로 채운다", () => {
+    expect(toEventRecordPrefill({ ...row, memo: null }, "2026-11-01", today)).toMatchObject({ memo: "" });
   });
 
   it("기간 일정은 끝 날짜까지 채운다", () => {
@@ -131,9 +129,9 @@ describe("toEventRecordPrefill", () => {
     expect(toEventRecordPrefill({ ...row, end_date: "2026-11-10" }, "2026-11-01", today)).toBeUndefined();
   });
 
-  it("기록 칸보다 긴 제목·장소는 칸 길이까지만 채운다", () => {
-    const prefill = toEventRecordPrefill({ ...row, title: "가".repeat(120), place: "나".repeat(120) }, "2026-11-01", today);
-    expect([prefill?.title.length, prefill?.place.length]).toEqual([100, 100]);
+  it("기록 칸보다 긴 제목은 칸 길이까지만 채운다", () => {
+    const prefill = toEventRecordPrefill({ ...row, title: "가".repeat(120) }, "2026-11-01", today);
+    expect(prefill?.title.length).toBe(100);
   });
 });
 

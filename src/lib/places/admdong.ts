@@ -1,4 +1,4 @@
-import type { PlaceLocation } from "./search";
+import type { PlaceLocation } from "./location";
 
 // 행정동 경계로 좌표의 동네 이름을 찾는다(#249). 카카오 로컬 API 결과는 저장할 수 없어(약관) 공개 경계 데이터로 계산한다.
 // 경계 파일은 scripts/admdong/build.mts가 만든다. 데이터 출처: 통계청 SGIS 행정동 경계(공공누리 제1유형)를 vuski/admdongkor가 가공(CC BY 4.0)

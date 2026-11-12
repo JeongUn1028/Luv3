@@ -1,4 +1,3 @@
-import type { PlaceLocation } from "@/lib/places/search";
 import type { PhotoLocation } from "./form";
 import type { AuthorRow } from "@/lib/author";
 import type { SignedUrl } from "@/lib/photos/signed-urls";
@@ -50,7 +49,6 @@ export interface DateRecordDetail {
   /** 기간의 끝 날짜. 하루짜리면 undefined */
   endDate: string | undefined;
   title: string;
-  place: string | undefined;
   memo: string | undefined;
   tags: string[];
   /** 작성자 닉네임. 읽지 못했으면 작성자 표시를 그리지 않는다 */
@@ -75,11 +73,9 @@ export interface EditableRecord {
   date: string;
   endDate: string | undefined;
   title: string;
-  place: string;
   memo: string;
   coverPhotoId: string | undefined;
   tags: string[];
-  location: PlaceLocation | undefined;
   /** 이미 저장된 사진. 미리보기는 썸네일 서명 URL */
   photos: { id: string; caption: string; location: PhotoLocation | undefined; previewUrl: string | undefined }[];
 }
@@ -91,12 +87,9 @@ export interface DetailRow {
   date: string;
   end_date: string | null;
   title: string;
-  place: string | null;
   memo: string | null;
   cover_photo_id: string | null;
   tags: string[];
-  place_lat: number | null;
-  place_lng: number | null;
   author: AuthorRow;
   /** 기록을 남긴 일정의 날(반복이면 그날). 직접 쓴 기록은 null */
   event_date: string | null;
@@ -156,7 +149,6 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): D
     date: row.date,
     endDate: row.end_date ?? undefined,
     title: row.title,
-    place: row.place ?? undefined,
     memo: row.memo ?? undefined,
     tags: row.tags,
     authorNickname: row.author?.nickname,
@@ -182,11 +174,9 @@ export const toEditableRecord = (row: DetailRow, signedThumbs: SignedUrl[]): Edi
     date: row.date,
     endDate: row.end_date ?? undefined,
     title: row.title,
-    place: row.place ?? "",
     memo: row.memo ?? "",
     coverPhotoId: row.cover_photo_id ?? photos[0]?.id,
     tags: row.tags,
-    location: row.place_lat !== null && row.place_lng !== null ? { lat: row.place_lat, lng: row.place_lng } : undefined,
     photos: photos.map((photo) => ({
       id: photo.id,
       caption: photo.caption ?? "",

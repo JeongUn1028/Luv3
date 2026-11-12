@@ -15,7 +15,7 @@ export class MapPinLoadError extends Error {
 }
 
 /**
- * 좌표가 있는 기록과 사진을 읽어 지도의 핀으로 묶는다. 1000개가 넘어도 잘리지 않게 끝까지 나눠 읽는다(#272).
+ * 좌표가 있는 사진을 읽어 지도의 핀으로 묶는다. 1000개가 넘어도 잘리지 않게 끝까지 나눠 읽는다(#272).
  * 핀은 위치·사진 id만 담아 수천 개여도 작다. 카카오 묶음 숫자가 맞으려면 모든 위치가 있어야 해 한 번에 읽고,
  * 느린 썸네일 서명은 화면 안 핀만 `getMapPhotos`로 따로 받는다(#249 사용자 결정).
  *
@@ -25,29 +25,17 @@ export class MapPinLoadError extends Error {
 export const getMapPins = async (): Promise<MapPins> => {
   const supabase = await createClient();
   const toError = (cause: unknown) => new MapPinLoadError({ cause });
-  const [records, photos] = await Promise.all([
-    readAllRows({
-      fetchPage: (afterId, limit) => {
-        const query = supabase
-          .from("dates")
-          .select("id, title, date, end_date, place, place_lat, place_lng, created_at")
-          .not("place_lat", "is", null);
-        return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
-      },
-      toError,
-    }),
-    readAllRows({
-      fetchPage: (afterId, limit) => {
-        const query = supabase
-          .from("photos")
-          .select("id, date_id, sort_order, place, place_lat, place_lng, record:dates!photos_date_id_fkey(date, created_at)")
-          .not("place_lat", "is", null);
-        return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
-      },
-      toError,
-    }),
-  ]);
-  return buildMapPins({ records, photos });
+  const photos = await readAllRows({
+    fetchPage: (afterId, limit) => {
+      const query = supabase
+        .from("photos")
+        .select("id, date_id, sort_order, place, place_lat, place_lng, record:dates!photos_date_id_fkey(date, created_at)")
+        .not("place_lat", "is", null);
+      return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
+    },
+    toError,
+  });
+  return buildMapPins({ photos });
 };
 
 /** 지도의 사진(썸네일·사진 줄)을 불러오지 못했을 때 */

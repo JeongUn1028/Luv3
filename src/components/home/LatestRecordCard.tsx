@@ -27,10 +27,7 @@ export const LatestRecordCard = ({ record }: LatestRecordCardProps): ReactElemen
         {/* 흰 사진 위에서도 두 줄 제목 윗줄까지 글자가 읽히도록(명암비 4.5:1) 글자 높이까지 진하게 깐다 */}
         <span className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 rounded-b-[16px] bg-gradient-to-t from-background/90 via-background/70 via-60% to-transparent px-3 pt-9 pb-3">
           <span className="line-clamp-2 font-display text-[15px] leading-5 text-ink">{record.title}</span>
-          <span className="truncate text-[12px] leading-4 text-ink/80">
-            {formatRecordShortDate(record)}
-            {record.place && ` · ${record.place}`}
-          </span>
+          <span className="truncate text-[12px] leading-4 text-ink/80">{formatRecordShortDate(record)}</span>
         </span>
       </Link>
     </section>

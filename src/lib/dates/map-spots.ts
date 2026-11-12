@@ -1,4 +1,4 @@
-import type { PlaceLocation } from "@/lib/places/search";
+import type { PlaceLocation } from "@/lib/places/location";
 
 /** 이 거리(m) 안의 사진은 같은 자리로 묶는다. 같은 카페 안에서도 사진마다 GPS가 몇 m씩 달라서다(#249) */
 export const PHOTO_SPOT_RADIUS_M = 50;

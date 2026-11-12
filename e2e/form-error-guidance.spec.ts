@@ -223,7 +223,7 @@ test.describe("띄어쓰기 없는 긴 글자", () => {
     const id = randomUUID();
     const deleteRecord = await createDisposableRecord({ id, title: createTestName("긴 한마디", testInfo) });
     try {
-      await setRecordSearchFields(id, { place: "", memo: "", caption: UNBROKEN_TEXT });
+      await setRecordSearchFields(id, { memo: "", caption: UNBROKEN_TEXT });
 
       // Act
       await openScreen(page, `/dates/${id}`, page.getByText(UNBROKEN_TEXT).locator("visible=true"));

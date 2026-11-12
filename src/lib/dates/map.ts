@@ -1,87 +1,24 @@
-import type { PlaceLocation } from "@/lib/places/search";
-import { compareNewestFirst, toPhotoSpots, type MapPhotoRow, type MapPhotoSpot } from "./map-spots";
+import { toPhotoSpots, type MapPhotoRow, type MapPhotoSpot } from "./map-spots";
 
 /** 기록 지도 화면 주소 */
 export const RECORDS_MAP_PATH = "/records/map";
 
-/** 지도의 핀 목록에 보여 줄 기록 */
-export interface MapRecord {
-  id: string;
-  title: string;
-  /** YYYY-MM-DD. 기간이면 시작일 */
-  date: string;
-  /** 기간의 끝 날짜. 하루짜리면 undefined */
-  endDate: string | undefined;
-  /** 이 기록의 장소 이름. 같은 건물의 두 가게처럼 좌표가 같아도 이름은 다를 수 있다 */
-  place: string;
-}
-
-/** 지도의 핀 하나 = 같은 자리의 기록들 */
-export interface MapPin extends PlaceLocation {
-  key: string;
-  /** 가장 최근 기록의 장소 이름 */
-  place: string;
-  /** 받은 순서 그대로(최신순) */
-  records: MapRecord[];
-}
-
-/** `dates` 조회 결과 한 행 */
-export interface MapRow {
-  id: string;
-  title: string;
-  date: string;
-  end_date: string | null;
-  place: string | null;
-  place_lat: number | null;
-  place_lng: number | null;
-}
-
-/** 이름은 좌표와 함께 저장되지만, 없어도 핀은 그릴 수 있게 대신 쓰는 말 */
-const FALLBACK_PLACE = "이 장소";
-
-/**
- * 기록을 핀으로 묶는다. 같은 장소를 찾아 고르면 좌표가 똑같으므로 같은 좌표끼리 한 핀이다. 좌표가 없는 기록은 뺀다.
- *
- * @example toMapPins([{ id: "1", title: "성수", date: "2026-11-01", end_date: null, place: "성수", place_lat: 37.5, place_lng: 127 }])
- */
-export const toMapPins = (rows: MapRow[]): MapPin[] => {
-  const pins = new Map<string, MapPin>();
-  for (const { id, title, date, end_date: endDate, place, place_lat: lat, place_lng: lng } of rows) {
-    if (lat === null || lng === null) continue;
-    const key = `${lat},${lng}`;
-    const recordPlace = place ?? FALLBACK_PLACE;
-    const pin = pins.get(key) ?? { key, lat, lng, place: recordPlace, records: [] };
-    pin.records.push({ id, title, date, endDate: endDate ?? undefined, place: recordPlace });
-    pins.set(key, pin);
-  }
-  return [...pins.values()];
-};
-
-/** 지도에 그릴 핀. 사진 위치가 하나도 없는 기록만 기록 장소 핀으로 그린다(#249) */
+/** 지도에 그릴 핀. 위치는 사진에만 있어(기록 장소 칸은 #296에서 없앴다) 사진 핀만 그린다 */
 export interface MapPins {
   photoSpots: MapPhotoSpot[];
-  recordPins: MapPin[];
 }
 
 /**
- * 끝까지 읽은 기록·사진 행으로 지도의 핀을 만든다. 사진에 위치가 하나라도 있는 기록은 사진 핀으로만 보여 기록 장소 핀을 그리지 않는다.
+ * 끝까지 읽은 사진 행으로 지도의 핀을 만든다.
  *
- * @example buildMapPins({ records, photos }) // { photoSpots: [...], recordPins: [...] }
+ * @example buildMapPins({ photos }) // { photoSpots: [...] }
  */
-export const buildMapPins = ({ records, photos }: { records: (MapRow & { created_at: string })[]; photos: MapPhotoRow[] }): MapPins => {
-  const photoSpots = toPhotoSpots(photos);
-  const recordIdsWithPhotoSpots = new Set(photos.map(({ date_id: recordId }) => recordId));
-  const recordsWithoutPhotoSpots = records.filter(({ id }) => !recordIdsWithPhotoSpots.has(id));
-  return { photoSpots, recordPins: toMapPins(recordsWithoutPhotoSpots.toSorted(compareNewestFirst)) };
-};
+export const buildMapPins = ({ photos }: { photos: MapPhotoRow[] }): MapPins => ({ photoSpots: toPhotoSpots(photos) });
 
 /**
  * 지도에 그릴 내용을 나타내는 글자. 다시 불러와도 이 값이 같으면 핀을 다시 그리지 않아 보던 자리가 움직이지 않는다.
  *
  * @example if (toMapPinsSignature(pins) !== drawnSignature) redraw()
  */
-export const toMapPinsSignature = ({ photoSpots, recordPins }: MapPins): string =>
-  JSON.stringify([
-    photoSpots.map(({ key, place, photoIds }) => [key, place, photoIds]),
-    recordPins.map(({ key, place, records }) => [key, place, records.map(({ id }) => id)]),
-  ]);
+export const toMapPinsSignature = ({ photoSpots }: MapPins): string =>
+  JSON.stringify(photoSpots.map(({ key, place, photoIds }) => [key, place, photoIds]));

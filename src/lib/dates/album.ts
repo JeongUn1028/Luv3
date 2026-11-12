@@ -12,7 +12,6 @@ interface RecordTileBase {
   /** 기간의 끝 날짜. 하루짜리면 undefined */
   endDate: string | undefined;
   title: string;
-  place: string | undefined;
   tags: string[];
 }
 
@@ -43,7 +42,6 @@ export interface AlbumRow {
   date: string;
   end_date: string | null;
   title: string;
-  place: string | null;
   tags: string[];
   cover: { thumb_path: string } | null;
 }
@@ -54,14 +52,13 @@ const toRecordTileBase = (row: Omit<AlbumRow, "cover">): RecordTileBase => ({
   date: row.date,
   endDate: row.end_date ?? undefined,
   title: row.title,
-  place: row.place ?? undefined,
   tags: row.tags,
 });
 
 /**
  * 조회한 기록 행에 썸네일 서명 URL을 붙여 그리드 칸으로 바꾼다. DB의 null은 화면 경계에서 undefined로 바꾼다.
  *
- * @example toAlbumTiles(rows, signedUrls) // [{ id, date, title, place, thumbUrl }]
+ * @example toAlbumTiles(rows, signedUrls) // [{ id, date, title, tags, thumbUrl }]
  */
 export const toAlbumTiles = (rows: AlbumRow[], signedThumbs: SignedUrl[]): AlbumTile[] => {
   const urlByPath = new Map(
@@ -117,16 +114,6 @@ export const toMonthDay = (isoDate: string): string => isoDate.slice(5).replace(
  */
 export const formatPeriodMonthDay = ({ date, endDate }: RecordPeriod): string =>
   endDate ? `${toMonthDay(date)}–${toMonthDay(endDate)}` : toMonthDay(date);
-
-/**
- * 그리드 칸 아래쪽 글자: "11.02 · 성수동". 장소가 없으면 날짜만.
- *
- * @example formatTileLabel(tile) // "11.02 · 성수동"
- */
-export const formatTileLabel = ({ date, endDate, place }: Pick<AlbumTile, "date" | "endDate" | "place">): string => {
-  const period = formatPeriodMonthDay({ date, endDate });
-  return place ? `${period} · ${place}` : period;
-};
 
 /** 태그 하나를 쓴 기록 수. DB(`count_date_tags`)가 대소문자만 다른 태그를 하나로 묶어 센다 */
 export interface TagCount {

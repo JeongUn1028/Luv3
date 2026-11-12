@@ -12,8 +12,6 @@ import { toKstDate } from "@/lib/anniversary";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import {
   MEMO_MAX_LENGTH,
-  PLACE_MAX_LENGTH,
-  takeChars,
   TITLE_MAX_LENGTH,
   addPhotos,
   addTag,
@@ -54,7 +52,6 @@ import { usePreviewUrls } from "@/lib/photos/preview-urls";
 import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
 import { createClient } from "@/lib/supabase/client";
 import { PhotoPicker, type PickedPhoto } from "./PhotoPicker";
-import { PlaceField } from "@/components/dates/PlaceField";
 import { TagField } from "./TagField";
 
 const toProgressLabel = ({ step, done, total }: SaveProgress): string => {
@@ -72,25 +69,21 @@ const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto>
   date: prefill?.date ?? toKstDate(new Date()),
   endDate: prefill?.endDate,
   title: prefill?.title ?? "",
-  place: prefill?.place ?? "",
   memo: prefill?.memo ?? "",
   eventLink: prefill?.eventLink,
   photos: [],
   coverPhotoId: undefined,
   tags: [],
-  location: undefined,
 });
 
-const toEditDraft = ({ revision, date, endDate, title, place, memo, coverPhotoId, tags, location, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
+const toEditDraft = ({ revision, date, endDate, title, memo, coverPhotoId, tags, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
   expectedRevisions: [revision],
   date,
   endDate,
   title,
-  place,
   memo,
   coverPhotoId,
   tags,
-  location,
   photos: photos.map((photo) => ({ ...photo, file: undefined, isReadingInfo: false })),
 });
 
@@ -111,15 +104,13 @@ interface DateRecordFormProps {
   prefill?: RecordPrefill;
   /** 전에 쓴 태그 */
   tagSuggestions: string[];
-  /** 장소 찾기를 쓸 수 있는지(서버에 키가 있는지) */
-  canSearchPlace: boolean;
 }
 
 /** 데이트 기록 작성·수정 폼. 새로 고른 사진을 줄여 올린 뒤 기록과 사진 행을 한 번에 저장한다. */
-export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace }: DateRecordFormProps): ReactElement => {
+export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFormProps): ReactElement => {
   const router = useRouter();
   // 지난 일정에서 넘어온 새 기록은 일정마다 다른 폼이다. 다른 일정의 실패한 내용이 채워지지 않게 값까지 구분한다
-  const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.endDate ?? ""}:${prefill?.title ?? ""}:${prefill?.place ?? ""}:${prefill?.eventLink?.eventId ?? ""}`}`;
+  const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.endDate ?? ""}:${prefill?.title ?? ""}:${prefill?.eventLink?.eventId ?? ""}`}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "기록을", failedSaves });
   // 쓴 내용이 있는지 견줄 처음 내용. 실패해서 다시 채운 내용도 아직 저장되지 않았으므로 이것과 견준다
   const [initialDraft, setInitialDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft(prefill)));
@@ -128,8 +119,6 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
   const [draft, setDraft] = useState(() => (failedSave ? withNewPreviews(failedSave.draft, previews.create) : initialDraft));
   const [errors, setErrors] = useState<DraftErrors>({});
   const [tagInput, setTagInput] = useState("");
-  // 찾기 결과는 PlaceField 안에 있어, 저장 뒤 숨겨진 폼을 되돌릴 때 key를 바꿔 함께 비운다
-  const [placeFieldKey, setPlaceFieldKey] = useState(0);
   // 칸을 늘 열어 두면 빈 작성 화면에 스크롤이 생긴다(#52). 태그가 있는 기록은 열어 둔다
   const [isTagFieldOpen, setIsTagFieldOpen] = useState(draft.tags.length > 0);
   const tagInputRef = useRef<HTMLInputElement>(null);
@@ -171,7 +160,6 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
     setInitialDraft(nextDraft);
     setDraft(nextDraft);
     setTagInput("");
-    setPlaceFieldKey((key) => key + 1);
     setIsTagFieldOpen(nextDraft.tags.length > 0);
     setErrors({});
     setNotice(undefined);
@@ -188,11 +176,6 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
     reset: () => resetForm(createEmptyDraft(prefill)),
     isSameContent: isSameExceptReadingPhotoInfo,
   });
-
-  const updatePlace = (changes: Partial<Pick<RecordDraft, "place" | "location">>) => {
-    setDraft((current) => ({ ...current, ...changes }));
-    setErrors((current) => clearError(current, "place"));
-  };
 
   const updateField = (field: "date" | "endDate" | "title" | "memo", value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -385,7 +368,6 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
           coverPhotoId={draft.coverPhotoId}
           errors={errors}
           isDisabled={isSaving}
-          canSearchPlace={canSearchPlace}
           onAdd={handleAddPhotos}
           onRemove={handleRemovePhoto}
           // 사진 정보는 고른 뒤 따로 도착해 draft를 바꾼다. 그 값을 덮지 않게 사진 칸은 최신 상태에 맞춰 바꾼다
@@ -447,17 +429,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
           maxLength={TITLE_MAX_LENGTH * 2}
           disabled={isSaving}
           error={errors.title}
-          onChange={(value) => updateField("title", value)}
-        />
-
-        <PlaceField
-          key={placeFieldKey}
-          value={draft.place}
-          location={draft.location}
-          error={errors.place}
-          isDisabled={isSaving}
-          canSearch={canSearchPlace}
-          labelAction={
+          // 태그 칸은 눌러야 열린다. 여는 버튼은 바로 아래 칸이 생기는 제목 줄에 둔다
+          aside={
             !isTagFieldOpen && (
               <button
                 type="button"
@@ -470,10 +443,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, canSearchPlace
               </button>
             )
           }
-          // 이름을 고치면 좌표가 다른 곳을 가리킬 수 있어 함께 지운다
-          onChange={(value) => updatePlace({ place: value, location: undefined })}
-          onSelect={({ name, lat, lng }) => updatePlace({ place: takeChars(name, PLACE_MAX_LENGTH), location: { lat, lng } })}
-          onClearLocation={() => updatePlace({ location: undefined })}
+          onChange={(value) => updateField("title", value)}
         />
 
         {isTagFieldOpen && (

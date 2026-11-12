@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
 import { SignedPhoto } from "@/components/SignedPhoto";
-import { formatTileLabel, groupByMonth, type AlbumTile } from "@/lib/dates/album";
+import { formatPeriodMonthDay, groupByMonth, type AlbumTile } from "@/lib/dates/album";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 interface AlbumGridProps {
@@ -36,7 +36,7 @@ export const AlbumGrid = ({ tiles }: AlbumGridProps): ReactElement => {
                   {/* 밝은 사진 위에서도 글자가 읽히도록 아래쪽만 어둡게 깐다 */}
                   <span className="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-background/80 to-transparent px-2.5 pt-6 pb-2.5 text-[12px] text-ink">
                     {!tile.thumbUrl && <span className="sr-only">{tile.title}, </span>}
-                    {formatTileLabel(tile)}
+                    {formatPeriodMonthDay(tile)}
                   </span>
                 </Link>
               </li>

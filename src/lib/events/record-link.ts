@@ -1,4 +1,4 @@
-import { PLACE_MAX_LENGTH, TITLE_MAX_LENGTH, takeChars, type RecordPrefill } from "@/lib/dates/form";
+import { TITLE_MAX_LENGTH, takeChars, type RecordPrefill } from "@/lib/dates/form";
 import { findLinkedRecordId, isRepeatRule, type CalendarEvent, type CalendarEventRow } from "./calendar";
 import { findOccurrenceDate } from "./recurrence";
 
@@ -87,12 +87,12 @@ export const toEventRecordHref = (eventId: string, link: EventRecordLink): strin
   link.kind === "view" ? `/dates/${link.recordId}` : `/dates/new?${new URLSearchParams({ event: eventId, eventDate: link.eventDate }).toString()}`;
 
 /** 기록 작성 화면에 채울 일정 한 행 */
-export interface EventRecordPrefillRow extends Pick<CalendarEventRow, "id" | "date" | "title" | "place" | "is_together" | "repeat_rule" | "repeat_until" | "end_date" | "exceptions"> {
+export interface EventRecordPrefillRow extends Pick<CalendarEventRow, "id" | "date" | "title" | "is_together" | "repeat_rule" | "repeat_until" | "end_date" | "exceptions"> {
   memo: string | null;
 }
 
 /**
- * 일정의 그날로 남길 기록의 처음 값(날짜·끝 날짜·제목·장소·메모와 연결)을 만든다.
+ * 일정의 그날로 남길 기록의 처음 값(날짜·끝 날짜·제목·메모와 연결)을 만든다. 일정의 장소는 기록에 장소 칸이 없어(#296) 넘기지 않는다.
  * 작성 화면 주소는 손으로 바꿀 수 있어서, 그날이 일정의 날(반복이면 실제로 오는 날, 아니면 시작일)이 아니거나
  * 한 사람 일정이거나 아직 끝나지 않았으면 undefined를 돌려 연결 없이 쓰게 한다.
  *
@@ -105,7 +105,6 @@ export const toEventRecordPrefill = (row: EventRecordPrefillRow, eventDate: stri
     date: eventDate,
     endDate: row.end_date ?? undefined,
     title: takeChars(row.title, TITLE_MAX_LENGTH),
-    place: takeChars(row.place ?? "", PLACE_MAX_LENGTH),
     memo: row.memo ?? "",
     eventLink: { eventId: row.id, eventDate },
   };

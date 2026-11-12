@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { RECORDS_MAP_PATH } from "@/lib/dates/map";
 import { MAP_PHOTOS_PATH } from "@/lib/dates/map-photos";
-import { createUniqueLocation, fakeMapSdk, moveFakeMap, toViewBoxAround, type FakeWindow } from "./support/fake-kakao-map";
-import { addLocatedPhotoRows, addRecordPhoto, createDisposableRecord, getRecordPhotoIds, setRecordLocation, setRecordPhotoLocation } from "./support/seed";
+import { createUniqueLocation, fakeMapSdk, moveFakeMap, toViewBoxAround } from "./support/fake-kakao-map";
+import { addLocatedPhotoRows, addRecordPhoto, createDisposableRecord, getRecordPhotoIds, setRecordPhotoLocation } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
 /** 위도 0.0001도는 약 11m */
@@ -58,13 +58,11 @@ const recordMapPhotoRequests = (page: Page): string[][] => {
 };
 
 test.describe("지도 사진 핀", () => {
-  test("사진 위치가 있는 기록은 50m 안 사진을 한 사진 핀으로 묶어 장수를 붙이고, 그 기록의 장소 핀은 그리지 않는다", async ({ page }) => {
+  test("50m 안 사진을 한 사진 핀으로 묶어 장수를 붙인다", async ({ page }) => {
     // Arrange
     const place = `E2E 사진 핀 ${randomUUID()}`;
-    const recordPlace = `E2E 기록 장소 ${randomUUID()}`;
     const location = createUniqueLocation();
     const record = await createPhotoLocatedRecord({ title: "E2E 사진 핀 기록", place, location });
-    await setRecordLocation(record.id, { place: recordPlace, ...createUniqueLocation() });
     await addRecordPhoto(record.id, { sortOrder: 1, location: { place: "옆자리", ...northOf(location, 30) } });
     await fakeMapSdk(page, { viewBox: toViewBoxAround(location) });
 
@@ -78,8 +76,6 @@ test.describe("지도 사진 핀", () => {
       await expect(pin).toContainText("2");
       await expect(pin.locator("img")).toHaveAttribute("src", /.+/);
       expect((await pin.boundingBox())?.width).toBeGreaterThanOrEqual(44);
-      const markerTitles = await page.evaluate(() => (window as unknown as FakeWindow).fakeMap.markers.map(({ title }) => title));
-      expect(markerTitles).not.toContain(recordPlace);
     } finally {
       await record.remove();
     }

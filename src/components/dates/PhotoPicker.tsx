@@ -23,8 +23,6 @@ interface PhotoPickerProps {
   coverPhotoId: string | undefined;
   errors: DraftErrors;
   isDisabled: boolean;
-  /** 사진 위치 창에서 장소 찾기를 쓸 수 있는지(서버에 키가 있는지) */
-  canSearchPlace: boolean;
   onAdd: (files: File[]) => void;
   onRemove: (photoId: string) => void;
   onMove: (index: number, offset: -1 | 1) => void;
@@ -75,7 +73,6 @@ export const PhotoPicker = ({
   coverPhotoId,
   errors,
   isDisabled,
-  canSearchPlace,
   onAdd,
   onRemove,
   onMove,
@@ -237,7 +234,6 @@ export const PhotoPicker = ({
         photoNumber={locationPhotoIndex + 1}
         location={locationPhoto?.location}
         previousLocation={photos[locationPhotoIndex - 1]?.location}
-        canSearch={canSearchPlace}
         onChange={(location) => {
           if (locationPhoto) onLocationChange(locationPhoto.id, location);
         }}

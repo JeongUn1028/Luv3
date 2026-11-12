@@ -1,6 +1,6 @@
 import { toKstDate } from "@/lib/anniversary";
 import { UNKNOWN_PHOTO_PLACE } from "@/lib/places/region";
-import type { PlaceLocation } from "@/lib/places/search";
+import type { PlaceLocation } from "@/lib/places/location";
 import { getDistanceMeters, PHOTO_SPOT_RADIUS_M } from "./map-spots";
 
 /** 동선을 계산하는 데 쓰는 `photos` 한 행 */

@@ -57,7 +57,7 @@ export const getLatestRecord = async (): Promise<LatestRecord | undefined> => {
   const supabase = await createClient();
   const { data: rows, error } = await supabase
     .from("dates")
-    .select("id, date, end_date, title, place, tags, cover:photos!dates_cover_photo_id_fkey(thumb_path)")
+    .select("id, date, end_date, title, tags, cover:photos!dates_cover_photo_id_fkey(thumb_path)")
     .order("date", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(1);
@@ -105,7 +105,7 @@ export class DateRecordLoadError extends Error {
 }
 
 const DETAIL_COLUMNS =
-  "id, date, end_date, title, place, memo, cover_photo_id, tags, place_lat, place_lng, revision, author:members!dates_author_id_fkey(nickname), event_date, event:events(id, title, repeat_rule), photos!photos_date_id_fkey(id, path, thumb_path, caption, sort_order, place, place_lat, place_lng, taken_at)";
+  "id, date, end_date, title, memo, cover_photo_id, tags, revision, author:members!dates_author_id_fkey(nickname), event_date, event:events(id, title, repeat_rule), photos!photos_date_id_fkey(id, path, thumb_path, caption, sort_order, place, place_lat, place_lng, taken_at)";
 
 /** 기록 행 하나를 읽는다. id 형식이 틀리거나 없는 기록이면 undefined */
 const getDetailRow = async (
