@@ -5,6 +5,7 @@ import { startTransition, type ReactElement } from "react";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { deleteDateRecord } from "@/lib/dates/delete";
+import { TRASH_RETENTION_DAYS } from "@/lib/photos/trash";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { createClient } from "@/lib/supabase/client";
 
@@ -32,7 +33,7 @@ export const DeleteRecordButton = ({ recordId, photoCount }: DeleteRecordButtonP
   return (
     <ConfirmDeleteButton
       title="이 기록을 지울까요?"
-      description={`사진 ${photoCount}장과 글, 두 사람이 남긴 댓글이 모두 지워지고 되돌릴 수 없어요.`}
+      description={`글과 두 사람이 남긴 댓글은 지워지고 되돌릴 수 없어요. 사진 ${photoCount}장은 설정 > 휴지통에 ${TRASH_RETENTION_DAYS}일 동안 남아요.`}
       subject="기록을"
       noticeKey={`delete:record:${recordId}`}
       onConfirm={handleConfirm}
