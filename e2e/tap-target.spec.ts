@@ -89,25 +89,30 @@ test.describe("누름 영역", () => {
     }
   });
 
-  test("기록 작성의 사진 칸 버튼과 한마디 칸은 44px 영역을 눌러도 눌리고 서로 겹치지 않는다", async ({ page }) => {
-    // Arrange: 앞으로·뒤로 버튼이 모두 켜지도록 사진 3장을 고른다
+  test("기록 작성의 모음 카드 버튼과 한마디 칸은 44px 영역을 눌러도 눌리고 서로 겹치지 않는다", async ({ page }) => {
+    // Arrange: 앞으로·뒤로 버튼이 모두 켜지도록 사진 3장을 한 모음으로 고르고 가운데 사진을 누른다
     await openScreen(page, "/dates/new", page.locator("#memo"));
     const photo = { name: "photo.jpg", mimeType: "image/jpeg", buffer: readFileSync(PHOTO_FIXTURE_PATH) };
-    await page.getByLabel("사진 고르기").setInputFiles([photo, { ...photo, name: "photo-2.jpg" }, { ...photo, name: "photo-3.jpg" }]);
-    await page.getByRole("button", { name: "3번째 사진 빼기" }).waitFor();
-    const row = page.locator("ol > li").nth(1);
+    await page.getByLabel("사진 고르기", { exact: true }).setInputFiles([photo, { ...photo, name: "photo-2.jpg" }, { ...photo, name: "photo-3.jpg" }]);
+    const card = page.getByRole("listitem", { name: /^모음 1/ });
+    await card.getByRole("button", { name: /^모음 1의 2번째 사진/ }).click();
 
     // Act
     const missed = {
-      앞으로: await getMissedPoints(row.getByRole("button", { name: "2번째 사진을 앞으로" })),
-      뒤로: await getMissedPoints(row.getByRole("button", { name: "2번째 사진을 뒤로" })),
-      빼기: await getMissedPoints(row.getByRole("button", { name: "2번째 사진 빼기" })),
-      대표: await getMissedPoints(row.locator("label", { hasText: "대표" })),
+      위로: await getMissedPoints(card.getByRole("button", { name: "모음 1 위로 옮기기" })),
+      아래로: await getMissedPoints(card.getByRole("button", { name: "모음 1 아래로 옮기기" })),
+      모음빼기: await getMissedPoints(card.getByRole("button", { name: "모음 1 빼기" })),
+      위치: await getMissedPoints(card.getByRole("button", { name: /\(모음 1\)$/ })),
+      사진더하기: await getMissedPoints(card.getByRole("button", { name: /이 모음에 사진 더하기/ })),
+      대표로: await getMissedPoints(card.getByRole("button", { name: "대표로" })),
+      앞으로: await getMissedPoints(card.getByRole("button", { name: "앞으로" })),
+      뒤로: await getMissedPoints(card.getByRole("button", { name: "뒤로" })),
+      빼기: await getMissedPoints(card.getByRole("button", { name: "이 사진 빼기" })),
     };
 
     // Assert
-    expect(missed).toEqual({ 앞으로: [], 뒤로: [], 빼기: [], 대표: [] });
-    const caption = await row.getByRole("textbox").boundingBox();
+    expect(missed).toEqual({ 위로: [], 아래로: [], 모음빼기: [], 위치: [], 사진더하기: [], 대표로: [], 앞으로: [], 뒤로: [], 빼기: [] });
+    const caption = await card.getByRole("textbox").boundingBox();
     expect(caption?.height).toBeGreaterThanOrEqual(TAP_TARGET_SIZE);
   });
 

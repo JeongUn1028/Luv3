@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useImperativeHandle, useLayoutEffect, useRef, type MouseEvent, type ReactElement, type ReactNode, type Ref, type RefObject } from "react";
+import { CloseIcon } from "@/components/icons";
 import { useCloseDialogOnHide } from "@/lib/navigation/use-close-dialog-on-hide";
 
 /** 칸을 두 번 누르면 두 번째가 칸 자리에 뜬 창에 닿는다. 이 시간 안의 누름은 창이 받지 않는다 */
@@ -55,6 +56,8 @@ interface ModalDialogProps {
   shouldCloseOnOutsideClick?: boolean;
   /** 열린 직후의 누름을 받지 않는다. 고르면 바로 값이 바뀌는 창이 두 번 누르기로 눌리지 않게 한다 */
   shouldGuardDoubleTap?: boolean;
+  /** 화면 전체를 덮는다(지도에서 위치 고르기, #298). 머리글에 닫기 버튼을 두고, 내용은 남은 높이를 세로로 채운다 */
+  isFullScreen?: boolean;
   children: ReactNode;
 }
 
@@ -83,6 +86,7 @@ export const ModalDialog = ({
   onClose,
   shouldCloseOnOutsideClick = false,
   shouldGuardDoubleTap = false,
+  isFullScreen = false,
   children,
 }: ModalDialogProps): ReactElement => {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -152,19 +156,53 @@ export const ModalDialog = ({
         // 작업 중이면 Esc와 같이 닫지 않는다. 닫힌 창에 실패 문구가 남아 결과를 놓친다
         if (shouldCloseOnOutsideClick && !isBusy && isOutsideClick(event)) closeWithMotion(event.currentTarget, closeTimerRef);
       }}
-      className="modal-dialog m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
+      className={
+        isFullScreen
+          ? // 화면 높이는 h-app 하나로 정한다(#51). 위쪽은 다른 화면의 머리글처럼 시스템 흐림 자리를 비운다
+            "modal-dialog m-0 h-app max-h-none w-full max-w-none bg-background p-0 text-ink backdrop:bg-background"
+          : "modal-dialog m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
+      }
     >
-      <div ref={contentRef}>
-        <h2 id={titleId} className="font-display text-[17px] break-words">
-          {title}
-        </h2>
-        {description && (
-          <p id={descriptionId} className="mt-2 text-[14px] leading-[1.6] break-words text-ink-sub">
-            {description}
-          </p>
-        )}
-        {children}
-      </div>
+      {isFullScreen ? (
+        <div ref={contentRef} className="flex h-full flex-col pt-(--screen-top-inset)">
+          <div className="flex h-14 shrink-0 items-center justify-between px-2">
+            {/* Esc·바깥 누름과 같이 작업 중에는 닫지 않는다 */}
+            <button
+              type="button"
+              disabled={isBusy}
+              onClick={() => {
+                if (dialogRef.current) closeWithMotion(dialogRef.current, closeTimerRef);
+              }}
+              className="press-icon flex size-11 items-center justify-center text-ink disabled:opacity-50"
+            >
+              <CloseIcon className="size-[22px]" />
+              <span className="sr-only">닫기</span>
+            </button>
+            <h2 id={titleId} className="min-w-0 truncate font-display text-[19px]">
+              {title}
+            </h2>
+            <span aria-hidden="true" className="w-11 shrink-0" />
+          </div>
+          {description && (
+            <p id={descriptionId} className="shrink-0 px-4 pb-3 text-[14px] leading-[1.6] break-words text-ink-sub">
+              {description}
+            </p>
+          )}
+          {children}
+        </div>
+      ) : (
+        <div ref={contentRef}>
+          <h2 id={titleId} className="font-display text-[17px] break-words">
+            {title}
+          </h2>
+          {description && (
+            <p id={descriptionId} className="mt-2 text-[14px] leading-[1.6] break-words text-ink-sub">
+              {description}
+            </p>
+          )}
+          {children}
+        </div>
+      )}
     </dialog>
   );
 };

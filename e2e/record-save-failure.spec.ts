@@ -5,7 +5,7 @@ import { PHOTO_RECORD } from "./support/constants";
 import { pickDate } from "./support/date-picker";
 import { addPhotoAsPartner, createDisposableRecord, deleteRecordWithFiles, getRecordIdsByTitle, listRecordFiles } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getKstYesterday, getSubmitButton, getVisibleLink, pickPhoto } from "./support/actions";
+import { getGroupPhoto, getKstYesterday, getSubmitButton, getVisibleLink, pickPhoto } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 기록 저장이 실패하는 경우를 모은 스펙(#196). 저장하는 사이 다른 화면으로 옮기는 경우는 leave-while-saving.spec.ts에 있다
@@ -117,7 +117,8 @@ test.describe("수정 화면을 연 사이 상대가 기록을 고치면", () =>
       await page.getByRole("button", { name: "최신 내용 불러오기" }).tap();
 
       // Assert: 상대의 사진이 보이고 다시 저장할 수 있다
-      await expect(page.getByRole("button", { name: "2번째 사진 빼기" })).toBeVisible();
+      // 상대가 더한 사진은 기록의 첫 모음에 들어 있다
+      await expect(getGroupPhoto(page, 1, 2)).toBeVisible();
       await expect(getTitleField(page)).toHaveValue(title);
       await getTitleField(page).fill(`${title} 다시 고침`);
       await getSubmitButton(page).tap();

@@ -39,6 +39,8 @@ const MemberOnlyForm = async ({ searchParams }: Pick<PageProps<"/dates/new">, "s
       key={prefill ? crypto.randomUUID() : "empty"}
       prefill={prefill}
       tagSuggestions={tagSuggestions}
+      // 지도 키가 없으면 모음 위치 고르기 창이 지도 대신 안내를 보인다
+      mapKey={process.env.NEXT_PUBLIC_KAKAO_MAP_KEY}
     />
   );
 };

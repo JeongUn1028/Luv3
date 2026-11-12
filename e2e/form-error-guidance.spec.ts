@@ -23,13 +23,13 @@ test.describe("저장할 때 입력 오류가 있으면", () => {
   test("기록 폼은 첫 오류 칸으로 초점과 화면을 옮기고, 오류를 모두 고치면 폼 안내를 지운다", async ({ page }) => {
     // Arrange
     await openScreen(page, "/dates/new", page.locator("#memo").locator("visible=true"));
-    const photoButton = page.getByRole("button", { name: "사진 고르기" }).locator("visible=true");
+    const photoButton = page.getByRole("button", { name: "새 모음 만들기 · 사진 고르기" }).locator("visible=true");
     const titleField = page.locator("#title").locator("visible=true");
 
     // Act: 사진도 제목도 없이 저장한다
     await getSubmitButton(page).tap();
 
-    // Assert: 폼 맨 위의 사진 고르기가 첫 오류 칸이다
+    // Assert: 폼 맨 위의 새 모음 만들기가 첫 오류 칸이다
     await expect(photoButton).toBeFocused();
     await expect(photoButton).toHaveAccessibleDescription("사진을 한 장 이상 골라 주세요.");
     await expect(getFormAlert(page)).toHaveText(FIX_FIELDS_NOTICE);

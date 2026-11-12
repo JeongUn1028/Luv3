@@ -14,8 +14,8 @@ const row: DetailRow = {
   event_date: null,
   event: null,
   photos: [
-    { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1, place: null, place_lat: null, place_lng: null, taken_at: null },
-    { id: "p1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", caption: "카페", sort_order: 0, place: "어니언 성수", place_lat: 37.5447, place_lng: 127.0582, taken_at: null },
+    { id: "p2", group_id: "g2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1, place: null, place_lat: null, place_lng: null, taken_at: null },
+    { id: "p1", group_id: "g1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", caption: "카페", sort_order: 0, place: "어니언 성수", place_lat: 37.5447, place_lng: 127.0582, taken_at: null },
   ],
 };
 
@@ -78,7 +78,7 @@ describe("toDateRecordDetail", () => {
 
   it("위치가 있는 사진이 두 곳 이상이면 동선을 붙이고, 한 곳뿐이면 붙이지 않는다", () => {
     // Arrange
-    const secondSpot = { id: "p2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1, place: "성수 서울숲", place_lat: 37.5443, place_lng: 127.0374, taken_at: null };
+    const secondSpot = { id: "p2", group_id: "g2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1, place: "성수 서울숲", place_lat: 37.5443, place_lng: 127.0374, taken_at: null };
     const [, firstSpot] = row.photos;
 
     // Act
@@ -100,7 +100,7 @@ describe("toDateRecordDetail", () => {
 });
 
 describe("toEditableRecord", () => {
-  it("수정 화면 초기값으로 바꾼다: 사진은 순서대로 썸네일 미리보기·위치, 빈 값은 빈 문자열", () => {
+  it("수정 화면 초기값으로 바꾼다: 사진은 순서대로 모음으로 묶어 썸네일 미리보기·모음 위치, 빈 값은 빈 문자열", () => {
     const editable = toEditableRecord(row, [{ path: "r1/p1_thumb.jpg", signedUrl: "https://example.test/t1" }]);
     expect(editable).toEqual({
       revision: "30000000-0000-4000-8000-000000000001",
@@ -111,11 +111,54 @@ describe("toEditableRecord", () => {
       memo: "오래 걸었다",
       coverPhotoId: "p2",
       tags: ["카페", "여행"],
-      photos: [
-        { id: "p1", caption: "카페", location: { place: "어니언 성수", lat: 37.5447, lng: 127.0582 }, previewUrl: "https://example.test/t1" },
-        { id: "p2", caption: "", location: undefined, previewUrl: undefined },
+      groups: [
+        {
+          id: "g1",
+          location: { place: "어니언 성수", lat: 37.5447, lng: 127.0582 },
+          photos: [{ id: "p1", caption: "카페", takenAt: undefined, previewUrl: "https://example.test/t1" }],
+        },
+        { id: "g2", location: undefined, photos: [{ id: "p2", caption: "", takenAt: undefined, previewUrl: undefined }] },
       ],
     });
+  });
+
+  it("같은 모음의 사진은 사진 순서대로 한 모음에 묶고 찍은 시각을 함께 넘긴다", () => {
+    // Arrange
+    const location = { place: "성동구 성수1가1동", place_lat: 37.5444, place_lng: 127.0396 };
+    const shared = { path: "r1/x.jpg", thumb_path: "r1/x_thumb.jpg", caption: null, ...location };
+    const photos = [
+      { ...shared, id: "c", group_id: "g2", sort_order: 2, taken_at: null },
+      { ...shared, id: "a", group_id: "g1", sort_order: 0, taken_at: "2026-11-08T03:00:00+00:00" },
+      { ...shared, id: "b", group_id: "g1", sort_order: 1, taken_at: null },
+    ];
+
+    // Act
+    const { groups } = toEditableRecord({ ...row, photos }, []);
+
+    // Assert
+    expect(groups.map(({ id, photos: groupPhotos }) => [id, groupPhotos.map(({ id: photoId, takenAt }) => [photoId, takenAt])])).toEqual([
+      ["g1", [["a", "2026-11-08T03:00:00+00:00"], ["b", undefined]]],
+      ["g2", [["c", undefined]]],
+    ]);
+  });
+
+  it("같은 모음의 사진이 사진 순서에서 떨어져 있어도 모음 하나로 묶어, 같은 모음 id를 두 번 저장하지 않는다", () => {
+    // Arrange
+    const shared = { path: "r1/x.jpg", thumb_path: "r1/x_thumb.jpg", caption: null, place: "성동구 성수1가1동", place_lat: 37.5444, place_lng: 127.0396, taken_at: null };
+    const photos = [
+      { ...shared, id: "a", group_id: "g1", sort_order: 0 },
+      { ...shared, id: "b", group_id: "g2", sort_order: 1 },
+      { ...shared, id: "c", group_id: "g1", sort_order: 2 },
+    ];
+
+    // Act
+    const { groups } = toEditableRecord({ ...row, photos }, []);
+
+    // Assert
+    expect(groups.map(({ id, photos: groupPhotos }) => [id, groupPhotos.map(({ id: photoId }) => photoId)])).toEqual([
+      ["g1", ["a", "c"]],
+      ["g2", ["b"]],
+    ]);
   });
 
   it("대표 사진이 비어 있으면 첫 사진을 대표로 둔다", () => {

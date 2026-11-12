@@ -39,12 +39,13 @@ class LatLngBounds {
 window.kakao = {
   maps: {
     load: (callback) => callback(),
-    LatLng: class { constructor(lat, lng) { this.lat = lat; this.lng = lng; } },
+    LatLng: class { constructor(lat, lng) { this.lat = lat; this.lng = lng; } getLat() { return this.lat; } getLng() { return this.lng; } },
     LatLngBounds,
     Map: class {
       constructor(container) { this.container = container; window.fakeMap.map = this; window.fakeMap.mapCount += 1; }
       setBounds() { window.fakeMap.boundsCount += 1; }
-      setCenter() { window.fakeMap.centerCount += 1; }
+      setCenter(latLng) { this.center = latLng; window.fakeMap.centerCount += 1; }
+      getCenter() { return this.center ?? new window.kakao.maps.LatLng(37.5665, 126.978); }
       getBounds() { return new LatLngBounds(); }
       relayout() {}
     },

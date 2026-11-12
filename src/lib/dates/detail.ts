@@ -76,8 +76,15 @@ export interface EditableRecord {
   memo: string;
   coverPhotoId: string | undefined;
   tags: string[];
-  /** 이미 저장된 사진. 미리보기는 썸네일 서명 URL */
-  photos: { id: string; caption: string; location: PhotoLocation | undefined; previewUrl: string | undefined }[];
+  /** 이미 저장된 사진 모음(#298). 모음 순서, 모음 안 순서대로다 */
+  groups: EditableGroup[];
+}
+
+/** 수정 화면의 저장된 모음. 사진 미리보기는 썸네일 서명 URL */
+export interface EditableGroup {
+  id: string;
+  location: PhotoLocation | undefined;
+  photos: { id: string; caption: string; takenAt: string | undefined; previewUrl: string | undefined }[];
 }
 
 /** `dates` + `photos` 조회 결과 한 행 */
@@ -97,6 +104,7 @@ export interface DetailRow {
   event: { id: string; title: string; repeat_rule: string | null } | null;
   photos: {
     id: string;
+    group_id: string;
     path: string;
     thumb_path: string;
     caption: string | null;
@@ -161,6 +169,21 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): D
 };
 
 /**
+ * 사진 순서대로 놓인 사진을 모음으로 묶는다. 모음 순서는 모음의 첫 사진 순서다.
+ * 저장 함수는 같은 모음의 사진을 이어서 매기지만(#297), 떨어져 있어도 한 모음으로 묶어 고쳐 저장할 때 같은 모음 id를 두 번 넘기지 않는다
+ */
+const toEditableGroups = (photos: DetailRow["photos"], urlByPath: Map<string, string>): EditableGroup[] => {
+  const byId = new Map<string, EditableGroup>();
+  photos.forEach((photo) => {
+    const editablePhoto = { id: photo.id, caption: photo.caption ?? "", takenAt: photo.taken_at ?? undefined, previewUrl: urlByPath.get(photo.thumb_path) };
+    const group = byId.get(photo.group_id);
+    if (group) group.photos.push(editablePhoto);
+    else byId.set(photo.group_id, { id: photo.group_id, location: toPhotoLocation(photo), photos: [editablePhoto] });
+  });
+  return [...byId.values()];
+};
+
+/**
  * 조회한 행을 수정 화면 초기값으로 바꾼다. 미리보기는 썸네일 서명 URL을 쓴다.
  *
  * @example toEditableRecord(row, signedThumbs)
@@ -177,12 +200,7 @@ export const toEditableRecord = (row: DetailRow, signedThumbs: SignedUrl[]): Edi
     memo: row.memo ?? "",
     coverPhotoId: row.cover_photo_id ?? photos[0]?.id,
     tags: row.tags,
-    photos: photos.map((photo) => ({
-      id: photo.id,
-      caption: photo.caption ?? "",
-      location: toPhotoLocation(photo),
-      previewUrl: urlByPath.get(photo.thumb_path),
-    })),
+    groups: toEditableGroups(photos, urlByPath),
   };
 };
 

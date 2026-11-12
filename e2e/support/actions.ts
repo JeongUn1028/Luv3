@@ -53,16 +53,30 @@ export const getVisibleLink = (page: Page, href: string): Locator => page.locato
 export const PICKED_PHOTO_LOCATION = { lat: 37.5444, lng: 127.0374 };
 
 /**
- * 기록 폼에서 시험용 사진 한 장을 고르고, `order`번째 사진으로 목록에 붙을 때까지 기다린다.
- * 사진 정보에 위치(`PICKED_PHOTO_LOCATION`)가 들어 있고, `hasLocation: false`면 위치 없는 사진을 고른다.
+ * 기록 폼 사진 줄의 사진 버튼. 이름은 "모음 N의 M번째 사진"이고 대표 사진이면 뒤에 " (대표)"가 붙는다(#298).
  *
- * @example await pickPhoto(page, 1)
+ * @example await getGroupPhoto(page, 1, 2).click() // 모음 1의 2번째 사진을 눌러 한마디 칸을 연다
  */
-export const pickPhoto = async (page: Page, order: number, { hasLocation = true }: { hasLocation?: boolean } = {}): Promise<void> => {
+export const getGroupPhoto = (page: Page, groupNumber: number, order: number): Locator =>
+  page.getByRole("button", { name: new RegExp(`^모음 ${groupNumber}의 ${order}번째 사진`) }).locator("visible=true");
+
+/**
+ * 기록 폼에서 시험용 사진 한 장을 고르고, 폼의 사진이 모두 `order`장이 될 때까지 기다린다.
+ * 기본으로 새 모음을 만들고, `groupNumber`를 주면 그 모음에 더한다(#298).
+ * 사진 정보에 위치(`PICKED_PHOTO_LOCATION`)가 들어 있어 모음 위치가 채워지고, `hasLocation: false`면 위치 없는 사진을 고른다.
+ *
+ * @example await pickPhoto(page, 1); await pickPhoto(page, 2, { groupNumber: 1 })
+ */
+export const pickPhoto = async (
+  page: Page,
+  order: number,
+  { hasLocation = true, groupNumber }: { hasLocation?: boolean; groupNumber?: number } = {},
+): Promise<void> => {
   const fixture = readFileSync(PHOTO_FIXTURE_PATH);
   const buffer = hasLocation ? Buffer.from(withJpegExif(PICKED_PHOTO_LOCATION, fixture)) : fixture;
-  await page.getByLabel("사진 고르기").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer });
-  await page.getByRole("button", { name: `${order}번째 사진 빼기` }).waitFor();
+  const input = groupNumber ? page.getByLabel(`모음 ${groupNumber}에 더할 사진 고르기`) : page.getByLabel("사진 고르기", { exact: true });
+  await input.setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer });
+  await expect(page.getByRole("button", { name: /^모음 \d+의 \d+번째 사진/ }).locator("visible=true")).toHaveCount(order);
 };
 
 /**

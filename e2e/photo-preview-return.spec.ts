@@ -1,7 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { HOME_PATH } from "@/lib/auth/paths";
-import { expectImageLoaded, getKstYesterday, getSaveButton, getTab, getVisibleLink, pickPhoto } from "./support/actions";
+import { expectImageLoaded, getGroupPhoto, getKstYesterday, getSaveButton, getTab, getVisibleLink, pickPhoto } from "./support/actions";
 import { pickDate } from "./support/date-picker";
 import { createTestName } from "./support/names";
 import { deleteRecordWithFiles, getRecordIdsByTitle } from "./support/seed";
@@ -9,8 +9,16 @@ import { expect, openScreen, test } from "./support/test";
 
 const NEW_RECORD_PATH = "/dates/new";
 
-const getPreview = (page: Page, order: number): Locator => page.getByRole("img", { name: `${order}번째 사진`, exact: true }).locator("visible=true");
+/** 모음 1의 사진 줄 미리보기 */
+const getPreview = (page: Page, order: number): Locator => getGroupPhoto(page, 1, order).locator("img");
+/** 사진 줄에서 누른 사진의 한마디 칸. 한 번에 한 사진의 칸만 열린다 */
 const getCaption = (page: Page, order: number): Locator => page.getByLabel(`${order}번째 사진 한마디`).locator("visible=true");
+
+/** 모음 1의 사진을 눌러 한마디를 적는다 */
+const writeCaption = async (page: Page, order: number, caption: string): Promise<void> => {
+  await getGroupPhoto(page, 1, order).tap();
+  await getCaption(page, order).fill(caption);
+};
 
 /** 기록 목록에서 새 기록 폼을 연다. 다녀온 뒤에도 같은 길로 열어야 숨겨 둔 폼(Activity)이 다시 보인다 */
 const openNewRecordFromRecords = async (page: Page): Promise<void> => {
@@ -25,9 +33,9 @@ test.describe("사진을 고른 새 기록 폼을 두고 다른 탭에 다녀오
     await openScreen(page, RECORDS_PATH, getVisibleLink(page, NEW_RECORD_PATH));
     await openNewRecordFromRecords(page);
     await pickPhoto(page, 1);
-    await getCaption(page, 1).fill("첫 사진");
-    await pickPhoto(page, 2);
-    await getCaption(page, 2).fill("둘째 사진");
+    await pickPhoto(page, 2, { groupNumber: 1 });
+    await writeCaption(page, 1, "첫 사진");
+    await writeCaption(page, 2, "둘째 사진");
     await expectImageLoaded(getPreview(page, 1));
     await expectImageLoaded(getPreview(page, 2));
 
@@ -43,17 +51,19 @@ test.describe("사진을 고른 새 기록 폼을 두고 다른 탭에 다녀오
       await openNewRecordFromRecords(page);
 
       // Assert: 고른 사진과 한마디가 남아 있고 미리보기가 깨지지 않았다
-      await expect(getCaption(page, 1)).toHaveValue("첫 사진");
       await expect(getCaption(page, 2)).toHaveValue("둘째 사진");
+      await getGroupPhoto(page, 1, 1).tap();
+      await expect(getCaption(page, 1)).toHaveValue("첫 사진");
       await expectImageLoaded(getPreview(page, 1));
       await expectImageLoaded(getPreview(page, 2));
 
-      // Act: 순서를 바꾼다
-      await page.getByRole("button", { name: "1번째 사진을 뒤로" }).locator("visible=true").tap();
+      // Act: 첫 사진을 뒤로 옮긴다
+      await page.getByRole("button", { name: "뒤로", exact: true }).locator("visible=true").tap();
 
-      // Assert: 바꾼 순서로 보이고 미리보기가 깨지지 않았다
-      await expect(getCaption(page, 1)).toHaveValue("둘째 사진");
+      // Assert: 옮긴 사진이 2번째가 되고 미리보기가 깨지지 않았다
       await expect(getCaption(page, 2)).toHaveValue("첫 사진");
+      await getGroupPhoto(page, 1, 1).tap();
+      await expect(getCaption(page, 1)).toHaveValue("둘째 사진");
       await expectImageLoaded(getPreview(page, 1));
       await expectImageLoaded(getPreview(page, 2));
       await expect(page.getByText("미리보기 없음").locator("visible=true")).toHaveCount(0);

@@ -3,7 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 import { E2E_MEMBER, E2E_TODOS } from "./support/constants";
 import { createDisposableEvent, createNonMemberAccount, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getSaveButton, pickPhoto } from "./support/actions";
+import { getGroupPhoto, getSaveButton, pickPhoto } from "./support/actions";
 import { createTestName } from "./support/names";
 
 const [, , TODO] = E2E_TODOS;
@@ -79,7 +79,7 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
     await signInAgain(page, getMemberPassword());
 
     await expect(getDialog(page)).toBeHidden();
-    await expect(page.getByRole("button", { name: "1번째 사진 빼기" })).toBeVisible();
+    await expect(getGroupPhoto(page, 1, 1)).toBeVisible();
     await expect(page.locator("main").getByLabel("제목")).toHaveValue("E2E 저장하지 않는 기록");
   });
 
