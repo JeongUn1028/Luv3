@@ -112,7 +112,7 @@ describe("앱 복귀 연결", () => {
   });
 
   it("서명 주소로 받는 사진은 실패하면 다시 받는다", () => {
-    for (const at of ["components/dates/AlbumGrid.tsx", "components/dates/PhotoCarousel.tsx", "components/RememberedPhoto.tsx"]) {
+    for (const at of ["components/dates/AlbumGrid.tsx", "components/dates/DetailPhotoFrame.tsx", "components/RememberedPhoto.tsx"]) {
       const source = readSource(at);
 
       expect(source, at).toContain("<SignedPhoto");
