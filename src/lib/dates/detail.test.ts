@@ -55,7 +55,6 @@ describe("toDateRecordDetail", () => {
         { id: "g2", caption: undefined },
       ],
       route: expect.any(Object),
-      filePaths: ["r1/p1.jpg", "r1/p1_thumb.jpg", "r1/p2.jpg", "r1/p2_thumb.jpg"],
     });
   });
 

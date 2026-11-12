@@ -2,7 +2,14 @@ import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { TODOS_PATH } from "@/lib/todos/list";
-import { createDisposableEvent, createDisposableRecord, createDisposableTodo, getRecordIdsByTitle, listRecordFiles } from "./support/seed";
+import {
+  createDisposableEvent,
+  createDisposableRecord,
+  createDisposableTodo,
+  getRecordIdsByTitle,
+  listRecordFiles,
+  listTrashedPhotoIds,
+} from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { getSaveButton, getTab } from "./support/actions";
 import { createTestName } from "./support/names";
@@ -108,7 +115,7 @@ test.describe("삭제 확인 창", () => {
     }
   });
 
-  test("기록을 지우면 파일까지 사라지고 다른 탭을 누를 수 있다", async ({ page }, testInfo) => {
+  test("기록을 지우면 사진 파일은 휴지통에 남고 다른 탭을 누를 수 있다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
     const title = createTestName("창 닫기 기록", testInfo);
@@ -123,7 +130,9 @@ test.describe("삭제 확인 창", () => {
       // Assert
       await expectTabsToWork(page);
       expect(await getRecordIdsByTitle(title)).toEqual([]);
-      expect(await listRecordFiles(id)).toEqual([]);
+      // 파일은 매달 정리 작업이 30일 뒤 지운다(#311)
+      expect(await listRecordFiles(id)).toHaveLength(1);
+      expect(await listTrashedPhotoIds(id)).toHaveLength(1);
     } finally {
       await deleteRecord();
     }

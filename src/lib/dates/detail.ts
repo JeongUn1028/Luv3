@@ -74,8 +74,6 @@ export interface DateRecordDetail {
   groups: DetailGroup[];
   /** 모음 위치를 모음 순서대로 이은 동선(#251, #299). 이을 곳이 둘 미만이면 undefined */
   route: PhotoRoute | undefined;
-  /** 기록을 지울 때 함께 지울 Storage 파일(원본·썸네일) */
-  filePaths: string[];
 }
 
 /** 수정 화면 초기값. 글은 입력칸에 바로 넣도록 빈 값을 빈 문자열로 둔다 */
@@ -198,7 +196,6 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): D
     })),
     groups: toDetailGroups(photos, toCaptionByGroupId(row.groups)),
     route: buildGroupRoute(photos),
-    filePaths: photos.flatMap(({ path, thumb_path }) => [path, thumb_path]),
   };
 };
 

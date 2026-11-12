@@ -132,7 +132,11 @@ export const createDisposableRecords = async ({ count, titlePrefix }: { count: n
   }));
   assertNoError(await admin.from("dates").insert(rows), "기록 여러 개");
   const ids = rows.map(({ id }) => id);
-  return async () => assertNoError(await admin.from("dates").delete().in("id", ids), "기록 여러 개 지우기");
+  return async () => {
+    assertNoError(await admin.from("dates").delete().in("id", ids), "기록 여러 개 지우기");
+    // 지운 기록의 사진은 트리거가 휴지통(#311)에 남기므로 함께 지운다
+    assertNoError(await admin.from("photo_trash").delete().in("date_id", ids), "기록 여러 개의 휴지통 지우기");
+  };
 };
 
 /**
@@ -219,6 +223,8 @@ export const deleteFirstPhotoGroup = async (recordId: string): Promise<void> => 
   const admin = createAdminClient();
   const groupId = await getFirstGroupId(admin, recordId);
   assertNoError(await admin.from("photo_groups").delete().eq("id", groupId), "첫 사진 모음 지우기");
+  // 지운 모음의 사진은 트리거가 휴지통(#311)에 남긴다. 테스트 준비라 행만 지우고, 파일은 기록을 지울 때 함께 지운다
+  assertNoError(await admin.from("photo_trash").delete().eq("date_id", recordId), "첫 사진 모음의 휴지통 지우기");
 };
 
 /**
@@ -359,7 +365,7 @@ export const renameRecord = async (id: string, title: string): Promise<void> => 
 };
 
 /**
- * 기록 행과 폴더의 파일을 모두 지운다. 여러 번 불러도 된다.
+ * 기록 행과 폴더의 파일, 지울 때 생긴 휴지통 행(#311)을 모두 지운다. 여러 번 불러도 된다.
  *
  * @example await deleteRecordWithFiles(id)
  */
@@ -368,13 +374,30 @@ export const deleteRecordWithFiles = async (id: string): Promise<void> => {
   assertNoError(await admin.from("dates").delete().eq("id", id), "기록 지우기");
   const names = await listRecordFiles(id);
   if (names.length > 0) assertNoError(await admin.storage.from(ALBUM_BUCKET).remove(names.map((name) => `${id}/${name}`)), "사진 지우기");
+  assertNoError(await admin.from("photo_trash").delete().eq("date_id", id), "휴지통 지우기");
+};
+
+/**
+ * 기록을 지우거나 사진을 뺄 때 휴지통에 남은 사진 id 목록(#311).
+ *
+ * @example expect(await listTrashedPhotoIds(id)).toHaveLength(1)
+ */
+export const listTrashedPhotoIds = async (recordId: string): Promise<string[]> => {
+  const { data, error } = await createAdminClient().from("photo_trash").select("photo_id").eq("date_id", recordId);
+  assertNoError({ error }, "휴지통 조회");
+  return (data ?? []).map(({ photo_id }) => photo_id);
 };
 
 const deleteAccountWithContent = async (admin: AdminClient, userId: string): Promise<void> => {
+  const { data: records, error } = await admin.from("dates").select("id").eq("author_id", userId);
+  assertNoError({ error }, "기록 조회");
   // 내용이 작성자(members)를 참조하므로 먼저 지운다. 사진 행과 남이 단 댓글은 기록과 함께 지워진다
   for (const table of ["comments", "dates", "events", "todos"] as const) {
     assertNoError(await admin.from(table).delete().eq("author_id", userId), `${table} 지우기`);
   }
+  // 기록을 지우면 사진이 휴지통에 남는다(#311). 테스트 데이터라 바로 비운다
+  const recordIds = (records ?? []).map(({ id }) => id);
+  if (recordIds.length > 0) assertNoError(await admin.from("photo_trash").delete().in("date_id", recordIds), "휴지통 지우기");
   // members는 계정을 지우면 함께 지워진다
   assertNoError(await admin.auth.admin.deleteUser(userId), "계정 지우기");
 };

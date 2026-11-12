@@ -19,13 +19,25 @@ const readPhotoFileReferences = async (supabase: SupabaseClient<Database>): Prom
   });
   const { data, error } = await supabase.from("couple_photo").select("path").maybeSingle();
   if (error) throw new Error(`커플 사진 기록을 읽지 못했습니다: ${error.message}`);
+  const trash = await readAllRows({
+    fetchPage: (afterId, limit) => {
+      const query = supabase.from("photo_trash").select("id, path, thumb_path, deleted_at");
+      return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
+    },
+    toError: (cause) => new Error("휴지통을 읽지 못했습니다.", { cause }),
+  });
 
-  return { photos, couplePhotoPath: data?.path ?? undefined };
+  return { photos, couplePhotoPath: data?.path ?? undefined, trash };
+};
+
+const deletePhotoTrashRows = async (supabase: SupabaseClient<Database>, ids: string[]): Promise<void> => {
+  const { error } = await supabase.from("photo_trash").delete().in("id", ids);
+  if (error) throw new Error(`휴지통 행을 지우지 못했습니다: ${error.message}`, { cause: error });
 };
 
 /**
- * Vercel Cron이 매달 1일 부르는 경로(vercel.json, #31). album 버킷에서 기록·커플 사진이 가리키지 않고 올린 지
- * 하루 넘은 파일을 찾는다. 환경 변수 `PHOTO_CLEANUP_DELETE=true`일 때만 지우고, 아니면 지울 목록만 돌려준다.
+ * Vercel Cron이 매달 1일 부르는 경로(vercel.json, #31). album 버킷에서 기록·커플 사진·휴지통이 가리키지 않고 올린 지
+ * 하루 넘은 파일과, 휴지통에서 보관 기간(30일, #311)이 지난 파일을 찾는다. 환경 변수 `PHOTO_CLEANUP_DELETE=true`일 때만 지우고, 아니면 지울 목록만 돌려준다.
  * `?preview=1`로 부르면 그 값과 상관없이 지우지 않아 지우기 전에 목록을 볼 수 있다. CRON_SECRET이 맞는 요청만 받는다.
  * 지울 목록이 이상해 멈추면(`blocked`) Vercel 실행 기록에 실패로 보이도록 409를 돌려준다.
  * 응답의 버킷 파일 수·크기 합계는 GitHub Actions의 저장 공간 월간 점검(storage-check.yml, #310)이 미리 보기로 읽는다.
@@ -53,6 +65,7 @@ export const GET = async (request: Request): Promise<Response> => {
       storage: supabase.storage.from(ALBUM_BUCKET),
       readReferences: () => readPhotoFileReferences(supabase),
       now: new Date(),
+      deleteTrashRows: (ids) => deletePhotoTrashRows(supabase, ids),
       shouldDelete: shouldDeleteOrphans({ requestUrl: request.url, deleteFlag: process.env.PHOTO_CLEANUP_DELETE }),
     });
     // Hobby 플랜의 Cron 로그는 1시간 뒤 사라지지만, 그 안에 실행 기록에서 무엇을 지웠는지 볼 수 있게 남긴다

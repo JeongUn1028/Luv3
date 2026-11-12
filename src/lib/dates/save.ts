@@ -191,7 +191,7 @@ export const updateDateRecord = async ({
   const uploaded = await uploadNewPhotos({ recordId, photoFiles, storage, resize, mayAlreadyExist: mayAlreadyBeSaved, onProgress });
 
   onProgress?.({ step: "saving", done: photoFiles.length, total: photoFiles.length });
-  const { data: removedPaths, error, mayHaveApplied } = await callWithRetry(() => updateRecord(args));
+  const { error, mayHaveApplied } = await callWithRetry(() => updateRecord(args));
   if (error) {
     if (error.code === RECORD_NOT_FOUND_CODE) {
       await discardUploadedPhotos(storage, uploaded);
@@ -202,11 +202,7 @@ export const updateDateRecord = async ({
     if (error.code === RECORD_CONFLICT_CODE) throw new DateRecordConflictError({ cause: error, mayHaveSaved });
     throw toSaveError(error, mayHaveSaved);
   }
-
-  // 기록은 이미 고쳐졌으므로 파일 정리가 실패해도 수정 실패로 알리지 않는다(남은 파일은 #31에서 정리)
-  if (removedPaths && removedPaths.length > 0) {
-    await storage.remove(removedPaths).catch(() => undefined);
-  }
+  // 뺀 사진의 파일은 지우지 않는다. DB가 휴지통에 남기고 매달 정리 작업이 30일 뒤 지운다(#311)
 };
 
 /** 저장되지 않은 것이 분명할 때 올린 사진을 지운다. 정리가 실패해도 사용자에게는 저장 실패를 알리는 게 맞아 정리 에러는 삼킨다 */
