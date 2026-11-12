@@ -21,6 +21,22 @@ describe("buildContentSecurityPolicy", () => {
     expect(policy["script-src"]).toEqual(["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://dapi.kakao.com", "https://t1.kakaocdn.net"]);
   });
 
+  // 카카오 SDK는 지도 본체·그림을 페이지와 같은 방식(http/https)으로 부른다. http인 개발 서버에서만 http 주소를 연다(#293)
+  it("개발 서버에서는 카카오 지도 본체와 그림의 http 주소도 허용한다", () => {
+    const policy = parsePolicy(buildContentSecurityPolicy({ ...LOCAL, isDev: true }));
+
+    expect(policy["script-src"]).toEqual(
+      expect.arrayContaining(["https://dapi.kakao.com", "https://t1.kakaocdn.net", "http://t1.kakaocdn.net"]),
+    );
+    expect(policy["img-src"]).toEqual(expect.arrayContaining(["https://*.kakaocdn.net", "http://*.kakaocdn.net"]));
+  });
+
+  it("운영 빌드에는 카카오 http 주소를 넣지 않는다", () => {
+    const policy = buildContentSecurityPolicy(PRODUCTION);
+
+    expect(policy).not.toContain("http://");
+  });
+
   it("Supabase로의 요청과 사진, 카카오 지도 그림을 허용한다", () => {
     const policy = parsePolicy(buildContentSecurityPolicy(PRODUCTION));
 
