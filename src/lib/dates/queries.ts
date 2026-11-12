@@ -5,6 +5,7 @@ import { catchLoadError } from "@/lib/load";
 import { getHomePhotoSignedUrls, getSignedUrls } from "@/lib/photos/signed-urls";
 import { toLatestRecord, toTagSuggestions, type LatestRecord } from "./album";
 import type { AlbumFirstPage } from "./album-pages";
+import { PHOTO_GROUP_LOCATION_COLUMNS, toPhotoWithGroupLocation } from "./photo-groups";
 import { isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
 import { ALL_RECORDS_FIRST_PAGE, loadRecordPage } from "./search-queries";
 
@@ -105,7 +106,7 @@ export class DateRecordLoadError extends Error {
 }
 
 const DETAIL_COLUMNS =
-  "id, date, end_date, title, memo, cover_photo_id, tags, revision, author:members!dates_author_id_fkey(nickname), event_date, event:events(id, title, repeat_rule), photos!photos_date_id_fkey(id, path, thumb_path, caption, sort_order, place, place_lat, place_lng, taken_at)";
+  `id, date, end_date, title, memo, cover_photo_id, tags, revision, author:members!dates_author_id_fkey(nickname), event_date, event:events(id, title, repeat_rule), photos!photos_date_id_fkey(id, path, thumb_path, caption, sort_order, taken_at, ${PHOTO_GROUP_LOCATION_COLUMNS})` as const;
 
 /** 기록 행 하나를 읽는다. id 형식이 틀리거나 없는 기록이면 undefined */
 const getDetailRow = async (
@@ -115,7 +116,7 @@ const getDetailRow = async (
   if (!isRecordId(id)) return undefined;
   const { data: row, error } = await supabase.from("dates").select(DETAIL_COLUMNS).eq("id", id).maybeSingle();
   if (error) throw new DateRecordLoadError({ cause: error });
-  return row ?? undefined;
+  return row ? { ...row, photos: row.photos.map(toPhotoWithGroupLocation) } : undefined;
 };
 
 const signPaths = async (supabase: Awaited<ReturnType<typeof createClient>>, paths: string[]) => {

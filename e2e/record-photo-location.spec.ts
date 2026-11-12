@@ -67,7 +67,7 @@ test.describe("사진마다 위치", () => {
 
     try {
       await pickPhotoWithExif(page, 1, { lat: FOREST.lat, lng: FOREST.lng });
-      await pickPhoto(page, 2);
+      await pickPhoto(page, 2, { hasLocation: false });
       await page.locator("#title").fill(title);
       await expect(getLocationButton(page, 1)).toHaveAccessibleName("1번째 사진 위치: 성동구 성수1가1동");
       await expect(getLocationButton(page, 2)).toHaveAccessibleName("2번째 사진 위치: 위치 추가");
@@ -103,7 +103,8 @@ test.describe("사진마다 위치", () => {
 
       // Assert
       await expect(dialog.getByRole("textbox")).toHaveCount(0);
-      await expect(dialog.getByText("아직 위치가 없어요.")).toBeVisible();
+      // 시드 기록의 사진은 기본 모음 위치가 있다(#297)
+      await expect(dialog.getByText("지금: E2E 기본 위치")).toBeVisible();
       expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
       // Act
@@ -117,7 +118,8 @@ test.describe("사진마다 위치", () => {
     }
   });
 
-  test("고치기에서 사진 위치를 지우면 저장 뒤 위치가 없다", async ({ page }) => {
+  // 모음마다 위치가 있어야 한다(#297). 지도에서 고르기(#298) 전까지는 위치 있는 사진이 없으면 저장하지 않는다
+  test("고치기에서 하나뿐인 사진 위치를 지우면 저장하지 않고 위치가 있는 사진이 필요하다고 알린다", async ({ page }) => {
     // Arrange
     const id = randomUUID();
     const deleteRecord = await createDisposableRecord({ id, title: "E2E 사진 위치 지우기" });
@@ -133,10 +135,11 @@ test.describe("사진마다 위치", () => {
       await dialog.getByRole("button", { name: "위치 지우기" }).click();
       await expect(getLocationButton(page, 1)).toHaveAccessibleName("1번째 사진 위치: 위치 추가");
       await getSaveButton(page).click();
-      await page.waitForURL(new RegExp(`/dates/${id}$`));
 
       // Assert
-      expect(await getRecordPhotoLocations(id)).toEqual([{ place: null, place_lat: null, place_lng: null }]);
+      await expect(page.getByText("위치가 있는 사진이 한 장 이상 있어야 저장할 수 있어요.")).toBeVisible();
+      await expect(page).toHaveURL(new RegExp(`/dates/${id}/edit$`));
+      expect(await getRecordPhotoLocations(id)).toEqual([{ place: FOREST.name, place_lat: FOREST.lat, place_lng: FOREST.lng }]);
     } finally {
       await deleteRecord();
     }
@@ -194,7 +197,7 @@ test.describe("사진 정보로 위치·찍은 시각 채우기", () => {
     }
   });
 
-  test("동네 이름을 받지 못하면 좌표를 '찍은 곳'으로 지키고, GPS가 없는 사진은 위치를 비운 채 이름을 묻지 않는다", async ({ page }, testInfo) => {
+  test("동네 이름을 받지 못하면 좌표를 '찍은 곳'으로 지키고, GPS가 없는 사진은 이름을 묻지 않은 채 첫 사진 위치의 모음으로 저장한다", async ({ page }, testInfo) => {
     // Arrange
     const title = createTestName("E2E 사진 정보 실패", testInfo);
     const region = await holdPlaceRegion(page, { status: 502, json: { code: "PLACE_REGION_FAILED", message: "실패" } });
@@ -206,7 +209,7 @@ test.describe("사진 정보로 위치·찍은 시각 채우기", () => {
 
       // Act
       await pickPhotoWithExif(page, 1, { lat: 48.8584, lng: 2.2945 });
-      await pickPhoto(page, 2);
+      await pickPhoto(page, 2, { hasLocation: false });
 
       // Assert
       await expect(getLocationButton(page, 1)).toHaveAccessibleName("1번째 사진 위치: 찍은 곳");
@@ -222,7 +225,7 @@ test.describe("사진 정보로 위치·찍은 시각 채우기", () => {
       const photos = await getRecordPhotoDetails(id ?? "");
       expect(photos.map(({ place, taken_at }) => ({ place, taken_at }))).toEqual([
         { place: "찍은 곳", taken_at: null },
-        { place: null, taken_at: null },
+        { place: "찍은 곳", taken_at: null },
       ]);
       expect(photos[0]?.place_lat).toBeCloseTo(48.8584, 5);
     } finally {

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/database.types";
 import { toKstDate } from "@/lib/anniversary";
+import { PHOTO_GROUP_LOCATION_COLUMNS } from "@/lib/dates/photo-groups";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { COUPLE_PHOTO_PATH, E2E_EVENTS, E2E_MEMBER, E2E_TODOS, PERIOD_RECORD, PHOTO_COUNT, PHOTO_FIXTURE_PATH, PHOTO_RECORD } from "./constants";
 import { readLocalSupabase } from "./local-supabase";
@@ -20,6 +21,37 @@ const E2E_AUTHOR_EMAIL_PREFIX = "e2e-author-";
 
 const assertNoError = ({ error }: { error: { message: string } | null }, step: string): void => {
   if (error) throw new Error(`E2E 데이터 준비 실패(${step}): ${error.message}`);
+};
+
+type PhotoGroupLocation = { place: string; lat: number; lng: number };
+
+/**
+ * 시드 기록의 사진 모음 위치. 모음은 위치가 꼭 있어야 한다(#297).
+ * 나란히 도는 지도 테스트의 위치(createUniqueLocation: 위도 33~38, 경도 125~130)와 겹치지 않게 그 범위 밖에 둔다
+ */
+const SEED_GROUP_LOCATION: PhotoGroupLocation = { place: "E2E 기본 위치", lat: 39.5, lng: 131.5 };
+
+/** 기록에 사진 모음을 하나 만들고 id를 돌려준다 */
+const insertPhotoGroup = async (
+  admin: AdminClient,
+  { recordId, sortOrder, location }: { recordId: string; sortOrder: number; location: PhotoGroupLocation },
+): Promise<string> => {
+  const id = randomUUID();
+  assertNoError(
+    await admin
+      .from("photo_groups")
+      .insert({ id, date_id: recordId, sort_order: sortOrder, place: location.place, place_lat: location.lat, place_lng: location.lng }),
+    "사진 모음",
+  );
+  return id;
+};
+
+/** 기록의 첫 사진 모음 id. 위치 없이 더하는 사진은 이 모음에 넣는다 */
+const getFirstGroupId = async (admin: AdminClient, recordId: string): Promise<string> => {
+  const { data, error } = await admin.from("photo_groups").select("id").eq("date_id", recordId).order("sort_order").limit(1).single();
+  assertNoError({ error }, "첫 사진 모음 읽기");
+  if (!data) throw new Error("E2E 데이터 준비 실패(첫 사진 모음 읽기): 모음이 없습니다");
+  return data.id;
 };
 
 const uploadPhoto = async (admin: AdminClient, path: string): Promise<void> => {
@@ -69,7 +101,8 @@ export const createDisposableRecord = async ({
     "기록",
   );
   const photoId = randomUUID();
-  assertNoError(await admin.from("photos").insert({ id: photoId, date_id: id, path, thumb_path: path, sort_order: 0 }), "사진 행");
+  const groupId = await insertPhotoGroup(admin, { recordId: id, sortOrder: 0, location: SEED_GROUP_LOCATION });
+  assertNoError(await admin.from("photos").insert({ id: photoId, date_id: id, group_id: groupId, path, thumb_path: path, sort_order: 0 }), "사진 행");
   assertNoError(await admin.from("dates").update({ cover_photo_id: photoId }).eq("id", id), "대표 사진");
 
   return () => deleteRecordWithFiles(id);
@@ -117,16 +150,20 @@ export const setRecordSearchFields = async (id: string, { memo, caption }: { mem
 };
 
 /**
- * 기록의 모든 사진에 같은 위치를 넣는다(#249). `createDisposableRecord`의 사진 1장짜리 기록에 쓴다.
+ * 기록의 모든 사진 모음에 같은 위치를 넣는다(#249, #297). `createDisposableRecord`의 사진 1장짜리 기록에 쓴다.
  *
  * @example await setRecordPhotoLocation(id, { place: "어니언 성수", lat: 37.54, lng: 127.05 })
  */
-export const setRecordPhotoLocation = async (recordId: string, { place, lat, lng }: { place: string; lat: number; lng: number }): Promise<void> => {
-  assertNoError(await createAdminClient().from("photos").update({ place, place_lat: lat, place_lng: lng }).eq("date_id", recordId), "사진 위치");
+export const setRecordPhotoLocation = async (recordId: string, { place, lat, lng }: PhotoGroupLocation): Promise<void> => {
+  assertNoError(
+    await createAdminClient().from("photo_groups").update({ place, place_lat: lat, place_lng: lng }).eq("date_id", recordId),
+    "사진 모음 위치",
+  );
 };
 
 /**
  * `createDisposableRecord`로 만든 기록에 사진을 한 장 더 붙인다. 파일은 기록 폴더에 올려 기록을 지울 때 함께 지워진다.
+ * 위치를 주면 그 위치의 모음을 새로 만들어 넣고, 주지 않으면 첫 모음에 넣는다(위치는 모음마다 하나다, #297).
  *
  * @example const photoId = await addRecordPhoto(id, { sortOrder: 1, caption: "창가 자리", location: FOREST })
  */
@@ -143,17 +180,16 @@ export const addRecordPhoto = async (
   const path = `${recordId}/${randomUUID()}.jpg`;
   await uploadPhoto(admin, path);
   const id = randomUUID();
+  const groupId = location ? await insertPhotoGroup(admin, { recordId, sortOrder, location }) : await getFirstGroupId(admin, recordId);
   assertNoError(
     await admin.from("photos").insert({
       id,
       date_id: recordId,
+      group_id: groupId,
       path,
       thumb_path: path,
       sort_order: sortOrder,
       caption,
-      place: location?.place,
-      place_lat: location?.lat,
-      place_lng: location?.lng,
       taken_at: takenAt,
     }),
     "사진 행 더하기",
@@ -162,7 +198,19 @@ export const addRecordPhoto = async (
 };
 
 /**
- * 기록에 같은 위치의 사진 행을 `count`개 더한다. 파일은 새로 올리지 않고 첫 사진 파일을 같이 가리켜, 많은 사진이 필요한 테스트를 빠르게 준비한다.
+ * 기록을 만들 때 붙은 첫 사진 모음을 그 사진과 함께 지운다. 시드 모음은 기본 위치가 있어, 더한 사진의 위치만 보려는 테스트(동선)에 쓴다.
+ * 대표 사진이 지워지면 기록의 대표 사진은 비워진다(외래 키 on delete set null).
+ *
+ * @example await deleteFirstPhotoGroup(id)
+ */
+export const deleteFirstPhotoGroup = async (recordId: string): Promise<void> => {
+  const admin = createAdminClient();
+  const groupId = await getFirstGroupId(admin, recordId);
+  assertNoError(await admin.from("photo_groups").delete().eq("id", groupId), "첫 사진 모음 지우기");
+};
+
+/**
+ * 기록에 같은 위치의 사진 모음을 하나 만들어 사진 행을 `count`개 더한다. 파일은 새로 올리지 않고 첫 사진 파일을 같이 가리켜, 많은 사진이 필요한 테스트를 빠르게 준비한다.
  * 기록을 지우면 행도 함께 지워진다. 돌려준 id는 사진 순서대로다.
  *
  * @example const photoIds = await addLocatedPhotoRows(id, { count: 13, location: FOREST })
@@ -175,15 +223,14 @@ export const addLocatedPhotoRows = async (
   const { data: first, error } = await admin.from("photos").select("path").eq("date_id", recordId).order("sort_order").limit(1).single();
   assertNoError({ error }, "첫 사진 읽기");
   if (!first) throw new Error("E2E 데이터 준비 실패(첫 사진 읽기): 사진이 없습니다");
+  const groupId = await insertPhotoGroup(admin, { recordId, sortOrder: 1, location });
   const rows = Array.from({ length: count }, (_, index) => ({
     id: randomUUID(),
     date_id: recordId,
+    group_id: groupId,
     path: first.path,
     thumb_path: first.path,
     sort_order: index + 1,
-    place: location.place,
-    place_lat: location.lat,
-    place_lng: location.lng,
   }));
   assertNoError(await admin.from("photos").insert(rows), "사진 행 여러 개 더하기");
   return rows.map(({ id }) => id);
@@ -201,16 +248,18 @@ export const getRecordPhotoIds = async (recordId: string): Promise<string[]> => 
 };
 
 /**
- * 기록의 사진 위치를 사진 순서대로 읽는다.
+ * 기록의 사진 위치(사진이 속한 모음의 위치)를 사진 순서대로 읽는다.
  *
- * @example expect(await getRecordPhotoLocations(id)).toEqual([{ place: null, place_lat: null, place_lng: null }])
+ * @example expect(await getRecordPhotoLocations(id)).toEqual([{ place: "성수동", place_lat: 37.54, place_lng: 127.05 }])
  */
-export const getRecordPhotoLocations = async (
-  recordId: string,
-): Promise<{ place: string | null; place_lat: number | null; place_lng: number | null }[]> => {
-  const { data, error } = await createAdminClient().from("photos").select("place, place_lat, place_lng").eq("date_id", recordId).order("sort_order");
+export const getRecordPhotoLocations = async (recordId: string): Promise<{ place: string; place_lat: number; place_lng: number }[]> => {
+  const { data, error } = await createAdminClient()
+    .from("photos")
+    .select(PHOTO_GROUP_LOCATION_COLUMNS)
+    .eq("date_id", recordId)
+    .order("sort_order");
   if (error) throw new Error(`사진 위치 읽기 실패: ${error.message}`);
-  return data;
+  return data.map(({ group }) => group);
 };
 
 /**
@@ -220,14 +269,14 @@ export const getRecordPhotoLocations = async (
  */
 export const getRecordPhotoDetails = async (
   recordId: string,
-): Promise<{ place: string | null; place_lat: number | null; place_lng: number | null; taken_at: string | null; path: string }[]> => {
+): Promise<{ place: string; place_lat: number; place_lng: number; taken_at: string | null; path: string }[]> => {
   const { data, error } = await createAdminClient()
     .from("photos")
-    .select("place, place_lat, place_lng, taken_at, path")
+    .select(`taken_at, path, ${PHOTO_GROUP_LOCATION_COLUMNS}`)
     .eq("date_id", recordId)
     .order("sort_order");
   if (error) throw new Error(`사진 정보 읽기 실패: ${error.message}`);
-  return data;
+  return data.map(({ group, taken_at: takenAt, path }) => ({ ...group, taken_at: takenAt, path }));
 };
 
 /**
@@ -433,7 +482,11 @@ export const addPhotoAsPartner = async (recordId: string): Promise<void> => {
   const photoId = randomUUID();
   const path = `${recordId}/${photoId}.jpg`;
   await uploadPhoto(admin, path);
-  assertNoError(await admin.from("photos").insert({ id: photoId, date_id: recordId, path, thumb_path: path, sort_order: 1 }), "상대의 사진 행");
+  const groupId = await getFirstGroupId(admin, recordId);
+  assertNoError(
+    await admin.from("photos").insert({ id: photoId, date_id: recordId, group_id: groupId, path, thumb_path: path, sort_order: 1 }),
+    "상대의 사진 행",
+  );
   assertNoError(await admin.from("dates").update({ revision: randomUUID() }).eq("id", recordId), "판 번호");
 };
 
@@ -653,9 +706,10 @@ const seedRecords = async (admin: AdminClient, authorId: string): Promise<void> 
     "기록",
   );
 
+  const groupId = await insertPhotoGroup(admin, { recordId: PHOTO_RECORD.id, sortOrder: 0, location: SEED_GROUP_LOCATION });
   const photos = Array.from({ length: PHOTO_COUNT }, (_, index) => {
     const path = `${PHOTO_RECORD.id}/${randomUUID()}.jpg`;
-    return { id: randomUUID(), date_id: PHOTO_RECORD.id, path, thumb_path: path, sort_order: index };
+    return { id: randomUUID(), date_id: PHOTO_RECORD.id, group_id: groupId, path, thumb_path: path, sort_order: index };
   });
   await Promise.all(photos.map(({ path }) => uploadPhoto(admin, path)));
   assertNoError(await admin.from("photos").insert(photos), "사진 행");

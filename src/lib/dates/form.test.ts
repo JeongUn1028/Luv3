@@ -29,7 +29,7 @@ const draft = (overrides: Partial<DateRecordDraft> = {}): DateRecordDraft => ({
   endDate: undefined,
   title: "첫 데이트",
   memo: "",
-  photos: [photo("p1")],
+  photos: [photo("p1", "", ONION)],
   coverPhotoId: "p1",
   tags: [],
   ...overrides,
@@ -49,6 +49,13 @@ describe("getMinEndDate", () => {
 describe("validateDraft", () => {
   it("필수 값이 모두 맞으면 에러가 없다", () => {
     expect(validateDraft(draft(), TODAY)).toEqual({});
+  });
+
+  it("위치가 있는 사진이 하나도 없으면 사진 칸에 알려 준다(모음마다 위치가 필요하다)", () => {
+    expect(validateDraft(draft({ photos: [photo("a"), photo("b")], coverPhotoId: "a" }), TODAY).photos).toBe(
+      "위치가 있는 사진이 한 장 이상 있어야 저장할 수 있어요.",
+    );
+    expect(validateDraft(draft({ photos: [photo("a"), photo("b", "", ONION)], coverPhotoId: "a" }), TODAY).photos).toBeUndefined();
   });
 
   it("기간을 켜고 끝 날짜를 고르지 않았거나 없는 날이면 알려 준다", () => {
@@ -186,7 +193,7 @@ describe("toCreateRecordArgs", () => {
       draft({
         title: " 첫 데이트 ",
         memo: "좋았다",
-        photos: [photo("a", " 카페 "), photo("b")],
+        photos: [photo("a", " 카페 ", ONION), photo("b")],
         coverPhotoId: "b",
       }),
     );
@@ -194,42 +201,64 @@ describe("toCreateRecordArgs", () => {
       p_id: "r1",
       p_date: "2026-11-01",
       p_title: "첫 데이트",
-      p_place: "",
       p_memo: "좋았다",
-      p_photos: [
-        { id: "a", caption: "카페", location: null },
-        { id: "b", caption: "", location: null },
+      p_groups: [
+        {
+          id: "r1",
+          location: ONION,
+          photos: [
+            { id: "a", caption: "카페" },
+            { id: "b", caption: "" },
+          ],
+        },
       ],
       p_cover_photo_id: "b",
       p_tags: [],
     });
   });
 
-  it("사진 위치는 이름·좌표만 넘기고, 위치가 없는 사진은 null로 넘겨 지우게 한다", () => {
+  it("사진 전체를 모음 하나로 묶고, 모음 위치는 위치가 있는 첫 사진의 이름·좌표로 넘긴다", () => {
     // Arrange
-    const withPreview = { ...photo("a", "", ONION), previewUrl: "blob:a" };
+    const withPreview = { ...photo("b", "", ONION), previewUrl: "blob:b" };
 
     // Act
-    const args = toCreateRecordArgs("r1", draft({ photos: [withPreview, photo("b")], coverPhotoId: "a" }));
+    const args = toCreateRecordArgs("r1", draft({ photos: [photo("a"), withPreview, photo("c", "", FOREST)], coverPhotoId: "a" }));
 
     // Assert
-    expect(args.p_photos).toEqual([
-      { id: "a", caption: "", location: ONION },
-      { id: "b", caption: "", location: null },
+    expect(args.p_groups).toEqual([
+      {
+        id: "r1",
+        location: ONION,
+        photos: [
+          { id: "a", caption: "" },
+          { id: "b", caption: "" },
+          { id: "c", caption: "" },
+        ],
+      },
     ]);
+  });
+
+  it("위치가 있는 사진이 없으면 저장 인자를 만들지 않는다(검사를 거치지 않은 코드 실수)", () => {
+    expect(() => toCreateRecordArgs("r1", draft({ photos: [photo("a")], coverPhotoId: "a" }))).toThrow("위치가 있는 사진이 없습니다");
   });
 
   it("사진에서 읽은 찍은 시각은 있는 사진만 넘긴다", () => {
     // Arrange
-    const taken = { ...photo("a"), takenAt: "2026-11-10T14:03:22+09:00" };
+    const taken = { ...photo("a", "", ONION), takenAt: "2026-11-10T14:03:22+09:00" };
 
     // Act
     const args = toCreateRecordArgs("r1", draft({ photos: [taken, photo("b")], coverPhotoId: "a" }));
 
     // Assert
-    expect(args.p_photos).toEqual([
-      { id: "a", caption: "", location: null, taken_at: "2026-11-10T14:03:22+09:00" },
-      { id: "b", caption: "", location: null },
+    expect(args.p_groups).toEqual([
+      {
+        id: "r1",
+        location: ONION,
+        photos: [
+          { id: "a", caption: "", taken_at: "2026-11-10T14:03:22+09:00" },
+          { id: "b", caption: "" },
+        ],
+      },
     ]);
   });
 
@@ -374,7 +403,7 @@ describe("hasRecordDraftChanges", () => {
       hasRecordDraftChanges(initial, draft({ photos: [photo("p1"), photo("p2")] })),
       hasRecordDraftChanges(initial, draft({ photos: [photo("p1", "카페")] })),
       hasRecordDraftChanges(initial, draft({ tags: ["산책"] })),
-      hasRecordDraftChanges(initial, draft({ photos: [photo("p1", "", ONION)] })),
+      hasRecordDraftChanges(initial, draft({ photos: [photo("p1", "", FOREST)] })),
     ]).toEqual([true, true, true, true, true]);
   });
 

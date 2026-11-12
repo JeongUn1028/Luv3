@@ -15,6 +15,8 @@ import {
 const RECORD_ID = "10000000-0000-4000-8000-000000000001";
 const PHOTO_A = "20000000-0000-4000-8000-00000000000a";
 const PHOTO_B = "20000000-0000-4000-8000-00000000000b";
+// 모음마다 위치가 있어야 저장할 수 있다(#297)
+const ONION = { place: "어니언 성수", lat: 37.5447, lng: 127.0582 };
 
 const draft: DateRecordDraft = {
   date: "2026-11-01",
@@ -23,7 +25,7 @@ const draft: DateRecordDraft = {
   memo: "",
   tags: [],
   photos: [
-    { id: PHOTO_A, caption: "카페", location: undefined },
+    { id: PHOTO_A, caption: "카페", location: ONION },
     { id: PHOTO_B, caption: "", location: undefined },
   ],
   coverPhotoId: PHOTO_A,
@@ -227,7 +229,7 @@ describe("updateDateRecord", () => {
     ...draft,
     photos: [
       { id: PHOTO_C, caption: "새 사진", location: undefined },
-      { id: PHOTO_A, caption: "카페", location: undefined },
+      { id: PHOTO_A, caption: "카페", location: ONION },
     ],
     coverPhotoId: PHOTO_C,
   };
@@ -254,9 +256,15 @@ describe("updateDateRecord", () => {
     expect(updateRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         p_id: RECORD_ID,
-        p_photos: [
-          { id: PHOTO_C, caption: "새 사진", location: null },
-          { id: PHOTO_A, caption: "카페", location: null },
+        p_groups: [
+          {
+            id: RECORD_ID,
+            location: ONION,
+            photos: [
+              { id: PHOTO_C, caption: "새 사진" },
+              { id: PHOTO_A, caption: "카페" },
+            ],
+          },
         ],
         p_cover_photo_id: PHOTO_C,
       }),
@@ -272,7 +280,7 @@ describe("updateDateRecord", () => {
 
     await updateDateRecord({
       recordId: RECORD_ID,
-      draft: { ...draft, photos: [{ id: PHOTO_A, caption: "", location: undefined }], coverPhotoId: PHOTO_A },
+      draft: { ...draft, photos: [{ id: PHOTO_A, caption: "", location: ONION }], coverPhotoId: PHOTO_A },
       files: new Map(),
       storage,
       resize,

@@ -137,16 +137,36 @@ isOneToOne: false
                   Relationships: [
                     
                   ]
-                },"photos": {
+                },"photo_groups": {
                   Row: {
-                    "caption": string | null,"created_at": string,"date_id": string,"id": string,"path": string,"place": string | null,"place_lat": number | null,"place_lng": number | null,"sort_order": number,"taken_at": string | null,"thumb_path": string
+                    "created_at": string,"date_id": string,"id": string,"place": string,"place_lat": number,"place_lng": number,"sort_order": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "caption"?: string | null,"created_at"?: string,"date_id": string,"id"?: string,"path": string,"place"?: string | null,"place_lat"?: number | null,"place_lng"?: number | null,"sort_order"?: number,"taken_at"?: string | null,"thumb_path": string
+                    "created_at"?: string,"date_id": string,"id": string,"place": string,"place_lat": number,"place_lng": number,"sort_order": number
                   }
                   Update: {
-                    "caption"?: string | null,"created_at"?: string,"date_id"?: string,"id"?: string,"path"?: string,"place"?: string | null,"place_lat"?: number | null,"place_lng"?: number | null,"sort_order"?: number,"taken_at"?: string | null,"thumb_path"?: string
+                    "created_at"?: string,"date_id"?: string,"id"?: string,"place"?: string,"place_lat"?: number,"place_lng"?: number,"sort_order"?: number
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "photo_groups_date_id_fkey"
+      columns: ["date_id"]
+isOneToOne: false
+      referencedRelation: "dates"
+      referencedColumns: ["id"]
+    }
+                  ]
+                },"photos": {
+                  Row: {
+                    "caption": string | null,"created_at": string,"date_id": string,"group_id": string,"id": string,"path": string,"sort_order": number,"taken_at": string | null,"thumb_path": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "caption"?: string | null,"created_at"?: string,"date_id": string,"group_id": string,"id"?: string,"path": string,"sort_order"?: number,"taken_at"?: string | null,"thumb_path": string
+                  }
+                  Update: {
+                    "caption"?: string | null,"created_at"?: string,"date_id"?: string,"group_id"?: string,"id"?: string,"path"?: string,"sort_order"?: number,"taken_at"?: string | null,"thumb_path"?: string
                   }
                   Relationships: [
                     {
@@ -155,6 +175,12 @@ isOneToOne: false
 isOneToOne: false
       referencedRelation: "dates"
       referencedColumns: ["id"]
+    },{
+      foreignKeyName: "photos_group_id_fkey"
+      columns: ["group_id","date_id"]
+isOneToOne: false
+      referencedRelation: "photo_groups"
+      referencedColumns: ["id","date_id"]
     }
                   ]
                 },"todos": {
@@ -189,6 +215,9 @@ isOneToOne: false
 "assert_date_record_fields":
 { Args: { "p_date": string,"p_end_date": string,"p_title": string }; Returns: undefined
                            },
+"assert_photo_groups":
+{ Args: { "p_cover_photo_id": string,"p_groups": Json }; Returns: undefined
+                           },
 "clear_couple_photo":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
@@ -198,13 +227,18 @@ isOneToOne: false
             }[]
                            },
 "create_date_record":
-{ Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_event_date"?: string,"p_event_id"?: string,"p_id": string,"p_memo": string,"p_photos": Json,"p_place": string,"p_place_location"?: Json,"p_tags"?: (string)[],"p_title": string }; Returns: string
+{ Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_event_date"?: string,"p_event_id"?: string,"p_groups": Json,"p_id": string,"p_memo": string,"p_tags"?: (string)[],"p_title": string }; Returns: string
                            },
 "date_records_version":
 { Args: Record<PropertyKey, never>; Returns: string
                            },
 "detach_event_occurrence":
 { Args: { "p_date": string,"p_event_id": string,"p_expected_revisions"?: (string)[],"p_memo"?: string,"p_new_event_id"?: string,"p_occurrence_date": string,"p_place"?: string,"p_start_time"?: string,"p_title": string }; Returns: string
+                           },
+"flatten_photo_groups":
+{ Args: { "p_groups": Json }; Returns: {
+              "group_id": string,"photo": Json,"sort_order": number
+            }[]
                            },
 "is_member":
 { Args: Record<PropertyKey, never>; Returns: boolean
@@ -233,7 +267,7 @@ isOneToOne: false
 { Args: { "p_date_id": string,"p_event_id": string }; Returns: undefined
                            },
 "update_date_record":
-{ Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_expected_revisions"?: (string)[],"p_id": string,"p_memo": string,"p_new_revision"?: string,"p_photos": Json,"p_place": string,"p_place_location"?: Json,"p_tags"?: (string)[],"p_title": string }; Returns: (string)[]
+{ Args: { "p_cover_photo_id": string,"p_date": string,"p_end_date"?: string,"p_expected_revisions"?: (string)[],"p_groups": Json,"p_id": string,"p_memo": string,"p_new_revision"?: string,"p_tags"?: (string)[],"p_title": string }; Returns: (string)[]
                            }
           }
           Enums: {

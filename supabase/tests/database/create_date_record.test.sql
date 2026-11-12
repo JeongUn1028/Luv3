@@ -13,7 +13,7 @@ insert into public.members (id, email, nickname) values
 
 select has_function(
   'public', 'create_date_record',
-  array['uuid', 'date', 'text', 'text', 'text', 'jsonb', 'uuid', 'date', 'text[]', 'jsonb', 'uuid', 'date'],
+  array['uuid', 'date', 'text', 'text', 'jsonb', 'uuid', 'date', 'text[]', 'uuid', 'date'],
   '기록 작성 함수가 있다'
 );
 
@@ -22,7 +22,7 @@ set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
 
 select throws_ok(
-  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '제목', null, null, '[]', null)$$,
+  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '제목', null, '[{"id":"fa000000-0000-0000-0000-000000000007","location":{"place":"테스트 장소","lat":37.5,"lng":127.0},"photos":[]}]', null)$$,
   '42501',
   null,
   '비로그인이면 기록 작성 함수를 실행할 권한이 없다'
@@ -34,9 +34,8 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 
 select lives_ok(
   $$select public.create_date_record(
-      '10000000-0000-0000-0000-000000000001', '2026-11-01', '첫 데이트', '성수', '하루 정리',
-      '[{"id":"20000000-0000-0000-0000-000000000001","caption":"카페"},
-        {"id":"20000000-0000-0000-0000-000000000002","caption":"  "}]',
+      '10000000-0000-0000-0000-000000000001', '2026-11-01', '첫 데이트', '하루 정리',
+      '[{"id":"10000000-0000-0000-0000-000000000001","location":{"place":"테스트 장소","lat":37.5,"lng":127.0},"photos":[{"id":"20000000-0000-0000-0000-000000000001","caption":"카페"},{"id":"20000000-0000-0000-0000-000000000002","caption":"  "}]}]',
       '20000000-0000-0000-0000-000000000002')$$,
   '허용된 사용자는 사진 두 장과 함께 기록을 만든다'
 );
@@ -63,31 +62,33 @@ select results_eq(
 );
 
 select throws_ok(
-  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '사진 없음', null, null, '[]', null)$$,
+  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '사진 없음', null, '[{"id":"fa000000-0000-0000-0000-000000000008","location":{"place":"테스트 장소","lat":37.5,"lng":127.0},"photos":[]}]', null)$$,
   '22023',
   null,
   '사진이 한 장도 없으면 저장하지 않는다'
 );
 
 select throws_ok(
-  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '사진 11장', null, null,
-      (select jsonb_agg(jsonb_build_object('id', gen_random_uuid())) from generate_series(1, 11)), null)$$,
+  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '사진 11장', null,
+      jsonb_build_array(jsonb_build_object(
+        'id', gen_random_uuid(), 'location', '{"place":"테스트 장소","lat":37.5,"lng":127.0}'::jsonb,
+        'photos', (select jsonb_agg(jsonb_build_object('id', gen_random_uuid())) from generate_series(1, 11)))), null)$$,
   '22023',
   null,
-  '사진이 10장을 넘으면 저장하지 않는다'
+  '모음 하나에 사진이 10장을 넘으면 저장하지 않는다'
 );
 
 select throws_ok(
-  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '대표 없음', null, null,
-      '[{"id":"20000000-0000-0000-0000-000000000009"}]', '20000000-0000-0000-0000-000000000008')$$,
+  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '대표 없음', null,
+      '[{"id":"fa000000-0000-0000-0000-000000000009","location":{"place":"테스트 장소","lat":37.5,"lng":127.0},"photos":[{"id":"20000000-0000-0000-0000-000000000009"}]}]', '20000000-0000-0000-0000-000000000008')$$,
   '22023',
   null,
   '대표 사진이 고른 사진 중에 없으면 저장하지 않는다'
 );
 
 select throws_ok(
-  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '대표 미지정', null, null,
-      '[{"id":"20000000-0000-0000-0000-000000000009"}]', null)$$,
+  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '대표 미지정', null,
+      '[{"id":"fa000000-0000-0000-0000-000000000010","location":{"place":"테스트 장소","lat":37.5,"lng":127.0},"photos":[{"id":"20000000-0000-0000-0000-000000000009"}]}]', null)$$,
   '22023',
   null,
   '대표 사진을 정하지 않으면 저장하지 않는다'
@@ -95,8 +96,9 @@ select throws_ok(
 
 select throws_ok(
   $$select public.create_date_record(
-      '10000000-0000-0000-0000-000000000002', '2026-11-01', '한마디 초과', null, null,
-      ('[{"id":"20000000-0000-0000-0000-000000000003","caption":"' || repeat('가', 101) || '"}]')::jsonb,
+      '10000000-0000-0000-0000-000000000002', '2026-11-01', '한마디 초과', null,
+      ('[{"id":"10000000-0000-0000-0000-000000000002","location":{"place":"테스트 장소","lat":37.5,"lng":127.0},'
+        || '"photos":[{"id":"20000000-0000-0000-0000-000000000003","caption":"' || repeat('가', 101) || '"}]}]')::jsonb,
       '20000000-0000-0000-0000-000000000003')$$,
   '23514',
   null,
@@ -109,12 +111,12 @@ select is_empty(
 );
 
 -- 저장을 다시 시도할 때 앞선 저장이 됐는지 이 오류로 안다
-select public.create_date_record('10000000-0000-0000-0000-000000000009', '2026-11-01', '재시도', null, null,
-  '[{"id":"20000000-0000-0000-0000-000000000009"}]', '20000000-0000-0000-0000-000000000009');
+select public.create_date_record('10000000-0000-0000-0000-000000000009', '2026-11-01', '재시도', null,
+  '[{"id":"10000000-0000-0000-0000-000000000009","location":{"place":"테스트 장소","lat":37.5,"lng":127.0},"photos":[{"id":"20000000-0000-0000-0000-000000000009"}]}]', '20000000-0000-0000-0000-000000000009');
 
 select throws_ok(
-  $$select public.create_date_record('10000000-0000-0000-0000-000000000009', '2026-11-01', '재시도', null, null,
-      '[{"id":"20000000-0000-0000-0000-000000000009"}]', '20000000-0000-0000-0000-000000000009')$$,
+  $$select public.create_date_record('10000000-0000-0000-0000-000000000009', '2026-11-01', '재시도', null,
+      '[{"id":"10000000-0000-0000-0000-000000000009","location":{"place":"테스트 장소","lat":37.5,"lng":127.0},"photos":[{"id":"20000000-0000-0000-0000-000000000009"}]}]', '20000000-0000-0000-0000-000000000009')$$,
   '23505',
   null,
   '같은 기록 id로 다시 저장하면 중복 오류를 돌려준다'
@@ -124,8 +126,8 @@ select throws_ok(
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000ff","role":"authenticated"}', true);
 
 select throws_ok(
-  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '몰래', null, null,
-      '[{"id":"20000000-0000-0000-0000-000000000004"}]', '20000000-0000-0000-0000-000000000004')$$,
+  $$select public.create_date_record(gen_random_uuid(), '2026-11-01', '몰래', null,
+      '[{"id":"fa000000-0000-0000-0000-000000000011","location":{"place":"테스트 장소","lat":37.5,"lng":127.0},"photos":[{"id":"20000000-0000-0000-0000-000000000004"}]}]', '20000000-0000-0000-0000-000000000004')$$,
   '42501',
   null,
   '허용목록 밖의 사용자는 기록을 만들 수 없다'
