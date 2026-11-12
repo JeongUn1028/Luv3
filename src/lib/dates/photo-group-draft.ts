@@ -33,7 +33,7 @@ export const addPhotoGroup = <Photo extends DraftPhoto>(
 ): { draft: DateRecordDraft<Photo>; droppedCount: number } => {
   const kept = draft.groups.length < MAX_GROUPS ? photos.slice(0, MAX_GROUP_PHOTOS) : [];
   if (kept.length === 0) return { draft, droppedCount: photos.length };
-  const group: DraftPhotoGroup<Photo> = { id: groupId, location: undefined, locationSource: undefined, pendingLocationPhotoId: kept[0]?.id, photos: kept };
+  const group: DraftPhotoGroup<Photo> = { id: groupId, location: undefined, locationSource: undefined, pendingLocationPhotoId: kept[0]?.id, caption: "", photos: kept };
   return { draft: withCover({ ...draft, groups: [...draft.groups, group] }), droppedCount: photos.length - kept.length };
 };
 

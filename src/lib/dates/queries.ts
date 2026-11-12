@@ -106,7 +106,7 @@ export class DateRecordLoadError extends Error {
 }
 
 const DETAIL_COLUMNS =
-  `id, date, end_date, title, memo, cover_photo_id, tags, revision, author:members!dates_author_id_fkey(nickname), event_date, event:events(id, title, repeat_rule), photos!photos_date_id_fkey(id, group_id, path, thumb_path, caption, sort_order, taken_at, ${PHOTO_GROUP_LOCATION_COLUMNS})` as const;
+  `id, date, end_date, title, memo, cover_photo_id, tags, revision, author:members!dates_author_id_fkey(nickname), event_date, event:events(id, title, repeat_rule), groups:photo_groups!photo_groups_date_id_fkey(id, caption), photos!photos_date_id_fkey(id, group_id, path, thumb_path, sort_order, taken_at, ${PHOTO_GROUP_LOCATION_COLUMNS})` as const;
 
 /** 기록 행 하나를 읽는다. id 형식이 틀리거나 없는 기록이면 undefined */
 const getDetailRow = async (

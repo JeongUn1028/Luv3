@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState, type ReactElement } from "react";
-import { FieldError } from "@/components/FormField";
+import { FieldError, FieldLabel } from "@/components/FormField";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, MapPinIcon } from "@/components/icons";
 import { CAPTION_MAX_LENGTH, type DraftErrors, type DraftPhoto, type DraftPhotoGroup, type GroupLocationSource } from "@/lib/dates/form";
 import { toGroupName } from "@/lib/dates/group-name";
 import { MAX_GROUP_PHOTOS } from "@/lib/dates/photo-group-draft";
+import { countChars } from "@/lib/form";
 import { runKeepingFocus } from "@/lib/keep-focus";
 import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/resize";
 
@@ -26,7 +27,7 @@ export interface PhotoGroupActions {
   onMoveGroup: (index: number, offset: -1 | 1) => void;
   onRemovePhoto: (photoId: string) => void;
   onMovePhoto: (photoId: string, offset: -1 | 1) => void;
-  onCaptionChange: (photoId: string, caption: string) => void;
+  onCaptionChange: (groupId: string, caption: string) => void;
   onCoverChange: (photoId: string) => void;
   onOpenLocation: (groupId: string) => void;
 }
@@ -75,8 +76,8 @@ const PhotoThumb = ({ src }: PhotoThumbProps): ReactElement => {
 };
 
 /**
- * 사진 모음 하나(#298): 모음 이름·장수와 위·아래·빼기, 위치 줄, 사진 줄, 사진 더하기, 누른 사진의 한마디와 순서·대표·빼기.
- * 위치는 모음마다 하나라 사진마다 묻지 않는다. 사진을 다른 모음으로 옮기는 기능은 없다(2026-11-11 사용자 결정).
+ * 사진 모음 하나(#298): 모음 이름·장수와 위·아래·빼기, 위치 줄, 사진 줄, 사진 더하기, 누른 사진의 순서·대표·빼기, 모음 한마디.
+ * 위치와 한마디(#309)는 모음마다 하나라 사진마다 묻지 않는다. 사진을 다른 모음으로 옮기는 기능은 없다(2026-11-11 사용자 결정).
  *
  * @example <PhotoGroupCard group={group} index={0} groupCount={2} coverPhotoId={cover} selectedPhotoId={undefined} errors={{}} isDisabled={false} actions={actions} focusFallback={() => pickRef.current} />
  */
@@ -99,7 +100,8 @@ export const PhotoGroupCard = ({
   const room = MAX_GROUP_PHOTOS - group.photos.length;
   const selectedIndex = group.photos.findIndex(({ id }) => id === selectedPhotoId);
   const selected = group.photos[selectedIndex];
-  const captionError = selected ? errors[`caption:${selected.id}`] : undefined;
+  const captionId = `${headingId}-caption`;
+  const captionError = errors[`caption:${group.id}`];
   const locationNote = isReadingLocation
     ? undefined
     : group.location
@@ -186,7 +188,6 @@ export const PhotoGroupCard = ({
       <ul aria-label={`${name} 사진`} className="-mx-3 flex gap-1.5 overflow-x-auto px-3">
         {group.photos.map((photo, photoIndex) => {
           const isSelected = photo.id === selectedPhotoId;
-          const hasCaptionError = Boolean(errors[`caption:${photo.id}`]);
           return (
             // key는 사진 id로 둔다. 다른 화면에 다녀오면 미리보기 주소가 해제돼 있어, 미리보기를 다시 만들면 깨진다(#280, usePreviewUrls)
             <li key={photo.id} className="shrink-0">
@@ -196,9 +197,7 @@ export const PhotoGroupCard = ({
                 aria-label={`${name}의 ${photoIndex + 1}번째 사진${photo.id === coverPhotoId ? " (대표)" : ""}`}
                 disabled={isDisabled}
                 onClick={() => actions.onSelectPhoto(isSelected ? undefined : photo.id)}
-                className={`press-icon relative block size-14 overflow-hidden rounded-[8px] bg-background disabled:opacity-50 ${
-                  isSelected ? "ring-2 ring-accent ring-inset" : hasCaptionError ? "ring-2 ring-accent/60 ring-inset" : ""
-                }`}
+                className={`press-icon relative block size-14 overflow-hidden rounded-[8px] bg-background disabled:opacity-50 ${isSelected ? "ring-2 ring-accent ring-inset" : ""}`}
               >
                 <PhotoThumb src={photo.previewUrl} />
                 {photo.id === coverPhotoId && (
@@ -235,27 +234,12 @@ export const PhotoGroupCard = ({
       </button>
 
       {selected && (
-        <div className="flex flex-col gap-1.5 border-t border-line pt-2.5">
-          <label htmlFor={`caption-${selected.id}`} className="text-[12px] text-ink-sub">
-            {selectedIndex + 1}번째 사진 한마디
-          </label>
-          <input
-            id={`caption-${selected.id}`}
-            value={selected.caption}
-            placeholder="한마디 (선택)"
-            maxLength={CAPTION_MAX_LENGTH * 2}
-            disabled={isDisabled}
-            aria-invalid={Boolean(captionError)}
-            aria-describedby={captionError ? `caption-error-${selected.id}` : undefined}
-            onChange={(event) => actions.onCaptionChange(selected.id, event.target.value)}
-            className="h-11 w-full rounded-[8px] border border-line bg-background px-3 text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none"
-          />
-          {captionError && (
-            <p id={`caption-error-${selected.id}`} className="text-[12px] text-accent">
-              {captionError}
-            </p>
-          )}
-          <div className="mt-1 flex flex-wrap items-center gap-2">
+        // 사진을 누르면 순서·대표·빼기만 연다. 한마디는 모음마다 하나라 아래 칸에 쓴다(#309)
+        <div role="group" aria-label={`${name}의 ${selectedIndex + 1}번째 사진`} className="border-t border-line pt-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <span aria-hidden="true" className="text-[12px] text-ink-sub">
+              {selectedIndex + 1}번째 사진
+            </span>
             <button
               type="button"
               aria-pressed={selected.id === coverPhotoId}
@@ -296,6 +280,37 @@ export const PhotoGroupCard = ({
           </div>
         </div>
       )}
+
+      <div className="flex flex-col border-t border-line pt-2.5">
+        <FieldLabel
+          htmlFor={captionId}
+          label={
+            <>
+              한마디<span className="sr-only"> ({name})</span>
+            </>
+          }
+          hint="선택"
+          aside={
+            <span id={`${captionId}-count`} className="font-display text-[12px] tracking-[1px] text-ink-sub">
+              {countChars(group.caption.trim())}/{CAPTION_MAX_LENGTH}
+            </span>
+          }
+        />
+        {/* 넘쳐도 지우지 않고 저장할 때 알리도록 제한의 두 배까지 받는다. 저장은 100자까지다(DB 제약과 같다).
+            칸은 글에 맞춰 늘어난다. 두 줄로 고정하면 긴 한마디가 칸 안에서 스크롤돼 첫 줄이 잘려 보인다 */}
+        <textarea
+          id={captionId}
+          rows={2}
+          value={group.caption}
+          maxLength={CAPTION_MAX_LENGTH * 2}
+          disabled={isDisabled}
+          aria-invalid={Boolean(captionError)}
+          aria-describedby={[`${captionId}-count`, captionError && `${captionId}-error`].filter(Boolean).join(" ")}
+          onChange={(event) => actions.onCaptionChange(group.id, event.target.value)}
+          className="mt-2 field-sizing-content min-h-[70px] w-full resize-none rounded-[8px] border border-line bg-background px-3 py-2.5 text-[16px] leading-[1.5] text-ink focus:border-accent focus:outline-none aria-[invalid=true]:border-accent disabled:opacity-50"
+        />
+        <FieldError id={`${captionId}-error`} error={captionError} />
+      </div>
     </li>
   );
 };

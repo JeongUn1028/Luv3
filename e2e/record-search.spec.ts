@@ -33,7 +33,7 @@ test.describe("기록 찾기", () => {
     await expect(searchBox).toHaveValue("");
   });
 
-  test("제목·정리 글·사진 한마디로 찾는다", async ({ page }) => {
+  test("제목·정리 글·모음 한마디로 찾는다", async ({ page }) => {
     // Arrange
     const id = randomUUID();
     const [titleWord, memoWord, captionWord] = [createWord(), createWord(), createWord()];

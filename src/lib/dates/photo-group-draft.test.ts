@@ -20,18 +20,18 @@ const FOREST: PhotoLocation = { place: "성동구 성수1가2동", lat: 37.5444,
 
 interface TestPhoto {
   id: string;
-  caption: string;
   takenAt?: string;
   isReadingInfo: boolean;
 }
 
-const photo = (id: string, takenAt?: string): TestPhoto => ({ id, caption: "", takenAt, isReadingInfo: false });
-const reading = (id: string): TestPhoto => ({ id, caption: "", isReadingInfo: true });
+const photo = (id: string, takenAt?: string): TestPhoto => ({ id, takenAt, isReadingInfo: false });
+const reading = (id: string): TestPhoto => ({ id, isReadingInfo: true });
 const group = (id: string, photos: TestPhoto[], location: PhotoLocation = SEONGSU): DraftPhotoGroup<TestPhoto> => ({
   id,
   location,
   locationSource: "saved",
   pendingLocationPhotoId: undefined,
+  caption: "",
   photos,
 });
 const draft = (groups: DraftPhotoGroup<TestPhoto>[], coverPhotoId = groups[0]?.photos[0]?.id): DateRecordDraft<TestPhoto> => ({
@@ -62,7 +62,7 @@ describe("addPhotoGroup", () => {
 
     // Assert
     expect(result.draft.groups).toEqual([
-      { id: "g1", location: undefined, locationSource: undefined, pendingLocationPhotoId: "a", photos: [reading("a"), reading("b")] },
+      { id: "g1", location: undefined, locationSource: undefined, pendingLocationPhotoId: "a", caption: "", photos: [reading("a"), reading("b")] },
     ]);
     expect(result.draft.coverPhotoId).toBe("a");
     expect(result.droppedCount).toBe(0);

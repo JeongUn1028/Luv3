@@ -218,7 +218,7 @@ test.describe("띄어쓰기 없는 긴 글자", () => {
     }
   });
 
-  test("사진 한마디는 화면 안에서 줄을 바꾼다", async ({ page }, testInfo) => {
+  test("모음 한마디는 화면 안에서 줄을 바꾼다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
     const deleteRecord = await createDisposableRecord({ id, title: createTestName("긴 한마디", testInfo) });

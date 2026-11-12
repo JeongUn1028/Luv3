@@ -12,7 +12,7 @@ insert into auth.users (id, email, aud, role) values
 insert into public.members (id, email, nickname) values
   ('00000000-0000-0000-0000-00000000000a', 'a@search.test', 'A');
 
--- 기록 넷: 낱말이 제목·정리 글·사진 한마디·태그에 하나씩 있다. 같은 날의 둘은 작성 시각으로 줄 선다.
+-- 기록 넷: 낱말이 제목·정리 글·모음 한마디·태그에 하나씩 있다. 같은 날의 둘은 작성 시각으로 줄 선다.
 -- 같은 태그를 'PGS태그a'로 두 번, 'pgs태그a'로 한 번 썼다(정렬로는 소문자가 앞선다)
 insert into public.dates (id, date, title, memo, tags, author_id, created_at) values
   ('70000000-0000-0000-0000-000000000001', '2026-11-03', 'pgs제목 Han River', null, array['PGS태그a'], '00000000-0000-0000-0000-00000000000a', '2026-11-03 10:00+09'),
@@ -20,12 +20,12 @@ insert into public.dates (id, date, title, memo, tags, author_id, created_at) va
   ('70000000-0000-0000-0000-000000000003', '2026-11-02', '셋째', null, array['pgs태그a'], '00000000-0000-0000-0000-00000000000a', '2026-11-02 10:00+09'),
   ('70000000-0000-0000-0000-000000000004', '2026-11-01', '넷째', 'pgs정리 1000원', array['pgs태그B'], '00000000-0000-0000-0000-00000000000a', '2026-11-01 10:00+09');
 
-insert into public.photo_groups (id, date_id, sort_order, place, place_lat, place_lng) values
-  ('70000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000003', 0, '테스트 장소', 37.5, 127.0),
-  ('70000000-0000-0000-0000-000000000004', '70000000-0000-0000-0000-000000000004', 0, '테스트 장소', 37.5, 127.0);
-insert into public.photos (id, date_id, group_id, path, thumb_path, caption) values
-  ('71000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000003', 'a/3.jpg', 'a/3_thumb.jpg', 'pgs한마디'),
-  ('71000000-0000-0000-0000-000000000004', '70000000-0000-0000-0000-000000000004', '70000000-0000-0000-0000-000000000004', 'a/4.jpg', 'a/4_thumb.jpg', null);
+insert into public.photo_groups (id, date_id, sort_order, place, place_lat, place_lng, caption) values
+  ('70000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000003', 0, '테스트 장소', 37.5, 127.0, 'pgs한마디'),
+  ('70000000-0000-0000-0000-000000000004', '70000000-0000-0000-0000-000000000004', 0, '테스트 장소', 37.5, 127.0, null);
+insert into public.photos (id, date_id, group_id, path, thumb_path) values
+  ('71000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000003', '70000000-0000-0000-0000-000000000003', 'a/3.jpg', 'a/3_thumb.jpg'),
+  ('71000000-0000-0000-0000-000000000004', '70000000-0000-0000-0000-000000000004', '70000000-0000-0000-0000-000000000004', 'a/4.jpg', 'a/4_thumb.jpg');
 update public.dates set cover_photo_id = '71000000-0000-0000-0000-000000000003' where id = '70000000-0000-0000-0000-000000000003';
 
 -- 1000개가 넘는 기록: 응답 한도(1000행)와 상관없이 전체 수와 태그 수가 맞아야 한다
@@ -59,7 +59,7 @@ select is(
 select is(
   (select array_agg(id order by id) from public.search_date_records(array['pgs한마디'])),
   array['70000000-0000-0000-0000-000000000003'::uuid],
-  '사진 한마디에 든 낱말로 찾는다'
+  '모음 한마디에 든 낱말로 찾는다'
 );
 select is(
   (select array_agg(id order by date desc, created_at desc) from public.search_date_records(array['pgs정리'])),

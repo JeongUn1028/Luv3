@@ -13,7 +13,6 @@ export interface DetailPhoto {
   groupId: string;
   /** 원본(긴 변 2000px) 서명 URL. 받지 못했으면 빈 칸으로 그린다 */
   url: string | undefined;
-  caption: string | undefined;
   /** 사진이 속한 모음의 장소 이름(#249, #297) */
   place: string;
 }
@@ -22,6 +21,8 @@ export interface DetailPhoto {
 export interface DetailGroup {
   id: string;
   place: string;
+  /** 모음 한마디(#309). 그 모음 사진을 보는 동안 사진 아래에 보여 준다 */
+  caption: string | undefined;
   /** 모음 첫 사진의 순서. 칩을 누르면 이 사진으로 넘어간다 */
   firstPhotoIndex: number;
 }
@@ -98,7 +99,9 @@ export interface EditableGroup {
   id: string;
   /** 모음은 위치가 꼭 있다(#297) */
   location: PhotoLocation;
-  photos: { id: string; caption: string; takenAt: string | undefined; previewUrl: string | undefined }[];
+  /** 모음 한마디(#309). 없으면 빈 문자열 */
+  caption: string;
+  photos: { id: string; takenAt: string | undefined; previewUrl: string | undefined }[];
 }
 
 /** `dates` + `photos` 조회 결과 한 행 */
@@ -116,12 +119,13 @@ export interface DetailRow {
   event_date: string | null;
   /** 기록을 남긴 일정. 직접 쓴 기록이거나 일정이 지워졌으면 null */
   event: { id: string; title: string; repeat_rule: string | null } | null;
+  /** 기록의 사진 모음과 그 한마디(#309). 위치는 사진 행에 펴서 읽는다 */
+  groups: { id: string; caption: string | null }[];
   photos: {
     id: string;
     group_id: string;
     path: string;
     thumb_path: string;
-    caption: string | null;
     sort_order: number;
     /** 사진이 속한 모음의 위치(#297). 모음은 위치가 꼭 있다 */
     place: string;
@@ -136,9 +140,18 @@ const toUrlByPath = (signed: SignedUrl[]): Map<string, string> =>
 
 const toPhotoLocation = ({ place, place_lat: lat, place_lng: lng }: DetailRow["photos"][number]): PhotoLocation => ({ place, lat, lng });
 
+/** 모음 id → 모음 한마디. 한마디가 없는 모음은 넣지 않는다 */
+const toCaptionByGroupId = (groups: DetailRow["groups"]): Map<string, string> =>
+  new Map(groups.flatMap(({ id, caption }) => (caption ? [[id, caption] as const] : [])));
+
 /** 사진 순서대로 놓인 사진에서 모음 칩을 만든다. 칩은 모음 첫 사진의 자리를 가리킨다 */
-const toDetailGroups = (photos: DetailRow["photos"]): DetailGroup[] =>
-  groupPhotosInOrder(photos).map(([first]) => ({ id: first.group_id, place: first.place, firstPhotoIndex: photos.indexOf(first) }));
+const toDetailGroups = (photos: DetailRow["photos"], captionByGroupId: Map<string, string>): DetailGroup[] =>
+  groupPhotosInOrder(photos).map(([first]) => ({
+    id: first.group_id,
+    place: first.place,
+    caption: captionByGroupId.get(first.group_id),
+    firstPhotoIndex: photos.indexOf(first),
+  }));
 
 const sortPhotos = (photos: DetailRow["photos"]): DetailRow["photos"] => photos.toSorted(comparePhotoOrder);
 
@@ -178,19 +191,28 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): D
     authorNickname: row.author?.nickname,
     eventHref: linkedEvent?.href,
     linkedEvent,
-    photos: photos.map(({ id, group_id: groupId, path, caption, place }) => ({ id, groupId, url: urlByPath.get(path), caption: caption ?? undefined, place })),
-    groups: toDetailGroups(photos),
+    photos: photos.map(({ id, group_id: groupId, path, place }) => ({ id, groupId, url: urlByPath.get(path), place })),
+    groups: toDetailGroups(photos, toCaptionByGroupId(row.groups)),
     route: buildGroupRoute(photos),
     filePaths: photos.flatMap(({ path, thumb_path }) => [path, thumb_path]),
   };
 };
 
 /** 사진 순서대로 놓인 사진을 모음으로 묶는다. 떨어진 같은 모음 사진도 한 모음으로 모아 고쳐 저장할 때 같은 모음 id를 두 번 넘기지 않는다 */
-const toEditableGroups = (photos: DetailRow["photos"], urlByPath: Map<string, string>): EditableGroup[] =>
+const toEditableGroups = ({
+  photos,
+  urlByPath,
+  captionByGroupId,
+}: {
+  photos: DetailRow["photos"];
+  urlByPath: Map<string, string>;
+  captionByGroupId: Map<string, string>;
+}): EditableGroup[] =>
   groupPhotosInOrder(photos).map((groupPhotos) => ({
     id: groupPhotos[0].group_id,
     location: toPhotoLocation(groupPhotos[0]),
-    photos: groupPhotos.map((photo) => ({ id: photo.id, caption: photo.caption ?? "", takenAt: photo.taken_at ?? undefined, previewUrl: urlByPath.get(photo.thumb_path) })),
+    caption: captionByGroupId.get(groupPhotos[0].group_id) ?? "",
+    photos: groupPhotos.map((photo) => ({ id: photo.id, takenAt: photo.taken_at ?? undefined, previewUrl: urlByPath.get(photo.thumb_path) })),
   }));
 
 /**
@@ -210,7 +232,7 @@ export const toEditableRecord = (row: DetailRow, signedThumbs: SignedUrl[]): Edi
     memo: row.memo ?? "",
     coverPhotoId: row.cover_photo_id ?? photos[0]?.id,
     tags: row.tags,
-    groups: toEditableGroups(photos, urlByPath),
+    groups: toEditableGroups({ photos, urlByPath, captionByGroupId: toCaptionByGroupId(row.groups) }),
   };
 };
 

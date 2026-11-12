@@ -13,9 +13,13 @@ const row: DetailRow = {
   author: { nickname: "진아" },
   event_date: null,
   event: null,
+  groups: [
+    { id: "g2", caption: null },
+    { id: "g1", caption: "카페" },
+  ],
   photos: [
-    { id: "p2", group_id: "g2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", caption: null, sort_order: 1, place: "성수 서울숲", place_lat: 37.5443, place_lng: 127.0374, taken_at: null },
-    { id: "p1", group_id: "g1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", caption: "카페", sort_order: 0, place: "어니언 성수", place_lat: 37.5447, place_lng: 127.0582, taken_at: null },
+    { id: "p2", group_id: "g2", path: "r1/p2.jpg", thumb_path: "r1/p2_thumb.jpg", sort_order: 1, place: "성수 서울숲", place_lat: 37.5443, place_lng: 127.0374, taken_at: null },
+    { id: "p1", group_id: "g1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", sort_order: 0, place: "어니언 성수", place_lat: 37.5447, place_lng: 127.0582, taken_at: null },
   ],
 };
 
@@ -29,7 +33,7 @@ describe("isRecordId", () => {
 });
 
 describe("toDateRecordDetail", () => {
-  it("사진을 순서대로 정렬하고 원본 서명 URL·모음 위치와 작성자 닉네임을 붙이며, DB의 null은 undefined로 바꾼다", () => {
+  it("사진을 순서대로 정렬하고 원본 서명 URL·모음 위치·모음 한마디와 작성자 닉네임을 붙이며, DB의 null은 undefined로 바꾼다", () => {
     const detail = toDateRecordDetail(row, [
       { path: "r1/p1.jpg", signedUrl: "https://example.test/p1" },
       { path: "r1/p2.jpg", signedUrl: "https://example.test/p2" },
@@ -43,12 +47,12 @@ describe("toDateRecordDetail", () => {
       tags: ["카페", "여행"],
       authorNickname: "진아",
       photos: [
-        { id: "p1", groupId: "g1", url: "https://example.test/p1", caption: "카페", place: "어니언 성수" },
-        { id: "p2", groupId: "g2", url: "https://example.test/p2", caption: undefined, place: "성수 서울숲" },
+        { id: "p1", groupId: "g1", url: "https://example.test/p1", place: "어니언 성수" },
+        { id: "p2", groupId: "g2", url: "https://example.test/p2", place: "성수 서울숲" },
       ],
       groups: [
-        { id: "g1", place: "어니언 성수", firstPhotoIndex: 0 },
-        { id: "g2", place: "성수 서울숲", firstPhotoIndex: 1 },
+        { id: "g1", place: "어니언 성수", caption: "카페", firstPhotoIndex: 0 },
+        { id: "g2", place: "성수 서울숲", caption: undefined, firstPhotoIndex: 1 },
       ],
       route: expect.any(Object),
       filePaths: ["r1/p1.jpg", "r1/p1_thumb.jpg", "r1/p2.jpg", "r1/p2_thumb.jpg"],
@@ -99,7 +103,7 @@ describe("toDateRecordDetail", () => {
 
   it("같은 모음의 사진은 모음 칩 하나로 묶고, 칩은 모음 첫 사진의 순서를 가리킨다", () => {
     // Arrange
-    const shared = { path: "r1/x.jpg", thumb_path: "r1/x_thumb.jpg", caption: null, taken_at: null };
+    const shared = { path: "r1/x.jpg", thumb_path: "r1/x_thumb.jpg", taken_at: null };
     const photos = [
       { ...shared, id: "a", group_id: "g1", sort_order: 0, place: "성수1가1동", place_lat: 37.5444, place_lng: 127.0396 },
       { ...shared, id: "b", group_id: "g1", sort_order: 1, place: "성수1가1동", place_lat: 37.5444, place_lng: 127.0396 },
@@ -111,14 +115,14 @@ describe("toDateRecordDetail", () => {
 
     // Assert
     expect(groups).toEqual([
-      { id: "g1", place: "성수1가1동", firstPhotoIndex: 0 },
-      { id: "g2", place: "성수2가3동", firstPhotoIndex: 2 },
+      { id: "g1", place: "성수1가1동", caption: "카페", firstPhotoIndex: 0 },
+      { id: "g2", place: "성수2가3동", caption: undefined, firstPhotoIndex: 2 },
     ]);
   });
 
   it("사진 순서가 같은 사진은 id로 순서를 정해 모음 칩 순서와 동선 번호가 어긋나지 않는다", () => {
     // Arrange: 순서가 같은 두 모음이 id 반대로 들어온다
-    const shared = { path: "r1/x.jpg", thumb_path: "r1/x_thumb.jpg", caption: null, taken_at: null, sort_order: 0 };
+    const shared = { path: "r1/x.jpg", thumb_path: "r1/x_thumb.jpg", taken_at: null, sort_order: 0 };
     const photos = [
       { ...shared, id: "b", group_id: "g2", place: "성수2가3동", place_lat: 37.54, place_lng: 127.05 },
       { ...shared, id: "a", group_id: "g1", place: "성수1가1동", place_lat: 37.5444, place_lng: 127.0396 },
@@ -139,7 +143,7 @@ describe("toDateRecordDetail", () => {
 });
 
 describe("toEditableRecord", () => {
-  it("수정 화면 초기값으로 바꾼다: 사진은 순서대로 모음으로 묶어 썸네일 미리보기·모음 위치, 빈 값은 빈 문자열", () => {
+  it("수정 화면 초기값으로 바꾼다: 사진은 순서대로 모음으로 묶어 썸네일 미리보기·모음 위치·모음 한마디, 빈 값은 빈 문자열", () => {
     const editable = toEditableRecord(row, [{ path: "r1/p1_thumb.jpg", signedUrl: "https://example.test/t1" }]);
     expect(editable).toEqual({
       revision: "30000000-0000-4000-8000-000000000001",
@@ -154,9 +158,15 @@ describe("toEditableRecord", () => {
         {
           id: "g1",
           location: { place: "어니언 성수", lat: 37.5447, lng: 127.0582 },
-          photos: [{ id: "p1", caption: "카페", takenAt: undefined, previewUrl: "https://example.test/t1" }],
+          caption: "카페",
+          photos: [{ id: "p1", takenAt: undefined, previewUrl: "https://example.test/t1" }],
         },
-        { id: "g2", location: { place: "성수 서울숲", lat: 37.5443, lng: 127.0374 }, photos: [{ id: "p2", caption: "", takenAt: undefined, previewUrl: undefined }] },
+        {
+          id: "g2",
+          location: { place: "성수 서울숲", lat: 37.5443, lng: 127.0374 },
+          caption: "",
+          photos: [{ id: "p2", takenAt: undefined, previewUrl: undefined }],
+        },
       ],
     });
   });
@@ -164,7 +174,7 @@ describe("toEditableRecord", () => {
   it("같은 모음의 사진은 사진 순서대로 한 모음에 묶고 찍은 시각을 함께 넘긴다", () => {
     // Arrange
     const location = { place: "성동구 성수1가1동", place_lat: 37.5444, place_lng: 127.0396 };
-    const shared = { path: "r1/x.jpg", thumb_path: "r1/x_thumb.jpg", caption: null, ...location };
+    const shared = { path: "r1/x.jpg", thumb_path: "r1/x_thumb.jpg", ...location };
     const photos = [
       { ...shared, id: "c", group_id: "g2", sort_order: 2, taken_at: null },
       { ...shared, id: "a", group_id: "g1", sort_order: 0, taken_at: "2026-11-08T03:00:00+00:00" },
@@ -183,7 +193,7 @@ describe("toEditableRecord", () => {
 
   it("같은 모음의 사진이 사진 순서에서 떨어져 있어도 모음 하나로 묶어, 같은 모음 id를 두 번 저장하지 않는다", () => {
     // Arrange
-    const shared = { path: "r1/x.jpg", thumb_path: "r1/x_thumb.jpg", caption: null, place: "성동구 성수1가1동", place_lat: 37.5444, place_lng: 127.0396, taken_at: null };
+    const shared = { path: "r1/x.jpg", thumb_path: "r1/x_thumb.jpg", place: "성동구 성수1가1동", place_lat: 37.5444, place_lng: 127.0396, taken_at: null };
     const photos = [
       { ...shared, id: "a", group_id: "g1", sort_order: 0 },
       { ...shared, id: "b", group_id: "g2", sort_order: 1 },

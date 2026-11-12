@@ -7,6 +7,7 @@ import {
   createDisposableRecord,
   deleteRecordWithFiles,
   downloadAlbumFile,
+  getRecordGroupCaptions,
   getRecordIdsByTitle,
   getRecordPhotoDetails,
   getRecordPhotoLocations,
@@ -398,23 +399,89 @@ test.describe("사진 정보로 위치·찍은 시각 채우기", () => {
   });
 });
 
+test.describe("모음 한마디", () => {
+  /** 모음 카드의 한마디 칸. 이름은 "한마디 (모음 N) (선택)"이다 */
+  const getGroupCaption = (page: Page, groupNumber: number): Locator =>
+    getGroupCard(page, groupNumber).getByRole("textbox", { name: `한마디 (모음 ${groupNumber}) (선택)` });
+
+  test("모음마다 한마디를 적어 저장하고 고치기에서 그대로 불러오며, 100자를 넘으면 저장하지 않고 그 칸으로 초점이 간다", async ({ page }, testInfo) => {
+    // Arrange: 모음 두 개
+    const title = createTestName("E2E 모음 한마디", testInfo);
+    await openScreen(page, "/dates/new", page.locator("#memo"));
+
+    try {
+      await page.locator("#title").fill(title);
+      await pickPhoto(page, 1);
+      await pickPhoto(page, 2);
+      await pickPhoto(page, 3, { groupNumber: 1 });
+      await getGroupCaption(page, 1).fill("카페 한마디");
+      await getGroupCaption(page, 2).fill("가".repeat(101));
+
+      // Assert: 사진을 눌러도 사진별 한마디 칸은 없고, 모음마다 칸이 하나다
+      await getGroupPhoto(page, 1, 2).click();
+      await expect(getGroupCard(page, 1).getByRole("textbox")).toHaveCount(1);
+      await expect(getGroupCard(page, 2).getByText("101/100")).toBeVisible();
+
+      // Act
+      await getSaveButton(page).click();
+
+      // Assert: 칸이 글에 맞춰 늘어나 안에서 스크롤되지 않는다(긴 한마디의 첫 줄이 잘려 보이지 않게)
+      const captionBox = await getGroupCaption(page, 2).evaluate((element) => ({ scroll: element.scrollHeight, client: element.clientHeight }));
+      expect(captionBox.scroll).toBeLessThanOrEqual(captionBox.client);
+
+      // Assert: 저장하지 않고 넘친 칸으로 초점이 간다
+      await expect(getGroupCaption(page, 2)).toBeFocused();
+      await expect(getGroupCaption(page, 2)).toHaveAccessibleDescription(/한마디는 100자까지 적을 수 있어요\./);
+      await expect(page).toHaveURL(/\/dates\/new$/);
+
+      // Act: 줄이면 오류가 사라지고 저장된다
+      await getGroupCaption(page, 2).fill("숲 한마디");
+      await expect(page.getByText("한마디는 100자까지 적을 수 있어요.")).toHaveCount(0);
+      await getSaveButton(page).click();
+      await page.waitForURL(/\/records/);
+
+      // Assert
+      const [id] = await getRecordIdsByTitle(title);
+      if (!id) throw new Error("저장한 기록을 찾지 못했습니다");
+      expect(await getRecordGroupCaptions(id)).toEqual(["카페 한마디", "숲 한마디"]);
+
+      // Act
+      await openScreen(page, `/dates/${id}/edit`, page.locator("#memo"));
+
+      // Assert
+      await expect(getGroupCaption(page, 1)).toHaveValue("카페 한마디");
+      await expect(getGroupCaption(page, 2)).toHaveValue("숲 한마디");
+    } finally {
+      for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id);
+    }
+  });
+});
+
 test.describe("기록 상세의 모음", () => {
-  test("사진을 지정한 주소로 열면 그 사진부터 보이고, 한마디 아래에 그 사진이 속한 모음의 장소가 나온다", async ({ page }) => {
-    // Arrange: 시드 모음(E2E 기본 위치)과 서울숲 모음
+  test("사진을 지정한 주소로 열면 그 사진부터 보이고, 그 사진이 속한 모음의 장소와 한마디가 나온다. 한마디가 없는 모음은 비운다", async ({ page }) => {
+    // Arrange: 한마디 없는 시드 모음(E2E 기본 위치)과 한마디 있는 서울숲 모음
     const id = randomUUID();
     const deleteRecord = await createDisposableRecord({ id, title: "E2E 사진별 장소" });
     const carousel = page.getByRole("region", { name: "사진" });
-    const place = carousel.locator("[aria-live]");
+    // 알림 영역은 사진 아래 장소 줄과 맨 아래 모음 한마디 둘이다
+    const place = carousel.locator("[aria-live]").first();
+    const caption = carousel.locator("[aria-live]").last();
 
     try {
-      const secondPhotoId = await addRecordPhoto(id, { sortOrder: 1, caption: "창가 자리", location: { place: FOREST.name, lat: FOREST.lat, lng: FOREST.lng } });
+      const secondPhotoId = await addRecordPhoto(id, {
+        sortOrder: 1,
+        groupCaption: "창가 자리",
+        location: { place: FOREST.name, lat: FOREST.lat, lng: FOREST.lng },
+      });
 
       // Act
       await openScreen(page, `/dates/${id}?photo=${secondPhotoId}`, page.getByRole("heading", { name: "E2E 사진별 장소" }));
 
-      // Assert
+      // Assert: 사진 대체 글은 한마디가 아니라 기본 문구다
       await expect(carousel.getByText("2 / 2")).toBeVisible();
-      await expect(place).toHaveText(`창가 자리찍은 곳: ${FOREST.name}`);
+      await expect(place).toHaveText(`찍은 곳: ${FOREST.name}`);
+      await expect(caption).toHaveText("창가 자리");
+      await expect(carousel.getByRole("group", { name: "2 / 2" }).getByRole("img")).toHaveAccessibleName("E2E 사진별 장소 사진 2");
 
       // Act
       await carousel.getByRole("button", { name: "이전 사진" }).click();
@@ -422,26 +489,36 @@ test.describe("기록 상세의 모음", () => {
       // Assert
       await expect(carousel.getByText("1 / 2")).toBeVisible();
       await expect(place).toHaveText("찍은 곳: E2E 기본 위치");
+      await expect(caption).toHaveText("");
     } finally {
       await deleteRecord();
     }
   });
 
-  test("모음이 둘 이상이면 사진 아래에 장소 이름 칩을 두고, 칩을 누르면 그 모음의 첫 사진으로 넘어가며 지금 모음을 표시한다", async ({ page }) => {
+  test("모음이 둘 이상이면 사진 아래에 장소 이름 칩을 두고, 칩을 누르면 그 모음의 첫 사진으로 넘어가며 지금 모음과 그 한마디를 보여 준다", async ({ page }) => {
     // Arrange: 사진 2장인 시드 모음(E2E 기본 위치)과 서울숲 모음. 위치 없이 더한 사진은 시드 모음에 들어간다
     const id = randomUUID();
     const deleteRecord = await createDisposableRecord({ id, title: "E2E 모음 칩" });
     const carousel = page.getByRole("region", { name: "사진" });
     const chips = carousel.getByRole("list", { name: "사진 모음" }).getByRole("button");
+    const caption = carousel.locator("[aria-live]").last();
 
     try {
-      await addRecordPhoto(id, { sortOrder: 1 });
-      await addRecordPhoto(id, { sortOrder: 2, location: { place: FOREST.name, lat: FOREST.lat, lng: FOREST.lng } });
+      await addRecordPhoto(id, { sortOrder: 1, groupCaption: "첫 모음 한마디" });
+      await addRecordPhoto(id, { sortOrder: 2, groupCaption: "숲 한마디", location: { place: FOREST.name, lat: FOREST.lat, lng: FOREST.lng } });
       await openScreen(page, `/dates/${id}`, page.getByRole("heading", { name: "E2E 모음 칩" }));
 
       // Assert: 칩은 장소 이름만 보이고, 화면 읽기 프로그램에는 모음 번호를 함께 읽어 준다
       await expect(chips).toHaveText(["모음 1 E2E 기본 위치", `모음 2 ${FOREST.name}`]);
       await expect(chips.first()).toHaveAttribute("aria-current", "true");
+      await expect(caption).toHaveText("첫 모음 한마디");
+
+      // Act: 같은 모음의 다음 사진으로 넘긴다
+      await carousel.getByRole("button", { name: "다음 사진" }).click();
+
+      // Assert: 한마디는 모음마다 하나라 그대로다
+      await expect(carousel.getByText("2 / 3")).toBeVisible();
+      await expect(caption).toHaveText("첫 모음 한마디");
 
       // Act
       await chips.nth(1).click();
@@ -450,13 +527,15 @@ test.describe("기록 상세의 모음", () => {
       await expect(carousel.getByText("3 / 3")).toBeVisible();
       await expect(chips.nth(1)).toHaveAttribute("aria-current", "true");
       await expect(chips.first()).not.toHaveAttribute("aria-current", "true");
+      await expect(caption).toHaveText("숲 한마디");
 
-      // Act: 넘겨서 앞 모음의 마지막 사진으로 가면 칩 표시도 따라간다
+      // Act: 넘겨서 앞 모음의 마지막 사진으로 가면 칩 표시와 한마디도 따라간다
       await carousel.getByRole("button", { name: "이전 사진" }).click();
 
       // Assert
       await expect(carousel.getByText("2 / 3")).toBeVisible();
       await expect(chips.first()).toHaveAttribute("aria-current", "true");
+      await expect(caption).toHaveText("첫 모음 한마디");
     } finally {
       await deleteRecord();
     }

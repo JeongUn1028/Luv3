@@ -21,7 +21,6 @@ export interface PhotoLocation extends PlaceLocation {
 export interface DraftPhoto {
   /** 업로드 전에 정해 두는 사진 id. Storage 경로와 `photos.id`에 같은 값을 쓴다 */
   id: string;
-  caption: string;
   /**
    * 찍은 시각(시간대가 붙은 ISO 문자열). 새로 고른 사진은 파일에서 읽고, 저장된 사진은 불러온 값이다.
    * 모음 순서를 정할 때 쓰고, DB는 이미 있는 사진의 시각을 바꾸지 않는다
@@ -32,7 +31,7 @@ export interface DraftPhoto {
 /** 위치를 어디서 정했는지. 위치 줄의 설명에 쓴다. `saved`는 이미 저장된 모음이다 */
 export type GroupLocationSource = "photo" | "picked" | "saved";
 
-/** 한 번에 고른 사진 묶음(#298). 모음 하나가 장소 하나라 위치가 하나다 */
+/** 한 번에 고른 사진 묶음(#298). 모음 하나가 장소 하나라 위치와 한마디(#309)가 하나다 */
 export interface DraftPhotoGroup<Photo extends DraftPhoto = DraftPhoto> {
   /** 업로드 전에 정해 두는 모음 id. `photo_groups.id`에 같은 값을 쓴다 */
   id: string;
@@ -41,6 +40,8 @@ export interface DraftPhotoGroup<Photo extends DraftPhoto = DraftPhoto> {
   locationSource: GroupLocationSource | undefined;
   /** 위치를 읽어 올 첫 사진(모음을 만들 때의 첫 사진). 그 사진 정보가 도착하면 지운다 */
   pendingLocationPhotoId: string | undefined;
+  /** 모음 한마디(선택, 100자). 사진마다 두던 한마디를 모음마다 하나로 옮겼다(#309) */
+  caption: string;
   photos: Photo[];
 }
 
@@ -72,7 +73,7 @@ export interface RecordEventLink {
   eventDate: string;
 }
 
-/** 칸 이름 → 화면에 보여 줄 에러 문구. 사진 한마디는 `caption:<사진 id>`, 모음 위치는 `group:<모음 id>` */
+/** 칸 이름 → 화면에 보여 줄 에러 문구. 모음 한마디는 `caption:<모음 id>`, 모음 위치는 `group:<모음 id>` */
 export type DraftErrors = Partial<
   Record<"date" | "endDate" | "title" | "memo" | "photos" | "tags" | `caption:${string}` | `group:${string}`, string>
 >;
@@ -114,11 +115,7 @@ export const validateDraft = (draft: DateRecordDraft, today: string): DraftError
   if (draft.groups.length === 0) errors.photos = "사진을 한 장 이상 골라 주세요.";
   for (const group of draft.groups) {
     if (!group.location) errors[`group:${group.id}`] = "위치를 골라야 저장할 수 있어요.";
-    for (const photo of group.photos) {
-      if (tooLong(photo.caption.trim(), CAPTION_MAX_LENGTH)) {
-        errors[`caption:${photo.id}`] = "한마디는 100자까지 적을 수 있어요.";
-      }
-    }
+    if (tooLong(group.caption.trim(), CAPTION_MAX_LENGTH)) errors[`caption:${group.id}`] = "한마디는 100자까지 적을 수 있어요.";
   }
 
   return errors;
@@ -240,16 +237,13 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_end_date: draft.endDate,
     p_title: draft.title.trim(),
     p_memo: draft.memo.trim(),
-    p_groups: draft.groups.map(({ id, location, photos }) => {
+    p_groups: draft.groups.map(({ id, location, caption, photos }) => {
       if (!location) throw new Error(`위치가 없는 모음입니다: ${id}`);
       return {
         id,
         location: { place: location.place, lat: location.lat, lng: location.lng },
-        photos: photos.map((photo) => ({
-          id: photo.id,
-          caption: photo.caption.trim(),
-          ...(photo.takenAt !== undefined && { taken_at: photo.takenAt }),
-        })),
+        caption: caption.trim(),
+        photos: photos.map((photo) => ({ id: photo.id, ...(photo.takenAt !== undefined && { taken_at: photo.takenAt }) })),
       };
     }),
     p_cover_photo_id: draft.coverPhotoId,
@@ -265,7 +259,7 @@ const toWrittenContent = ({ date, endDate, title, memo, groups, coverPhotoId, ta
   endDate,
   title,
   memo,
-  groups: groups.map(({ id, location, photos }) => ({ id, location, photos: photos.map((photo) => ({ id: photo.id, caption: photo.caption })) })),
+  groups: groups.map(({ id, location, caption, photos }) => ({ id, location, caption, photos: photos.map((photo) => photo.id) })),
   coverPhotoId,
   tags,
 });
