@@ -56,6 +56,10 @@ describe("toMapPinsSignature", () => {
     expect(toMapPinsSignature(withPhotos([createPhotoRow()]))).toBe(toMapPinsSignature(withPhotos([createPhotoRow()])));
   });
 
+  it("자리가 옮겨지면 달라진다", () => {
+    expect(toMapPinsSignature(withPhotos([createPhotoRow()]))).not.toBe(toMapPinsSignature(withPhotos([createPhotoRow({ place_lat: 35 })])));
+  });
+
   it("핀의 이름이 바뀌면 달라진다", () => {
     expect(toMapPinsSignature(withPhotos([createPhotoRow()]))).not.toBe(toMapPinsSignature(withPhotos([createPhotoRow({ place: "새 이름" })])));
   });

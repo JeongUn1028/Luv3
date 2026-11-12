@@ -17,8 +17,9 @@ export const buildMapPins = ({ photos }: { photos: MapPhotoRow[] }): MapPins => 
 
 /**
  * 지도에 그릴 내용을 나타내는 글자. 다시 불러와도 이 값이 같으면 핀을 다시 그리지 않아 보던 자리가 움직이지 않는다.
+ * 핀 key는 대표 사진 id라, 사진 위치만 고쳐도 다시 그리도록 좌표도 넣는다.
  *
  * @example if (toMapPinsSignature(pins) !== drawnSignature) redraw()
  */
 export const toMapPinsSignature = ({ photoSpots }: MapPins): string =>
-  JSON.stringify(photoSpots.map(({ key, place, photoIds }) => [key, place, photoIds]));
+  JSON.stringify(photoSpots.map(({ key, lat, lng, place, photoIds }) => [key, lat, lng, place, photoIds]));
