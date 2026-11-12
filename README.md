@@ -136,11 +136,12 @@ Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패�
 
 ### 주인 없는 사진 정리
 
-사진은 Storage에 먼저 올리고 기록을 나중에 저장한다. 업로드 중에 앱을 닫거나, 저장 결과를 몰라 일부러 남기거나, 지우기가 실패하면 기록이 가리키지 않는 파일이 `album` 버킷에 남는다(#31). Vercel Cron이 매달 1일(`0 4 1 * *`, UTC 4시대, 한국 시간 오후 1시대) `/api/photo-cleanup`을 불러 이 파일을 찾는다.
+사진은 Storage에 먼저 올리고 기록을 나중에 저장한다. 업로드 중에 앱을 닫거나, 저장 결과를 몰라 일부러 남기면 기록이 가리키지 않는 파일이 `album` 버킷에 남는다(#31). 기록을 지우거나 고치기에서 뺀 사진은 앱이 바로 지우지 않고 휴지통(`photo_trash`, #311)에 남는다. Vercel Cron이 매달 1일(`0 4 1 * *`, UTC 4시대, 한국 시간 오후 1시대) `/api/photo-cleanup`을 불러 두 가지를 치운다.
 
-- 지우는 파일: 기록 사진(`photos.path`·`thumb_path`)과 지금 커플 사진(`couple_photo.path`와 같은 id의 `_medium.jpg`)이 가리키지 않고, 올린 지 하루가 넘은 파일. 하루가 안 됐거나 올린 시각을 모르는 파일은 업로드 중일 수 있어 남긴다.
+- **휴지통**: 사진 행이 지워질 때(기록째 지움, 사진·모음 빼기) DB 트리거가 경로, 기록 날짜·제목, 지운 회원과 시각을 남긴다. 보관 기간 30일(`src/lib/photos/trash.ts`의 `TRASH_RETENTION_DAYS`)이 지난 파일과 그 행만 지우므로 실제로는 30~61일 남는다. 기간 안의 휴지통 파일은 아래 주인 없는 파일로 보지 않는다. 회원은 휴지통 표를 읽거나 고칠 수 없다(되살리기 화면은 다음 PR). 그때까지 되살리려면 `photo_trash`에서 경로를 찾아 대시보드 Storage에서 내려받는다.
+- 주인 없는 파일: 기록 사진(`photos.path`·`thumb_path`)과 지금 커플 사진(`couple_photo.path`와 같은 id의 `_medium.jpg`)이 가리키지 않고, 올린 지 하루가 넘은 파일. 하루가 안 됐거나 올린 시각을 모르는 파일은 업로드 중일 수 있어 남긴다.
 - 앱이 만드는 이름(`{기록 id}/{사진 id}.jpg`·`_thumb.jpg`, `couple/{id}.jpg`·`_medium.jpg`)이 아닌 파일은 건드리지 않고 응답의 `unknownPaths`로 알린다.
-- 지울 파일이 100개를 넘거나 쓰는 파일보다 많으면 DB를 잘못 읽었을 수 있어 지우지 않고 409와 `status: "blocked"`, 이유(`reason`)를 돌려준다. Vercel 실행 기록에는 실패로 보인다. 미리 보기에서도 이 경우면 `reason`이 함께 온다.
+- 지울 파일이 100개를 넘거나 쓰는 파일보다 많으면 DB를 잘못 읽었을 수 있어 지우지 않고 409와 `status: "blocked"`, 이유(`reason`)를 돌려준다. Vercel 실행 기록에는 실패로 보인다. 미리 보기에서도 이 경우면 `reason`이 함께 온다. 이때는 휴지통 파일도 지우지 않는다.
 - 지우기 직전에 DB를 한 번 더 읽어, 그사이 기록에 이어진 파일은 빼고 지운다.
 - 사진 경로를 담는 칸을 새로 만들면 `FILE_PATH_COLUMNS`(`src/lib/photos/album-files.ts`, 백업도 같은 목록을 쓴다)와 `src/app/api/photo-cleanup/route.ts`의 `readPhotoFileReferences`에 더한다. 빠뜨리면 그 칸의 파일이 지워진다. `database.types.ts`에 이름에 `path`가 든 칸이 생기면 단위 테스트가 실패해 알려 준다.
 
@@ -157,7 +158,7 @@ Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패�
 - `PHOTO_CLEANUP_DELETE`는 `true`만 켠 것으로 본다(대소문자·앞뒤 공백 무시). `1`·`yes`는 꺼진 것이다.
 - Hobby 플랜의 Cron 로그는 1시간 뒤 사라진다. 무엇을 지웠는지는 그 안에 Vercel 로그의 "사진 정리" 줄에서 본다.
 - 정리는 백업 폴더의 파일을 지우지 않는다. 지운 사진이 백업을 받은 뒤에 남은 것이면 개인 드라이브의 `album/`에는 남아 있다.
-- 응답에는 목록을 읽을 때(지우기 전) 버킷 전체의 파일 수(`fileCount`)와 크기 합계(`totalBytes`, 바이트), 지울 파일 가운데 올린 지 이틀이 넘은 수(`staleOrphanCount`)도 들어 있다. Storage가 크기를 주지 않은 파일은 합계에서 빼고 `unsizedCount`로 센다(#310).
+- 응답에는 목록을 읽을 때(지우기 전) 버킷 전체의 파일 수(`fileCount`)와 크기 합계(`totalBytes`, 바이트), 지울 파일 가운데 지난 정리 예약 시각(매달 1일 UTC 4시)에 이미 하루가 넘었던 수(`staleOrphanCount`), 휴지통 파일 수·크기(`trashFileCount`·`trashBytes`, 합계에 들어 있다), 보관 기간이 지난 휴지통 행 수와 경로(`expiredTrashCount`·`expiredTrashPaths`), 그 가운데 지난 정리 예약 시각에 이미 기간이 지났던 수(`overdueTrashCount`)도 들어 있다. Storage가 크기를 주지 않은 파일은 합계에서 빼고 `unsizedCount`로 센다(#310).
 
 ### 저장 공간·사진 정리 점검
 

@@ -87,7 +87,7 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
             >
               수정
             </Link>
-            <DeleteRecordButton recordId={record.id} filePaths={record.filePaths} photoCount={record.photos.length} />
+            <DeleteRecordButton recordId={record.id} photoCount={record.photos.length} />
           </>
         }
       />

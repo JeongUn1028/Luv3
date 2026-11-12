@@ -245,7 +245,7 @@ describe("updateDateRecord", () => {
   const newFiles = new Map([[PHOTO_C, new File(["c"], "c.jpg", { type: "image/jpeg" })]]);
   const removedPaths = [`${RECORD_ID}/${PHOTO_B}.jpg`, `${RECORD_ID}/${PHOTO_B}_thumb.jpg`];
 
-  it("새로 고른 사진만 줄여 올리고, 기록을 고친 뒤 뺀 사진의 파일을 지운다", async () => {
+  it("새로 고른 사진만 줄여 올리고 기록을 고치며, 뺀 사진의 파일은 지우지 않는다(휴지통에 남는다)", async () => {
     const { storage, stored } = createFakeStorage();
     removedPaths.forEach((path) => stored.add(path));
     const updateRecord = vi.fn(async () => ({ data: removedPaths, error: null }));
@@ -261,7 +261,10 @@ describe("updateDateRecord", () => {
       onProgress: (step) => progress.push(step),
     });
 
-    expect([...stored].sort()).toEqual([`${RECORD_ID}/${PHOTO_C}.jpg`, `${RECORD_ID}/${PHOTO_C}_thumb.jpg`]);
+    expect([...stored].sort()).toEqual(
+      [...removedPaths, `${RECORD_ID}/${PHOTO_C}.jpg`, `${RECORD_ID}/${PHOTO_C}_thumb.jpg`].sort(),
+    );
+    expect(storage.remove).not.toHaveBeenCalled();
     expect(updateRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         p_id: RECORD_ID,

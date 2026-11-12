@@ -157,6 +157,20 @@ isOneToOne: false
       referencedColumns: ["id"]
     }
                   ]
+                },"photo_trash": {
+                  Row: {
+                    "date_id": string,"deleted_at": string,"deleted_by": string | null,"deleted_with_record": boolean,"id": string,"path": string,"photo_id": string,"record_date": string | null,"record_title": string | null,"taken_at": string | null,"thumb_path": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "date_id": string,"deleted_at"?: string,"deleted_by"?: string | null,"deleted_with_record": boolean,"id"?: string,"path": string,"photo_id": string,"record_date"?: string | null,"record_title"?: string | null,"taken_at"?: string | null,"thumb_path": string
+                  }
+                  Update: {
+                    "date_id"?: string,"deleted_at"?: string,"deleted_by"?: string | null,"deleted_with_record"?: boolean,"id"?: string,"path"?: string,"photo_id"?: string,"record_date"?: string | null,"record_title"?: string | null,"taken_at"?: string | null,"thumb_path"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
                 },"photos": {
                   Row: {
                     "created_at": string,"date_id": string,"group_id": string,"id": string,"path": string,"sort_order": number,"taken_at": string | null,"thumb_path": string

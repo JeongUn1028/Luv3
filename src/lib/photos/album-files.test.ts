@@ -19,7 +19,10 @@ describe("FILE_PATH_COLUMNS", () => {
     // Arrange
     // `new URL(..., import.meta.url)`로 읽으면 knip이 파일 전체를 쓰는 것으로 봐 안 쓰는 export 검사가 흐려진다
     const types = readFileSync(path.join(import.meta.dirname, "../supabase/database.types.ts"), "utf8");
-    const pathColumns = [...types.matchAll(/"(\w+)": \{\s*Row: \{([^}]*)\}/g)].flatMap(([, table, row]) =>
+    // 휴지통(photo_trash)은 기록이 가리키는 파일이 아니라 정리 경로가 따로 읽는다(src/app/api/photo-cleanup/route.ts)
+    const pathColumns = [...types.matchAll(/"(\w+)": \{\s*Row: \{([^}]*)\}/g)]
+      .filter(([, table]) => table !== "photo_trash")
+      .flatMap(([, table, row]) =>
       [...row.matchAll(/"(\w+)":/g)].map(([, column]) => column).filter((column) => column.includes("path")).map((column) => `public.${table}.${column}`),
     );
 

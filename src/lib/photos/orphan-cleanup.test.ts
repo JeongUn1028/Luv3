@@ -42,8 +42,12 @@ const createFakeStorage = (initial: Record<string, string | undefined>, removeEr
 const referencesOf = (references: Partial<PhotoFileReferences>) => async (): Promise<PhotoFileReferences> => ({
   photos: [],
   couplePhotoPath: undefined,
+  trash: [],
   ...references,
 });
+
+const trashOf = (suffix: number, deletedAt: string) => ({ id: `trash-${suffix}`, ...photoPaths(suffix), deleted_at: deletedAt });
+const noTrashDelete = async () => undefined;
 
 describe("cleanupOrphanPhotos", () => {
   it("기록 사진·지금 커플 사진과 그 중간 크기는 남기고, 하루 지난 주인 없는 파일만 지운다", async () => {
@@ -69,6 +73,7 @@ describe("cleanupOrphanPhotos", () => {
       // 파일이 없는 행(photoPaths(3))은 쓰는 파일 수에 넣지 않는다
       readReferences: referencesOf({ photos: [...kept, photoPaths(3)], couplePhotoPath: couplePath(10) }),
       now: NOW,
+      deleteTrashRows: noTrashDelete,
       shouldDelete: true,
     });
 
@@ -104,6 +109,7 @@ describe("cleanupOrphanPhotos", () => {
       storage,
       readReferences: referencesOf({ photos: [photoPaths(1)] }),
       now: NOW,
+      deleteTrashRows: noTrashDelete,
       shouldDelete: true,
     });
 
@@ -122,6 +128,7 @@ describe("cleanupOrphanPhotos", () => {
       storage,
       readReferences: referencesOf({ photos: [photoPaths(1)] }),
       now: NOW,
+      deleteTrashRows: noTrashDelete,
       shouldDelete: true,
     });
 
@@ -137,6 +144,7 @@ describe("cleanupOrphanPhotos", () => {
       storage,
       readReferences: referencesOf({ photos: [photoPaths(1)] }),
       now: NOW,
+      deleteTrashRows: noTrashDelete,
       shouldDelete: false,
     });
 
@@ -170,6 +178,7 @@ describe("cleanupOrphanPhotos", () => {
       storage,
       readReferences: referencesOf({ photos: [photoPaths(1)], couplePhotoPath: couplePath(10) }),
       now: NOW,
+      deleteTrashRows: noTrashDelete,
       shouldDelete: false,
     });
 
@@ -177,22 +186,23 @@ describe("cleanupOrphanPhotos", () => {
     expect(result).toMatchObject({ status: "preview", fileCount: 5, totalBytes: 1_260_000, unsizedCount: 2 });
   });
 
-  it("올린 지 이틀이 넘은 주인 없는 파일을 따로 세어, 1일 정리가 지웠어야 할 파일을 알 수 있게 한다", async () => {
+  it("지난 1일 정리 때 이미 하루가 넘었던 주인 없는 파일을 따로 세어, 정리가 지웠어야 할 파일을 알 수 있게 한다", async () => {
+    // NOW(11월 10일) 기준 마지막 정리는 11월 1일 UTC 4시다. 10월 30일 파일은 그때 하루가 넘었고, 11월 7일 파일은 그 뒤에 올렸다
     const { storage } = createFakeStorage({
       [photoPaths(1).path]: OLD,
       [photoPaths(1).thumb_path]: OLD,
-      [couplePath(11)]: "2026-11-07T12:00:00Z",
-      [couplePath(12)]: "2026-11-09T06:00:00Z",
+      [couplePath(11)]: "2026-10-30T12:00:00Z",
+      [couplePath(12)]: "2026-11-07T12:00:00Z",
     });
 
     const result = await cleanupOrphanPhotos({
       storage,
       readReferences: referencesOf({ photos: [photoPaths(1)] }),
       now: NOW,
+      deleteTrashRows: noTrashDelete,
       shouldDelete: false,
     });
 
-    // 사흘 된 것은 이틀이 넘었고, 하루 반 된 것은 지울 대상이지만 이틀이 안 됐다
     expect(result).toMatchObject({ status: "preview", staleOrphanCount: 1 });
     expect(result.orphanPaths).toHaveLength(2);
   });
@@ -204,7 +214,8 @@ describe("cleanupOrphanPhotos", () => {
       Object.fromEntries([...kept, ...orphans].flatMap(({ path, thumb_path }) => [[path, OLD], [thumb_path, OLD]])),
     );
 
-    const result = await cleanupOrphanPhotos({ storage, readReferences: referencesOf({ photos: kept }), now: NOW, shouldDelete: true });
+    const result = await cleanupOrphanPhotos({ storage, readReferences: referencesOf({ photos: kept }), now: NOW,
+      deleteTrashRows: noTrashDelete, shouldDelete: true });
 
     expect(result).toMatchObject({ status: "blocked", reason: expect.stringContaining("102개") });
     expect(storage.remove).not.toHaveBeenCalled();
@@ -213,7 +224,8 @@ describe("cleanupOrphanPhotos", () => {
   it("삭제가 꺼져 있어도 지웠다면 멈췄을 이유를 함께 돌려준다", async () => {
     const { storage } = createFakeStorage({ [couplePath(11)]: OLD });
 
-    const result = await cleanupOrphanPhotos({ storage, readReferences: referencesOf({}), now: NOW, shouldDelete: false });
+    const result = await cleanupOrphanPhotos({ storage, readReferences: referencesOf({}), now: NOW,
+      deleteTrashRows: noTrashDelete, shouldDelete: false });
 
     expect(result).toMatchObject({ status: "preview", orphanPaths: [couplePath(11)], reason: expect.stringContaining("쓰는 파일(0개)") });
   });
@@ -221,7 +233,8 @@ describe("cleanupOrphanPhotos", () => {
   it("지울 파일이 쓰는 파일보다 많으면 DB를 잘못 읽었을 수 있어 지우지 않는다", async () => {
     const { storage } = createFakeStorage({ [photoPaths(1).path]: OLD, [photoPaths(1).thumb_path]: OLD });
 
-    const result = await cleanupOrphanPhotos({ storage, readReferences: referencesOf({}), now: NOW, shouldDelete: true });
+    const result = await cleanupOrphanPhotos({ storage, readReferences: referencesOf({}), now: NOW,
+      deleteTrashRows: noTrashDelete, shouldDelete: true });
 
     expect(result).toMatchObject({ status: "blocked", reason: expect.stringContaining("쓰는 파일(0개)") });
     expect(storage.remove).not.toHaveBeenCalled();
@@ -239,9 +252,10 @@ describe("cleanupOrphanPhotos", () => {
       storage,
       readReferences: async () => {
         order.push("references");
-        return { photos: [], couplePhotoPath: undefined };
+        return { photos: [], couplePhotoPath: undefined, trash: [] };
       },
       now: NOW,
+      deleteTrashRows: noTrashDelete,
       shouldDelete: false,
     });
 
@@ -257,10 +271,11 @@ describe("cleanupOrphanPhotos", () => {
     // 첫 읽기 뒤, 저장 결과를 몰라 남겨 둔 사진을 다시 저장해 기록이 그 파일을 가리키게 됐다
     const readReferences = vi
       .fn<() => Promise<PhotoFileReferences>>()
-      .mockResolvedValueOnce({ photos: kept, couplePhotoPath: undefined })
-      .mockResolvedValueOnce({ photos: [...kept, reused], couplePhotoPath: undefined });
+      .mockResolvedValueOnce({ photos: kept, couplePhotoPath: undefined, trash: [] })
+      .mockResolvedValueOnce({ photos: [...kept, reused], couplePhotoPath: undefined, trash: [] });
 
-    const result = await cleanupOrphanPhotos({ storage, readReferences, now: NOW, shouldDelete: true });
+    const result = await cleanupOrphanPhotos({ storage, readReferences, now: NOW,
+      deleteTrashRows: noTrashDelete, shouldDelete: true });
 
     expect(result).toMatchObject({ status: "deleted", orphanPaths: [] });
     expect(storage.remove).not.toHaveBeenCalled();
@@ -275,6 +290,7 @@ describe("cleanupOrphanPhotos", () => {
         storage,
         readReferences: () => Promise.reject(new Error("db down")),
         now: NOW,
+      deleteTrashRows: noTrashDelete,
         shouldDelete: true,
       }),
     ).rejects.toThrow("db down");
@@ -288,8 +304,132 @@ describe("cleanupOrphanPhotos", () => {
     );
 
     await expect(
-      cleanupOrphanPhotos({ storage, readReferences: referencesOf({ photos: [photoPaths(1)] }), now: NOW, shouldDelete: true }),
+      cleanupOrphanPhotos({ storage, readReferences: referencesOf({ photos: [photoPaths(1)] }), now: NOW,
+      deleteTrashRows: noTrashDelete, shouldDelete: true }),
     ).rejects.toThrow("사진 파일을 지우지 못했습니다: denied");
+  });
+});
+
+describe("cleanupOrphanPhotos 휴지통", () => {
+  // NOW(11월 10일 12시) 기준: 40일 전·30일 반 전은 보관 기간(30일)이 지났고, 40일 전 것만 마지막 정리(11월 1일) 때도 지나 있었다
+  const overdue = trashOf(1, "2026-10-01T12:00:00Z");
+  const justExpired = trashOf(2, "2026-10-11T00:00:00Z");
+  const kept = trashOf(3, "2026-11-01T12:00:00Z");
+  const inUse = [photoPaths(10), photoPaths(11), photoPaths(12)];
+  const filesOf = (...rows: { path: string; thumb_path: string }[]) =>
+    Object.fromEntries(rows.flatMap(({ path, thumb_path }) => [[path, OLD], [thumb_path, OLD]]));
+
+  it("보관 기간 안의 휴지통 파일은 주인 없는 파일로 보지 않고 남기며, 기간이 지난 파일과 그 휴지통 행만 지운다", async () => {
+    const { storage, files } = createFakeStorage(filesOf(...inUse, overdue, justExpired, kept));
+    const deleteTrashRows = vi.fn<(ids: string[]) => Promise<void>>(async () => undefined);
+
+    const result = await cleanupOrphanPhotos({
+      storage,
+      readReferences: referencesOf({ photos: inUse, trash: [overdue, justExpired, kept] }),
+      now: NOW,
+      deleteTrashRows,
+      shouldDelete: true,
+    });
+
+    expect(result).toMatchObject({ status: "deleted", orphanPaths: [], expiredTrashCount: 2, overdueTrashCount: 1 });
+    expect(files.has(kept.path)).toBe(true);
+    expect(files.has(kept.thumb_path)).toBe(true);
+    for (const row of [overdue, justExpired]) {
+      expect(files.has(row.path)).toBe(false);
+      expect(files.has(row.thumb_path)).toBe(false);
+    }
+    expect(deleteTrashRows).toHaveBeenCalledWith(["trash-1", "trash-2"]);
+    // 영구 삭제한 휴지통 파일을 실행 기록에서 찾을 수 있게 돌려준다
+    expect(result.expiredTrashPaths.toSorted()).toEqual(
+      [overdue.path, overdue.thumb_path, justExpired.path, justExpired.thumb_path].toSorted(),
+    );
+  });
+
+  it("기간이 지난 휴지통이 많으면 Storage·DB 한 번 요청 한도를 넘지 않게 나눠 지운다", async () => {
+    const many = Array.from({ length: 300 }, (_, index) => trashOf(1000 + index, "2026-10-01T12:00:00Z"));
+    const { storage } = createFakeStorage(filesOf(...inUse));
+    const deleteTrashRows = vi.fn<(ids: string[]) => Promise<void>>(async () => undefined);
+
+    await cleanupOrphanPhotos({
+      storage,
+      readReferences: referencesOf({ photos: inUse, trash: many }),
+      now: NOW,
+      deleteTrashRows,
+      shouldDelete: true,
+    });
+
+    const removeCalls = vi.mocked(storage.remove).mock.calls.map(([paths]) => paths.length);
+    expect(removeCalls.reduce((sum, count) => sum + count, 0)).toBe(600);
+    expect(Math.max(...removeCalls)).toBeLessThanOrEqual(500);
+    const deleteCalls = deleteTrashRows.mock.calls.map(([ids]) => ids.length);
+    expect(deleteCalls.reduce((sum, count) => sum + count, 0)).toBe(300);
+    expect(Math.max(...deleteCalls)).toBeLessThanOrEqual(100);
+  });
+
+  it("미리 보기에 휴지통 파일 수·크기와 기간이 지난 행 수를 담고, 아무것도 지우지 않는다", async () => {
+    const { storage } = createFakeStorage(filesOf(...inUse, overdue, kept));
+    const deleteTrashRows = vi.fn<(ids: string[]) => Promise<void>>(async () => undefined);
+
+    const result = await cleanupOrphanPhotos({
+      storage,
+      readReferences: referencesOf({ photos: inUse, trash: [overdue, justExpired, kept] }),
+      now: NOW,
+      deleteTrashRows,
+      shouldDelete: false,
+    });
+
+    // justExpired의 파일은 버킷에 없다(예전 앱이 이미 지움). 행만 지울 대상으로 센다
+    expect(result).toMatchObject({
+      status: "preview",
+      trashFileCount: 4,
+      trashBytes: 4,
+      expiredTrashCount: 2,
+      overdueTrashCount: 1,
+    });
+    expect(storage.remove).not.toHaveBeenCalled();
+    expect(deleteTrashRows).not.toHaveBeenCalled();
+  });
+
+  it("지우기 직전에 다시 읽었을 때 기록이 쓰는 경로는 휴지통 기간이 지났어도 지우지 않는다", async () => {
+    const { storage, files } = createFakeStorage(filesOf(...inUse, overdue));
+    const readReferences = vi
+      .fn<() => Promise<PhotoFileReferences>>()
+      .mockResolvedValueOnce({ photos: inUse, couplePhotoPath: undefined, trash: [overdue] })
+      .mockResolvedValueOnce({ photos: [...inUse, overdue], couplePhotoPath: undefined, trash: [overdue] });
+
+    await cleanupOrphanPhotos({ storage, readReferences, now: NOW, deleteTrashRows: noTrashDelete, shouldDelete: true });
+
+    expect(files.has(overdue.path)).toBe(true);
+  });
+
+  it("휴지통 행을 지우지 못하면 에러를 낸다(파일은 이미 지웠고 다음 달에 행을 다시 지운다)", async () => {
+    const { storage } = createFakeStorage(filesOf(...inUse, overdue));
+
+    await expect(
+      cleanupOrphanPhotos({
+        storage,
+        readReferences: referencesOf({ photos: inUse, trash: [overdue] }),
+        now: NOW,
+        deleteTrashRows: () => Promise.reject(new Error("db down")),
+        shouldDelete: true,
+      }),
+    ).rejects.toThrow("db down");
+  });
+
+  it("지운 시각을 읽을 수 없는 휴지통 행은 기간이 지나지 않은 것으로 보고 남긴다", async () => {
+    const odd = trashOf(4, "알 수 없음");
+    const { storage, files } = createFakeStorage(filesOf(...inUse, odd));
+
+    const result = await cleanupOrphanPhotos({
+      storage,
+      readReferences: referencesOf({ photos: inUse, trash: [odd] }),
+      now: NOW,
+      deleteTrashRows: noTrashDelete,
+      shouldDelete: true,
+    });
+
+    expect(result).toMatchObject({ expiredTrashCount: 0, orphanPaths: [] });
+    expect(files.has(odd.path)).toBe(true);
   });
 });
 
