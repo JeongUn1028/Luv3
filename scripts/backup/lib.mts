@@ -45,7 +45,8 @@ const AUTH_SEQUENCE_LINE = /^SELECT pg_catalog\.setval\('"auth"\./;
 const COPY_NULL = "\\N";
 
 const FREE_STORAGE_BYTES = 1024 ** 3;
-const NEAR_LIMIT_RATIO = 0.8;
+/** 무료 저장 용량의 이 비율을 넘으면 경고한다. 백업 출력과 저장 공간 월간 점검(scripts/storage-check)이 함께 쓴다 */
+export const NEAR_LIMIT_RATIO = 0.8;
 const BYTES_PER_MEGABYTE = 1024 ** 2;
 
 const CONTENT_TYPES: Record<string, string> = {

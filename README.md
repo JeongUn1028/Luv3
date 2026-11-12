@@ -157,6 +157,22 @@ Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패�
 - `PHOTO_CLEANUP_DELETE`는 `true`만 켠 것으로 본다(대소문자·앞뒤 공백 무시). `1`·`yes`는 꺼진 것이다.
 - Hobby 플랜의 Cron 로그는 1시간 뒤 사라진다. 무엇을 지웠는지는 그 안에 Vercel 로그의 "사진 정리" 줄에서 본다.
 - 정리는 백업 폴더의 파일을 지우지 않는다. 지운 사진이 백업을 받은 뒤에 남은 것이면 개인 드라이브의 `album/`에는 남아 있다.
+- 응답에는 목록을 읽을 때(지우기 전) 버킷 전체의 파일 수(`fileCount`)와 크기 합계(`totalBytes`, 바이트), 지울 파일 가운데 올린 지 이틀이 넘은 수(`staleOrphanCount`)도 들어 있다. Storage가 크기를 주지 않은 파일은 합계에서 빼고 `unsizedCount`로 센다(#310).
+
+### 저장 공간·사진 정리 점검
+
+무료 플랜 저장 용량은 1GB이고 기록 사진은 한 장에 파일 2개(원본·썸네일)라 생각보다 빨리 찰 수 있다. 위 정리 Cron이 실패하거나 멈춰도 알림이 없다. 그래서 GitHub Actions(`.github/workflows/storage-check.yml`)가 매달 1일 정리 Cron 뒤(UTC 5시 23분, 한국 시간 오후 2시 23분)에 `?preview=1`을 불러, 아래 중 하나라도 있으면 실패로 끝낸다(#310). 메일은 위 "keepalive 실패 알림"과 같은 방식으로 온다.
+
+- **사용량**: 크기 합계가 1GB의 80% 이상. 기준 값은 백업 출력과 같은 `NEAR_LIMIT_RATIO`(`scripts/backup/lib.mts`)다.
+- **정리가 멈추는 상태**: 응답에 `reason`이 있다(지울 파일이 100개를 넘거나 쓰는 파일보다 많다).
+- **이틀 넘은 지울 파일이 남아 있음**: `staleOrphanCount`가 0보다 크다. 1일 정리가 실패했거나(Vercel Cron Jobs 실행 기록 확인) `PHOTO_CLEANUP_DELETE`가 꺼진 것이다. 이틀이 안 된 지울 파일은 Cron 때 하루가 안 돼 남았을 수 있어(GitHub 예약은 몇 시간씩 늦기도 한다) 실패로 보지 않고 다음 달 정리에 맡긴다.
+- **응답 실패**: 401이면 `CRON_SECRET`이 Vercel 값과 다르고, 500이면 `SUPABASE_SECRET_KEY`가 없거나(`CLEANUP_NOT_CONFIGURED`) 함수가 실패한 것이고, 502면 파일 목록이나 DB를 읽지 못한 것이고, 504면 시간 안에 끝나지 않은 것이다. 실패 응답이 정리 결과(파일 경로가 담김)면 본문은 실행 기록에 옮기지 않는다.
+
+이름 규칙에 없는 파일(`unknownPaths`)과 크기를 모르는 파일은 실패로 끝내지 않고 실행 기록에 경고만 남긴다. 공개 리포라 실행 기록은 누구나 볼 수 있어 파일 경로는 남기지 않고 개수만 남긴다. 목록은 위 미리 보기 명령으로 본다.
+
+- 손으로 돌리기: Actions > 저장 공간·사진 정리 점검 > Run workflow, 또는 `gh workflow run storage-check.yml`
+- 판단은 `scripts/storage-check/lib.mts`가 한다. 받아 둔 응답으로 직접 확인하려면 `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/storage-check/check.mts <응답 파일> <HTTP 상태 코드>`
+- 운영 주소를 바꾸면 워크플로의 `CLEANUP_PREVIEW_URL`도 고친다. 주소의 `?preview=1`을 빼면 정리가 실제로 지우므로 빼지 않는다.
 
 ### 프로젝트가 일시정지됐을 때
 
@@ -246,7 +262,7 @@ pnpm backup:restore "<백업 폴더>" <시점 이름> --yes  # 시점을 골라�
 백업을 받는 날 함께 한다. 평소에는 사용량을 볼 곳이 대시보드뿐이고, 한도를 넘으면 앱이 멈추거나 업로드가 막힌다.
 
 1. **사용량**: 각 대시보드의 Usage 화면에서 무료 플랜 한도와 비교한다. 80%를 넘는 항목이 있으면 이슈로 남긴다.
-   - Supabase(Organization > Usage): Database Size, Storage Size, Egress(내려받은 양)
+   - Supabase(Organization > Usage): Database Size, Storage Size, Egress(내려받은 양). 사진 저장 용량은 위 "저장 공간·사진 정리 점검"이 매달 1일 따로 보고 넘으면 메일로 알린다
    - Vercel(Usage): Fast Data Transfer, Function Invocations, Image Optimization
 2. **의존성**: 원본 클론의 최신 main에서 실행한다.
    ```bash
@@ -256,8 +272,8 @@ pnpm backup:restore "<백업 폴더>" <시점 이름> --yes  # 시점을 골라�
    - 패치 버전(예: 16.4.3 → 16.4.5)은 바로 PR로 올리고 E2E로 확인한다.
    - 마이너·메이저 버전은 변경 기록을 읽고 이슈로 따로 올린다. Next.js는 `node_modules/next/dist/docs/`의 안내도 본다.
 3. **보안 알림**: Dependabot 알림(Security > Dependabot)은 켜 두었고 새 알림은 GitHub 메일로 온다. 심각도 High 이상은 월 점검을 기다리지 않고 바로 올린다.
-4. **keepalive**: Actions의 "keepalive 확인" 기록이 매일 성공했는지, "서버 깨워 두기" 기록이 5분 간격으로 이어지는지 본다. 공개 리포는 60일 동안 활동이 없으면 GitHub이 예약을 끈다(끄기 전에 메일이 온다). 꺼져 있으면 Actions에서 해당 작업을 골라 Enable workflow로 다시 켠다.
-5. **주인 없는 사진**: 위 "주인 없는 사진 정리"의 `?preview=1`로 지울 목록과 `unknownPaths`를 본다. `reason`이 있으면(Cron이 지우지 않고 멈춘다) 또는 `unknownPaths`에 모르는 파일이 있으면 원인을 확인한다.
+4. **keepalive**: Actions의 "keepalive 확인" 기록이 매일 성공했는지, "서버 깨워 두기" 기록이 5분 간격으로 이어지는지, "저장 공간·사진 정리 점검"이 이번 달 1일에 돌았는지 본다. 공개 리포는 60일 동안 활동이 없으면 GitHub이 예약을 끈다(끄기 전에 메일이 온다). 꺼져 있으면 Actions에서 해당 작업을 골라 Enable workflow로 다시 켠다.
+5. **주인 없는 사진**: 1일 점검이 실패했거나 경고(`unknownPaths`)를 남겼으면 위 "주인 없는 사진 정리"의 `?preview=1`로 지울 목록과 `unknownPaths`를 본다. `reason`이 있으면(Cron이 지우지 않고 멈춘다) 또는 `unknownPaths`에 모르는 파일이 있으면 원인을 확인한다.
 
 ### 운영 프로젝트를 잃었을 때
 
