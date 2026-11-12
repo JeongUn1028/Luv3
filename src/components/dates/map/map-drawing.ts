@@ -65,7 +65,8 @@ export const drawPins = ({ maps, map, clusterer, pins, onPressSpot }: DrawPinsPa
   const photoPins = pins.photoSpots.map((spot) => {
     const position = new maps.LatLng(spot.lat, spot.lng);
     const pin = createPhotoPinElement({ label: `${spot.place} 사진 ${spot.photoIds.length}장`, count: spot.photoIds.length, onPress: () => onPressSpot(spot) });
-    // clickable: 핀을 누를 때 지도의 누름(열린 칸 닫기)까지 일어나지 않게 한다
+    // clickable: 핀을 누를 때 지도의 누름(열린 칸 닫기)까지 일어나지 않게 한다. 휴대폰에서는 지도의 누름이 늦게 올 수 있어
+    // RecordMapPins가 핀을 누른 직후의 지도 누름을 한 번 더 거른다(#300, `isMapClickFromPinPress`)
     const overlay = new maps.CustomOverlay({ position, content: pin.element, xAnchor: 0.5, yAnchor: 0.5, clickable: true });
     bounds.extend(position);
     return { spot, overlay, pin };

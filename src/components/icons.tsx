@@ -4,11 +4,15 @@ interface IconProps {
   className?: string;
 }
 
-/** 24×24 선 아이콘. 색은 `currentColor`라 `text-*` 클래스로 바꾼다. 의미는 감싸는 버튼·링크의 이름으로 전한다. */
-const LineIcon = ({ className, children }: IconProps & { children: ReactNode }): ReactElement => (
+/**
+ * 24×24 선 아이콘. 색은 `currentColor`라 `text-*` 클래스로 바꾼다. 의미는 감싸는 버튼·링크의 이름으로 전한다.
+ * `isFilled`면 안을 같은 색으로 채운다(겹친 안쪽 도형은 구멍으로 남는다).
+ */
+const LineIcon = ({ className, isFilled = false, children }: IconProps & { isFilled?: boolean; children: ReactNode }): ReactElement => (
   <svg
     viewBox="0 0 24 24"
-    fill="none"
+    fill={isFilled ? "currentColor" : "none"}
+    fillRule={isFilled ? "evenodd" : undefined}
     stroke="currentColor"
     strokeWidth={1.5}
     strokeLinecap="round"
@@ -92,6 +96,17 @@ export const MapPinIcon = ({ className }: IconProps): ReactElement => (
   <LineIcon className={className}>
     <path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z" />
     <circle cx="12" cy="9.5" r="2.5" />
+  </LineIcon>
+);
+
+/**
+ * 안을 채운 지도 핀. 기록 탭 머리글의 "지도로 보기"를 강조색으로 눈에 띄게 할 때 쓴다(#300 시안 B).
+ * 선 아이콘과 같은 크기로 보이게 테두리를 같은 굵기로 둔다. 가운데 구멍은 시안처럼 선 아이콘 동그라미의 바깥 테두리(반지름 3.25)만큼 보이도록,
+ * 테두리가 안쪽을 덮는 0.75를 더해 반지름 4로 그린다.
+ */
+export const MapPinFilledIcon = ({ className }: IconProps): ReactElement => (
+  <LineIcon className={className} isFilled>
+    <path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21zM16 9.5a4 4 0 1 0-8 0a4 4 0 1 0 8 0z" />
   </LineIcon>
 );
 
