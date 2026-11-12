@@ -202,7 +202,6 @@ describe("toCreateRecordArgs", () => {
       ],
       p_cover_photo_id: "b",
       p_tags: [],
-      p_place_location: {},
     });
   });
 

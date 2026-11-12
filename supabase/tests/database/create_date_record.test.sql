@@ -42,9 +42,9 @@ select lives_ok(
 );
 
 select results_eq(
-  $$select date, title, place, memo, cover_photo_id, author_id from public.dates
+  $$select date, title, memo, cover_photo_id, author_id from public.dates
     where id = '10000000-0000-0000-0000-000000000001'$$,
-  $$values ('2026-11-01'::date, '첫 데이트', '성수', '하루 정리',
+  $$values ('2026-11-01'::date, '첫 데이트', '하루 정리',
             '20000000-0000-0000-0000-000000000002'::uuid, '00000000-0000-0000-0000-00000000000a'::uuid)$$,
   '기록 행에 입력값·대표 사진·작성자가 저장된다'
 );

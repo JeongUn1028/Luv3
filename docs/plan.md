@@ -144,8 +144,6 @@ MVP는 로그인, 기록 작성, 앨범 목록, 기록 상세, D-day와 공유 �
 | date | date | 데이트한 날. 기간이면 시작일 |
 | end_date | date | 기간의 끝 날짜. `null`이면 하루짜리이고, 있으면 `date`보다 뒤여야 한다 |
 | title | text | 한 줄 제목 |
-| place | text | 장소 이름 |
-| place_lat, place_lng | double precision | 장소 찾기로 고른 좌표. 둘 다 있거나 둘 다 `null`이고, 직접 적은 장소는 `null` |
 | memo | text | 데이트 전체 정리 글(자유 글), 10,000자까지 |
 | cover_photo_id | uuid | 목록에 보일 대표 사진. 그 사진이 지워지면 `null` |
 | tags | text[] | 태그, 5개까지·태그마다 10자까지, 겹치면 안 된다. 기본값은 빈 목록 |

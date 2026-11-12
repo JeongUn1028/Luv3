@@ -271,7 +271,7 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_date: draft.date,
     p_end_date: draft.endDate,
     p_title: draft.title.trim(),
-    // 기록 장소 칸은 없앴다(#296). 그 칸을 지우는 마이그레이션 전까지는 빈 값을 넘겨 고칠 때 함께 지운다
+    // 기록 장소는 없앴다(#296). DB 함수가 아직 받지만 쓰지 않는 필수 인자라 빈 값을 넘긴다(사진 모음 저장 구조 #297에서 뺀다)
     p_place: "",
     p_memo: draft.memo.trim(),
     // 위치는 늘 넘긴다. null이면 지우고, 키를 빼면 DB 함수가 있던 위치를 그대로 둔다(예전 코드용)
@@ -285,8 +285,6 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_event_id: draft.eventLink?.eventId,
     p_event_date: draft.eventLink?.eventDate,
     p_tags: draft.tags,
-    // 빈 객체는 좌표를 지우라는 뜻이다
-    p_place_location: {},
   };
 };
 
