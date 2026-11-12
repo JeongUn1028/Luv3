@@ -19,11 +19,13 @@ select has_column('public', 'photos', 'caption', 'photos에 사진별 한마디 
 -- 값 제약. 회원은 표를 직접 쓸 수 없으므로(#170) 표 소유자로 넣어 확인한다
 insert into public.dates (id, date, title, author_id)
 values ('10000000-0000-0000-0000-000000000001', '2026-11-01', '첫 데이트', '00000000-0000-0000-0000-00000000000a');
+insert into public.photo_groups (id, date_id, sort_order, place, place_lat, place_lng)
+values ('10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 0, '테스트 장소', 37.5, 127.0);
 
 -- 바이트가 아닌 글자 수로 세는지 보려고 한글로 채운다
 select lives_ok(
-  $$insert into public.photos (id, date_id, path, thumb_path, caption) values
-    ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
+  $$insert into public.photos (id, date_id, group_id, path, thumb_path, caption) values
+    ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001',
      '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001.jpg',
      '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000001_thumb.jpg',
      repeat('가', 100))$$,
@@ -31,16 +33,16 @@ select lives_ok(
 );
 
 select throws_ok(
-  $$insert into public.photos (date_id, path, thumb_path, caption) values
-    ('10000000-0000-0000-0000-000000000001', 'x.jpg', 'x_thumb.jpg', repeat('가', 101))$$,
+  $$insert into public.photos (date_id, group_id, path, thumb_path, caption) values
+    ('10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'x.jpg', 'x_thumb.jpg', repeat('가', 101))$$,
   '23514',
   null,
   '사진별 한마디가 100자를 넘으면 저장되지 않는다'
 );
 
 select lives_ok(
-  $$insert into public.photos (date_id, path, thumb_path) values
-    ('10000000-0000-0000-0000-000000000001', 'y.jpg', 'y_thumb.jpg')$$,
+  $$insert into public.photos (date_id, group_id, path, thumb_path) values
+    ('10000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'y.jpg', 'y_thumb.jpg')$$,
   '사진별 한마디 없이도 사진을 저장할 수 있다'
 );
 
@@ -86,8 +88,8 @@ select is(
 );
 
 select public.update_date_record(
-  '10000000-0000-0000-0000-000000000001', '2026-11-01', '첫 데이트', null, null,
-  '[{"id":"20000000-0000-0000-0000-000000000001","caption":"여기 또 오자"}]', '20000000-0000-0000-0000-000000000001'
+  '10000000-0000-0000-0000-000000000001', '2026-11-01', '첫 데이트', null,
+  '[{"id":"10000000-0000-0000-0000-000000000001","location":{"place":"테스트 장소","lat":37.5,"lng":127.0},"photos":[{"id":"20000000-0000-0000-0000-000000000001","caption":"여기 또 오자"}]}]', '20000000-0000-0000-0000-000000000001'
 );
 
 select is(

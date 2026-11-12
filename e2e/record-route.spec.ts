@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { toRecordHref } from "@/lib/dates/detail";
 import { createUniqueLocation, fakeMapSdk, type FakeWindow } from "./support/fake-kakao-map";
-import { addRecordPhoto, createDisposableRecord } from "./support/seed";
+import { addRecordPhoto, createDisposableRecord, deleteFirstPhotoGroup } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
 /** 위도 0.001도는 약 111m라 서로 다른 점이 된다 */
@@ -23,8 +23,8 @@ const getPolylines = async (page: Page): Promise<{ path: string[]; strokeColor: 
 };
 
 test.describe("기록 상세 동선", () => {
-  test("위치와 찍은 시각이 있는 사진은 시각 순서로 번호를 매겨 한 줄로 잇고, 위치 없는 사진은 뺀다", async ({ page }) => {
-    // Arrange: 첫 사진(만들 때 붙는 사진)은 위치가 없다. 앨범 순서와 시각 순서를 일부러 다르게 둔다
+  test("찍은 시각이 있는 사진은 시각 순서로 번호를 매겨 한 줄로 잇는다", async ({ page }) => {
+    // Arrange: 앨범 순서와 시각 순서를 일부러 다르게 둔다
     const id = randomUUID();
     const title = `동선 시각 ${id.slice(0, 8)}`;
     const remove = await createDisposableRecord({ id, title });
@@ -32,6 +32,8 @@ test.describe("기록 상세 동선", () => {
     await addRecordPhoto(id, { sortOrder: 1, location: { place: "세 번째 곳", ...northOf(start, 2) }, takenAt: "2026-11-08T08:00:00+00:00" });
     await addRecordPhoto(id, { sortOrder: 2, location: { place: "첫 곳", ...start }, takenAt: "2026-11-08T04:00:00+00:00" });
     await addRecordPhoto(id, { sortOrder: 3, location: { place: "두 번째 곳", ...northOf(start, 1) }, takenAt: "2026-11-08T06:00:00+00:00" });
+    // 만들 때 붙은 시드 모음(기본 위치)을 지워 더한 사진만 남긴다(사진은 모두 모음 위치가 있다, #297)
+    await deleteFirstPhotoGroup(id);
     await fakeMapSdk(page);
 
     try {
@@ -66,6 +68,8 @@ test.describe("기록 상세 동선", () => {
     await addRecordPhoto(id, { sortOrder: 2, location: { place: "첫날 저녁", ...second }, takenAt: "2026-11-08T10:00:00+00:00" });
     await addRecordPhoto(id, { sortOrder: 3, location: { place: "둘째 날 아침", ...third }, takenAt: "2026-11-09T00:30:00+00:00" });
     await addRecordPhoto(id, { sortOrder: 4, location: { place: "둘째 날 저녁", ...fourth }, takenAt: "2026-11-09T09:00:00+00:00" });
+    // 만들 때 붙은 시드 모음(기본 위치)을 지워 더한 사진만 남긴다(사진은 모두 모음 위치가 있다, #297)
+    await deleteFirstPhotoGroup(id);
     await fakeMapSdk(page);
 
     try {
@@ -95,6 +99,8 @@ test.describe("기록 상세 동선", () => {
     const start = createUniqueLocation();
     await addRecordPhoto(id, { sortOrder: 1, location: { place: "앨범 첫 곳", ...start } });
     await addRecordPhoto(id, { sortOrder: 2, location: { place: "앨범 둘째 곳", ...northOf(start, 1) }, takenAt: "2026-11-08T01:00:00+00:00" });
+    // 만들 때 붙은 시드 모음(기본 위치)을 지워 더한 사진만 남긴다(사진은 모두 모음 위치가 있다, #297)
+    await deleteFirstPhotoGroup(id);
     await fakeMapSdk(page);
 
     try {
@@ -118,6 +124,8 @@ test.describe("기록 상세 동선", () => {
     const location = createUniqueLocation();
     await addRecordPhoto(id, { sortOrder: 1, location: { place: "숙소", ...location }, takenAt: "2026-11-08T12:00:00+00:00" });
     await addRecordPhoto(id, { sortOrder: 2, location: { place: "숙소", ...location }, takenAt: "2026-11-09T00:00:00+00:00" });
+    // 만들 때 붙은 시드 모음(기본 위치)을 지워 더한 사진만 남긴다(사진은 모두 모음 위치가 있다, #297)
+    await deleteFirstPhotoGroup(id);
     await fakeMapSdk(page);
 
     try {
@@ -140,6 +148,7 @@ test.describe("기록 상세 동선", () => {
     const title = `동선 없음 ${id.slice(0, 8)}`;
     const remove = await createDisposableRecord({ id, title });
     await addRecordPhoto(id, { sortOrder: 1, location: { place: "한 곳", ...createUniqueLocation() } });
+    await deleteFirstPhotoGroup(id);
     const sdkUrls = await fakeMapSdk(page);
 
     try {

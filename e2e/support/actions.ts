@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, type Locator, type Page, type Request } from "@playwright/test";
 import { toKstDate } from "@/lib/anniversary";
+import { withJpegExif } from "@/test-utils/exif-image";
 import { BASE_URL, PHOTO_FIXTURE_PATH } from "./constants";
 
 // 여러 스펙이 함께 쓰는 화면 조작 도우미(#196). 화면은 숨긴 채 남아 있을 수 있어(Activity) 보이는 것만 고른다
@@ -46,12 +47,21 @@ export const getTab = (page: Page, href: string): Locator => page.locator(`nav a
 export const getVisibleLink = (page: Page, href: string): Locator => page.locator(`a[href="${href}"]`).locator("visible=true");
 
 /**
+ * `pickPhoto`가 고르는 사진에 넣는 위치(서울숲). 모음마다 위치가 있어야 저장되므로(#297) 기본으로 넣는다.
+ * 실제 사진·위치는 공개 리포에 두지 않고 시험용 사진에 직접 넣는다
+ */
+export const PICKED_PHOTO_LOCATION = { lat: 37.5444, lng: 127.0374 };
+
+/**
  * 기록 폼에서 시험용 사진 한 장을 고르고, `order`번째 사진으로 목록에 붙을 때까지 기다린다.
+ * 사진 정보에 위치(`PICKED_PHOTO_LOCATION`)가 들어 있고, `hasLocation: false`면 위치 없는 사진을 고른다.
  *
  * @example await pickPhoto(page, 1)
  */
-export const pickPhoto = async (page: Page, order: number): Promise<void> => {
-  await page.getByLabel("사진 고르기").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer: readFileSync(PHOTO_FIXTURE_PATH) });
+export const pickPhoto = async (page: Page, order: number, { hasLocation = true }: { hasLocation?: boolean } = {}): Promise<void> => {
+  const fixture = readFileSync(PHOTO_FIXTURE_PATH);
+  const buffer = hasLocation ? Buffer.from(withJpegExif(PICKED_PHOTO_LOCATION, fixture)) : fixture;
+  await page.getByLabel("사진 고르기").setInputFiles({ name: "photo.jpg", mimeType: "image/jpeg", buffer });
   await page.getByRole("button", { name: `${order}번째 사진 빼기` }).waitFor();
 };
 

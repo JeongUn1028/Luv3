@@ -12,10 +12,10 @@ export const TAG_MAX_LENGTH = 10;
 export const MAX_TAGS = 5;
 /** 작성 화면에 추천할 태그 수 */
 const TAG_SUGGESTION_LIMIT = 12;
-/** 기록 하나에 올릴 수 있는 사진 수(create_date_record와 같다) */
+/** 사진 모음 하나에 올릴 수 있는 사진 수(create_date_record와 같다). 모음을 다루기 전(#298)에는 기록 전체가 모음 하나다 */
 export const MAX_PHOTOS = 10;
 
-/** 사진 한 장의 위치. 이름과 좌표가 늘 함께 있다(photos_place_location_valid 제약과 같다) */
+/** 사진의 위치. 이름과 좌표가 늘 함께 있다. 저장하면 사진 모음의 위치(photo_groups)가 된다(#297) */
 export interface PhotoLocation extends PlaceLocation {
   place: string;
 }
@@ -96,6 +96,7 @@ export const validateDraft = (draft: DateRecordDraft, today: string): DraftError
   if (tooLong(draft.memo.trim(), MEMO_MAX_LENGTH)) errors.memo = "정리 글은 10,000자까지 적을 수 있어요.";
 
   if (draft.photos.length === 0) errors.photos = "사진을 한 장 이상 골라 주세요.";
+  else if (!findGroupLocation(draft.photos)) errors.photos = "위치가 있는 사진이 한 장 이상 있어야 저장할 수 있어요.";
   for (const photo of draft.photos) {
     if (tooLong(photo.caption.trim(), CAPTION_MAX_LENGTH)) {
       errors[`caption:${photo.id}`] = "한마디는 100자까지 적을 수 있어요.";
@@ -259,28 +260,42 @@ export const pickTagSuggestions = (suggestions: string[], tags: string[]): strin
 };
 
 /**
+ * 사진 모음의 위치: 위치가 있는 첫 사진의 위치. 모음은 장소 하나라 위치가 하나다(#297).
+ * 지도에서 고르기(#298) 전까지는 사진 정보나 "앞 사진과 같은 곳"으로 정한 위치만 있다.
+ *
+ * @example findGroupLocation(draft.photos) // { place: "성수동", lat: 37.54, lng: 127.05 }
+ */
+export const findGroupLocation = (photos: DraftPhoto[]): PhotoLocation | undefined => photos.find(({ location }) => location)?.location;
+
+/**
  * 입력값을 기록 작성 함수(`create_date_record`) 인자로 바꾼다. 빈 글·한마디와 넘기지 않은 끝 날짜는 DB 함수가 null로 저장한다.
  *
- * @throws {Error} 대표 사진이 없으면(검증을 거치지 않은 코드 실수)
+ * @throws {Error} 대표 사진이나 위치가 있는 사진이 없으면(검증을 거치지 않은 코드 실수)
  * @example await supabase.rpc("create_date_record", toCreateRecordArgs(recordId, draft))
  */
 export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): CreateDateRecordArgs => {
   if (!draft.coverPhotoId) throw new Error("대표 사진이 정해지지 않았습니다");
+  const location = findGroupLocation(draft.photos);
+  if (!location) throw new Error("위치가 있는 사진이 없습니다");
   return {
     p_id: recordId,
     p_date: draft.date,
     p_end_date: draft.endDate,
     p_title: draft.title.trim(),
-    // 기록 장소는 없앴다(#296). DB 함수가 아직 받지만 쓰지 않는 필수 인자라 빈 값을 넘긴다(사진 모음 저장 구조 #297에서 뺀다)
-    p_place: "",
     p_memo: draft.memo.trim(),
-    // 위치는 늘 넘긴다. null이면 지우고, 키를 빼면 DB 함수가 있던 위치를 그대로 둔다(예전 코드용)
-    p_photos: draft.photos.map(({ id, caption, location, takenAt }) => ({
-      id,
-      caption: caption.trim(),
-      location: location ? { place: location.place, lat: location.lat, lng: location.lng } : null,
-      ...(takenAt !== undefined && { taken_at: takenAt }),
-    })),
+    // TODO(#298): 폼이 모음을 다루면 모음마다 넘긴다. 그전까지는 사진 전체를 모음 하나로 묶는다.
+    // 모음 id는 기록 id를 그대로 써, 같은 저장을 다시 보내도 같은 모음이 된다(모음 id는 기록마다 하나라 겹치지 않는다)
+    p_groups: [
+      {
+        id: recordId,
+        location: { place: location.place, lat: location.lat, lng: location.lng },
+        photos: draft.photos.map(({ id, caption, takenAt }) => ({
+          id,
+          caption: caption.trim(),
+          ...(takenAt !== undefined && { taken_at: takenAt }),
+        })),
+      },
+    ],
     p_cover_photo_id: draft.coverPhotoId,
     p_event_id: draft.eventLink?.eventId,
     p_event_date: draft.eventLink?.eventDate,
