@@ -73,7 +73,16 @@ describe("cleanupOrphanPhotos", () => {
     });
 
     // Assert
-    expect(result).toMatchObject({ status: "deleted", inUseCount: 6, recentOrphanCount: 0, unknownPaths: [] });
+    // 크기 합계는 지우기 전에 읽은 버킷 전체 기준이다(가짜 저장소는 파일마다 1바이트)
+    expect(result).toMatchObject({
+      status: "deleted",
+      inUseCount: 6,
+      recentOrphanCount: 0,
+      unknownPaths: [],
+      fileCount: 12,
+      totalBytes: 12,
+      unsizedCount: 0,
+    });
     expect(result.orphanPaths.toSorted()).toEqual(
       [orphan.path, orphan.thumb_path, couplePath(11), coupleMediumPath(11), couplePath(12), coupleMediumPath(12)].toSorted(),
     );
@@ -134,6 +143,58 @@ describe("cleanupOrphanPhotos", () => {
     expect(result).toEqual(expect.objectContaining({ status: "preview", orphanPaths: [couplePath(11)] }));
     expect(result).not.toHaveProperty("reason");
     expect(storage.remove).not.toHaveBeenCalled();
+  });
+
+  it("미리 보기에 버킷 전체 파일 수와 크기 합계를 담고, 크기를 모르는 파일은 합계에서 빼고 따로 센다", async () => {
+    const files: Record<string, { name: string; id: string | null; created_at?: string; metadata?: Record<string, unknown> | null }[]> = {
+      "": [
+        { name: DATE_ID, id: null },
+        { name: "couple", id: null },
+      ],
+      [DATE_ID]: [
+        { name: `${uuid(1)}.jpg`, id: "1", created_at: OLD, metadata: { size: 700_000 } },
+        { name: `${uuid(1)}_thumb.jpg`, id: "2", created_at: OLD, metadata: { size: 60_000 } },
+        { name: `${uuid(2)}.jpg`, id: "3", created_at: OLD, metadata: { size: 500_000 } },
+      ],
+      couple: [
+        { name: `${uuid(10)}.jpg`, id: "4", created_at: OLD, metadata: { size: "알 수 없음" } },
+        { name: `${uuid(10)}_medium.jpg`, id: "5", created_at: OLD, metadata: null },
+      ],
+    };
+    const storage: CleanupStorage = {
+      list: vi.fn(async (prefix: string) => ({ data: files[prefix] ?? [], error: null })),
+      remove: vi.fn(),
+    };
+
+    const result = await cleanupOrphanPhotos({
+      storage,
+      readReferences: referencesOf({ photos: [photoPaths(1)], couplePhotoPath: couplePath(10) }),
+      now: NOW,
+      shouldDelete: false,
+    });
+
+    // 주인 없는 파일(uuid(2))도 아직 공간을 차지하므로 합계에 넣는다
+    expect(result).toMatchObject({ status: "preview", fileCount: 5, totalBytes: 1_260_000, unsizedCount: 2 });
+  });
+
+  it("올린 지 이틀이 넘은 주인 없는 파일을 따로 세어, 1일 정리가 지웠어야 할 파일을 알 수 있게 한다", async () => {
+    const { storage } = createFakeStorage({
+      [photoPaths(1).path]: OLD,
+      [photoPaths(1).thumb_path]: OLD,
+      [couplePath(11)]: "2026-11-07T12:00:00Z",
+      [couplePath(12)]: "2026-11-09T06:00:00Z",
+    });
+
+    const result = await cleanupOrphanPhotos({
+      storage,
+      readReferences: referencesOf({ photos: [photoPaths(1)] }),
+      now: NOW,
+      shouldDelete: false,
+    });
+
+    // 사흘 된 것은 이틀이 넘었고, 하루 반 된 것은 지울 대상이지만 이틀이 안 됐다
+    expect(result).toMatchObject({ status: "preview", staleOrphanCount: 1 });
+    expect(result.orphanPaths).toHaveLength(2);
   });
 
   it("지울 파일이 한 번에 100개를 넘으면 지우지 않고 이유와 함께 멈춘다", async () => {
