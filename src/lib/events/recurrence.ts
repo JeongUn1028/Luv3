@@ -43,6 +43,23 @@ const getNthOccurrence = (start: string, rule: RepeatRule, index: number): strin
   return toClampedDate(year, monthIndex + monthOffset, day);
 };
 
+const MS_PER_DAY = 86_400_000;
+
+// Date.UTC는 0~99년을 1900년대로 바꾸므로 네 자리 연도를 그대로 읽는 Date.parse로 날 수를 센다
+const toDayNumber = (isoDate: string): number => Date.parse(`${isoDate}T00:00:00Z`) / MS_PER_DAY;
+
+/**
+ * from보다 앞서는 것이 확실한 회차를 건너뛴 첫 회차 번호. 첫 날부터 하나씩 세면 먼 날(9999년 등)을 찾을 때 수십만 번 돈다(#285).
+ * 매달·매년은 index번째 회차가 시작 달에서 index달(해) 뒤의 달 안에 오므로, from의 달(해)보다 앞선 회차만 건너뛴다.
+ */
+const getFirstIndexFrom = (start: string, rule: RepeatRule, from: string): number => {
+  if (from <= start) return 0;
+  if (rule === "weekly") return Math.floor((toDayNumber(from) - toDayNumber(start)) / DAYS_PER_WEEK);
+  const [startYear, startMonth] = start.split("-").map(Number) as [number, number];
+  const [fromYear, fromMonth] = from.split("-").map(Number) as [number, number];
+  return rule === "monthly" ? (fromYear - startYear) * MONTHS_PER_YEAR + (fromMonth - startMonth) : fromYear - startYear;
+};
+
 /**
  * 반복 일정이 범위 안에서 오는 날을 빠른 날부터 돌려준다. 그 달에 없는 날은 그 달의 마지막 날로 옮긴다.
  *
@@ -55,7 +72,7 @@ export const listOccurrenceDates = (
   const lastDate = repeatUntil !== null && repeatUntil < end ? repeatUntil : end;
   const skipped = new Set(exceptionDates);
   const dates: string[] = [];
-  for (let index = 0; ; index += 1) {
+  for (let index = getFirstIndexFrom(date, repeatRule, start); ; index += 1) {
     const occurrence = getNthOccurrence(date, repeatRule, index);
     if (occurrence > lastDate || isBeyondCalendar(occurrence)) return dates;
     if (occurrence >= start && !skipped.has(occurrence)) dates.push(occurrence);
@@ -68,7 +85,7 @@ const isBeyondCalendar = (isoDate: string): boolean => isoDate.startsWith("+");
 // 건너뛰는 날은 정해진 수뿐이므로, 끝나는 날이 없는 반복도 언젠가 다음 날을 찾아 끝난다
 const getNextOccurrenceDate = ({ date, repeatRule, repeatUntil, exceptionDates }: RepeatSeries, from: string): string | undefined => {
   const skipped = new Set(exceptionDates);
-  for (let index = 0; ; index += 1) {
+  for (let index = getFirstIndexFrom(date, repeatRule, from); ; index += 1) {
     const occurrence = getNthOccurrence(date, repeatRule, index);
     if ((repeatUntil !== null && occurrence > repeatUntil) || isBeyondCalendar(occurrence)) return undefined;
     if (occurrence >= from && !skipped.has(occurrence)) return occurrence;

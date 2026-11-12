@@ -29,6 +29,18 @@ describe("listOccurrenceDates", () => {
     ]);
   });
 
+  // 첫 날부터 하나씩 세지 않고 범위 근처로 바로 건너뛰어도 오는 날이 어긋나지 않는지 본다(#285)
+  it("먼 미래 범위에서도 반복 규칙에 맞는 날을 돌려준다", () => {
+    expect(listOccurrenceDates({ ...series, repeatRule: "weekly" }, { start: "3000-01-01", end: "3000-01-07" })).toEqual(["3000-01-03"]);
+    expect(listOccurrenceDates({ ...series, date: "2027-01-31", repeatRule: "monthly" }, { start: "2400-02-01", end: "2400-03-31" })).toEqual([
+      "2400-02-29",
+      "2400-03-31",
+    ]);
+    expect(listOccurrenceDates({ ...series, date: "2024-02-29", repeatRule: "yearly" }, { start: "2100-01-01", end: "2100-12-31" })).toEqual([
+      "2100-02-28",
+    ]);
+  });
+
   it("매달 반복은 달이 바뀌어도 같은 날을 돌려준다", () => {
     expect(listOccurrenceDates({ ...series, repeatRule: "monthly" }, { start: "2026-12-01", end: "2027-02-28" })).toEqual([
       "2026-12-06",
@@ -323,7 +335,8 @@ describe("findOccurrenceDate", () => {
     expect(findOccurrenceDate({ ...event, repeat_rule: null }, "2026-11-13")).toBeUndefined();
   });
 
-  it("주소에 달력이 끝나는 해의 날을 넣어도 오류 없이 끝난다", () => {
+  // 첫 날부터 9999년까지 하나씩 세면 수십만 번 돌아 전체 테스트 중 시간 제한을 넘었다(#285). 범위로 바로 건너뛰어 금방 끝나야 한다
+  it("주소에 달력이 끝나는 해의 날을 넣어도 오류 없이 금방 끝난다", { timeout: 100 }, () => {
     const endless = { ...event, repeat_until: null };
     expect(() => findOccurrenceDate(endless, "9999-12-31")).not.toThrow();
     expect(() => findOccurrenceDate({ ...endless, repeat_rule: "monthly" }, "9999-12-31")).not.toThrow();
