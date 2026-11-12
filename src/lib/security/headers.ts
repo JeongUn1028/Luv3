@@ -10,7 +10,7 @@ export interface SecurityHeader {
 export interface BuildSecurityHeadersParams {
   /** 브라우저가 부르는 Supabase 주소(`NEXT_PUBLIC_SUPABASE_URL`). Vercel 미리 보기에는 없다(resolveHeaderSupabaseUrl) */
   supabaseUrl: string | undefined;
-  /** `next dev`인지. 개발 서버에는 HSTS를 보내지 않는다 */
+  /** `next dev`인지. 개발 서버에는 HSTS를 보내지 않고, 카카오 지도의 http 주소를 허용한다(#293) */
   isDev: boolean;
 }
 
@@ -20,6 +20,13 @@ const KAKAO_MAP_SCRIPT_ORIGINS = [new URL(SDK_URL).origin, "https://t1.kakaocdn.
 const KAKAO_MAP_IMAGE_ORIGIN = "https://*.kakaocdn.net";
 
 /**
+ * 카카오 SDK는 지도 본체와 그림을 페이지와 같은 방식(http/https)으로 부른다. http인 개발 서버(`next dev`)에서는
+ * http 주소로 불러 막히므로 개발 서버에만 http 주소를 더한다(#293). 운영(https)에는 넣지 않는다.
+ */
+const withDevHttp = (origins: string[], isDev: boolean): string[] =>
+  isDev ? [...origins, ...origins.filter((origin) => origin.endsWith("kakaocdn.net")).map((origin) => origin.replace(/^https:/, "http:"))] : origins;
+
+/**
  * 콘텐츠 보안 정책(CSP)을 만든다. 다른 사이트의 스크립트·데이터 전송·다른 사이트 안에 넣기를 막는다.
  * 미리 그려 둔 화면(cacheComponents)을 지키려고 요청마다 바뀌는 nonce 대신 인라인 스크립트를 허용한다(#170 사용자 결정).
  * eval도 허용한다: 아이폰 사진(HEIC)을 바꾸는 heic2any가 blob: 주소로 Worker를 만들고, Worker는 페이지의 CSP를 물려받은 채
@@ -27,15 +34,15 @@ const KAKAO_MAP_IMAGE_ORIGIN = "https://*.kakaocdn.net";
  *
  * @example buildContentSecurityPolicy({ supabaseUrl: "https://abc.supabase.co", isDev: false }) // "default-src 'self'; ..."
  */
-export const buildContentSecurityPolicy = ({ supabaseUrl }: BuildSecurityHeadersParams): string => {
+export const buildContentSecurityPolicy = ({ supabaseUrl, isDev }: BuildSecurityHeadersParams): string => {
   const supabase = supabaseUrl === undefined ? undefined : new URL(supabaseUrl);
   const supabaseSource = supabase ? [supabase.origin] : [];
   const directives = [
     "default-src 'self'",
-    ["script-src 'self' 'unsafe-inline' 'unsafe-eval'", ...KAKAO_MAP_SCRIPT_ORIGINS].join(" "),
+    ["script-src 'self' 'unsafe-inline' 'unsafe-eval'", ...withDevHttp(KAKAO_MAP_SCRIPT_ORIGINS, isDev)].join(" "),
     "worker-src 'self' blob:",
     "style-src 'self' 'unsafe-inline'",
-    ["img-src 'self' data: blob:", ...supabaseSource, KAKAO_MAP_IMAGE_ORIGIN].join(" "),
+    ["img-src 'self' data: blob:", ...supabaseSource, ...withDevHttp([KAKAO_MAP_IMAGE_ORIGIN], isDev)].join(" "),
     "font-src 'self'",
     ["connect-src 'self'", ...supabaseSource].join(" "),
     "object-src 'none'",
