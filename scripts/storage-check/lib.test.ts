@@ -14,6 +14,10 @@ const previewBody = (overrides: Record<string, unknown> = {}): string =>
     fileCount: 120,
     totalBytes: 100 * MEGABYTE,
     unsizedCount: 0,
+    trashFileCount: 0,
+    trashBytes: 0,
+    expiredTrashCount: 0,
+    overdueTrashCount: 0,
     ...overrides,
   });
 
@@ -42,21 +46,37 @@ describe("evaluateCleanupPreview", () => {
     expect(result.problems).toEqual([expect.stringContaining("지울 파일이 101개로 …")]);
   });
 
-  it("이틀 넘은 지울 파일이 남아 있으면 공개 실행 기록에 경로는 빼고 개수만 문제로 알린다", () => {
+  it("지난 1일 정리가 지웠어야 할 파일이 남아 있으면 공개 실행 기록에 경로는 빼고 개수만 문제로 알린다", () => {
     const orphanPaths = Array.from({ length: 7 }, (_, index) => `d/${index}.jpg`);
 
     const result = evaluateCleanupPreview({ httpStatus: 200, body: previewBody({ orphanPaths, staleOrphanCount: 3 }) });
 
-    expect(result.problems).toEqual([expect.stringContaining("이틀이 넘은 지울 파일 3개")]);
+    expect(result.problems).toEqual([expect.stringContaining("지난 1일 정리가 지웠어야 할 파일 3개")]);
     expect(result.problems[0]).not.toContain("d/0.jpg");
   });
 
-  it("지울 파일이 이틀이 안 된 것뿐이면 정리 뒤에 생긴 것이라 문제로 보지 않는다", () => {
-    // GitHub 예약 실행이 몇 시간 늦으면 정리 때 하루가 안 됐던 파일이 점검 때는 하루를 넘는다
+  it("지울 파일이 지난 정리 뒤에 생긴 것뿐이면 문제로 보지 않는다", () => {
+    // GitHub 예약 실행이 늦거나 점검을 손으로 돌리면, 정리 때 하루가 안 됐던 파일이 점검 때는 하루를 넘는다
     const result = evaluateCleanupPreview({ httpStatus: 200, body: previewBody({ orphanPaths: ["d/0.jpg"], staleOrphanCount: 0 }) });
 
     expect(result.problems).toEqual([]);
-    expect(result.summary.join(" ")).toContain("지울 파일 1개(이틀 넘은 것 0개)");
+    expect(result.summary.join(" ")).toContain("지울 파일 1개(지난 정리가 지웠어야 할 것 0개)");
+  });
+
+  it("휴지통 파일 수·크기를 요약에 담는다(전체 사용량에 이미 들어 있다)", () => {
+    const result = evaluateCleanupPreview({
+      httpStatus: 200,
+      body: previewBody({ trashFileCount: 6, trashBytes: 3 * MEGABYTE, expiredTrashCount: 1 }),
+    });
+
+    expect(result.problems).toEqual([]);
+    expect(result.summary).toContain("휴지통 파일 6개, 3.0 MB (보관 기간이 지나 이번 정리에서 지울 사진 1장)");
+  });
+
+  it("지난 1일 정리가 지웠어야 할 휴지통 사진이 남아 있으면 문제로 알린다", () => {
+    const result = evaluateCleanupPreview({ httpStatus: 200, body: previewBody({ expiredTrashCount: 2, overdueTrashCount: 2 }) });
+
+    expect(result.problems).toEqual([expect.stringContaining("지난 1일 정리가 지웠어야 할 휴지통 사진 2장")]);
   });
 
   it("이름 규칙에 없는 파일과 크기를 모르는 파일은 실패로 끝내지 않고 경고만 한다", () => {
@@ -111,7 +131,7 @@ describe("evaluateCleanupPreview", () => {
     expect(result.problems).toEqual([expect.stringContaining("미리 보기")]);
   });
 
-  it.each(["totalBytes", "staleOrphanCount", "inUseCount", "orphanPaths"])(
+  it.each(["totalBytes", "staleOrphanCount", "inUseCount", "orphanPaths", "trashBytes", "overdueTrashCount"])(
     "응답에 %s가 없으면(예전 배포 등) 문제로 알린다",
     (field) => {
       const result = evaluateCleanupPreview({ httpStatus: 200, body: previewBody({ [field]: undefined }) });
