@@ -97,7 +97,7 @@ const toEditDraft = ({ revision, date, endDate, title, memo, coverPhotoId, tags,
   groups: groups.map(({ id, location, photos }) => ({
     id,
     location,
-    locationSource: location && "saved",
+    locationSource: "saved",
     pendingLocationPhotoId: undefined,
     photos: photos.map((photo) => ({ ...photo, file: undefined, isReadingInfo: false })),
   })),

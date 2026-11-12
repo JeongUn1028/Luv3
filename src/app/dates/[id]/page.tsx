@@ -93,7 +93,7 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
       />
       <article className="flex flex-col">
         {/* 지도의 사진 미리보기에서 고른 사진부터 펼친다(#249) */}
-        <PhotoCarousel photos={record.photos} title={record.title} startIndex={findStartPhotoIndex(record.photos, startPhotoId)} />
+        <PhotoCarousel photos={record.photos} groups={record.groups} title={record.title} startIndex={findStartPhotoIndex(record.photos, startPhotoId)} />
         <div className="flex flex-col px-4 pt-6">
           <div className="flex items-center justify-between gap-3">
             <p className="min-w-0 text-[13px] break-words text-ink-sub">

@@ -398,12 +398,13 @@ test.describe("사진 정보로 위치·찍은 시각 채우기", () => {
   });
 });
 
-test.describe("기록 상세의 사진별 장소", () => {
-  test("사진을 지정한 주소로 열면 그 사진부터 보이고, 한마디 아래에 그 사진의 장소가 나온다", async ({ page }) => {
-    // Arrange
+test.describe("기록 상세의 모음", () => {
+  test("사진을 지정한 주소로 열면 그 사진부터 보이고, 한마디 아래에 그 사진이 속한 모음의 장소가 나온다", async ({ page }) => {
+    // Arrange: 시드 모음(E2E 기본 위치)과 서울숲 모음
     const id = randomUUID();
     const deleteRecord = await createDisposableRecord({ id, title: "E2E 사진별 장소" });
     const carousel = page.getByRole("region", { name: "사진" });
+    const place = carousel.locator("[aria-live]");
 
     try {
       const secondPhotoId = await addRecordPhoto(id, { sortOrder: 1, caption: "창가 자리", location: { place: FOREST.name, lat: FOREST.lat, lng: FOREST.lng } });
@@ -413,15 +414,94 @@ test.describe("기록 상세의 사진별 장소", () => {
 
       // Assert
       await expect(carousel.getByText("2 / 2")).toBeVisible();
-      await expect(carousel.getByText("창가 자리")).toBeVisible();
-      await expect(carousel.getByText(FOREST.name)).toBeVisible();
+      await expect(place).toHaveText(`창가 자리찍은 곳: ${FOREST.name}`);
 
-      // Act: 장소가 없는 첫 사진으로 넘기면 장소 줄이 없다
+      // Act
       await carousel.getByRole("button", { name: "이전 사진" }).click();
 
       // Assert
       await expect(carousel.getByText("1 / 2")).toBeVisible();
-      await expect(carousel.getByText(FOREST.name)).toHaveCount(0);
+      await expect(place).toHaveText("찍은 곳: E2E 기본 위치");
+    } finally {
+      await deleteRecord();
+    }
+  });
+
+  test("모음이 둘 이상이면 사진 아래에 장소 이름 칩을 두고, 칩을 누르면 그 모음의 첫 사진으로 넘어가며 지금 모음을 표시한다", async ({ page }) => {
+    // Arrange: 사진 2장인 시드 모음(E2E 기본 위치)과 서울숲 모음. 위치 없이 더한 사진은 시드 모음에 들어간다
+    const id = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id, title: "E2E 모음 칩" });
+    const carousel = page.getByRole("region", { name: "사진" });
+    const chips = carousel.getByRole("list", { name: "사진 모음" }).getByRole("button");
+
+    try {
+      await addRecordPhoto(id, { sortOrder: 1 });
+      await addRecordPhoto(id, { sortOrder: 2, location: { place: FOREST.name, lat: FOREST.lat, lng: FOREST.lng } });
+      await openScreen(page, `/dates/${id}`, page.getByRole("heading", { name: "E2E 모음 칩" }));
+
+      // Assert: 칩은 장소 이름만 보이고, 화면 읽기 프로그램에는 모음 번호를 함께 읽어 준다
+      await expect(chips).toHaveText(["모음 1 E2E 기본 위치", `모음 2 ${FOREST.name}`]);
+      await expect(chips.first()).toHaveAttribute("aria-current", "true");
+
+      // Act
+      await chips.nth(1).click();
+
+      // Assert
+      await expect(carousel.getByText("3 / 3")).toBeVisible();
+      await expect(chips.nth(1)).toHaveAttribute("aria-current", "true");
+      await expect(chips.first()).not.toHaveAttribute("aria-current", "true");
+
+      // Act: 넘겨서 앞 모음의 마지막 사진으로 가면 칩 표시도 따라간다
+      await carousel.getByRole("button", { name: "이전 사진" }).click();
+
+      // Assert
+      await expect(carousel.getByText("2 / 3")).toBeVisible();
+      await expect(chips.first()).toHaveAttribute("aria-current", "true");
+    } finally {
+      await deleteRecord();
+    }
+  });
+
+  test("칩이 화면 밖으로 넘칠 만큼 모음이 많아도, 사진을 넘기면 지금 모음 칩이 칩 줄 안에 보이게 따라 민다", async ({ page }) => {
+    // Arrange: 시드 모음 뒤로 이름이 긴 모음 다섯 개
+    const id = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id, title: "E2E 모음 칩 많음" });
+    const carousel = page.getByRole("region", { name: "사진" });
+    const chips = carousel.getByRole("list", { name: "사진 모음" }).getByRole("button");
+    const groupCount = 6;
+
+    try {
+      for (let order = 1; order < groupCount; order += 1) {
+        await addRecordPhoto(id, { sortOrder: order, location: { place: `서울특별시 성동구 성수동 ${order}번째 자리`, lat: FOREST.lat + order * 0.01, lng: FOREST.lng } });
+      }
+      await openScreen(page, `/dates/${id}`, page.getByRole("heading", { name: "E2E 모음 칩 많음" }));
+      await expect(chips.last()).not.toBeInViewport({ ratio: 1 });
+
+      // Act
+      for (let order = 1; order < groupCount; order += 1) {
+        await carousel.getByRole("button", { name: "다음 사진" }).click();
+      }
+
+      // Assert
+      await expect(carousel.getByText(`${groupCount} / ${groupCount}`)).toBeVisible();
+      await expect(chips.last()).toHaveAttribute("aria-current", "true");
+      await expect(chips.last()).toBeInViewport({ ratio: 1 });
+    } finally {
+      await deleteRecord();
+    }
+  });
+
+  test("모음이 하나뿐이면 모음 칩을 두지 않는다", async ({ page }) => {
+    // Arrange
+    const id = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id, title: "E2E 모음 하나" });
+
+    try {
+      // Act
+      await openScreen(page, `/dates/${id}`, page.getByRole("heading", { name: "E2E 모음 하나" }));
+
+      // Assert
+      await expect(page.getByRole("list", { name: "사진 모음" })).toHaveCount(0);
     } finally {
       await deleteRecord();
     }

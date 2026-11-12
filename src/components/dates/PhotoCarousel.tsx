@@ -1,14 +1,17 @@
 "use client";
 
 import useEmblaCarousel from "embla-carousel-react";
-import { useEffect, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, MapPinIcon } from "@/components/icons";
 import { SignedPhoto } from "@/components/SignedPhoto";
-import type { DetailPhoto } from "@/lib/dates/detail";
+import type { DetailGroup, DetailPhoto } from "@/lib/dates/detail";
+import { toGroupName } from "@/lib/dates/group-name";
 import { useResetOnLinkReopen } from "@/lib/navigation/use-reset-on-link-reopen";
 
 interface PhotoCarouselProps {
   photos: DetailPhoto[];
+  /** 사진 모음. 둘 이상이면 사진 아래에 모음 칩을 둔다(#299) */
+  groups: DetailGroup[];
   /** 사진 대체 텍스트에 쓰는 기록 제목 */
   title: string;
   /** 처음 펼칠 사진의 순서. 지도에서 고른 사진부터 보여 줄 때 쓴다(#249) */
@@ -18,8 +21,11 @@ interface PhotoCarouselProps {
 const navButtonClassName =
   "press-icon flex size-11 items-center justify-center text-ink-sub hover:text-ink disabled:opacity-30 disabled:hover:text-ink-sub";
 
-/** 화면 폭으로 넘겨 보는 사진과 지금 사진의 한마디·장소 */
-export const PhotoCarousel = ({ photos, title, startIndex = 0 }: PhotoCarouselProps): ReactElement => {
+const groupChipClassName =
+  "press-wide flex min-h-11 items-center rounded-full border border-line bg-surface px-3.5 text-[13px] whitespace-nowrap text-ink aria-[current=true]:border-accent aria-[current=true]:text-accent";
+
+/** 화면 폭으로 넘겨 보는 사진과 지금 사진의 한마디·장소, 모음 칩 */
+export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCarouselProps): ReactElement => {
   const [viewportRef, emblaApi] = useEmblaCarousel({ startIndex });
   const [selectedIndex, setSelectedIndex] = useState(startIndex);
   const total = photos.length;
@@ -43,6 +49,17 @@ export const PhotoCarousel = ({ photos, title, startIndex = 0 }: PhotoCarouselPr
       emblaApi.off("select", handleSelect).off("reInit", handleSelect);
     };
   }, [emblaApi]);
+
+  // 사진을 넘겨 모음이 바뀌면 칩 줄(가로 스크롤)을 밀어 지금 모음 칩을 가운데로 둔다. 화면이 세로로 움직이지 않게 칩 줄만 민다
+  const chipListRef = useRef<HTMLUListElement>(null);
+  const currentGroupId = current?.groupId;
+  useEffect(() => {
+    const list = chipListRef.current;
+    const chip = list?.querySelector<HTMLElement>('[aria-current="true"]');
+    if (!list || !chip || currentGroupId === undefined) return;
+    const isMotionReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    list.scrollTo({ left: chip.offsetLeft - (list.clientWidth - chip.offsetWidth) / 2, behavior: isMotionReduced ? "auto" : "smooth" });
+  }, [currentGroupId]);
 
   return (
     <section aria-roledescription="carousel" aria-label="사진" className="flex flex-col">
@@ -75,7 +92,7 @@ export const PhotoCarousel = ({ photos, title, startIndex = 0 }: PhotoCarouselPr
         {/* 넘길 때 한마디와 장소를 함께 읽어 준다. 장소는 한마디 아래 한 줄(#249, 2026-11-11 사용자 결정) */}
         <div aria-live="polite" className="flex min-w-0 flex-1 flex-col gap-0.5 pt-2.5">
           <p className="text-[14px] leading-[1.5] break-words text-ink">{current?.caption ?? ""}</p>
-          {current?.place && (
+          {current && (
             <p className="flex items-center gap-1 text-[13px] text-ink-sub">
               <MapPinIcon className="size-3.5 shrink-0" />
               <span className="sr-only">찍은 곳: </span>
@@ -109,6 +126,25 @@ export const PhotoCarousel = ({ photos, title, startIndex = 0 }: PhotoCarouselPr
           </div>
         )}
       </div>
+      {groups.length > 1 && (
+        // 칩에는 장소 이름만 적는다(장수 없음, 2026-11-11 사용자 결정). 같은 이름이 여럿일 수 있어 화면 읽기 프로그램에는 모음 번호를 함께 읽어 준다
+        // relative: 칩의 offsetLeft를 칩 줄 기준으로 재려고 둔다
+        <ul ref={chipListRef} aria-label="사진 모음" className="relative mt-2 flex gap-2 overflow-x-auto px-4 pb-1">
+          {groups.map(({ id, place, firstPhotoIndex }, index) => (
+            <li key={id} className="flex">
+              <button
+                type="button"
+                aria-current={id === current?.groupId ? "true" : undefined}
+                onClick={() => emblaApi?.scrollTo(firstPhotoIndex)}
+                className={groupChipClassName}
+              >
+                <span className="sr-only">{toGroupName(index + 1)} </span>
+                {place}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 };

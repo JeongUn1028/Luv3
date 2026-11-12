@@ -1,24 +1,25 @@
 import { toKstDate } from "@/lib/anniversary";
-import { UNKNOWN_PHOTO_PLACE } from "@/lib/places/region";
 import type { PlaceLocation } from "@/lib/places/location";
 import { getDistanceMeters, PHOTO_SPOT_RADIUS_M } from "./map-spots";
+import { comparePhotoOrder, groupPhotosInOrder } from "./photo-groups";
 
-/** 동선을 계산하는 데 쓰는 `photos` 한 행 */
+/** 동선을 계산하는 데 쓰는 `photos` 한 행. 위치는 사진이 속한 모음의 위치다(#297) */
 export interface RoutePhotoRow {
   id: string;
+  group_id: string;
   sort_order: number;
-  place: string | null;
-  place_lat: number | null;
-  place_lng: number | null;
+  place: string;
+  place_lat: number;
+  place_lng: number;
   /** 사진 정보의 찍은 시각(#249). #249 전에 올렸거나 정보가 없던 사진은 null */
   taken_at: string | null;
 }
 
-/** 동선 위의 점 하나 = 같은 자리에서 연달아 찍은 사진들. 좌표는 그중 첫 사진 좌표다 */
+/** 동선 위의 점 하나 = 모음 하나. 같은 곳의 모음이 이어지면 점 하나로 합치고, 좌표·이름은 그중 첫 모음 것이다 */
 export interface RoutePoint extends PlaceLocation {
   /** 지도에 적는 1부터의 순서. 날이 바뀌어도 이어 센다 */
   number: number;
-  /** 첫 사진의 장소 이름 */
+  /** 첫 모음의 장소 이름 */
   place: string;
   photoIds: string[];
   /** 이 점이 속한 줄(`PhotoRoute.lines`)의 순서. 선 색을 고를 때 쓴다 */
@@ -27,64 +28,71 @@ export interface RoutePoint extends PlaceLocation {
 
 /** 같은 날의 선 하나. 다음 날 줄은 전날 마지막 점에서 시작해 날 사이도 끊기지 않는다 */
 export interface RouteLine {
-  /** 한국 날짜 YYYY-MM-DD. 앨범 순서로 이어 날짜를 모르면 undefined */
+  /** 한국 날짜 YYYY-MM-DD. 찍은 시각을 모르는 모음이 있어 날을 나누지 않으면 undefined */
   date: string | undefined;
   path: PlaceLocation[];
 }
 
-/** 기록 하나의 동선(#251) */
+/** 기록 하나의 동선(#251, #299) */
 export interface PhotoRoute {
-  /** 찍은 시각 순서로 이었는지, 앨범의 사진 순서로 이었는지 */
-  order: "takenAt" | "album";
   points: RoutePoint[];
   lines: RouteLine[];
 }
 
-interface LocatedPhoto {
-  id: string;
-  sortOrder: number;
+interface RouteGroup {
   place: string;
   location: PlaceLocation;
-  takenAt: string | null;
+  photoIds: string[];
+  /** 모음 첫 사진의 찍은 시각을 한국 날짜로. 시각이 없으면 undefined */
+  firstDate: string | undefined;
 }
 
-const toLocatedPhotos = (rows: RoutePhotoRow[]): LocatedPhoto[] =>
-  rows.flatMap(({ id, sort_order: sortOrder, place, place_lat: lat, place_lng: lng, taken_at: takenAt }) =>
-    lat !== null && lng !== null ? [{ id, sortOrder, place: place ?? UNKNOWN_PHOTO_PLACE, location: { lat, lng }, takenAt }] : [],
-  );
+/** 사진 순서대로 모음을 묶는다. 받은 행이 정렬돼 있지 않아도 되게 여기서 다시 정렬한다 */
+const toRouteGroups = (rows: RoutePhotoRow[]): RouteGroup[] =>
+  groupPhotosInOrder(rows.toSorted(comparePhotoOrder)).map((photos) => {
+    const [first] = photos;
+    return {
+      place: first.place,
+      location: { lat: first.place_lat, lng: first.place_lng },
+      photoIds: photos.map(({ id }) => id),
+      firstDate: first.taken_at === null ? undefined : toKstDate(new Date(first.taken_at)),
+    };
+  });
 
-const compareAlbumOrder = (left: LocatedPhoto, right: LocatedPhoto): number => left.sortOrder - right.sortOrder || left.id.localeCompare(right.id);
-
-const compareTakenAt = (left: LocatedPhoto, right: LocatedPhoto): number =>
-  Date.parse(left.takenAt ?? "") - Date.parse(right.takenAt ?? "") || compareAlbumOrder(left, right);
+/** 모든 모음의 첫 사진 날짜가 있고 모음 순서대로 줄지 않을 때만 날짜로 줄을 나눈다. 날짜가 되돌아가면 같은 날짜가 두 줄로 나뉘기 때문이다 */
+const canSplitByDate = (groups: RouteGroup[]): boolean =>
+  groups.every(({ firstDate }, index) => {
+    const previousDate = groups[index - 1]?.firstDate ?? firstDate;
+    return firstDate !== undefined && previousDate !== undefined && previousDate <= firstDate;
+  });
 
 const toPath = (points: RoutePoint[]): PlaceLocation[] => points.map(({ lat, lng }) => ({ lat, lng }));
 
 /**
- * 기록의 사진을 동선(번호 붙은 점과 날마다의 선)으로 바꾼다. 실제로 걸은 길이 아니라 찍은 곳끼리의 순서다.
- * 위치가 있는 사진이 모두 찍은 시각을 가지면 시각 순서로, 하나라도 없으면 앨범 순서(`sort_order`)로 잇는다(#251 사용자 결정).
- * 시각 순서면 한국 날짜로 줄을 나눈다. 같은 날 50m 안에서 연달아 찍은 사진은 점 하나로 합친다.
+ * 기록의 사진 모음을 동선(번호 붙은 점과 날마다의 선)으로 바꾼다. 실제로 걸은 길이 아니라 모음 위치끼리의 순서다.
+ * 점 하나가 모음 하나이고 모음 순서대로 잇는다(#299). 50m 안의 모음이 이어지면 점 하나로 합친다(2026-11-12 사용자 결정).
+ * 모든 모음의 첫 사진에 찍은 시각이 있으면 그 한국 날짜로 줄을 나눠 선 색을 바꾸고, 하나라도 없으면 한 줄로 그린다(2026-11-12 사용자 결정).
+ * 모음 순서에서 날짜가 되돌아가면(9일 → 8일 → 9일) 같은 날짜가 두 번 나오지 않게 한 줄로 그린다.
  *
  * @returns 이을 점이 둘 미만이면 undefined
- * @example buildPhotoRoute(row.photos) // { order: "takenAt", points: [{ number: 1, … }, …], lines: [{ date: "2026-11-08", path: […] }] }
+ * @example buildGroupRoute(row.photos) // { points: [{ number: 1, … }, …], lines: [{ date: "2026-11-08", path: […] }] }
  */
-export const buildPhotoRoute = (rows: RoutePhotoRow[]): PhotoRoute | undefined => {
-  const photos = toLocatedPhotos(rows);
-  const order = photos.length > 0 && photos.every(({ takenAt }) => takenAt !== null) ? "takenAt" : "album";
-  const sorted = photos.toSorted(order === "takenAt" ? compareTakenAt : compareAlbumOrder);
+export const buildGroupRoute = (rows: RoutePhotoRow[]): PhotoRoute | undefined => {
+  const groups = toRouteGroups(rows);
+  const isByDate = canSplitByDate(groups);
 
   const points: RoutePoint[] = [];
   const dates: (string | undefined)[] = [];
-  for (const { id, place, location, takenAt } of sorted) {
-    const date = order === "takenAt" && takenAt !== null ? toKstDate(new Date(takenAt)) : undefined;
+  for (const { place, location, photoIds, firstDate } of groups) {
+    const date = isByDate ? firstDate : undefined;
     const previous = points.at(-1);
     const isNewDay = dates.length === 0 || dates.at(-1) !== date;
     if (previous && !isNewDay && getDistanceMeters(previous, location) <= PHOTO_SPOT_RADIUS_M) {
-      previous.photoIds.push(id);
+      previous.photoIds.push(...photoIds);
       continue;
     }
     if (isNewDay) dates.push(date);
-    points.push({ number: points.length + 1, ...location, place, photoIds: [id], lineIndex: dates.length - 1 });
+    points.push({ number: points.length + 1, ...location, place, photoIds: [...photoIds], lineIndex: dates.length - 1 });
   }
   if (points.length < 2) return undefined;
 
@@ -93,5 +101,5 @@ export const buildPhotoRoute = (rows: RoutePhotoRow[]): PhotoRoute | undefined =
     const lastOfPreviousDay = points.findLast((point) => point.lineIndex === lineIndex - 1);
     return { date, path: toPath(lastOfPreviousDay ? [lastOfPreviousDay, ...linePoints] : linePoints) };
   });
-  return { order, points, lines };
+  return { points, lines };
 };

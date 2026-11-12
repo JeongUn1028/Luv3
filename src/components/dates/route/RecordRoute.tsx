@@ -14,7 +14,7 @@ interface RecordRouteProps {
 }
 
 /**
- * 기록 상세의 "이날 다닌 곳" 작은 지도(#251). 사진 위치를 찍은 순서대로 선으로 잇고 점에 번호를 적는다.
+ * 기록 상세의 "이날 다닌 곳" 작은 지도(#251). 모음 위치를 모음 순서대로 선으로 잇고 점에 번호를 적는다(#299).
  * 페이지를 내리는 손가락을 지도가 가로채지 않게 지도는 누르거나 움직일 수 없다. 순서는 화면 읽기 프로그램에 목록으로 읽어 준다.
  *
  * @example {record.route && <RecordRoute route={record.route} appKey={appKey} />}
@@ -38,7 +38,7 @@ export const RecordRoute = ({ route, appKey }: RecordRouteProps): ReactElement =
           이날 다닌 곳
         </h2>
         <p className="text-[12px] text-ink-sub">
-          사진 {route.points.length}곳 · {route.order === "takenAt" ? "찍은 시각 순서" : "앨범 순서"}
+          {route.points.length}곳 · 모음 순서
         </p>
       </div>
       <div className="relative mt-2 h-52 overflow-hidden rounded-2xl bg-surface">

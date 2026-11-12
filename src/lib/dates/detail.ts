@@ -4,15 +4,26 @@ import type { SignedUrl } from "@/lib/photos/signed-urls";
 import { isRepeatRule } from "@/lib/events/calendar";
 import { toEventEditHref } from "@/lib/events/recurrence";
 import { formatPeriodMonthDay, toMonthDay, type RecordPeriod } from "./album";
-import { buildPhotoRoute, type PhotoRoute } from "./route";
+import { comparePhotoOrder, groupPhotosInOrder } from "./photo-groups";
+import { buildGroupRoute, type PhotoRoute } from "./route";
 
 export interface DetailPhoto {
   id: string;
+  /** 사진이 속한 모음. 모음 칩에서 지금 보는 모음을 표시할 때 쓴다(#299) */
+  groupId: string;
   /** 원본(긴 변 2000px) 서명 URL. 받지 못했으면 빈 칸으로 그린다 */
   url: string | undefined;
   caption: string | undefined;
-  /** 사진을 찍은 곳의 이름(#249). 없으면 장소 줄을 그리지 않는다 */
-  place: string | undefined;
+  /** 사진이 속한 모음의 장소 이름(#249, #297) */
+  place: string;
+}
+
+/** 기록 상세 사진 아래의 모음 칩 하나(#299) */
+export interface DetailGroup {
+  id: string;
+  place: string;
+  /** 모음 첫 사진의 순서. 칩을 누르면 이 사진으로 넘어간다 */
+  firstPhotoIndex: number;
 }
 
 /** 기록 상세에서 처음 펼칠 사진을 고르는 주소 이름(`/dates/<id>?photo=<사진 id>`) */
@@ -59,7 +70,9 @@ export interface DateRecordDetail {
   linkedEvent: { id: string; title: string; href: string } | undefined;
   /** sort_order 순서 */
   photos: DetailPhoto[];
-  /** 사진 위치를 찍은 순서대로 이은 동선(#251). 이을 곳이 둘 미만이면 undefined */
+  /** 모음 순서 */
+  groups: DetailGroup[];
+  /** 모음 위치를 모음 순서대로 이은 동선(#251, #299). 이을 곳이 둘 미만이면 undefined */
   route: PhotoRoute | undefined;
   /** 기록을 지울 때 함께 지울 Storage 파일(원본·썸네일) */
   filePaths: string[];
@@ -83,7 +96,8 @@ export interface EditableRecord {
 /** 수정 화면의 저장된 모음. 사진 미리보기는 썸네일 서명 URL */
 export interface EditableGroup {
   id: string;
-  location: PhotoLocation | undefined;
+  /** 모음은 위치가 꼭 있다(#297) */
+  location: PhotoLocation;
   photos: { id: string; caption: string; takenAt: string | undefined; previewUrl: string | undefined }[];
 }
 
@@ -109,9 +123,10 @@ export interface DetailRow {
     thumb_path: string;
     caption: string | null;
     sort_order: number;
-    place: string | null;
-    place_lat: number | null;
-    place_lng: number | null;
+    /** 사진이 속한 모음의 위치(#297). 모음은 위치가 꼭 있다 */
+    place: string;
+    place_lat: number;
+    place_lng: number;
     taken_at: string | null;
   }[];
 }
@@ -119,12 +134,13 @@ export interface DetailRow {
 const toUrlByPath = (signed: SignedUrl[]): Map<string, string> =>
   new Map(signed.flatMap(({ path, signedUrl }) => (path && signedUrl ? [[path, signedUrl] as const] : [])));
 
-// 이름과 좌표는 DB 제약으로 함께 있거나 함께 없다
-const toPhotoLocation = ({ place, place_lat: lat, place_lng: lng }: DetailRow["photos"][number]): PhotoLocation | undefined =>
-  place !== null && lat !== null && lng !== null ? { place, lat, lng } : undefined;
+const toPhotoLocation = ({ place, place_lat: lat, place_lng: lng }: DetailRow["photos"][number]): PhotoLocation => ({ place, lat, lng });
 
-const sortPhotos = (photos: DetailRow["photos"]): DetailRow["photos"] =>
-  photos.toSorted((a, b) => a.sort_order - b.sort_order);
+/** 사진 순서대로 놓인 사진에서 모음 칩을 만든다. 칩은 모음 첫 사진의 자리를 가리킨다 */
+const toDetailGroups = (photos: DetailRow["photos"]): DetailGroup[] =>
+  groupPhotosInOrder(photos).map(([first]) => ({ id: first.group_id, place: first.place, firstPhotoIndex: photos.indexOf(first) }));
+
+const sortPhotos = (photos: DetailRow["photos"]): DetailRow["photos"] => photos.toSorted(comparePhotoOrder);
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -162,26 +178,20 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): D
     authorNickname: row.author?.nickname,
     eventHref: linkedEvent?.href,
     linkedEvent,
-    photos: photos.map(({ id, path, caption, place }) => ({ id, url: urlByPath.get(path), caption: caption ?? undefined, place: place ?? undefined })),
-    route: buildPhotoRoute(photos),
+    photos: photos.map(({ id, group_id: groupId, path, caption, place }) => ({ id, groupId, url: urlByPath.get(path), caption: caption ?? undefined, place })),
+    groups: toDetailGroups(photos),
+    route: buildGroupRoute(photos),
     filePaths: photos.flatMap(({ path, thumb_path }) => [path, thumb_path]),
   };
 };
 
-/**
- * 사진 순서대로 놓인 사진을 모음으로 묶는다. 모음 순서는 모음의 첫 사진 순서다.
- * 저장 함수는 같은 모음의 사진을 이어서 매기지만(#297), 떨어져 있어도 한 모음으로 묶어 고쳐 저장할 때 같은 모음 id를 두 번 넘기지 않는다
- */
-const toEditableGroups = (photos: DetailRow["photos"], urlByPath: Map<string, string>): EditableGroup[] => {
-  const byId = new Map<string, EditableGroup>();
-  photos.forEach((photo) => {
-    const editablePhoto = { id: photo.id, caption: photo.caption ?? "", takenAt: photo.taken_at ?? undefined, previewUrl: urlByPath.get(photo.thumb_path) };
-    const group = byId.get(photo.group_id);
-    if (group) group.photos.push(editablePhoto);
-    else byId.set(photo.group_id, { id: photo.group_id, location: toPhotoLocation(photo), photos: [editablePhoto] });
-  });
-  return [...byId.values()];
-};
+/** 사진 순서대로 놓인 사진을 모음으로 묶는다. 떨어진 같은 모음 사진도 한 모음으로 모아 고쳐 저장할 때 같은 모음 id를 두 번 넘기지 않는다 */
+const toEditableGroups = (photos: DetailRow["photos"], urlByPath: Map<string, string>): EditableGroup[] =>
+  groupPhotosInOrder(photos).map((groupPhotos) => ({
+    id: groupPhotos[0].group_id,
+    location: toPhotoLocation(groupPhotos[0]),
+    photos: groupPhotos.map((photo) => ({ id: photo.id, caption: photo.caption ?? "", takenAt: photo.taken_at ?? undefined, previewUrl: urlByPath.get(photo.thumb_path) })),
+  }));
 
 /**
  * 조회한 행을 수정 화면 초기값으로 바꾼다. 미리보기는 썸네일 서명 URL을 쓴다.
