@@ -139,14 +139,14 @@ isOneToOne: false
                   ]
                 },"photo_groups": {
                   Row: {
-                    "created_at": string,"date_id": string,"id": string,"place": string,"place_lat": number,"place_lng": number,"sort_order": number
+                    "caption": string | null,"created_at": string,"date_id": string,"id": string,"place": string,"place_lat": number,"place_lng": number,"sort_order": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"date_id": string,"id": string,"place": string,"place_lat": number,"place_lng": number,"sort_order": number
+                    "caption"?: string | null,"created_at"?: string,"date_id": string,"id": string,"place": string,"place_lat": number,"place_lng": number,"sort_order": number
                   }
                   Update: {
-                    "created_at"?: string,"date_id"?: string,"id"?: string,"place"?: string,"place_lat"?: number,"place_lng"?: number,"sort_order"?: number
+                    "caption"?: string | null,"created_at"?: string,"date_id"?: string,"id"?: string,"place"?: string,"place_lat"?: number,"place_lng"?: number,"sort_order"?: number
                   }
                   Relationships: [
                     {
@@ -159,14 +159,14 @@ isOneToOne: false
                   ]
                 },"photos": {
                   Row: {
-                    "caption": string | null,"created_at": string,"date_id": string,"group_id": string,"id": string,"path": string,"sort_order": number,"taken_at": string | null,"thumb_path": string
+                    "created_at": string,"date_id": string,"group_id": string,"id": string,"path": string,"sort_order": number,"taken_at": string | null,"thumb_path": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "caption"?: string | null,"created_at"?: string,"date_id": string,"group_id": string,"id"?: string,"path": string,"sort_order"?: number,"taken_at"?: string | null,"thumb_path": string
+                    "created_at"?: string,"date_id": string,"group_id": string,"id"?: string,"path": string,"sort_order"?: number,"taken_at"?: string | null,"thumb_path": string
                   }
                   Update: {
-                    "caption"?: string | null,"created_at"?: string,"date_id"?: string,"group_id"?: string,"id"?: string,"path"?: string,"sort_order"?: number,"taken_at"?: string | null,"thumb_path"?: string
+                    "created_at"?: string,"date_id"?: string,"group_id"?: string,"id"?: string,"path"?: string,"sort_order"?: number,"taken_at"?: string | null,"thumb_path"?: string
                   }
                   Relationships: [
                     {

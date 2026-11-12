@@ -24,6 +24,7 @@ const group = (photos: DateRecordDraft["groups"][number]["photos"]): DateRecordD
   location: ONION,
   locationSource: "saved",
   pendingLocationPhotoId: undefined,
+  caption: "",
   photos,
 });
 
@@ -34,10 +35,7 @@ const draft: DateRecordDraft = {
   memo: "",
   tags: [],
   groups: [
-    group([
-      { id: PHOTO_A, caption: "카페" },
-      { id: PHOTO_B, caption: "" },
-    ]),
+    { ...group([{ id: PHOTO_A }, { id: PHOTO_B }]), caption: "카페" },
   ],
   coverPhotoId: PHOTO_A,
 };
@@ -239,10 +237,7 @@ describe("updateDateRecord", () => {
   const editedDraft: DateRecordDraft = {
     ...draft,
     groups: [
-      group([
-        { id: PHOTO_C, caption: "새 사진" },
-        { id: PHOTO_A, caption: "카페" },
-      ]),
+      { ...group([{ id: PHOTO_C }, { id: PHOTO_A }]), caption: "새 사진과 카페" },
     ],
     coverPhotoId: PHOTO_C,
   };
@@ -273,10 +268,8 @@ describe("updateDateRecord", () => {
           {
             id: GROUP_ID,
             location: ONION,
-            photos: [
-              { id: PHOTO_C, caption: "새 사진" },
-              { id: PHOTO_A, caption: "카페" },
-            ],
+            caption: "새 사진과 카페",
+            photos: [{ id: PHOTO_C }, { id: PHOTO_A }],
           },
         ],
         p_cover_photo_id: PHOTO_C,
@@ -293,7 +286,7 @@ describe("updateDateRecord", () => {
 
     await updateDateRecord({
       recordId: RECORD_ID,
-      draft: { ...draft, groups: [group([{ id: PHOTO_A, caption: "" }])], coverPhotoId: PHOTO_A },
+      draft: { ...draft, groups: [group([{ id: PHOTO_A }])], coverPhotoId: PHOTO_A },
       files: new Map(),
       storage,
       resize,

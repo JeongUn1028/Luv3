@@ -24,7 +24,7 @@ const navButtonClassName =
 const groupChipClassName =
   "press-wide flex min-h-11 items-center rounded-full border border-line bg-surface px-3.5 text-[13px] whitespace-nowrap text-ink aria-[current=true]:border-accent aria-[current=true]:text-accent";
 
-/** 화면 폭으로 넘겨 보는 사진과 지금 사진의 한마디·장소, 모음 칩 */
+/** 화면 폭으로 넘겨 보는 사진과 지금 사진의 장소, 모음 칩, 지금 모음의 한마디 */
 export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCarouselProps): ReactElement => {
   const [viewportRef, emblaApi] = useEmblaCarousel({ startIndex });
   const [selectedIndex, setSelectedIndex] = useState(startIndex);
@@ -53,6 +53,8 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
   // 사진을 넘겨 모음이 바뀌면 칩 줄(가로 스크롤)을 밀어 지금 모음 칩을 가운데로 둔다. 화면이 세로로 움직이지 않게 칩 줄만 민다
   const chipListRef = useRef<HTMLUListElement>(null);
   const currentGroupId = current?.groupId;
+  // 한마디는 모음마다 하나라 같은 모음 사진을 넘기는 동안 그대로이고, 다른 모음으로 넘어가면 바뀐다(#309)
+  const currentCaption = groups.find(({ id }) => id === currentGroupId)?.caption;
   useEffect(() => {
     const list = chipListRef.current;
     const chip = list?.querySelector<HTMLElement>('[aria-current="true"]');
@@ -76,7 +78,7 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
               {photo.url && (
                 <SignedPhoto
                   src={photo.url}
-                  alt={photo.caption ?? `${title} 사진 ${index + 1}`}
+                  alt={`${title} 사진 ${index + 1}`}
                   // 처음 펼친 사진은 바로 보이므로 먼저 받고, 나머지는 넘길 때 받는다
                   loading={index === startIndex ? "eager" : "lazy"}
                   draggable={false}
@@ -89,9 +91,8 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
       </div>
 
       <div className="flex min-h-11 items-start gap-2 px-4 pt-2">
-        {/* 넘길 때 한마디와 장소를 함께 읽어 준다. 장소는 한마디 아래 한 줄(#249, 2026-11-11 사용자 결정) */}
+        {/* 넘길 때 그 사진이 속한 모음의 장소를 읽어 준다(#249) */}
         <div aria-live="polite" className="flex min-w-0 flex-1 flex-col gap-0.5 pt-2.5">
-          <p className="text-[14px] leading-[1.5] break-words text-ink">{current?.caption ?? ""}</p>
           {current && (
             <p className="flex items-center gap-1 text-[13px] text-ink-sub">
               <MapPinIcon className="size-3.5 shrink-0" />
@@ -145,6 +146,10 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
           ))}
         </ul>
       )}
+      {/* 한마디가 없는 모음은 자리를 비운다. 다른 모음으로 넘어가 바뀔 때만 읽어 준다 */}
+      <p aria-live="polite" className="px-4">
+        {currentCaption && <span className="mt-2 block text-[14px] leading-[1.5] break-words whitespace-pre-line text-ink">{currentCaption}</span>}
+      </p>
     </section>
   );
 };

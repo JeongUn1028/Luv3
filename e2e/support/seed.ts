@@ -34,13 +34,13 @@ const SEED_GROUP_LOCATION: PhotoGroupLocation = { place: "E2E 기본 위치", la
 /** 기록에 사진 모음을 하나 만들고 id를 돌려준다 */
 const insertPhotoGroup = async (
   admin: AdminClient,
-  { recordId, sortOrder, location }: { recordId: string; sortOrder: number; location: PhotoGroupLocation },
+  { recordId, sortOrder, location, caption }: { recordId: string; sortOrder: number; location: PhotoGroupLocation; caption?: string | undefined },
 ): Promise<string> => {
   const id = randomUUID();
   assertNoError(
     await admin
       .from("photo_groups")
-      .insert({ id, date_id: recordId, sort_order: sortOrder, place: location.place, place_lat: location.lat, place_lng: location.lng }),
+      .insert({ id, date_id: recordId, sort_order: sortOrder, place: location.place, place_lat: location.lat, place_lng: location.lng, caption }),
     "사진 모음",
   );
   return id;
@@ -139,14 +139,14 @@ export const setRecordTags = async (id: string, tags: string[]): Promise<void> =
 };
 
 /**
- * 기록의 정리 글과 사진 한마디를 채운다(찾기 테스트).
+ * 기록의 정리 글과 모음 한마디(#309)를 채운다(찾기 테스트). 한마디는 기록의 모든 모음에 같은 값을 넣는다.
  *
  * @example await setRecordSearchFields(id, { memo: "오래 걸었다", caption: "노을" })
  */
 export const setRecordSearchFields = async (id: string, { memo, caption }: { memo: string; caption: string }): Promise<void> => {
   const admin = createAdminClient();
   assertNoError(await admin.from("dates").update({ memo }).eq("id", id), "기록 글");
-  assertNoError(await admin.from("photos").update({ caption }).eq("date_id", id), "사진 한마디");
+  assertNoError(await admin.from("photo_groups").update({ caption }).eq("date_id", id), "모음 한마디");
 };
 
 /**
@@ -164,23 +164,29 @@ export const setRecordPhotoLocation = async (recordId: string, { place, lat, lng
 /**
  * `createDisposableRecord`로 만든 기록에 사진을 한 장 더 붙인다. 파일은 기록 폴더에 올려 기록을 지울 때 함께 지워진다.
  * 위치를 주면 그 위치의 모음을 새로 만들어 넣고, 주지 않으면 첫 모음에 넣는다(위치는 모음마다 하나다, #297).
+ * `groupCaption`은 사진이 들어간 모음의 한마디다(한마디는 모음마다 하나다, #309).
  *
- * @example const photoId = await addRecordPhoto(id, { sortOrder: 1, caption: "창가 자리", location: FOREST })
+ * @example const photoId = await addRecordPhoto(id, { sortOrder: 1, groupCaption: "창가 자리", location: FOREST })
  */
 export const addRecordPhoto = async (
   recordId: string,
   {
     sortOrder,
-    caption,
+    groupCaption,
     location,
     takenAt,
-  }: { sortOrder: number; caption?: string; location?: { place: string; lat: number; lng: number }; takenAt?: string },
+  }: { sortOrder: number; groupCaption?: string; location?: { place: string; lat: number; lng: number }; takenAt?: string },
 ): Promise<string> => {
   const admin = createAdminClient();
   const path = `${recordId}/${randomUUID()}.jpg`;
   await uploadPhoto(admin, path);
   const id = randomUUID();
-  const groupId = location ? await insertPhotoGroup(admin, { recordId, sortOrder, location }) : await getFirstGroupId(admin, recordId);
+  const groupId = location
+    ? await insertPhotoGroup(admin, { recordId, sortOrder, location, caption: groupCaption })
+    : await getFirstGroupId(admin, recordId);
+  if (!location && groupCaption !== undefined) {
+    assertNoError(await admin.from("photo_groups").update({ caption: groupCaption }).eq("id", groupId), "첫 모음 한마디");
+  }
   assertNoError(
     await admin.from("photos").insert({
       id,
@@ -189,7 +195,6 @@ export const addRecordPhoto = async (
       path,
       thumb_path: path,
       sort_order: sortOrder,
-      caption,
       taken_at: takenAt,
     }),
     "사진 행 더하기",
@@ -260,6 +265,31 @@ export const getRecordPhotoLocations = async (recordId: string): Promise<{ place
     .order("sort_order");
   if (error) throw new Error(`사진 위치 읽기 실패: ${error.message}`);
   return data.map(({ group }) => group);
+};
+
+/**
+ * 기록의 모음 한마디를 모음 순서대로 읽는다(#309). 한마디가 없는 모음은 null이다.
+ *
+ * @example expect(await getRecordGroupCaptions(id)).toEqual(["카페", null])
+ */
+export const getRecordGroupCaptions = async (recordId: string): Promise<(string | null)[]> => {
+  const { data, error } = await createAdminClient().from("photo_groups").select("caption").eq("date_id", recordId).order("sort_order");
+  if (error) throw new Error(`모음 한마디 읽기 실패: ${error.message}`);
+  return data.map(({ caption }) => caption);
+};
+
+/**
+ * 기록의 대표 사진이 사진 순서에서 몇 번째(0부터)인지 읽는다. 사진 순서를 바꿔 저장했는지 볼 때 쓴다.
+ *
+ * @example expect(await getRecordCoverPhotoIndex(id)).toBe(1)
+ */
+export const getRecordCoverPhotoIndex = async (recordId: string): Promise<number> => {
+  const admin = createAdminClient();
+  const { data: record, error: recordError } = await admin.from("dates").select("cover_photo_id").eq("id", recordId).single();
+  if (recordError) throw new Error(`대표 사진 읽기 실패: ${recordError.message}`);
+  const { data: photos, error } = await admin.from("photos").select("id").eq("date_id", recordId).order("sort_order");
+  if (error) throw new Error(`사진 순서 읽기 실패: ${error.message}`);
+  return photos.findIndex(({ id }) => id === record.cover_photo_id);
 };
 
 /**

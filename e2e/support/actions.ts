@@ -55,7 +55,7 @@ export const PICKED_PHOTO_LOCATION = { lat: 37.5444, lng: 127.0374 };
 /**
  * 기록 폼 사진 줄의 사진 버튼. 이름은 "모음 N의 M번째 사진"이고 대표 사진이면 뒤에 " (대표)"가 붙는다(#298).
  *
- * @example await getGroupPhoto(page, 1, 2).click() // 모음 1의 2번째 사진을 눌러 한마디 칸을 연다
+ * @example await getGroupPhoto(page, 1, 2).click() // 모음 1의 2번째 사진을 눌러 순서·대표·빼기를 연다
  */
 export const getGroupPhoto = (page: Page, groupNumber: number, order: number): Locator =>
   page.getByRole("button", { name: new RegExp(`^모음 ${groupNumber}의 ${order}번째 사진`) }).locator("visible=true");

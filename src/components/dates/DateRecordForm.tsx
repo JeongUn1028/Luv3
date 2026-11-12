@@ -94,11 +94,12 @@ const toEditDraft = ({ revision, date, endDate, title, memo, coverPhotoId, tags,
   memo,
   coverPhotoId,
   tags,
-  groups: groups.map(({ id, location, photos }) => ({
+  groups: groups.map(({ id, location, caption, photos }) => ({
     id,
     location,
     locationSource: "saved",
     pendingLocationPhotoId: undefined,
+    caption,
     photos: photos.map((photo) => ({ ...photo, file: undefined, isReadingInfo: false })),
   })),
 });
@@ -155,7 +156,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
   const previews = usePreviewUrls();
   const [draft, setDraft] = useState(() => (failedSave ? withNewPreviews(failedSave.draft, previews.create) : initialDraft));
   const [errors, setErrors] = useState<DraftErrors>({});
-  // 사진 줄에서 누른 사진. 그 사진의 한마디 칸과 순서·대표·빼기를 모음 카드 아래에 연다
+  // 사진 줄에서 누른 사진. 그 사진의 순서·대표·빼기를 모음 카드 아래에 연다
   const [selectedPhotoId, setSelectedPhotoId] = useState<string>();
   const [tagInput, setTagInput] = useState("");
   // 칸을 늘 열어 두면 빈 작성 화면에 스크롤이 생긴다(#52). 태그가 있는 기록은 열어 둔다
@@ -236,7 +237,6 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
     const images = files.filter(isAcceptedPhoto);
     const picked = images.map((file) => ({
       id: crypto.randomUUID(),
-      caption: "",
       file,
       previewUrl: previews.create(file),
       isReadingInfo: true,
@@ -263,22 +263,26 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
     setNotice((current) => pickNotice ?? (current === FIX_FIELDS_NOTICE ? current : undefined));
   };
 
-  /** 사진들을 빼며 미리보기를 해제하고, 그 사진의 한마디 오류를 지운다 */
+  /** 사진들을 빼며 미리보기를 해제한다 */
   const forgetPhotos = (photoIds: string[]) => {
     const ids = new Set(photoIds);
     getDraftPhotos(draft.groups).forEach(({ id, previewUrl }) => {
       if (ids.has(id)) previews.revoke(previewUrl);
     });
-    setErrors((current) => photoIds.reduce<DraftErrors>((cleared, id) => clearError(cleared, `caption:${id}`), current));
+  };
+
+  /** 빠지는 모음의 위치·한마디 오류를 지운다 */
+  const clearGroupErrors = (groupId: string) => {
+    setErrors((current) => clearError(clearError(current, `group:${groupId}`), `caption:${groupId}`));
   };
 
   const handleRemovePhoto = (photoId: string) => {
     forgetPhotos([photoId]);
     // 빼면 같은 모음의 이웃 사진을 골라, 이어서 빼거나 고칠 수 있게 한다
     setSelectedPhotoId(findNextSelection(draft, photoId));
-    // 마지막 사진이면 모음도 사라지므로 그 모음의 위치 오류도 지운다
+    // 마지막 사진이면 모음도 사라지므로 그 모음의 위치·한마디 오류도 지운다
     const group = draft.groups.find(({ photos }) => photos.some(({ id }) => id === photoId));
-    if (group?.photos.length === 1) setErrors((current) => clearError(current, `group:${group.id}`));
+    if (group?.photos.length === 1) clearGroupErrors(group.id);
     setDraft((current) => removeGroupPhoto(current, photoId));
   };
 
@@ -286,7 +290,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
     const photoIds = draft.groups.find(({ id }) => id === groupId)?.photos.map(({ id }) => id) ?? [];
     forgetPhotos(photoIds);
     if (selectedPhotoId && photoIds.includes(selectedPhotoId)) setSelectedPhotoId(undefined);
-    setErrors((current) => clearError(current, `group:${groupId}`));
+    clearGroupErrors(groupId);
     setDraft((current) => removePhotoGroup(current, groupId));
   };
 
@@ -324,14 +328,10 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
 
     const nextErrors: DraftErrors = { ...validateDraft(nextDraft, today), ...(tagError && { tags: tagError }) };
     if (Object.keys(nextErrors).length > 0) {
-      // 한마디 칸은 누른 사진 것만 보이므로, 고른 사진에 오류가 없으면 첫 오류 사진을 골라 그 칸을 연다
-      const captionErrorPhotoId = getDraftPhotos(nextDraft.groups).find(({ id }) => nextErrors[`caption:${id}`])?.id;
-      const hasSelectedError = selectedPhotoId !== undefined && nextErrors[`caption:${selectedPhotoId}`] !== undefined;
       // 오류 칸이 그려져야 찾을 수 있어 바로 그린다
       flushSync(() => {
         setErrors(nextErrors);
         setNotice(FIX_FIELDS_NOTICE);
-        if (captionErrorPhotoId && !hasSelectedError) setSelectedPhotoId(captionErrorPhotoId);
       });
       focusFirstInvalidField(form);
       return;
@@ -444,15 +444,12 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
             onMoveGroup: (index, offset) => setDraft((current) => ({ ...current, groups: moveItem(current.groups, index, offset) })),
             onRemovePhoto: handleRemovePhoto,
             onMovePhoto: (photoId, offset) => setDraft((current) => ({ ...current, groups: moveGroupPhoto(current.groups, { photoId, offset }) })),
-            onCaptionChange: (photoId, caption) => {
+            onCaptionChange: (groupId, caption) => {
               setDraft((current) => ({
                 ...current,
-                groups: current.groups.map((group) => ({
-                  ...group,
-                  photos: group.photos.map((photo) => (photo.id === photoId ? { ...photo, caption } : photo)),
-                })),
+                groups: current.groups.map((group) => (group.id === groupId ? { ...group, caption } : group)),
               }));
-              setErrors((current) => clearError(current, `caption:${photoId}`));
+              setErrors((current) => clearError(current, `caption:${groupId}`));
             },
             onCoverChange: (photoId) => setDraft((current) => ({ ...current, coverPhotoId: photoId })),
           }}
