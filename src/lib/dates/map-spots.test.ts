@@ -81,8 +81,24 @@ describe("toPhotoSpots", () => {
     expect(toPhotoSpots(rows)[0]?.photoIds).toEqual(["나중", "먼저"]);
   });
 
-  it("좌표가 없는 사진은 빼고, 이름이 없으면 '찍은 곳'으로 그린다", () => {
-    const rows = [createPhotoRow({ id: "p1", place_lat: null, place_lng: null }), createPhotoRow({ id: "p2", place: null })];
-    expect(toPhotoSpots(rows)).toEqual([expect.objectContaining({ key: "p2", place: "찍은 곳", photoIds: ["p2"] })]);
+  it("모음 하나는 핀 하나로 모여 대표 사진이 모음 첫 사진이고, 다른 기록의 모음도 50m 안이면 한 핀으로 합친다(#299)", () => {
+    // Arrange: 최근 기록의 모음(사진 2장, 같은 위치)과 40m 떨어진 예전 기록의 모음(사진 1장), 멀리 떨어진 모음
+    const older = { date: "2026-03-14", created_at: "2026-03-14T10:00:00+00:00" };
+    const newer = { date: "2026-11-10", created_at: "2026-11-10T10:00:00+00:00" };
+    const rows = [
+      createPhotoRow({ id: "최근 모음 둘째", date_id: "r-new", sort_order: 1, record: newer }),
+      createPhotoRow({ id: "최근 모음 첫째", date_id: "r-new", sort_order: 0, record: newer }),
+      createPhotoRow({ id: "예전 모음", date_id: "r-old", record: older, place_lat: northOf(40) }),
+      createPhotoRow({ id: "먼 모음", date_id: "r-new", sort_order: 2, record: newer, place: "먼 곳", place_lat: northOf(500) }),
+    ];
+
+    // Act
+    const spots = toPhotoSpots(rows);
+
+    // Assert: 핀 숫자는 핀에 모인 사진 수(photoIds 길이)다
+    expect(spots.map(({ key, place, photoIds }) => ({ key, place, photoIds }))).toEqual([
+      { key: "최근 모음 첫째", place: "성동구 성수1가1동", photoIds: ["최근 모음 첫째", "최근 모음 둘째", "예전 모음"] },
+      { key: "먼 모음", place: "먼 곳", photoIds: ["먼 모음"] },
+    ]);
   });
 });

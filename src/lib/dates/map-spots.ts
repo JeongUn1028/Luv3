@@ -3,7 +3,7 @@ import type { PlaceLocation } from "@/lib/places/location";
 /** 이 거리(m) 안의 사진은 같은 자리로 묶는다. 같은 카페 안에서도 사진마다 GPS가 몇 m씩 달라서다(#249) */
 export const PHOTO_SPOT_RADIUS_M = 50;
 
-/** 지도의 사진 핀 하나 = 가까이에서 찍은 사진들(#249) */
+/** 지도의 사진 핀 하나 = 가까운 모음들의 사진(#249, #299). 모음은 위치가 하나라 모음이 핀 사이로 나뉘지 않는다 */
 export interface MapPhotoSpot extends PlaceLocation {
   /** 대표 사진 id. 핀을 다시 그릴지 가를 때도 쓴다 */
   key: string;
@@ -13,19 +13,16 @@ export interface MapPhotoSpot extends PlaceLocation {
   photoIds: string[];
 }
 
-/** `photos` 조회 결과 한 행(좌표가 있는 사진만 읽는다) */
+/** `photos` 조회 결과 한 행. 위치는 사진이 속한 모음의 위치다(#297) */
 export interface MapPhotoRow {
   id: string;
   date_id: string;
   sort_order: number;
-  place: string | null;
-  place_lat: number | null;
-  place_lng: number | null;
+  place: string;
+  place_lat: number;
+  place_lng: number;
   record: { date: string; created_at: string };
 }
-
-/** 이름은 좌표와 함께 저장되지만(DB 검사), 없어도 핀은 그릴 수 있게 대신 쓰는 말. 사진 정보로 채울 때와 같은 말이다 */
-const FALLBACK_PHOTO_PLACE = "찍은 곳";
 
 const EARTH_RADIUS_M = 6_371_000;
 /**
@@ -83,8 +80,9 @@ const findNearbySpot = (spotsByCell: Map<string, MapPhotoSpot[]>, location: Plac
 };
 
 /**
- * 좌표가 있는 사진을 50m 안끼리 한 자리(핀)로 묶는다. 최근 사진부터 보며, 먼저 생긴 자리의 대표 사진 좌표에서 50m 안이면 그 자리에 넣는다.
- * 그래서 대표 사진은 그 자리에서 가장 최근 기록의 첫 사진이고, 핀도 그 사진 좌표에 꽂힌다.
+ * 사진을 50m 안끼리 한 자리(핀)로 묶는다. 최근 사진부터 보며, 먼저 생긴 자리의 대표 사진 좌표에서 50m 안이면 그 자리에 넣는다.
+ * 같은 모음의 사진은 위치가 같아 늘 한 핀에 모이고, 다른 기록의 모음도 50m 안이면 합친다(#299).
+ * 사진 순서는 모음 순서대로 매겨져 있어(#297) 대표 사진은 그 자리에서 가장 최근 기록의 앞 모음 첫 사진이고, 핀도 그 좌표에 꽂힌다.
  *
  * @example toPhotoSpots(rows) // [{ key: "p1", lat: 37.5444, lng: 127.0396, place: "성동구 성수1가1동", photoIds: ["p1", "p2"] }]
  */
@@ -92,14 +90,13 @@ export const toPhotoSpots = (rows: MapPhotoRow[]): MapPhotoSpot[] => {
   const spots: MapPhotoSpot[] = [];
   const spotsByCell = new Map<string, MapPhotoSpot[]>();
   for (const { id, place, place_lat: lat, place_lng: lng } of rows.toSorted(comparePhotosNewestFirst)) {
-    if (lat === null || lng === null) continue;
     const location = { lat, lng };
     const nearbySpot = findNearbySpot(spotsByCell, location);
     if (nearbySpot) {
       nearbySpot.photoIds.push(id);
       continue;
     }
-    const spot = { key: id, lat, lng, place: place ?? FALLBACK_PHOTO_PLACE, photoIds: [id] };
+    const spot = { key: id, lat, lng, place, photoIds: [id] };
     spots.push(spot);
     const cellKey = toCell(location).join(",");
     spotsByCell.set(cellKey, [...(spotsByCell.get(cellKey) ?? []), spot]);
