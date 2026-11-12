@@ -64,11 +64,11 @@ select results_eq(
 );
 
 select results_eq(
-  $$select date, title, place, memo, cover_photo_id, author_id from public.dates
+  $$select date, title, memo, cover_photo_id, author_id from public.dates
     where id = '10000000-0000-0000-0000-000000000001'$$,
-  $$values ('2026-10-31'::date, '첫 데이트(고침)', null::text, '다시 정리',
+  $$values ('2026-10-31'::date, '첫 데이트(고침)', '다시 정리',
             '20000000-0000-0000-0000-000000000004'::uuid, '00000000-0000-0000-0000-00000000000a'::uuid)$$,
-  '기록 글·대표 사진이 바뀌고, 빈 장소는 null, 작성자는 그대로다'
+  '기록 글·대표 사진이 바뀌고, 작성자는 그대로다'
 );
 
 select results_eq(

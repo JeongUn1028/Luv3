@@ -47,14 +47,14 @@ isOneToOne: false
                   ]
                 },"dates": {
                   Row: {
-                    "author_id": string,"cover_photo_id": string | null,"created_at": string,"date": string,"end_date": string | null,"event_date": string | null,"event_id": string | null,"id": string,"memo": string | null,"place": string | null,"place_lat": number | null,"place_lng": number | null,"revision": string,"tags": (string)[],"title": string
+                    "author_id": string,"cover_photo_id": string | null,"created_at": string,"date": string,"end_date": string | null,"event_date": string | null,"event_id": string | null,"id": string,"memo": string | null,"revision": string,"tags": (string)[],"title": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string,"cover_photo_id"?: string | null,"created_at"?: string,"date": string,"end_date"?: string | null,"event_date"?: string | null,"event_id"?: string | null,"id"?: string,"memo"?: string | null,"place"?: string | null,"place_lat"?: number | null,"place_lng"?: number | null,"revision"?: string,"tags"?: (string)[],"title": string
+                    "author_id"?: string,"cover_photo_id"?: string | null,"created_at"?: string,"date": string,"end_date"?: string | null,"event_date"?: string | null,"event_id"?: string | null,"id"?: string,"memo"?: string | null,"revision"?: string,"tags"?: (string)[],"title": string
                   }
                   Update: {
-                    "author_id"?: string,"cover_photo_id"?: string | null,"created_at"?: string,"date"?: string,"end_date"?: string | null,"event_date"?: string | null,"event_id"?: string | null,"id"?: string,"memo"?: string | null,"place"?: string | null,"place_lat"?: number | null,"place_lng"?: number | null,"revision"?: string,"tags"?: (string)[],"title"?: string
+                    "author_id"?: string,"cover_photo_id"?: string | null,"created_at"?: string,"date"?: string,"end_date"?: string | null,"event_date"?: string | null,"event_id"?: string | null,"id"?: string,"memo"?: string | null,"revision"?: string,"tags"?: (string)[],"title"?: string
                   }
                   Relationships: [
                     {
@@ -220,7 +220,7 @@ isOneToOne: false
                            },
 "search_date_records":
 { Args: { "p_before_created_at"?: string,"p_before_date"?: string,"p_before_id"?: string,"p_limit"?: number,"p_tag"?: string,"p_words"?: (string)[] }; Returns: {
-              "created_at": string,"date": string,"end_date": string,"id": string,"place": string,"tags": (string)[],"thumb_path": string,"title": string,"total_count": number
+              "created_at": string,"date": string,"end_date": string,"id": string,"tags": (string)[],"thumb_path": string,"title": string,"total_count": number
             }[]
                            },
 "set_couple_photo":
