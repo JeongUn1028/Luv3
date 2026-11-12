@@ -188,7 +188,8 @@ test.describe("내용 스크롤 영역", () => {
     // Assert
     expect(await page.evaluate(() => window.scrollY)).toBe(0);
     expect((await header.boundingBox())?.y).toBe(headerTop);
-    expect(await getSaveButtonBottom(page)).toBeLessThanOrEqual((viewport?.height ?? 0) - safeArea.bottom);
+    // 칸 이름 줄(19.5px)처럼 내용 높이에 소수점이 있으면, 스크롤은 정수 픽셀에서 멈춰 끝까지 내려도 1px 안쪽이 덜 올라온다(#317)
+    expect(await getSaveButtonBottom(page)).toBeLessThan((viewport?.height ?? 0) - safeArea.bottom + 1);
   });
 
   test("기록 작성에서 사진을 고르면 정리 글 칸이 4줄 높이를 유지한다", async ({ page }) => {

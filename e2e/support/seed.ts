@@ -34,13 +34,19 @@ const SEED_GROUP_LOCATION: PhotoGroupLocation = { place: "E2E 기본 위치", la
 /** 기록에 사진 모음을 하나 만들고 id를 돌려준다 */
 const insertPhotoGroup = async (
   admin: AdminClient,
-  { recordId, sortOrder, location, caption }: { recordId: string; sortOrder: number; location: PhotoGroupLocation; caption?: string | undefined },
+  {
+    recordId,
+    sortOrder,
+    location,
+    caption,
+    placeName,
+  }: { recordId: string; sortOrder: number; location: PhotoGroupLocation; caption?: string | undefined; placeName?: string | undefined },
 ): Promise<string> => {
   const id = randomUUID();
   assertNoError(
     await admin
       .from("photo_groups")
-      .insert({ id, date_id: recordId, sort_order: sortOrder, place: location.place, place_lat: location.lat, place_lng: location.lng, caption }),
+      .insert({ id, date_id: recordId, sort_order: sortOrder, place: location.place, place_lat: location.lat, place_lng: location.lng, caption, place_name: placeName }),
     "사진 모음",
   );
   return id;
@@ -164,7 +170,7 @@ export const setRecordPhotoLocation = async (recordId: string, { place, lat, lng
 /**
  * `createDisposableRecord`로 만든 기록에 사진을 한 장 더 붙인다. 파일은 기록 폴더에 올려 기록을 지울 때 함께 지워진다.
  * 위치를 주면 그 위치의 모음을 새로 만들어 넣고, 주지 않으면 첫 모음에 넣는다(위치는 모음마다 하나다, #297).
- * `groupCaption`은 사진이 들어간 모음의 한마디다(한마디는 모음마다 하나다, #309).
+ * `groupCaption`은 사진이 들어간 모음의 한마디다(한마디는 모음마다 하나다, #309). `groupPlaceName`은 새로 만드는 모음의 장소 이름이다(#317).
  *
  * @example const photoId = await addRecordPhoto(id, { sortOrder: 1, groupCaption: "창가 자리", location: FOREST })
  */
@@ -173,16 +179,17 @@ export const addRecordPhoto = async (
   {
     sortOrder,
     groupCaption,
+    groupPlaceName,
     location,
     takenAt,
-  }: { sortOrder: number; groupCaption?: string; location?: { place: string; lat: number; lng: number }; takenAt?: string },
+  }: { sortOrder: number; groupCaption?: string; groupPlaceName?: string; location?: { place: string; lat: number; lng: number }; takenAt?: string },
 ): Promise<string> => {
   const admin = createAdminClient();
   const path = `${recordId}/${randomUUID()}.jpg`;
   await uploadPhoto(admin, path);
   const id = randomUUID();
   const groupId = location
-    ? await insertPhotoGroup(admin, { recordId, sortOrder, location, caption: groupCaption })
+    ? await insertPhotoGroup(admin, { recordId, sortOrder, location, caption: groupCaption, placeName: groupPlaceName })
     : await getFirstGroupId(admin, recordId);
   if (!location && groupCaption !== undefined) {
     assertNoError(await admin.from("photo_groups").update({ caption: groupCaption }).eq("id", groupId), "첫 모음 한마디");
@@ -276,6 +283,17 @@ export const getRecordGroupCaptions = async (recordId: string): Promise<(string 
   const { data, error } = await createAdminClient().from("photo_groups").select("caption").eq("date_id", recordId).order("sort_order");
   if (error) throw new Error(`모음 한마디 읽기 실패: ${error.message}`);
   return data.map(({ caption }) => caption);
+};
+
+/**
+ * 기록의 모음 장소 이름을 모음 순서대로 읽는다(#317). 이름이 없는 모음은 null이다.
+ *
+ * @example expect(await getRecordGroupPlaceNames(id)).toEqual(["골목 끝 카페", null])
+ */
+export const getRecordGroupPlaceNames = async (recordId: string): Promise<(string | null)[]> => {
+  const { data, error } = await createAdminClient().from("photo_groups").select("place_name").eq("date_id", recordId).order("sort_order");
+  if (error) throw new Error(`모음 장소 이름 읽기 실패: ${error.message}`);
+  return data.map(({ place_name: placeName }) => placeName);
 };
 
 /**

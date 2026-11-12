@@ -24,6 +24,7 @@ const group = (photos: DateRecordDraft["groups"][number]["photos"]): DateRecordD
   location: ONION,
   locationSource: "saved",
   pendingLocationPhotoId: undefined,
+  placeName: "",
   caption: "",
   photos,
 });
@@ -268,6 +269,7 @@ describe("updateDateRecord", () => {
           {
             id: GROUP_ID,
             location: ONION,
+            place_name: "",
             caption: "새 사진과 카페",
             photos: [{ id: PHOTO_C }, { id: PHOTO_A }],
           },

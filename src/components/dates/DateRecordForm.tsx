@@ -94,11 +94,12 @@ const toEditDraft = ({ revision, date, endDate, title, memo, coverPhotoId, tags,
   memo,
   coverPhotoId,
   tags,
-  groups: groups.map(({ id, location, caption, photos }) => ({
+  groups: groups.map(({ id, location, placeName, caption, photos }) => ({
     id,
     location,
     locationSource: "saved",
     pendingLocationPhotoId: undefined,
+    placeName,
     caption,
     photos: photos.map((photo) => ({ ...photo, file: undefined, isReadingInfo: false })),
   })),
@@ -271,9 +272,9 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
     });
   };
 
-  /** 빠지는 모음의 위치·한마디 오류를 지운다 */
+  /** 빠지는 모음의 위치·장소 이름·한마디 오류를 지운다 */
   const clearGroupErrors = (groupId: string) => {
-    setErrors((current) => clearError(clearError(current, `group:${groupId}`), `caption:${groupId}`));
+    setErrors((current) => clearError(clearError(clearError(current, `group:${groupId}`), `placeName:${groupId}`), `caption:${groupId}`));
   };
 
   const handleRemovePhoto = (photoId: string) => {
@@ -450,6 +451,13 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
                 groups: current.groups.map((group) => (group.id === groupId ? { ...group, caption } : group)),
               }));
               setErrors((current) => clearError(current, `caption:${groupId}`));
+            },
+            onPlaceNameChange: (groupId, placeName) => {
+              setDraft((current) => ({
+                ...current,
+                groups: current.groups.map((group) => (group.id === groupId ? { ...group, placeName } : group)),
+              }));
+              setErrors((current) => clearError(current, `placeName:${groupId}`));
             },
             onCoverChange: (photoId) => setDraft((current) => ({ ...current, coverPhotoId: photoId })),
           }}

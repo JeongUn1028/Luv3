@@ -31,6 +31,7 @@ const group = (id: string, photos: TestPhoto[], location: PhotoLocation = SEONGS
   location,
   locationSource: "saved",
   pendingLocationPhotoId: undefined,
+  placeName: "",
   caption: "",
   photos,
 });
@@ -62,7 +63,7 @@ describe("addPhotoGroup", () => {
 
     // Assert
     expect(result.draft.groups).toEqual([
-      { id: "g1", location: undefined, locationSource: undefined, pendingLocationPhotoId: "a", caption: "", photos: [reading("a"), reading("b")] },
+      { id: "g1", location: undefined, locationSource: undefined, pendingLocationPhotoId: "a", placeName: "", caption: "", photos: [reading("a"), reading("b")] },
     ]);
     expect(result.draft.coverPhotoId).toBe("a");
     expect(result.droppedCount).toBe(0);
