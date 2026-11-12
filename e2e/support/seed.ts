@@ -378,6 +378,16 @@ export const deleteRecordWithFiles = async (id: string): Promise<void> => {
 };
 
 /**
+ * 상대가 앱에서 기록을 지운 것처럼 기록 행만 지운다. 사진은 트리거가 휴지통(#311)에 남기고 파일은 그대로 둔다.
+ * 파일과 휴지통 행은 테스트 끝에 `deleteRecordWithFiles`로 지운다.
+ *
+ * @example await moveRecordToTrash(id)
+ */
+export const moveRecordToTrash = async (id: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("dates").delete().eq("id", id), "기록을 휴지통으로");
+};
+
+/**
  * 기록을 지우거나 사진을 뺄 때 휴지통에 남은 사진 id 목록(#311).
  *
  * @example expect(await listTrashedPhotoIds(id)).toHaveLength(1)

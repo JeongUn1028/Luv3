@@ -7,7 +7,7 @@ import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
 import { getCurrentMember } from "@/lib/auth/member";
-import { HOME_PATH, SETTINGS_NICKNAME_PATH, SETTINGS_PASSWORD_PATH } from "@/lib/auth/paths";
+import { HOME_PATH, SETTINGS_NICKNAME_PATH, SETTINGS_PASSWORD_PATH, SETTINGS_TRASH_PATH } from "@/lib/auth/paths";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { ADMDONG_SOURCE } from "@/lib/places/admdong";
 
@@ -43,6 +43,23 @@ const MemberSection = async () => {
     </section>
   );
 };
+
+/** 지운 사진을 30일 동안 보고 휴대폰에 저장하는 휴지통(#311). 세션 없이 그릴 수 있어 Suspense 밖에 둔다 */
+const PhotoSection = () => (
+  <section aria-labelledby="settings-photos" className="mt-8 flex flex-col">
+    <h2 id="settings-photos" className="text-[13px] text-ink-sub">
+      사진
+    </h2>
+    <Link
+      href={SETTINGS_TRASH_PATH}
+      transitionTypes={FORWARD_TRANSITION}
+      className="press-wide mt-2 flex h-[51px] items-center justify-between rounded-[10px] bg-surface pr-3 pl-4 text-[15px] text-ink"
+    >
+      휴지통
+      <ChevronRightIcon className="size-[18px] text-ink-sub" />
+    </Link>
+  </section>
+);
 
 const linkClassName = "underline underline-offset-2";
 
@@ -86,6 +103,7 @@ const SettingsPage = () => (
       >
         <MemberSection />
       </LoadingSuspense>
+      <PhotoSection />
       <DataSourceSection />
     </div>
   </PageShell>

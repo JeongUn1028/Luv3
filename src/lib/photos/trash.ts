@@ -18,3 +18,15 @@ export const isTrashExpired = ({ deletedAt, now }: TrashAgeParams): boolean => {
   const deletedTime = Date.parse(deletedAt);
   return !Number.isNaN(deletedTime) && now.getTime() - deletedTime >= TRASH_RETENTION_DAYS * DAY_MS;
 };
+
+/**
+ * 보관 기간 중 남은 날(휴지통 화면). 하루가 덜 남아도 하루로 세어, `isTrashExpired`가 false인 사진은 1일 이상이고 true인 사진만 0이다.
+ * 지운 시각을 읽을 수 없으면 `isTrashExpired`처럼 지우지 않는 쪽으로 보아 30일이다.
+ *
+ * @example countTrashDaysLeft({ deletedAt: "2026-11-11T05:00:00Z", now: new Date("2026-11-12T06:00:00Z") }) // 29
+ */
+export const countTrashDaysLeft = ({ deletedAt, now }: TrashAgeParams): number => {
+  const deletedTime = Date.parse(deletedAt);
+  if (Number.isNaN(deletedTime)) return TRASH_RETENTION_DAYS;
+  return Math.max(0, Math.ceil((deletedTime + TRASH_RETENTION_DAYS * DAY_MS - now.getTime()) / DAY_MS));
+};

@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(17);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@trash.test', 'authenticated', 'authenticated'),
@@ -50,9 +50,15 @@ select ok(
   '지운 시각을 남긴다'
 );
 
--- 회원은 휴지통을 직접 읽거나 고칠 수 없다(되살리기 화면은 다음 PR에서 읽기만 연다)
+-- 회원은 휴지통을 읽을 수만 있고(휴지통 화면) 직접 고칠 수는 없다
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+
+select results_eq(
+  $$select photo_id, record_title from public.photo_trash where date_id = '10000000-0000-0000-0000-000000000001'$$,
+  $$values ('20000000-0000-0000-0000-000000000002'::uuid, '성수 산책')$$,
+  '회원은 휴지통 사진과 기록 제목을 읽을 수 있다'
+);
 
 select throws_ok(
   $$insert into public.photo_trash (photo_id, date_id, path, thumb_path, deleted_with_record)
@@ -159,6 +165,22 @@ select ok(
 select ok(
   not has_table_privilege('authenticated', 'public.photo_trash', 'insert, update, delete'),
   '회원에게는 휴지통 쓰기 권한이 없다'
+);
+
+-- 허용목록 밖 계정은 휴지통을 읽어도 아무것도 보이지 않는다
+insert into auth.users (id, email, aud, role) values
+  ('00000000-0000-0000-0000-0000000000ff', 'outsider@trash.test', 'authenticated', 'authenticated');
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000000ff","role":"authenticated"}', true);
+select is_empty(
+  $$select 1 from public.photo_trash where date_id = '10000000-0000-0000-0000-000000000001'$$,
+  '회원이 아닌 계정은 휴지통을 읽을 수 없다'
+);
+reset role;
+
+select ok(
+  not has_table_privilege('anon', 'public.photo_trash', 'select'),
+  '로그인하지 않은 쪽은 휴지통을 읽을 권한이 없다'
 );
 
 select * from finish();
