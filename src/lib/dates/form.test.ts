@@ -1,35 +1,45 @@
 import { describe, expect, it } from "vitest";
 import {
-  MAX_PHOTOS,
-  addPhotos,
   addTag,
   getMinEndDate,
   hasRecordDraftChanges,
   isSameExceptReadingPhotoInfo,
   isSamePhotoLocation,
-  movePhoto,
   normalizeTag,
   parseRecordPrefill,
   pickTagSuggestions,
-  removePhoto,
-  setPhotoLocation,
   toCreateRecordArgs,
   validateDraft,
   type DateRecordDraft,
+  type DraftPhoto,
+  type DraftPhotoGroup,
   type PhotoLocation,
 } from "./form";
 
-const ONION: PhotoLocation = { place: "어니언 성수", lat: 37.5447, lng: 127.0582 };
-const FOREST: PhotoLocation = { place: "서울숲", lat: 37.5444, lng: 127.0374 };
+const ONION: PhotoLocation = { place: "성동구 성수2가1동", lat: 37.5447, lng: 127.0582 };
+const FOREST: PhotoLocation = { place: "성동구 성수1가1동", lat: 37.5444, lng: 127.0374 };
 
 const TODAY = "2026-11-02";
-const photo = (id: string, caption = "", location: PhotoLocation | undefined = undefined) => ({ id, caption, location });
+const photo = (id: string, caption = ""): DraftPhoto => ({ id, caption });
+const group = <Photo extends DraftPhoto>(id: string, photos: Photo[], location: PhotoLocation = ONION): DraftPhotoGroup<Photo> => ({
+  id,
+  location,
+  locationSource: "saved",
+  pendingLocationPhotoId: undefined,
+  photos,
+});
+/** 첫 사진에 위치가 없어 아직 위치를 고르지 않은 모음 */
+const unlocatedGroup = <Photo extends DraftPhoto>(id: string, photos: Photo[]): DraftPhotoGroup<Photo> => ({
+  ...group(id, photos),
+  location: undefined,
+  locationSource: undefined,
+});
 const draft = (overrides: Partial<DateRecordDraft> = {}): DateRecordDraft => ({
   date: "2026-11-01",
   endDate: undefined,
   title: "첫 데이트",
   memo: "",
-  photos: [photo("p1", "", ONION)],
+  groups: [group("g1", [photo("p1")])],
   coverPhotoId: "p1",
   tags: [],
   ...overrides,
@@ -51,11 +61,15 @@ describe("validateDraft", () => {
     expect(validateDraft(draft(), TODAY)).toEqual({});
   });
 
-  it("위치가 있는 사진이 하나도 없으면 사진 칸에 알려 준다(모음마다 위치가 필요하다)", () => {
-    expect(validateDraft(draft({ photos: [photo("a"), photo("b")], coverPhotoId: "a" }), TODAY).photos).toBe(
-      "위치가 있는 사진이 한 장 이상 있어야 저장할 수 있어요.",
-    );
-    expect(validateDraft(draft({ photos: [photo("a"), photo("b", "", ONION)], coverPhotoId: "a" }), TODAY).photos).toBeUndefined();
+  it("위치가 없는 모음이 있으면 그 모음에 알려 준다(모음마다 위치가 필요하다)", () => {
+    // Arrange
+    const groups = [group("g1", [photo("a")]), unlocatedGroup("g2", [photo("b")])];
+
+    // Act
+    const errors = validateDraft(draft({ groups, coverPhotoId: "a" }), TODAY);
+
+    // Assert
+    expect(errors).toEqual({ "group:g2": "위치를 골라야 저장할 수 있어요." });
   });
 
   it("기간을 켜고 끝 날짜를 고르지 않았거나 없는 날이면 알려 준다", () => {
@@ -86,7 +100,7 @@ describe("validateDraft", () => {
       draft({
         title: "가".repeat(101),
         memo: "가".repeat(10_001),
-        photos: [photo("p1", "가".repeat(101))],
+        groups: [group("g1", [photo("p1", "가".repeat(101))])],
       }),
       TODAY,
     );
@@ -105,70 +119,9 @@ describe("validateDraft", () => {
   });
 
   it("사진이 없으면 알려 준다", () => {
-    expect(validateDraft(draft({ photos: [], coverPhotoId: undefined }), TODAY).photos).toBe(
+    expect(validateDraft(draft({ groups: [], coverPhotoId: undefined }), TODAY).photos).toBe(
       "사진을 한 장 이상 골라 주세요.",
     );
-  });
-});
-
-describe("addPhotos", () => {
-  it("고른 사진을 뒤에 붙이고, 대표 사진이 없으면 첫 사진을 대표로 정한다", () => {
-    const result = addPhotos(draft({ photos: [], coverPhotoId: undefined }), [photo("a"), photo("b")]);
-    expect(result.draft.photos.map(({ id }) => id)).toEqual(["a", "b"]);
-    expect(result.draft.coverPhotoId).toBe("a");
-    expect(result.droppedCount).toBe(0);
-  });
-
-  it("10장을 넘는 사진은 버리고 몇 장을 버렸는지 알려 준다", () => {
-    const many = Array.from({ length: 12 }, (_, index) => photo(`n${index}`));
-    const result = addPhotos(draft(), many);
-    expect(result.draft.photos).toHaveLength(MAX_PHOTOS);
-    expect(result.droppedCount).toBe(3);
-    expect(result.draft.coverPhotoId).toBe("p1");
-  });
-});
-
-describe("removePhoto", () => {
-  it("대표 사진을 지우면 남은 첫 사진이 대표가 된다", () => {
-    const result = removePhoto(draft({ photos: [photo("a"), photo("b")], coverPhotoId: "a" }), "a");
-    expect(result.photos.map(({ id }) => id)).toEqual(["b"]);
-    expect(result.coverPhotoId).toBe("b");
-  });
-
-  it("마지막 사진을 지우면 대표 사진도 비운다", () => {
-    expect(removePhoto(draft(), "p1").coverPhotoId).toBeUndefined();
-  });
-});
-
-describe("movePhoto", () => {
-  it("사진 순서를 앞뒤로 바꾼다", () => {
-    const photos = [photo("a"), photo("b"), photo("c")];
-    expect(movePhoto(photos, 2, -1).map(({ id }) => id)).toEqual(["a", "c", "b"]);
-    expect(movePhoto(photos, 0, 1).map(({ id }) => id)).toEqual(["b", "a", "c"]);
-  });
-
-  it("맨 앞·맨 뒤를 넘어가면 그대로 둔다", () => {
-    const photos = [photo("a"), photo("b")];
-    expect(movePhoto(photos, 0, -1)).toEqual(photos);
-    expect(movePhoto(photos, 1, 1)).toEqual(photos);
-  });
-});
-
-describe("setPhotoLocation", () => {
-  it("고른 사진의 위치만 바꾸고 나머지 사진은 그대로 둔다", () => {
-    // Arrange
-    const photos = [photo("a", "", ONION), photo("b")];
-
-    // Act
-    const changed = setPhotoLocation(photos, "b", FOREST);
-
-    // Assert
-    expect(changed.map(({ location }) => location)).toEqual([ONION, FOREST]);
-    expect(changed[0]).toBe(photos[0]);
-  });
-
-  it("undefined를 넘기면 그 사진의 위치를 지운다", () => {
-    expect(setPhotoLocation([photo("a", "", ONION)], "a", undefined)[0]?.location).toBeUndefined();
   });
 });
 
@@ -193,7 +146,7 @@ describe("toCreateRecordArgs", () => {
       draft({
         title: " 첫 데이트 ",
         memo: "좋았다",
-        photos: [photo("a", " 카페 ", ONION), photo("b")],
+        groups: [group("g1", [photo("a", " 카페 "), photo("b")])],
         coverPhotoId: "b",
       }),
     );
@@ -204,7 +157,7 @@ describe("toCreateRecordArgs", () => {
       p_memo: "좋았다",
       p_groups: [
         {
-          id: "r1",
+          id: "g1",
           location: ONION,
           photos: [
             { id: "a", caption: "카페" },
@@ -217,42 +170,45 @@ describe("toCreateRecordArgs", () => {
     });
   });
 
-  it("사진 전체를 모음 하나로 묶고, 모음 위치는 위치가 있는 첫 사진의 이름·좌표로 넘긴다", () => {
+  it("모음을 화면 순서대로 모음마다의 위치·사진과 함께 넘기고, 화면에만 쓰는 값은 넘기지 않는다", () => {
     // Arrange
-    const withPreview = { ...photo("b", "", ONION), previewUrl: "blob:b" };
+    const withPreview = { ...photo("b"), previewUrl: "blob:b", isReadingInfo: false };
+    const groups = [group("g2", [photo("c")], FOREST), group("g1", [photo("a"), withPreview], { ...ONION, place: " 성수 " })];
 
     // Act
-    const args = toCreateRecordArgs("r1", draft({ photos: [photo("a"), withPreview, photo("c", "", FOREST)], coverPhotoId: "a" }));
+    const args = toCreateRecordArgs("r1", draft({ groups, coverPhotoId: "a" }));
 
     // Assert
     expect(args.p_groups).toEqual([
+      { id: "g2", location: FOREST, photos: [{ id: "c", caption: "" }] },
       {
-        id: "r1",
-        location: ONION,
+        id: "g1",
+        location: { ...ONION, place: " 성수 " },
         photos: [
           { id: "a", caption: "" },
           { id: "b", caption: "" },
-          { id: "c", caption: "" },
         ],
       },
     ]);
   });
 
-  it("위치가 있는 사진이 없으면 저장 인자를 만들지 않는다(검사를 거치지 않은 코드 실수)", () => {
-    expect(() => toCreateRecordArgs("r1", draft({ photos: [photo("a")], coverPhotoId: "a" }))).toThrow("위치가 있는 사진이 없습니다");
+  it("위치가 없는 모음이 있으면 저장 인자를 만들지 않는다(검사를 거치지 않은 코드 실수)", () => {
+    expect(() => toCreateRecordArgs("r1", draft({ groups: [unlocatedGroup("g1", [photo("a")])], coverPhotoId: "a" }))).toThrow(
+      "위치가 없는 모음입니다: g1",
+    );
   });
 
-  it("사진에서 읽은 찍은 시각은 있는 사진만 넘긴다", () => {
+  it("찍은 시각은 있는 사진만 넘긴다", () => {
     // Arrange
-    const taken = { ...photo("a", "", ONION), takenAt: "2026-11-10T14:03:22+09:00" };
+    const taken = { ...photo("a"), takenAt: "2026-11-10T14:03:22+09:00" };
 
     // Act
-    const args = toCreateRecordArgs("r1", draft({ photos: [taken, photo("b")], coverPhotoId: "a" }));
+    const args = toCreateRecordArgs("r1", draft({ groups: [group("g1", [taken, photo("b")])], coverPhotoId: "a" }));
 
     // Assert
     expect(args.p_groups).toEqual([
       {
-        id: "r1",
+        id: "g1",
         location: ONION,
         photos: [
           { id: "a", caption: "", taken_at: "2026-11-10T14:03:22+09:00" },
@@ -395,53 +351,56 @@ describe("pickTagSuggestions", () => {
 });
 
 describe("hasRecordDraftChanges", () => {
-  it("쓴 내용(칸·사진·사진 한마디·태그·사진 위치)이 처음과 다르면 바뀌었다고 본다", () => {
+  it("쓴 내용(칸·모음·사진·사진 한마디·태그·모음 위치)이 처음과 다르면 바뀌었다고 본다", () => {
     const initial = draft();
 
     expect([
       hasRecordDraftChanges(initial, draft({ title: "두 번째 데이트" })),
-      hasRecordDraftChanges(initial, draft({ photos: [photo("p1"), photo("p2")] })),
-      hasRecordDraftChanges(initial, draft({ photos: [photo("p1", "카페")] })),
+      hasRecordDraftChanges(initial, draft({ groups: [group("g1", [photo("p1"), photo("p2")])] })),
+      hasRecordDraftChanges(initial, draft({ groups: [group("g1", [photo("p1")]), group("g2", [photo("p2")])] })),
+      hasRecordDraftChanges(initial, draft({ groups: [group("g1", [photo("p1", "카페")])] })),
       hasRecordDraftChanges(initial, draft({ tags: ["산책"] })),
-      hasRecordDraftChanges(initial, draft({ photos: [photo("p1", "", FOREST)] })),
-    ]).toEqual([true, true, true, true, true]);
+      hasRecordDraftChanges(initial, draft({ groups: [group("g1", [photo("p1")], FOREST)] })),
+    ]).toEqual([true, true, true, true, true, true]);
   });
 
-  // 저장 시도에 쓰는 판 번호와, 다시 연 폼에서 새로 만드는 미리보기 주소는 쓴 내용이 아니다
-  it("판 번호나 사진 미리보기 주소만 다르면 바뀌지 않았다고 본다", () => {
-    const initial = { ...draft(), photos: [{ ...photo("p1"), previewUrl: "blob:a" }] };
-    const current = { ...draft({ expectedRevisions: ["r1", "r2"], nextRevision: "r3", hasConflict: true }), photos: [{ ...photo("p1"), previewUrl: "blob:b" }] };
+  // 저장 시도에 쓰는 판 번호와, 다시 연 폼에서 새로 만드는 미리보기 주소, 위치를 정한 곳은 쓴 내용이 아니다
+  it("판 번호나 사진 미리보기 주소, 위치를 정한 곳만 다르면 바뀌지 않았다고 본다", () => {
+    const initial = { ...draft(), groups: [group("g1", [{ ...photo("p1"), previewUrl: "blob:a" }])] };
+    const current = {
+      ...draft({ expectedRevisions: ["r1", "r2"], nextRevision: "r3", hasConflict: true }),
+      groups: [{ ...group("g1", [{ ...photo("p1"), previewUrl: "blob:b" }]), locationSource: "picked" as const }],
+    };
 
     expect(hasRecordDraftChanges(initial, current)).toBe(false);
   });
 });
 
 describe("isSameExceptReadingPhotoInfo", () => {
-  const reading = (id: string, location: PhotoLocation | undefined = undefined, takenAt: string | undefined = undefined) => ({
-    ...photo(id, "", location),
-    takenAt,
-    isReadingInfo: location === undefined && takenAt === undefined,
+  const reading = (id: string, takenAt: string | undefined = undefined) => ({ ...photo(id), takenAt, isReadingInfo: takenAt === undefined });
+  type ReadingPhoto = ReturnType<typeof reading>;
+  const pending = (id: string, photos: ReadingPhoto[]): DraftPhotoGroup<ReadingPhoto> => ({
+    ...unlocatedGroup(id, photos),
+    pendingLocationPhotoId: photos[0]?.id,
   });
-  const withPhotos = (photos: ReturnType<typeof reading>[]): DateRecordDraft<ReturnType<typeof reading>> => ({ ...draft(), photos });
+  const withGroups = (groups: DraftPhotoGroup<ReadingPhoto>[]): DateRecordDraft<ReadingPhoto> => ({ ...draft(), groups });
 
   // 나가기를 고른 뒤 늦게 온 사진 정보가 #284의 되돌리기를 막지 않게 한다
-  it("읽는 중이던 사진에 찍은 곳·찍은 시각만 채워졌으면 같다고 본다", () => {
+  it("읽는 중이던 모음에 위치가 채워지고 찍은 시각 자리로 옮겨진 것뿐이면 같다고 본다", () => {
     // Arrange
-    const discarded = withPhotos([reading("p1"), { ...reading("p2", ONION), isReadingInfo: false }]);
-    const current = withPhotos([
-      { ...reading("p1", FOREST, "2026-11-10T14:03:22+09:00"), isReadingInfo: false },
-      { ...reading("p2", ONION), isReadingInfo: false },
-    ]);
+    const done = group("g2", [reading("p2", "2026-11-10T15:00:00+09:00")]);
+    const discarded = withGroups([done, pending("g1", [reading("p1")])]);
+    const current = withGroups([{ ...group("g1", [reading("p1", "2026-11-10T14:00:00+09:00")], FOREST), locationSource: "photo" }, done]);
 
     // Act & Assert
     expect(isSameExceptReadingPhotoInfo(discarded, current)).toBe(true);
   });
 
-  it("다른 칸이나 다 읽은 사진의 위치가 바뀌었으면 다르다고 본다", () => {
+  it("다른 칸이나 다 읽은 모음의 위치가 바뀌었으면 다르다고 본다", () => {
     // Arrange
-    const discarded = withPhotos([reading("p1"), { ...reading("p2", ONION), isReadingInfo: false }]);
+    const discarded = withGroups([pending("g1", [reading("p1")]), group("g2", [reading("p2", "2026-11-10T15:00:00+09:00")])]);
     const titleChanged = { ...discarded, title: "두 번째 데이트" };
-    const readLocationChanged = withPhotos([reading("p1"), { ...reading("p2", FOREST), isReadingInfo: false }]);
+    const readLocationChanged = withGroups([pending("g1", [reading("p1")]), group("g2", [reading("p2", "2026-11-10T15:00:00+09:00")], FOREST)]);
 
     // Act & Assert
     expect([isSameExceptReadingPhotoInfo(discarded, titleChanged), isSameExceptReadingPhotoInfo(discarded, readLocationChanged)]).toEqual([false, false]);

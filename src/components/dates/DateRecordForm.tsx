@@ -13,19 +13,28 @@ import { RECORDS_PATH } from "@/lib/dates/album";
 import {
   MEMO_MAX_LENGTH,
   TITLE_MAX_LENGTH,
-  addPhotos,
   addTag,
   getMinEndDate,
   hasRecordDraftChanges,
   isSameExceptReadingPhotoInfo,
-  movePhoto,
-  removePhoto,
-  setPhotoLocation,
   validateDraft,
   type DateRecordDraft,
   type DraftErrors,
+  type PhotoLocation,
   type RecordPrefill,
 } from "@/lib/dates/form";
+import {
+  MAX_GROUP_PHOTOS,
+  addPhotoGroup,
+  addPhotosToGroup,
+  applyPhotoInfo,
+  getDraftPhotos,
+  moveGroupPhoto,
+  moveItem,
+  removeGroupPhoto,
+  removePhotoGroup,
+  setGroupLocation,
+} from "@/lib/dates/photo-group-draft";
 import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
 import { clearError, countChars, FIX_FIELDS_NOTICE, isResolvedFieldNotice } from "@/lib/form";
 import { subscribeToAppReturn } from "@/lib/navigation/app-return";
@@ -51,7 +60,8 @@ import { readPhotoInfo } from "@/lib/photos/photo-info";
 import { usePreviewUrls } from "@/lib/photos/preview-urls";
 import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
 import { createClient } from "@/lib/supabase/client";
-import { PhotoPicker, type PickedPhoto } from "./PhotoPicker";
+import type { PickedPhoto } from "./PhotoGroupCard";
+import { PhotoGroupsField } from "./PhotoGroupsField";
 import { TagField } from "./TagField";
 
 const toProgressLabel = ({ step, done, total }: SaveProgress): string => {
@@ -71,12 +81,12 @@ const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto>
   title: prefill?.title ?? "",
   memo: prefill?.memo ?? "",
   eventLink: prefill?.eventLink,
-  photos: [],
+  groups: [],
   coverPhotoId: undefined,
   tags: [],
 });
 
-const toEditDraft = ({ revision, date, endDate, title, memo, coverPhotoId, tags, photos }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
+const toEditDraft = ({ revision, date, endDate, title, memo, coverPhotoId, tags, groups }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
   expectedRevisions: [revision],
   date,
   endDate,
@@ -84,7 +94,13 @@ const toEditDraft = ({ revision, date, endDate, title, memo, coverPhotoId, tags,
   memo,
   coverPhotoId,
   tags,
-  photos: photos.map((photo) => ({ ...photo, file: undefined, isReadingInfo: false })),
+  groups: groups.map(({ id, location, photos }) => ({
+    id,
+    location,
+    locationSource: location && "saved",
+    pendingLocationPhotoId: undefined,
+    photos: photos.map((photo) => ({ ...photo, file: undefined, isReadingInfo: false })),
+  })),
 });
 
 type RecordDraft = DateRecordDraft<PickedPhoto>;
@@ -94,8 +110,27 @@ const failedSaves = new Map<string, FailedSave<RecordDraft>>();
 /** 예전 폼의 미리보기는 숨겨질 때 해제됐으므로 파일로 다시 만든다 */
 const withNewPreviews = (draft: RecordDraft, createPreview: (file: File) => string): RecordDraft => ({
   ...draft,
-  photos: draft.photos.map((photo) => (photo.file ? { ...photo, previewUrl: createPreview(photo.file) } : photo)),
+  groups: draft.groups.map((group) => ({
+    ...group,
+    photos: group.photos.map((photo) => (photo.file ? { ...photo, previewUrl: createPreview(photo.file) } : photo)),
+  })),
 });
+
+/** 빼려는 사진 다음에 고를 사진: 같은 모음의 다음 사진, 없으면 앞 사진. 모음이 빠지면 고르지 않는다 */
+const findNextSelection = (draft: RecordDraft, photoId: string): string | undefined => {
+  const photos = draft.groups.find((group) => group.photos.some(({ id }) => id === photoId))?.photos ?? [];
+  const index = photos.findIndex(({ id }) => id === photoId);
+  return (photos[index + 1] ?? photos[index - 1])?.id;
+};
+
+/** 고른 사진에 대해 알릴 문구. 받을 수 없는 파일과 모음에 넘쳐 뺀 사진 수를 알린다 */
+const toPickNotice = ({ skipped, dropped, isNewGroup }: { skipped: number; dropped: number; isNewGroup: boolean }): string | undefined => {
+  const messages = [
+    skipped > 0 && `JPEG·PNG·WebP·HEIC 사진만 올릴 수 있어 ${skipped}개는 뺐어요.`,
+    dropped > 0 && `모음 하나에 사진은 ${MAX_GROUP_PHOTOS}장까지라 ${dropped}장은 뺐어요.${isNewGroup ? " 남은 사진은 새 모음으로 골라 주세요." : ""}`,
+  ].filter(Boolean);
+  return messages.length > 0 ? messages.join(" ") : undefined;
+};
 
 interface DateRecordFormProps {
   /** 고칠 기록. 없으면 새 기록을 쓴다 */
@@ -104,10 +139,12 @@ interface DateRecordFormProps {
   prefill?: RecordPrefill;
   /** 전에 쓴 태그 */
   tagSuggestions: string[];
+  /** 지도 키. 모음 위치를 지도에서 고를 때 쓴다 */
+  mapKey: string | undefined;
 }
 
 /** 데이트 기록 작성·수정 폼. 새로 고른 사진을 줄여 올린 뒤 기록과 사진 행을 한 번에 저장한다. */
-export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFormProps): ReactElement => {
+export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: DateRecordFormProps): ReactElement => {
   const router = useRouter();
   // 지난 일정에서 넘어온 새 기록은 일정마다 다른 폼이다. 다른 일정의 실패한 내용이 채워지지 않게 값까지 구분한다
   const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.endDate ?? ""}:${prefill?.title ?? ""}:${prefill?.eventLink?.eventId ?? ""}`}`;
@@ -118,6 +155,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
   const previews = usePreviewUrls();
   const [draft, setDraft] = useState(() => (failedSave ? withNewPreviews(failedSave.draft, previews.create) : initialDraft));
   const [errors, setErrors] = useState<DraftErrors>({});
+  // 사진 줄에서 누른 사진. 그 사진의 한마디 칸과 순서·대표·빼기를 모음 카드 아래에 연다
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string>();
   const [tagInput, setTagInput] = useState("");
   // 칸을 늘 열어 두면 빈 작성 화면에 스크롤이 생긴다(#52). 태그가 있는 기록은 열어 둔다
   const [isTagFieldOpen, setIsTagFieldOpen] = useState(draft.tags.length > 0);
@@ -133,7 +172,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
   const hasWrittenContent = hasRecordDraftChanges(initialDraft, draft) || tagInput.trim() !== "";
   // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알린다(#104). 지워진 기록은 저장할 곳이 없어 묻지 않는다
   const shouldConfirmLeave = hasWrittenContent && !isSaving && !isRecordGone;
-  const isReadingPhotoInfo = draft.photos.some(({ isReadingInfo }) => isReadingInfo);
+  const isReadingPhotoInfo = getDraftPhotos(draft.groups).some(({ isReadingInfo }) => isReadingInfo);
   const today = toKstDate(new Date());
   const isPeriod = draft.endDate !== undefined;
 
@@ -162,6 +201,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
     setTagInput("");
     setIsTagFieldOpen(nextDraft.tags.length > 0);
     setErrors({});
+    setSelectedPhotoId(undefined);
     setNotice(undefined);
     setLinkedRecordId(undefined);
     setProgress(undefined);
@@ -191,48 +231,68 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
     setErrors((current) => clearError(current, "endDate"));
   };
 
-  const handleAddPhotos = (files: File[]) => {
+  /** 고른 사진을 새 모음으로 만들거나(`groupId` 없음) 그 모음에 더하고, 사진마다 사진 정보를 읽기 시작한다 */
+  const handlePickPhotos = (files: File[], groupId?: string) => {
     const images = files.filter(isAcceptedPhoto);
     const picked = images.map((file) => ({
       id: crypto.randomUUID(),
       caption: "",
-      location: undefined,
       file,
       previewUrl: previews.create(file),
       isReadingInfo: true,
     }));
-    const result = addPhotos(draft, picked);
-    const kept = picked.slice(0, picked.length - result.droppedCount);
+    const newGroupId = crypto.randomUUID();
+    const add = (current: RecordDraft, photos: PickedPhoto[]) =>
+      groupId ? addPhotosToGroup(current, { groupId, photos }) : addPhotoGroup(current, { groupId: newGroupId, photos });
+    const { droppedCount } = add(draft, picked);
+    const kept = picked.slice(0, picked.length - droppedCount);
     picked.slice(kept.length).forEach(({ previewUrl }) => previews.revoke(previewUrl));
     // 앞서 고른 사진의 정보가 아직 그려지기 전에 도착했을 수 있어, 그 값을 덮지 않게 최신 상태에 더한다.
     // 정보를 읽기 시작하는 `kept`만 더해, 읽지 않는 사진이 "읽는 중"으로 남아 저장을 막는 일이 없게 한다
-    setDraft((current) => addPhotos(current, kept).draft);
+    setDraft((current) => add(current, kept).draft);
     setErrors((current) => clearError(current, "photos"));
     kept.forEach(({ id, file }) => {
       // 줄이거나 HEIC를 바꾸면 사진 정보가 사라지므로 고른 원본에서 읽는다. readPhotoInfo는 실패해도 빈 값으로 끝난다
-      void readPhotoInfo({ file }).then(({ location, takenAt }) => {
-        setDraft((current) => ({
-          ...current,
-          photos: current.photos.map((photo) =>
-            photo.id === id ? { ...photo, isReadingInfo: false, takenAt, location: photo.location ?? location } : photo,
-          ),
-        }));
+      void readPhotoInfo({ file }).then((info) => {
+        setDraft((current) => ({ ...current, groups: applyPhotoInfo(current.groups, { photoId: id, info }) }));
       });
     });
 
-    const skipped = files.length - images.length;
-    const messages = [
-      skipped > 0 && `JPEG·PNG·WebP·HEIC 사진만 올릴 수 있어 ${skipped}개는 뺐어요.`,
-      result.droppedCount > 0 && `사진은 10장까지라 ${result.droppedCount}장은 뺐어요.`,
-    ].filter(Boolean);
+    const pickNotice = toPickNotice({ skipped: files.length - images.length, dropped: droppedCount, isNewGroup: !groupId });
     // 다른 칸 오류가 남아 있으면 칸 오류 안내는 그대로 둔다
-    setNotice((current) => (messages.length > 0 ? messages.join(" ") : current === FIX_FIELDS_NOTICE ? current : undefined));
+    setNotice((current) => pickNotice ?? (current === FIX_FIELDS_NOTICE ? current : undefined));
+  };
+
+  /** 사진들을 빼며 미리보기를 해제하고, 그 사진의 한마디 오류를 지운다 */
+  const forgetPhotos = (photoIds: string[]) => {
+    const ids = new Set(photoIds);
+    getDraftPhotos(draft.groups).forEach(({ id, previewUrl }) => {
+      if (ids.has(id)) previews.revoke(previewUrl);
+    });
+    setErrors((current) => photoIds.reduce<DraftErrors>((cleared, id) => clearError(cleared, `caption:${id}`), current));
   };
 
   const handleRemovePhoto = (photoId: string) => {
-    const removed = draft.photos.find(({ id }) => id === photoId);
-    if (removed) previews.revoke(removed.previewUrl);
-    setDraft((current) => removePhoto(current, photoId));
+    forgetPhotos([photoId]);
+    // 빼면 같은 모음의 이웃 사진을 골라, 이어서 빼거나 고칠 수 있게 한다
+    setSelectedPhotoId(findNextSelection(draft, photoId));
+    // 마지막 사진이면 모음도 사라지므로 그 모음의 위치 오류도 지운다
+    const group = draft.groups.find(({ photos }) => photos.some(({ id }) => id === photoId));
+    if (group?.photos.length === 1) setErrors((current) => clearError(current, `group:${group.id}`));
+    setDraft((current) => removeGroupPhoto(current, photoId));
+  };
+
+  const handleRemoveGroup = (groupId: string) => {
+    const photoIds = draft.groups.find(({ id }) => id === groupId)?.photos.map(({ id }) => id) ?? [];
+    forgetPhotos(photoIds);
+    if (selectedPhotoId && photoIds.includes(selectedPhotoId)) setSelectedPhotoId(undefined);
+    setErrors((current) => clearError(current, `group:${groupId}`));
+    setDraft((current) => removePhotoGroup(current, groupId));
+  };
+
+  const handleGroupLocationChange = (groupId: string, location: PhotoLocation) => {
+    setDraft((current) => ({ ...current, groups: setGroupLocation(current.groups, { groupId, location }) }));
+    setErrors((current) => clearError(current, `group:${groupId}`));
   };
 
   const handleOpenTagField = () => {
@@ -264,10 +324,14 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
 
     const nextErrors: DraftErrors = { ...validateDraft(nextDraft, today), ...(tagError && { tags: tagError }) };
     if (Object.keys(nextErrors).length > 0) {
+      // 한마디 칸은 누른 사진 것만 보이므로, 고른 사진에 오류가 없으면 첫 오류 사진을 골라 그 칸을 연다
+      const captionErrorPhotoId = getDraftPhotos(nextDraft.groups).find(({ id }) => nextErrors[`caption:${id}`])?.id;
+      const hasSelectedError = selectedPhotoId !== undefined && nextErrors[`caption:${selectedPhotoId}`] !== undefined;
       // 오류 칸이 그려져야 찾을 수 있어 바로 그린다
       flushSync(() => {
         setErrors(nextErrors);
         setNotice(FIX_FIELDS_NOTICE);
+        if (captionErrorPhotoId && !hasSelectedError) setSelectedPhotoId(captionErrorPhotoId);
       });
       focusFirstInvalidField(form);
       return;
@@ -282,7 +346,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
     try {
       const supabase = createClient();
       const storage = supabase.storage.from(ALBUM_BUCKET);
-      const files = new Map(nextDraft.photos.flatMap(({ id, file }) => (file ? [[id, file] as const] : [])));
+      const files = new Map(getDraftPhotos(nextDraft.groups).flatMap(({ id, file }) => (file ? [[id, file] as const] : [])));
       let savedHref = record ? `/dates/${record.id}` : RECORDS_PATH;
       if (record) {
         await updateDateRecord({
@@ -310,7 +374,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
       // cacheComponents는 다녀온 화면을 Activity로 숨겨 상태를 보존한다. 다시 열었을 때 처음 상태가 되도록
       // 이동과 같은 transition에서 되돌린다(이동이 끝날 때 함께 반영돼 빈 폼이 잠깐 보이지 않는다)
       // 이미 그려진 미리보기는 URL을 해제해도 그대로 보인다. 수정 화면은 페이지가 매번 새 key로 다시 그린다
-      draft.photos.forEach(({ previewUrl }) => previews.revoke(previewUrl));
+      getDraftPhotos(draft.groups).forEach(({ previewUrl }) => previews.revoke(previewUrl));
       // 목록은 날짜 내림차순이라 새 기록은 맨 위에 있다. 보던 위치로 돌아가면 저장되지 않은 것처럼 보인다
       if (!record) forgetScrollPosition("records");
       finishSaved({ href: savedHref, reset: () => resetForm(record ? toEditDraft(record) : createEmptyDraft()) });
@@ -338,7 +402,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
 
   // 기록을 지웠을 때(DeleteRecordButton)와 같이 옮기면서 다시 불러온다
   const handleGoToRecords = () => {
-    draft.photos.forEach(({ previewUrl }) => previews.revoke(previewUrl));
+    getDraftPhotos(draft.groups).forEach(({ previewUrl }) => previews.revoke(previewUrl));
     startTransition(() => {
       router.replace(RECORDS_PATH, { transitionTypes: BACK_TRANSITION });
       router.refresh();
@@ -363,26 +427,35 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions }: DateRecordFo
     >
       {/* 폼을 화면 남은 높이까지 늘리고 정리 글 칸이 그 여유를 채운다. 칸을 고정 줄 수로 두면 기기 높이에 따라 조금씩 넘쳐 스크롤이 생긴다(#52) */}
       <form onSubmit={handleSubmit} noValidate className="mt-3 flex flex-1 flex-col gap-4">
-        <PhotoPicker
-          photos={draft.photos}
+        <PhotoGroupsField
+          groups={draft.groups}
           coverPhotoId={draft.coverPhotoId}
+          selectedPhotoId={selectedPhotoId}
           errors={errors}
           isDisabled={isSaving}
-          onAdd={handleAddPhotos}
-          onRemove={handleRemovePhoto}
+          mapKey={mapKey}
+          onAddGroup={(files) => handlePickPhotos(files)}
+          onLocationChange={handleGroupLocationChange}
           // 사진 정보는 고른 뒤 따로 도착해 draft를 바꾼다. 그 값을 덮지 않게 사진 칸은 최신 상태에 맞춰 바꾼다
-          onMove={(index, offset) => setDraft((current) => ({ ...current, photos: movePhoto(current.photos, index, offset) }))}
-          onCaptionChange={(photoId, caption) => {
-            setDraft((current) => ({
-              ...current,
-              photos: current.photos.map((photo) => (photo.id === photoId ? { ...photo, caption } : photo)),
-            }));
-            setErrors((current) => clearError(current, `caption:${photoId}`));
+          actions={{
+            onSelectPhoto: setSelectedPhotoId,
+            onAddPhotos: (groupId, files) => handlePickPhotos(files, groupId),
+            onRemoveGroup: handleRemoveGroup,
+            onMoveGroup: (index, offset) => setDraft((current) => ({ ...current, groups: moveItem(current.groups, index, offset) })),
+            onRemovePhoto: handleRemovePhoto,
+            onMovePhoto: (photoId, offset) => setDraft((current) => ({ ...current, groups: moveGroupPhoto(current.groups, { photoId, offset }) })),
+            onCaptionChange: (photoId, caption) => {
+              setDraft((current) => ({
+                ...current,
+                groups: current.groups.map((group) => ({
+                  ...group,
+                  photos: group.photos.map((photo) => (photo.id === photoId ? { ...photo, caption } : photo)),
+                })),
+              }));
+              setErrors((current) => clearError(current, `caption:${photoId}`));
+            },
+            onCoverChange: (photoId) => setDraft((current) => ({ ...current, coverPhotoId: photoId })),
           }}
-          onCoverChange={(photoId) => setDraft((current) => ({ ...current, coverPhotoId: photoId }))}
-          onLocationChange={(photoId, location) =>
-            setDraft((current) => ({ ...current, photos: setPhotoLocation(current.photos, photoId, location) }))
-          }
         />
 
         <div className="flex flex-col">

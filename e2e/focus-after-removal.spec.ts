@@ -3,7 +3,7 @@ import type { Locator, Page, Route } from "@playwright/test";
 import { MAX_TAGS } from "@/lib/dates/form";
 import { createDisposableRecord, createDisposableTodo, setRecordTags } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { pickPhoto } from "./support/actions";
+import { getGroupPhoto, pickPhoto } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 누른 버튼이 사라지거나 비활성이 되어도 키보드·화면 읽기 프로그램 사용자가 자리를 잃지 않게 한다(#260)
@@ -19,46 +19,73 @@ const pressWithKeyboard = async (locator: Locator, key: "Enter" | "Space" = "Ent
 const openNewRecordForm = (page: Page): Promise<void> => openScreen(page, "/dates/new", page.locator("#memo").locator("visible=true"));
 
 test.describe("기록 폼", () => {
-  test("사진을 빼면 다음 사진의 빼기로, 마지막 사진을 빼면 사진 고르기로 초점이 간다", async ({ page }) => {
-    // Arrange
+  test("사진을 빼면 같은 모음의 다음 사진이 골라져 빼기에 초점이 남고, 모음의 마지막 사진을 빼면 새 모음 만들기로 초점이 간다", async ({ page }) => {
+    // Arrange: 한 모음에 사진 두 장
     await openNewRecordForm(page);
     await pickPhoto(page, 1);
-    await pickPhoto(page, 2);
+    await pickPhoto(page, 2, { groupNumber: 1 });
+    await getGroupPhoto(page, 1, 1).click();
 
     // Act
-    await pressWithKeyboard(getVisibleButton(page, "1번째 사진 빼기"));
+    await pressWithKeyboard(getVisibleButton(page, "이 사진 빼기"));
 
-    // Assert: 남은 사진이 1번째가 된다
-    await expect(getVisibleButton(page, "1번째 사진 빼기")).toBeFocused();
+    // Assert: 남은 사진이 골라지고 빼기 버튼이 그대로 남는다
+    await expect(getVisibleButton(page, "이 사진 빼기")).toBeFocused();
+    await expect(getGroupPhoto(page, 1, 1)).toHaveAttribute("aria-pressed", "true");
 
     // Act
     await page.keyboard.press("Enter");
 
     // Assert
-    await expect(getVisibleButton(page, "사진 고르기")).toBeFocused();
+    await expect(getVisibleButton(page, "새 모음 만들기 · 사진 고르기")).toBeFocused();
   });
 
-  test("사진 순서를 끝까지 옮겨도 그 사진의 버튼에 초점이 남는다", async ({ page }) => {
+  test("모음을 빼면 다음 모음의 빼기로, 마지막 모음을 빼면 새 모음 만들기로 초점이 간다", async ({ page }) => {
     // Arrange
     await openNewRecordForm(page);
     await pickPhoto(page, 1);
     await pickPhoto(page, 2);
 
-    // Act: 첫 사진을 뒤로 보내면 그 사진은 끝이라 "뒤로"를 더 누를 수 없다
-    await pressWithKeyboard(getVisibleButton(page, "1번째 사진을 뒤로"));
+    // Act
+    await pressWithKeyboard(getVisibleButton(page, "모음 1 빼기"));
 
-    // Assert
-    const lastBack = getVisibleButton(page, "2번째 사진을 뒤로");
-    await expect(lastBack).toBeFocused();
-    await expect(lastBack).toHaveAttribute("aria-disabled", "true");
+    // Assert: 남은 모음이 모음 1이 된다
+    await expect(getVisibleButton(page, "모음 1 빼기")).toBeFocused();
 
-    // Act: 끝에서 한 번 더 눌러도 순서는 그대로다
+    // Act
     await page.keyboard.press("Enter");
-    await expect(lastBack).toBeFocused();
-    await pressWithKeyboard(getVisibleButton(page, "2번째 사진을 앞으로"));
 
     // Assert
-    await expect(getVisibleButton(page, "1번째 사진을 앞으로")).toBeFocused();
+    await expect(getVisibleButton(page, "새 모음 만들기 · 사진 고르기")).toBeFocused();
+  });
+
+  test("사진·모음 순서를 끝까지 옮겨도 누른 버튼에 초점이 남는다", async ({ page }) => {
+    // Arrange: 사진 두 장인 모음과 한 장인 모음
+    await openNewRecordForm(page);
+    await pickPhoto(page, 1);
+    await pickPhoto(page, 2, { groupNumber: 1 });
+    await pickPhoto(page, 3);
+    await getGroupPhoto(page, 1, 1).click();
+
+    // Act: 첫 사진을 뒤로 보내면 그 사진은 끝이라 "뒤로"를 더 누를 수 없다
+    await pressWithKeyboard(getVisibleButton(page, "뒤로"));
+
+    // Assert
+    const back = getVisibleButton(page, "뒤로");
+    await expect(back).toBeFocused();
+    await expect(back).toHaveAttribute("aria-disabled", "true");
+    await expect(getGroupPhoto(page, 1, 2)).toHaveAttribute("aria-pressed", "true");
+
+    // Act: 끝에서 한 번 더 눌러도 순서는 그대로다. 모음도 아래로 끝까지 옮긴다
+    await page.keyboard.press("Enter");
+    await expect(back).toBeFocused();
+    await pressWithKeyboard(getVisibleButton(page, "모음 1 아래로 옮기기"));
+
+    // Assert: 옮긴 모음은 모음 2가 되고 그 버튼에 초점이 남는다
+    const groupDown = getVisibleButton(page, "모음 2 아래로 옮기기");
+    await expect(groupDown).toBeFocused();
+    await expect(groupDown).toHaveAttribute("aria-disabled", "true");
+    await expect(getGroupPhoto(page, 2, 2)).toHaveAttribute("aria-pressed", "true");
   });
 
   test("태그를 빼면 다음 태그로, 마지막 태그를 빼면 태그 칸으로 초점이 간다", async ({ page }) => {

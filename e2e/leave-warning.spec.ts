@@ -3,7 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { TODOS_PATH } from "@/lib/todos/list";
-import { getVisibleLink, pickPhoto } from "./support/actions";
+import { getGroupPhoto, getVisibleLink, pickPhoto } from "./support/actions";
 import { createDisposableTodo } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { createTestName } from "./support/names";
@@ -127,7 +127,7 @@ test.describe("쓰던 내용을 잃기 전 경고", () => {
 
     // Assert
     await expect(page.locator("#title").locator("visible=true")).toHaveValue("");
-    await expect(page.getByRole("button", { name: "1번째 사진 빼기" }).locator("visible=true")).toHaveCount(0);
+    await expect(getGroupPhoto(page, 1, 1)).toHaveCount(0);
     // 다시 쓰다 나가도 묻는다(버린 뒤에도 처음 내용과 견준다)
     await page.locator("#title").locator("visible=true").fill("다시 쓴 기록");
     await getBackButton(page).tap();

@@ -2,6 +2,7 @@ import type { ResizedPhoto } from "@/lib/photos/resize";
 import { removeUploadedPhotos, uploadPhotos, type PhotoStorage, type UploadedPhoto } from "@/lib/photos/upload";
 import { callWithRetry, isDuplicateKey, isOutcomeUnknown } from "@/lib/save-outcome";
 import { toCreateRecordArgs, type CreateDateRecordArgs, type DateRecordDraft, type UpdateDateRecordArgs } from "./form";
+import { getDraftPhotos } from "./photo-group-draft";
 
 /** 저장 단계: 사진 줄이기 → 올리기 → 기록 저장 */
 export interface SaveProgress {
@@ -82,7 +83,7 @@ export const saveDateRecord = async ({
 }: SaveDateRecordParams): Promise<SaveDateRecordResult> => {
   const mayAlreadyBeSaved = draft.uncertainSaveRecordId !== undefined;
   const args = toCreateRecordArgs(recordId, draft);
-  const photoFiles = draft.photos.map(({ id }) => {
+  const photoFiles = getDraftPhotos(draft.groups).map(({ id }) => {
     const file = files.get(id);
     if (!file) throw new Error(`고른 사진의 파일이 없습니다: ${id}`);
     return { id, file };
@@ -182,7 +183,7 @@ export const updateDateRecord = async ({
     p_expected_revisions: draft.expectedRevisions,
     p_new_revision: draft.nextRevision,
   };
-  const photoFiles = draft.photos.flatMap(({ id }) => {
+  const photoFiles = getDraftPhotos(draft.groups).flatMap(({ id }) => {
     const file = files.get(id);
     return file ? [{ id, file }] : [];
   });

@@ -17,6 +17,15 @@ const PHOTO_A = "20000000-0000-4000-8000-00000000000a";
 const PHOTO_B = "20000000-0000-4000-8000-00000000000b";
 // 모음마다 위치가 있어야 저장할 수 있다(#297)
 const ONION = { place: "어니언 성수", lat: 37.5447, lng: 127.0582 };
+const GROUP_ID = "30000000-0000-4000-8000-000000000001";
+/** 저장된 위치가 있는 모음 하나 */
+const group = (photos: DateRecordDraft["groups"][number]["photos"]): DateRecordDraft["groups"][number] => ({
+  id: GROUP_ID,
+  location: ONION,
+  locationSource: "saved",
+  pendingLocationPhotoId: undefined,
+  photos,
+});
 
 const draft: DateRecordDraft = {
   date: "2026-11-01",
@@ -24,9 +33,11 @@ const draft: DateRecordDraft = {
   title: "첫 데이트",
   memo: "",
   tags: [],
-  photos: [
-    { id: PHOTO_A, caption: "카페", location: ONION },
-    { id: PHOTO_B, caption: "", location: undefined },
+  groups: [
+    group([
+      { id: PHOTO_A, caption: "카페" },
+      { id: PHOTO_B, caption: "" },
+    ]),
   ],
   coverPhotoId: PHOTO_A,
 };
@@ -227,9 +238,11 @@ describe("updateDateRecord", () => {
   const PHOTO_C = "20000000-0000-4000-8000-00000000000c";
   const editedDraft: DateRecordDraft = {
     ...draft,
-    photos: [
-      { id: PHOTO_C, caption: "새 사진", location: undefined },
-      { id: PHOTO_A, caption: "카페", location: ONION },
+    groups: [
+      group([
+        { id: PHOTO_C, caption: "새 사진" },
+        { id: PHOTO_A, caption: "카페" },
+      ]),
     ],
     coverPhotoId: PHOTO_C,
   };
@@ -258,7 +271,7 @@ describe("updateDateRecord", () => {
         p_id: RECORD_ID,
         p_groups: [
           {
-            id: RECORD_ID,
+            id: GROUP_ID,
             location: ONION,
             photos: [
               { id: PHOTO_C, caption: "새 사진" },
@@ -280,7 +293,7 @@ describe("updateDateRecord", () => {
 
     await updateDateRecord({
       recordId: RECORD_ID,
-      draft: { ...draft, photos: [{ id: PHOTO_A, caption: "", location: ONION }], coverPhotoId: PHOTO_A },
+      draft: { ...draft, groups: [group([{ id: PHOTO_A, caption: "" }])], coverPhotoId: PHOTO_A },
       files: new Map(),
       storage,
       resize,

@@ -1,13 +1,18 @@
 // 지도 SDK에서 쓰는 부분만 적은 타입이다. 카카오가 타입을 제공하지 않는다
 
 /** 지도의 한 좌표 */
-export type KakaoLatLng = object;
+export interface KakaoLatLng {
+  getLat: () => number;
+  getLng: () => number;
+}
 
 /** 지도 객체 */
 export interface KakaoMap {
   /** 범위가 모두 보이게 옮긴다. 여백(px)을 주면 가장자리 핀이 잘리지 않는다 */
   setBounds: (bounds: KakaoLatLngBounds, paddingTop?: number, paddingRight?: number, paddingBottom?: number, paddingLeft?: number) => void;
   setCenter: (latLng: KakaoLatLng) => void;
+  /** 지금 지도 가운데 좌표(위치 고르기의 가운데 핀, #298) */
+  getCenter: () => KakaoLatLng;
   /** 지금 화면에 보이는 범위 */
   getBounds: () => KakaoLatLngBounds;
   relayout: () => void;
@@ -47,7 +52,8 @@ export interface KakaoMarkerClusterer {
 }
 
 type KakaoEventTarget = KakaoMap | KakaoMarker | KakaoMarkerClusterer;
-type KakaoEventType = "click" | "clustered";
+/** `idle`은 지도를 움직이거나 확대를 바꾼 뒤 멈췄을 때다 */
+type KakaoEventType = "click" | "clustered" | "idle";
 
 /** SDK가 `window.kakao.maps`에 내놓는 것 */
 export interface KakaoMaps {

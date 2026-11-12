@@ -12,10 +12,8 @@ export const TAG_MAX_LENGTH = 10;
 export const MAX_TAGS = 5;
 /** 작성 화면에 추천할 태그 수 */
 const TAG_SUGGESTION_LIMIT = 12;
-/** 사진 모음 하나에 올릴 수 있는 사진 수(create_date_record와 같다). 모음을 다루기 전(#298)에는 기록 전체가 모음 하나다 */
-export const MAX_PHOTOS = 10;
 
-/** 사진의 위치. 이름과 좌표가 늘 함께 있다. 저장하면 사진 모음의 위치(photo_groups)가 된다(#297) */
+/** 사진 모음의 위치. 이름과 좌표가 늘 함께 있다(photo_groups, #297) */
 export interface PhotoLocation extends PlaceLocation {
   place: string;
 }
@@ -24,10 +22,26 @@ export interface DraftPhoto {
   /** 업로드 전에 정해 두는 사진 id. Storage 경로와 `photos.id`에 같은 값을 쓴다 */
   id: string;
   caption: string;
-  /** 사진을 찍은 곳. 없으면 undefined */
-  location: PhotoLocation | undefined;
-  /** 새로 고른 사진 파일에서 읽은 찍은 시각(시간대가 붙은 ISO 문자열). 저장된 사진의 시각은 DB가 바꾸지 않아 넘기지 않는다 */
+  /**
+   * 찍은 시각(시간대가 붙은 ISO 문자열). 새로 고른 사진은 파일에서 읽고, 저장된 사진은 불러온 값이다.
+   * 모음 순서를 정할 때 쓰고, DB는 이미 있는 사진의 시각을 바꾸지 않는다
+   */
   takenAt?: string;
+}
+
+/** 위치를 어디서 정했는지. 위치 줄의 설명에 쓴다. `saved`는 이미 저장된 모음이다 */
+export type GroupLocationSource = "photo" | "picked" | "saved";
+
+/** 한 번에 고른 사진 묶음(#298). 모음 하나가 장소 하나라 위치가 하나다 */
+export interface DraftPhotoGroup<Photo extends DraftPhoto = DraftPhoto> {
+  /** 업로드 전에 정해 두는 모음 id. `photo_groups.id`에 같은 값을 쓴다 */
+  id: string;
+  /** 모음 위치. 첫 사진에 위치가 없으면 지도에서 고를 때까지 undefined다 */
+  location: PhotoLocation | undefined;
+  locationSource: GroupLocationSource | undefined;
+  /** 위치를 읽어 올 첫 사진(모음을 만들 때의 첫 사진). 그 사진 정보가 도착하면 지운다 */
+  pendingLocationPhotoId: string | undefined;
+  photos: Photo[];
 }
 
 /** 작성 화면의 입력값. 날짜는 YYYY-MM-DD 문자열 */
@@ -45,7 +59,7 @@ export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
   endDate: string | undefined;
   title: string;
   memo: string;
-  photos: Photo[];
+  groups: DraftPhotoGroup<Photo>[];
   coverPhotoId: string | undefined;
   tags: string[];
   /** 일정에서 남기는 기록이면 어느 일정의 어느 날인지. 직접 쓰거나 고치는 기록은 없다 */
@@ -58,8 +72,10 @@ export interface RecordEventLink {
   eventDate: string;
 }
 
-/** 칸 이름 → 화면에 보여 줄 에러 문구. 사진 한마디는 `caption:<사진 id>` */
-export type DraftErrors = Partial<Record<"date" | "endDate" | "title" | "memo" | "photos" | "tags" | `caption:${string}`, string>>;
+/** 칸 이름 → 화면에 보여 줄 에러 문구. 사진 한마디는 `caption:<사진 id>`, 모음 위치는 `group:<모음 id>` */
+export type DraftErrors = Partial<
+  Record<"date" | "endDate" | "title" | "memo" | "photos" | "tags" | `caption:${string}` | `group:${string}`, string>
+>;
 
 export type CreateDateRecordArgs = Database["public"]["Functions"]["create_date_record"]["Args"];
 
@@ -95,11 +111,13 @@ export const validateDraft = (draft: DateRecordDraft, today: string): DraftError
 
   if (tooLong(draft.memo.trim(), MEMO_MAX_LENGTH)) errors.memo = "정리 글은 10,000자까지 적을 수 있어요.";
 
-  if (draft.photos.length === 0) errors.photos = "사진을 한 장 이상 골라 주세요.";
-  else if (!findGroupLocation(draft.photos)) errors.photos = "위치가 있는 사진이 한 장 이상 있어야 저장할 수 있어요.";
-  for (const photo of draft.photos) {
-    if (tooLong(photo.caption.trim(), CAPTION_MAX_LENGTH)) {
-      errors[`caption:${photo.id}`] = "한마디는 100자까지 적을 수 있어요.";
+  if (draft.groups.length === 0) errors.photos = "사진을 한 장 이상 골라 주세요.";
+  for (const group of draft.groups) {
+    if (!group.location) errors[`group:${group.id}`] = "위치를 골라야 저장할 수 있어요.";
+    for (const photo of group.photos) {
+      if (tooLong(photo.caption.trim(), CAPTION_MAX_LENGTH)) {
+        errors[`caption:${photo.id}`] = "한마디는 100자까지 적을 수 있어요.";
+      }
     }
   }
 
@@ -158,61 +176,9 @@ export const parseRecordPrefill = (
 };
 
 /**
- * 고른 사진을 뒤에 붙인다. 10장을 넘는 사진은 버리고, 대표 사진이 없으면 첫 사진을 대표로 정한다.
- *
- * @example addPhotos(draft, [{ id, caption: "" }]) // { draft: { ...draft, photos: [...] }, droppedCount: 0 }
- */
-export const addPhotos = <Photo extends DraftPhoto>(
-  draft: DateRecordDraft<Photo>,
-  added: Photo[],
-): { draft: DateRecordDraft<Photo>; droppedCount: number } => {
-  const room = Math.max(MAX_PHOTOS - draft.photos.length, 0);
-  const photos = [...draft.photos, ...added.slice(0, room)];
-  return {
-    draft: { ...draft, photos, coverPhotoId: draft.coverPhotoId ?? photos[0]?.id },
-    droppedCount: Math.max(added.length - room, 0),
-  };
-};
-
-/**
- * 사진을 뺀다. 대표 사진을 빼면 남은 첫 사진이 대표가 된다.
- *
- * @example removePhoto(draft, photoId)
- */
-export const removePhoto = <Photo extends DraftPhoto>(
-  draft: DateRecordDraft<Photo>,
-  photoId: string,
-): DateRecordDraft<Photo> => {
-  const photos = draft.photos.filter(({ id }) => id !== photoId);
-  const coverPhotoId = draft.coverPhotoId === photoId ? photos[0]?.id : draft.coverPhotoId;
-  return { ...draft, photos, coverPhotoId };
-};
-
-/**
- * 사진 하나를 앞(-1)이나 뒤(+1)로 옮긴다. 범위를 넘으면 그대로 돌려준다.
- *
- * @example movePhoto(photos, 2, -1) // 세 번째 사진을 두 번째로
- */
-export const movePhoto = <Photo>(photos: Photo[], index: number, offset: -1 | 1): Photo[] => {
-  const target = index + offset;
-  if (index < 0 || index >= photos.length || target < 0 || target >= photos.length) return photos;
-  const moved = [...photos];
-  [moved[index], moved[target]] = [moved[target], moved[index]];
-  return moved;
-};
-
-/**
- * 사진 하나의 위치를 바꾼다. `undefined`면 지운다.
- *
- * @example setPhotoLocation(photos, photoId, { place: "서울숲", lat: 37.54, lng: 127.03 })
- */
-export const setPhotoLocation = <Photo extends DraftPhoto>(photos: Photo[], photoId: string, location: PhotoLocation | undefined): Photo[] =>
-  photos.map((photo) => (photo.id === photoId ? { ...photo, location } : photo));
-
-/**
  * 두 위치가 같은 곳인지(이름·좌표가 모두 같은지) 알려 준다. 둘 다 없어도 같다.
  *
- * @example isSamePhotoLocation(previous, current) // true면 "앞 사진과 같은 곳"을 고를 필요가 없다
+ * @example isSamePhotoLocation(group.location, other.location) // true면 "다른 모음과 같은 곳"으로 고를 필요가 없다
  */
 export const isSamePhotoLocation = (left: PhotoLocation | undefined, right: PhotoLocation | undefined): boolean =>
   left?.place === right?.place && left?.lat === right?.lat && left?.lng === right?.lng;
@@ -260,42 +226,32 @@ export const pickTagSuggestions = (suggestions: string[], tags: string[]): strin
 };
 
 /**
- * 사진 모음의 위치: 위치가 있는 첫 사진의 위치. 모음은 장소 하나라 위치가 하나다(#297).
- * 지도에서 고르기(#298) 전까지는 사진 정보나 "앞 사진과 같은 곳"으로 정한 위치만 있다.
- *
- * @example findGroupLocation(draft.photos) // { place: "성수동", lat: 37.54, lng: 127.05 }
- */
-export const findGroupLocation = (photos: DraftPhoto[]): PhotoLocation | undefined => photos.find(({ location }) => location)?.location;
-
-/**
  * 입력값을 기록 작성 함수(`create_date_record`) 인자로 바꾼다. 빈 글·한마디와 넘기지 않은 끝 날짜는 DB 함수가 null로 저장한다.
+ * 모음은 화면 순서대로 넘기고, DB가 모음 순서·모음 안 순서대로 사진 순서를 매긴다.
  *
- * @throws {Error} 대표 사진이나 위치가 있는 사진이 없으면(검증을 거치지 않은 코드 실수)
+ * @throws {Error} 대표 사진이 없거나 위치가 없는 모음이 있으면(검증을 거치지 않은 코드 실수)
  * @example await supabase.rpc("create_date_record", toCreateRecordArgs(recordId, draft))
  */
 export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): CreateDateRecordArgs => {
   if (!draft.coverPhotoId) throw new Error("대표 사진이 정해지지 않았습니다");
-  const location = findGroupLocation(draft.photos);
-  if (!location) throw new Error("위치가 있는 사진이 없습니다");
   return {
     p_id: recordId,
     p_date: draft.date,
     p_end_date: draft.endDate,
     p_title: draft.title.trim(),
     p_memo: draft.memo.trim(),
-    // TODO(#298): 폼이 모음을 다루면 모음마다 넘긴다. 그전까지는 사진 전체를 모음 하나로 묶는다.
-    // 모음 id는 기록 id를 그대로 써, 같은 저장을 다시 보내도 같은 모음이 된다(모음 id는 기록마다 하나라 겹치지 않는다)
-    p_groups: [
-      {
-        id: recordId,
+    p_groups: draft.groups.map(({ id, location, photos }) => {
+      if (!location) throw new Error(`위치가 없는 모음입니다: ${id}`);
+      return {
+        id,
         location: { place: location.place, lat: location.lat, lng: location.lng },
-        photos: draft.photos.map(({ id, caption, takenAt }) => ({
-          id,
-          caption: caption.trim(),
-          ...(takenAt !== undefined && { taken_at: takenAt }),
+        photos: photos.map((photo) => ({
+          id: photo.id,
+          caption: photo.caption.trim(),
+          ...(photo.takenAt !== undefined && { taken_at: photo.takenAt }),
         })),
-      },
-    ],
+      };
+    }),
     p_cover_photo_id: draft.coverPhotoId,
     p_event_id: draft.eventLink?.eventId,
     p_event_date: draft.eventLink?.eventDate,
@@ -303,13 +259,13 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
   };
 };
 
-// 저장 시도에 쓰는 칸(판 번호 등)과 사진 파일·미리보기 주소는 사용자가 쓴 내용이 아니라 비교에서 뺀다
-const toWrittenContent = ({ date, endDate, title, memo, photos, coverPhotoId, tags }: DateRecordDraft) => ({
+// 저장 시도에 쓰는 칸(판 번호 등), 사진 파일·미리보기 주소, 위치를 정한 곳은 사용자가 쓴 내용이 아니라 비교에서 뺀다
+const toWrittenContent = ({ date, endDate, title, memo, groups, coverPhotoId, tags }: DateRecordDraft) => ({
   date,
   endDate,
   title,
   memo,
-  photos: photos.map((photo) => ({ id: photo.id, caption: photo.caption, location: photo.location })),
+  groups: groups.map(({ id, location, photos }) => ({ id, location, photos: photos.map((photo) => ({ id: photo.id, caption: photo.caption })) })),
   coverPhotoId,
   tags,
 });
@@ -323,17 +279,19 @@ export const hasRecordDraftChanges = (initial: DateRecordDraft, current: DateRec
   !isSameFormValue(toWrittenContent(initial), toWrittenContent(current));
 
 /**
- * `discarded`에서 사진 정보를 읽는 중이던 사진에 찍은 곳·찍은 시각이 채워진 것 말고는 쓴 내용이 같은지 알려 준다.
+ * `discarded`에서 첫 사진 정보를 읽는 중이던 모음에 위치가 채워지고 모음 순서가 바뀐 것 말고는 쓴 내용이 같은지 알려 준다.
  * 나가기를 고른 뒤 늦게 도착한 사진 정보는 사람이 계속 쓴 것이 아니므로, 숨겨질 때 그대로 버린다(#284, #249).
  *
  * @example isSameExceptReadingPhotoInfo(draftWhenDiscarded, draft) // true
  */
-export const isSameExceptReadingPhotoInfo = <Photo extends DraftPhoto & { isReadingInfo: boolean }>(
-  discarded: DateRecordDraft<Photo>,
-  current: DateRecordDraft<Photo>,
-): boolean => {
-  const readingIds = new Set(discarded.photos.filter(({ isReadingInfo }) => isReadingInfo).map(({ id }) => id));
-  const withoutReadingInfo = (draft: DateRecordDraft<Photo>): DateRecordDraft =>
-    ({ ...draft, photos: draft.photos.map((photo) => (readingIds.has(photo.id) ? { ...photo, location: undefined } : photo)) });
+export const isSameExceptReadingPhotoInfo = <Photo extends DraftPhoto>(discarded: DateRecordDraft<Photo>, current: DateRecordDraft<Photo>): boolean => {
+  const readingGroupIds = new Set(discarded.groups.filter(({ pendingLocationPhotoId }) => pendingLocationPhotoId).map(({ id }) => id));
+  // 사진 정보가 도착하면 모음이 찍은 시각 자리로 옮겨지므로 순서는 견주지 않는다. 나가기를 고른 뒤에는 사람이 순서를 바꿀 수 없다
+  const withoutReadingInfo = (draft: DateRecordDraft<Photo>): DateRecordDraft<Photo> => ({
+    ...draft,
+    groups: draft.groups
+      .map((group) => (readingGroupIds.has(group.id) ? { ...group, location: undefined } : group))
+      .toSorted((left, right) => left.id.localeCompare(right.id)),
+  });
   return !hasRecordDraftChanges(withoutReadingInfo(discarded), withoutReadingInfo(current));
 };
