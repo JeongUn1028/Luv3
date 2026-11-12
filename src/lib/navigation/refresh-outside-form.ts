@@ -15,6 +15,13 @@ export const markNavigationStart = (url: string, baseUrl: string): void => {
 };
 
 /**
+ * 지금 폼을 쓰거나 폼으로 옮기는 중인지. 주소창이 바뀌기 전이라도 가는 곳이 폼이면 true.
+ *
+ * @example if (isWritingNow()) return;
+ */
+export const isWritingNow = (): boolean => isWritingPath(navigatingPathname ?? window.location.pathname);
+
+/**
  * 다른 화면에서 시작한 저장이 끝나 화면을 새로 받을 때 쓴다. 지금 폼을 쓰거나 폼으로 옮기는 중이면 새로 받지 않고 돌아갈 때로 미룬다(#104, #164).
  * `router.refresh()`는 보고 있는 폼을 새로 만들어 쓰던 내용을 지운다. 미루면 그 폼에서 링크로 옮길 때 서버에서 새로 받고, 뒤로 가면 HistoryReturn이 새로 받는다.
  *
@@ -22,13 +29,6 @@ export const markNavigationStart = (url: string, baseUrl: string): void => {
  * @returns 지금 새로 받았는지
  * @example refreshOutsideForm(() => router.refresh());
  */
-/**
- * 지금 폼을 쓰거나 폼으로 옮기는 중인지. 주소창이 바뀌기 전이라도 가는 곳이 폼이면 true.
- *
- * @example if (isWritingNow()) return;
- */
-export const isWritingNow = (): boolean => isWritingPath(navigatingPathname ?? window.location.pathname);
-
 export const refreshOutsideForm = (refresh: () => void): boolean => {
   if (isWritingNow()) {
     markAllScreensStale();

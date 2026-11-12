@@ -126,7 +126,7 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
           )}
         </div>
       </article>
-      <RecordComments recordId={record.id} comments={comments} />
+      <RecordComments recordId={record.id} comments={comments} memberNickname={member.nickname} />
     </>
   );
 };

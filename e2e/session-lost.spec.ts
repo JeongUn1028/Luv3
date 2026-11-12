@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type { Locator, Page } from "@playwright/test";
+import type { Locator, Page, Request } from "@playwright/test";
 import { E2E_MEMBER, E2E_TODOS } from "./support/constants";
-import { createDisposableEvent, createNonMemberAccount, deleteTodosByContent } from "./support/seed";
+import { createComment, createDisposableEvent, createDisposableRecord, createNonMemberAccount, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getGroupPhoto, getSaveButton, pickPhoto } from "./support/actions";
+import { getGroupPhoto, getSaveButton, isScreenRequest, pickPhoto } from "./support/actions";
 import { createTestName } from "./support/names";
 
 const [, , TODO] = E2E_TODOS;
@@ -101,6 +101,46 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
     await page.waitForLoadState("networkidle");
     expect(new URL(page.url()).pathname).toBe("/todos");
     await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
+  });
+
+  test("댓글을 남기거나 지울 때 화면을 다시 받지 않아 쓴 글과 댓글이 그대로 남는다", async ({ page }, testInfo) => {
+    // Arrange
+    const recordId = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 세션 댓글", testInfo) });
+    const screenRequests: Request[] = [];
+
+    try {
+      await createComment({ recordId, content: "지우지 못한 댓글" });
+      const commentInput = page.locator("#comment-content").locator("visible=true");
+      await openScreen(page, `/dates/${recordId}`, commentInput);
+      await dropSession(page);
+      page.on("request", (request) => {
+        if (isScreenRequest(request, `/dates/${recordId}`)) screenRequests.push(request);
+      });
+
+      // Act: 남기기
+      await commentInput.fill("못 남긴 댓글");
+      await page.getByRole("button", { name: /^남기/ }).locator("visible=true").click();
+
+      // Assert: 먼저 붙인 댓글은 빠지고 쓴 글이 돌아온다
+      await expect(getDialog(page)).toBeVisible();
+      await expect(commentInput).toHaveValue("못 남긴 댓글");
+      await getDialog(page).getByRole("button", { name: "닫기" }).click();
+
+      // Act: 지우기
+      const comment = page.getByRole("listitem").filter({ hasText: "지우지 못한 댓글" }).locator("visible=true");
+      await comment.getByRole("button", { name: "댓글 삭제" }).click();
+      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "삭제", exact: true }).click();
+
+      // Assert: 댓글이 다시 나타나고, 실패 뒤 화면을 다시 받지 않아 로그인 화면으로 넘어가지 않는다
+      await expect(getDialog(page)).toBeVisible();
+      await expect(comment).toHaveCount(1);
+      await page.waitForLoadState("networkidle");
+      expect(new URL(page.url()).pathname).toBe(`/dates/${recordId}`);
+      expect(screenRequests).toHaveLength(0);
+    } finally {
+      await deleteRecord();
+    }
   });
 
   test("삭제 확인 창에서 지울 때 그 위에 창이 나온다", async ({ page }, testInfo) => {
