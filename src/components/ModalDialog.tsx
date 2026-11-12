@@ -183,8 +183,9 @@ export const ModalDialog = ({
             </h2>
             <span aria-hidden="true" className="w-11 shrink-0" />
           </div>
+          {/* 두 줄이 되어도 낱말 중간에서 끊지 않는다. 띄어쓰기 없이 긴 제목(일정 이름 등)은 break-words가 나눈다 */}
           {description && (
-            <p id={descriptionId} className="shrink-0 px-4 pb-3 text-[14px] leading-[1.6] break-words text-ink-sub">
+            <p id={descriptionId} className="shrink-0 px-4 pb-3 text-[14px] leading-[1.6] break-words break-keep text-ink-sub">
               {description}
             </p>
           )}
@@ -195,8 +196,9 @@ export const ModalDialog = ({
           <h2 id={titleId} className="font-display text-[17px] break-words">
             {title}
           </h2>
+          {/* 두 줄이 되어도 낱말 중간에서 끊지 않는다. 띄어쓰기 없이 긴 제목(일정 이름 등)은 break-words가 나눈다 */}
           {description && (
-            <p id={descriptionId} className="mt-2 text-[14px] leading-[1.6] break-words text-ink-sub">
+            <p id={descriptionId} className="mt-2 text-[14px] leading-[1.6] break-words break-keep text-ink-sub">
               {description}
             </p>
           )}
