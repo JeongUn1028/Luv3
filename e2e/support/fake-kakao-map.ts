@@ -95,6 +95,8 @@ export interface FakeWindow extends Window {
     boundsCount: number;
     centerCount: number;
     viewBox: FakeViewBox | null;
+    /** 마지막으로 만든 지도. `fire(map, "click")`으로 지도의 빈 곳 누름을 흉내 낸다 */
+    map: unknown;
     fire: (target: unknown, type: string) => void;
     idle: () => void;
   };

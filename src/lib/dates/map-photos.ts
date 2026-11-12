@@ -130,14 +130,17 @@ export const formatMapPhotoDate = ({ date, takenAt }: Pick<MapPhoto, "date" | "t
   return `${toKstDate(taken).replaceAll("-", ".")} · ${KST_TIME_FORMAT.format(taken)}`;
 };
 
-/** 휴대폰이 기억해 둔 썸네일 주소 */
-export interface CachedThumb {
-  url: string;
-  expiresAt: number;
-}
+/**
+ * 휴대폰이 기억해 둔, 썸네일 주소를 받은 사진. 핀에 썸네일을 그릴 때 쓰고,
+ * 핀을 누르면 함께 받은 기록 제목·날짜와 함께 사진 줄의 첫 칸으로 바로 보여 준다(#300)
+ */
+export type CachedThumb = MapPhoto & { thumbUrl: string; expiresAt: number };
 
 /** 받아 둔 주소는 만료까지 이만큼 넘게 남아야 다시 쓴다. 받는 사이 만료되지 않게 둔다 */
 const THUMB_MIN_REMAINING_MS = 5 * 60 * 1000;
+
+/** 받아 둔 주소를 아직 쓸 수 있는지. 핀과 사진 줄이 같은 기준을 쓴다 */
+const isThumbFresh = (thumb: Pick<CachedThumb, "expiresAt">, now: number): boolean => thumb.expiresAt - now > THUMB_MIN_REMAINING_MS;
 
 /**
  * 화면 안 낱개 핀의 대표 사진 중, 받아 둔 주소로 바로 그릴 것과 새로 받을 것을 가른다.
@@ -153,7 +156,7 @@ export const planThumbRequests = ({
   now,
 }: {
   photoIds: string[];
-  cached: ReadonlyMap<string, CachedThumb>;
+  cached: ReadonlyMap<string, Pick<CachedThumb, "thumbUrl" | "expiresAt">>;
   pending: ReadonlySet<string>;
   unavailable: ReadonlySet<string>;
   now: number;
@@ -162,10 +165,34 @@ export const planThumbRequests = ({
   const missing: string[] = [];
   for (const id of new Set(photoIds)) {
     const thumb = cached.get(id);
-    if (thumb && thumb.expiresAt - now > THUMB_MIN_REMAINING_MS) ready.push([id, thumb.url]);
+    if (thumb && isThumbFresh(thumb, now)) ready.push([id, thumb.thumbUrl]);
     else if (!pending.has(id) && !unavailable.has(id)) missing.push(id);
   }
   const batches: string[][] = [];
   for (let start = 0; start < missing.length; start += MAP_PHOTOS_MAX_IDS) batches.push(missing.slice(start, start + MAP_PHOTOS_MAX_IDS));
   return { ready, batches };
+};
+
+/**
+ * 핀을 눌렀을 때 서버 응답을 기다리지 않고 사진 줄에 먼저 보여 줄 사진. 핀 썸네일과 함께 받아 둔 대표 사진이 아직 쓸 만하면 그 한 장, 아니면 빈 목록이다(#300).
+ *
+ * @example const initialPhotos = toInitialStripPhotos({ coverId: spot.key, cached: thumbsRef.current, now: Date.now() })
+ */
+export const toInitialStripPhotos = ({ coverId, cached, now }: { coverId: string; cached: ReadonlyMap<string, CachedThumb>; now: number }): MapPhoto[] => {
+  const cover = cached.get(coverId);
+  return cover && isThumbFresh(cover, now) ? [cover] : [];
+};
+
+/**
+ * 새로 받은 사진 목록에, 먼저 보여 준 사진의 썸네일 주소를 그대로 쓴다. 주소가 바뀌면 같은 사진을 다시 내려받기 때문이다(#300).
+ * 제목 같은 나머지 내용은 새로 받은 것을 쓰고, 그사이 지워져 새 목록에 없는 사진은 빠진다.
+ *
+ * @example setPhotos((shown) => toPhotosWithKnownThumbs(page, shown))
+ */
+export const toPhotosWithKnownThumbs = (fresh: MapPhoto[], known: MapPhoto[]): MapPhoto[] => {
+  const knownById = new Map(known.map((photo) => [photo.id, photo]));
+  return fresh.map((photo) => {
+    const shown = knownById.get(photo.id);
+    return shown?.thumbUrl ? { ...photo, thumbUrl: shown.thumbUrl, expiresAt: shown.expiresAt } : photo;
+  });
 };

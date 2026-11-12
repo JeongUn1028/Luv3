@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { RECORDS_MAP_PATH } from "@/lib/dates/map";
 import { MAP_PHOTOS_PATH } from "@/lib/dates/map-photos";
-import { createUniqueLocation, fakeMapSdk, moveFakeMap, toViewBoxAround } from "./support/fake-kakao-map";
+import { createUniqueLocation, fakeMapSdk, moveFakeMap, toViewBoxAround, type FakeWindow } from "./support/fake-kakao-map";
 import { addLocatedPhotoRows, addRecordPhoto, createDisposableRecord, getRecordPhotoIds, setRecordPhotoLocation } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
@@ -173,6 +173,88 @@ test.describe("지도 사진 핀", () => {
       // Assert
       await page.waitForURL(`**/dates/${record.id}?photo=*`);
       await expect(carousel.getByText("1 / 2")).toBeVisible();
+    } finally {
+      await record.remove();
+    }
+  });
+
+  test("사진 핀을 누르면 받아 둔 대표 사진과 기록 제목·날짜를 바로 보여 주고, 대표 사진은 다시 내려받지 않는다", async ({ page }) => {
+    // Arrange: 핀 썸네일을 받은 뒤의 사진 줄 요청은 테스트가 풀어 줄 때까지 붙잡아 둔다(느린 서버)
+    const place = `E2E 바로 보기 ${randomUUID()}`;
+    const location = createUniqueLocation();
+    const record = await createPhotoLocatedRecord({ title: "E2E 바로 보기 기록", place, location, date: "2026-03-04" });
+    await addRecordPhoto(record.id, { sortOrder: 1, location: { place, ...location } });
+    let isHolding = false;
+    const release = Promise.withResolvers<void>();
+    await page.route(`**${MAP_PHOTOS_PATH}?*`, async (route) => {
+      if (isHolding) await release.promise;
+      await route.continue();
+    });
+    await fakeMapSdk(page, { viewBox: toViewBoxAround(location) });
+
+    try {
+      await openMap(page);
+      const pin = getPhotoPin(page, place, 2);
+      const pinImage = pin.locator("img");
+      await expect(pinImage).toHaveAttribute("src", /.+/);
+      const pinThumbUrl = await pinImage.getAttribute("src");
+      isHolding = true;
+
+      // Act
+      await pressPhotoPin(pin);
+
+      // Assert: 서버 응답 전에 대표 사진 칸이 이미 있다
+      const links = getStrip(page, place).getByRole("link");
+      await expect(links).toHaveCount(1);
+      await expect(links.first()).toContainText("E2E 바로 보기 기록");
+      await expect(links.first()).toContainText("2026.03.04");
+      await expect(links.first().locator("img")).toHaveAttribute("src", pinThumbUrl ?? "");
+
+      // Act
+      release.resolve();
+
+      // Assert: 나머지 사진이 이어 붙고, 대표 사진 주소는 그대로다
+      await expect(links).toHaveCount(2);
+      await expect(links.first().locator("img")).toHaveAttribute("src", pinThumbUrl ?? "");
+    } finally {
+      release.resolve();
+      await record.remove();
+    }
+  });
+
+  test("핀 누름이 지도의 누름으로도 이어져도 방금 연 사진 줄을 닫지 않고, 그 뒤에 빈 곳을 누르면 닫는다", async ({ page }) => {
+    // Arrange
+    const place = `E2E 누름 겹침 ${randomUUID()}`;
+    const location = createUniqueLocation();
+    const record = await createPhotoLocatedRecord({ title: "E2E 누름 겹침 기록", place, location });
+    await fakeMapSdk(page, { viewBox: toViewBoxAround(location) });
+    const fireMapClick = () =>
+      page.evaluate(() => {
+        const { fakeMap } = window as unknown as FakeWindow;
+        fakeMap.fire(fakeMap.map, "click");
+      });
+
+    try {
+      await openMap(page);
+      const pin = getPhotoPin(page, place, 1);
+      await expect(pin).toBeAttached();
+
+      // Act: 휴대폰에서 핀을 누르면 지도도 누름을 받는 경우를 흉내 낸다
+      await pin.evaluate((element: HTMLElement) => {
+        element.click();
+        const { fakeMap } = window as unknown as FakeWindow;
+        fakeMap.fire(fakeMap.map, "click");
+      });
+
+      // Assert
+      const strip = getStrip(page, place);
+      await expect(strip).toBeVisible();
+
+      // Act + Assert: 조금 지나 빈 곳을 누르면 닫는다
+      await expect(async () => {
+        await fireMapClick();
+        await expect(strip).toBeHidden({ timeout: 200 });
+      }).toPass();
     } finally {
       await record.remove();
     }
