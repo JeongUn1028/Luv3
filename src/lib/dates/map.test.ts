@@ -35,6 +35,7 @@ const createPhotoRow = (overrides: Partial<MapPhotoRow> = {}): MapPhotoRow => ({
   place: "성동구 성수1가1동",
   place_lat: 37.5444,
   place_lng: 127.0396,
+  place_name: null,
   record: { date: "2026-11-01", created_at: "2026-11-01T10:00:00+00:00" },
   ...overrides,
 });

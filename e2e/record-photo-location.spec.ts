@@ -8,6 +8,7 @@ import {
   deleteRecordWithFiles,
   downloadAlbumFile,
   getRecordGroupCaptions,
+  getRecordGroupPlaceNames,
   getRecordIdsByTitle,
   getRecordPhotoDetails,
   getRecordPhotoLocations,
@@ -24,6 +25,8 @@ const FOREST = { name: "서울숲", lat: 37.5444, lng: 127.0374 };
 /** 서버가 리포의 행정동 경계로 "성동구 성수1가1동"을 돌려주는 자리 */
 const SEONGSU = { lat: 37.5444, lng: 127.0396 };
 const SEONGSU_NAME = "성동구 성수1가1동";
+/** 화면은 행정동 이름의 마지막 동 이름을 다듬어 보여 준다(#317). 저장 값은 그대로다 */
+const SEONGSU_SHOWN_NAME = "성동구 성수동";
 /** 행정동 경계 밖(해외)이라 서버가 이름 없이 돌려주는 자리 */
 const PARIS = { lat: 48.8584, lng: 2.2945 };
 
@@ -99,7 +102,7 @@ test.describe("모음 위치", () => {
       await page.locator("#title").fill(title);
       await pickPhoto(page, 1);
       await pickPhoto(page, 2, { hasLocation: false });
-      await expect(getGroupLocation(page, 1)).toHaveText(`모음 1 위치: ${SEONGSU_NAME}`);
+      await expect(getGroupLocation(page, 1)).toHaveText(`모음 1 위치: ${SEONGSU_SHOWN_NAME}`);
       await expect(getGroupCard(page, 1).getByText("첫 사진 정보에서 읽었어요")).toBeVisible();
       await expect(getGroupLocation(page, 2)).toHaveText("모음 2 위치: 위치 없음");
       await expect(getGroupCard(page, 2).getByText("첫 사진에 위치 정보가 없어요")).toBeVisible();
@@ -120,7 +123,7 @@ test.describe("모음 위치", () => {
 
       // Assert: 창이 닫히고 같은 버튼으로 초점이 돌아오며 오류가 사라진다
       await expect(dialog).toBeHidden();
-      await expect(getGroupLocation(page, 2)).toHaveText(`모음 2 위치: ${SEONGSU_NAME}`);
+      await expect(getGroupLocation(page, 2)).toHaveText(`모음 2 위치: ${SEONGSU_SHOWN_NAME}`);
       await expect(getGroupCard(page, 2).getByText("직접 골랐어요")).toBeVisible();
       await expect(getLocationButton(page, 2)).toBeFocused();
       await expect(page.getByText("위치를 골라야 저장할 수 있어요.")).toHaveCount(0);
@@ -168,14 +171,14 @@ test.describe("모음 위치", () => {
       await dialog.getByRole("button", { name: "내 위치로" }).click();
 
       // Assert
-      await expect(dialog.getByText(SEONGSU_NAME, { exact: true })).toBeVisible();
+      await expect(dialog.getByText(SEONGSU_SHOWN_NAME, { exact: true })).toBeVisible();
 
       // Act
       await choose.click();
 
       // Assert
       await expect(dialog).toBeHidden();
-      await expect(getGroupLocation(page, 1)).toHaveText(`모음 1 위치: ${SEONGSU_NAME}`);
+      await expect(getGroupLocation(page, 1)).toHaveText(`모음 1 위치: ${SEONGSU_SHOWN_NAME}`);
       await expect(getLocationButton(page, 1)).toHaveAccessibleName("위치 바꾸기 (모음 1)");
       await expect(getLocationButton(page, 1)).toBeFocused();
 
@@ -240,18 +243,18 @@ test.describe("모음 위치", () => {
     const dialog = await openLocationDialog(page, 1);
     const myLocation = dialog.getByRole("button", { name: "내 위치로" });
     await myLocation.click();
-    await expect(dialog.getByText(SEONGSU_NAME, { exact: true })).toBeVisible();
+    await expect(dialog.getByText(SEONGSU_SHOWN_NAME, { exact: true })).toBeVisible();
 
     // Act: 파리로 옮겨 이름을 기다리는 사이 내 위치(성수)로 돌아온 뒤, 파리 이름이 늦게 온다
     await moveMapCenter(page, PARIS);
     await expect.poll(() => parisRequested).toBe(true);
     await myLocation.click();
-    await expect(dialog.getByText(SEONGSU_NAME, { exact: true })).toBeVisible();
+    await expect(dialog.getByText(SEONGSU_SHOWN_NAME, { exact: true })).toBeVisible();
     releaseParis();
 
     // Assert
     await page.waitForTimeout(300);
-    await expect(dialog.getByText(SEONGSU_NAME, { exact: true })).toBeVisible();
+    await expect(dialog.getByText(SEONGSU_SHOWN_NAME, { exact: true })).toBeVisible();
     await expect(dialog.getByRole("button", { name: "이 위치로" })).toBeEnabled();
   });
 
@@ -326,7 +329,7 @@ test.describe("사진 정보로 위치·찍은 시각 채우기", () => {
       region.release();
 
       // Assert
-      await expect(getGroupLocation(page, 1)).toHaveText(`모음 1 위치: ${SEONGSU_NAME}`);
+      await expect(getGroupLocation(page, 1)).toHaveText(`모음 1 위치: ${SEONGSU_SHOWN_NAME}`);
       expect(region.requests).toHaveLength(1);
       expect(Number(region.requests[0]?.lat)).toBeCloseTo(SEONGSU.lat, 5);
       expect(Number(region.requests[0]?.lng)).toBeCloseTo(SEONGSU.lng, 5);
@@ -395,7 +398,7 @@ test.describe("사진 정보로 위치·찍은 시각 채우기", () => {
     await page.getByLabel("사진 고르기", { exact: true }).setInputFiles({ name: "IMG_0001.HEIC", mimeType: "image/heic", buffer });
 
     // Assert
-    await expect(getGroupLocation(page, 1)).toHaveText(`모음 1 위치: ${SEONGSU_NAME}`);
+    await expect(getGroupLocation(page, 1)).toHaveText(`모음 1 위치: ${SEONGSU_SHOWN_NAME}`);
   });
 });
 
@@ -419,7 +422,7 @@ test.describe("모음 한마디", () => {
 
       // Assert: 사진을 눌러도 사진별 한마디 칸은 없고, 모음마다 칸이 하나다
       await getGroupPhoto(page, 1, 2).click();
-      await expect(getGroupCard(page, 1).getByRole("textbox")).toHaveCount(1);
+      await expect(getGroupCard(page, 1).getByRole("textbox", { name: /한마디/ })).toHaveCount(1);
       await expect(getGroupCard(page, 2).getByText("101/100")).toBeVisible();
 
       // Act
@@ -451,6 +454,54 @@ test.describe("모음 한마디", () => {
       // Assert
       await expect(getGroupCaption(page, 1)).toHaveValue("카페 한마디");
       await expect(getGroupCaption(page, 2)).toHaveValue("숲 한마디");
+    } finally {
+      for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id);
+    }
+  });
+});
+
+test.describe("모음 장소 이름", () => {
+  /** 모음 카드의 장소 이름 칸. 이름은 "장소 이름 (모음 N) (선택 · 비우면 동네 이름)"이다 */
+  const getGroupPlaceName = (page: Page, groupNumber: number): Locator =>
+    getGroupCard(page, groupNumber).getByRole("textbox", { name: `장소 이름 (모음 ${groupNumber}) (선택 · 비우면 동네 이름)` });
+
+  test("모음마다 장소 이름을 붙여 저장하고 고치기에서 그대로 불러오며, 30자를 넘으면 저장하지 않고 그 칸으로 초점이 간다", async ({ page }, testInfo) => {
+    // Arrange: 모음 두 개
+    const title = createTestName("E2E 모음 장소 이름", testInfo);
+    await openScreen(page, "/dates/new", page.locator("#memo"));
+
+    try {
+      await page.locator("#title").fill(title);
+      await pickPhoto(page, 1);
+      await pickPhoto(page, 2);
+      await getGroupPlaceName(page, 1).fill(" 골목 끝 카페 ");
+      await getGroupPlaceName(page, 2).fill("가".repeat(31));
+
+      // Act
+      await getSaveButton(page).click();
+
+      // Assert: 저장하지 않고 넘친 칸으로 초점이 간다
+      await expect(getGroupPlaceName(page, 2)).toBeFocused();
+      await expect(getGroupPlaceName(page, 2)).toHaveAccessibleDescription(/장소 이름은 30자까지 적을 수 있어요\./);
+      await expect(page).toHaveURL(/\/dates\/new$/);
+
+      // Act: 비우면 오류가 사라지고 저장된다(비운 모음은 동네 이름으로 보인다)
+      await getGroupPlaceName(page, 2).fill("");
+      await expect(page.getByText("장소 이름은 30자까지 적을 수 있어요.")).toHaveCount(0);
+      await getSaveButton(page).click();
+      await page.waitForURL(/\/records/);
+
+      // Assert: 앞뒤 공백 없이 저장하고, 비운 이름은 null이다
+      const [id] = await getRecordIdsByTitle(title);
+      if (!id) throw new Error("저장한 기록을 찾지 못했습니다");
+      expect(await getRecordGroupPlaceNames(id)).toEqual(["골목 끝 카페", null]);
+
+      // Act
+      await openScreen(page, `/dates/${id}/edit`, page.locator("#memo"));
+
+      // Assert
+      await expect(getGroupPlaceName(page, 1)).toHaveValue("골목 끝 카페");
+      await expect(getGroupPlaceName(page, 2)).toHaveValue("");
     } finally {
       for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id);
     }
@@ -495,92 +546,35 @@ test.describe("기록 상세의 모음", () => {
     }
   });
 
-  test("모음이 둘 이상이면 사진 아래에 장소 이름 칩을 두고, 칩을 누르면 그 모음의 첫 사진으로 넘어가며 지금 모음과 그 한마디를 보여 준다", async ({ page }) => {
-    // Arrange: 사진 2장인 시드 모음(E2E 기본 위치)과 서울숲 모음. 위치 없이 더한 사진은 시드 모음에 들어간다
+  test("모음 칩 없이, 장소 줄에 직접 붙인 장소 이름과 다듬은 동 이름을 보여 주고 다른 모음으로 넘기면 바뀐다", async ({ page }) => {
+    // Arrange: 시드 모음(이름 없음) 뒤로, 장소 이름을 붙인 성수 모음과 이름 없는 성수 모음
     const id = randomUUID();
-    const deleteRecord = await createDisposableRecord({ id, title: "E2E 모음 칩" });
+    const deleteRecord = await createDisposableRecord({ id, title: "E2E 모음 장소 이름" });
     const carousel = page.getByRole("region", { name: "사진" });
-    const chips = carousel.getByRole("list", { name: "사진 모음" }).getByRole("button");
-    const caption = carousel.locator("[aria-live]").last();
+    const place = carousel.locator("[aria-live]").first();
 
     try {
-      await addRecordPhoto(id, { sortOrder: 1, groupCaption: "첫 모음 한마디" });
-      await addRecordPhoto(id, { sortOrder: 2, groupCaption: "숲 한마디", location: { place: FOREST.name, lat: FOREST.lat, lng: FOREST.lng } });
-      await openScreen(page, `/dates/${id}`, page.getByRole("heading", { name: "E2E 모음 칩" }));
+      await addRecordPhoto(id, { sortOrder: 1, groupPlaceName: "골목 끝 카페", location: { place: SEONGSU_NAME, ...SEONGSU } });
+      await addRecordPhoto(id, { sortOrder: 2, location: { place: SEONGSU_NAME, ...SEONGSU } });
+      await openScreen(page, `/dates/${id}`, page.getByRole("heading", { name: "E2E 모음 장소 이름" }));
 
-      // Assert: 칩은 장소 이름만 보이고, 화면 읽기 프로그램에는 모음 번호를 함께 읽어 준다
-      await expect(chips).toHaveText(["모음 1 E2E 기본 위치", `모음 2 ${FOREST.name}`]);
-      await expect(chips.first()).toHaveAttribute("aria-current", "true");
-      await expect(caption).toHaveText("첫 모음 한마디");
+      // Assert: 모음 칩 줄이 없다
+      await expect(page.getByRole("list", { name: "사진 모음" })).toHaveCount(0);
+      await expect(place).toHaveText("찍은 곳: E2E 기본 위치");
 
-      // Act: 같은 모음의 다음 사진으로 넘긴다
+      // Act
       await carousel.getByRole("button", { name: "다음 사진" }).click();
 
-      // Assert: 한마디는 모음마다 하나라 그대로다
+      // Assert: 직접 붙인 이름과 다듬은 동 이름(성수1가1동 → 성수동). 화면 읽기 프로그램이 두 이름을 붙여 읽지 않게 사이에 빈칸이 있다
       await expect(carousel.getByText("2 / 3")).toBeVisible();
-      await expect(caption).toHaveText("첫 모음 한마디");
+      await expect(place).toHaveText("찍은 곳: 골목 끝 카페 · 성수동");
 
       // Act
-      await chips.nth(1).click();
+      await carousel.getByRole("button", { name: "다음 사진" }).click();
 
-      // Assert
+      // Assert: 이름이 없는 모음은 다듬은 동 이름만
       await expect(carousel.getByText("3 / 3")).toBeVisible();
-      await expect(chips.nth(1)).toHaveAttribute("aria-current", "true");
-      await expect(chips.first()).not.toHaveAttribute("aria-current", "true");
-      await expect(caption).toHaveText("숲 한마디");
-
-      // Act: 넘겨서 앞 모음의 마지막 사진으로 가면 칩 표시와 한마디도 따라간다
-      await carousel.getByRole("button", { name: "이전 사진" }).click();
-
-      // Assert
-      await expect(carousel.getByText("2 / 3")).toBeVisible();
-      await expect(chips.first()).toHaveAttribute("aria-current", "true");
-      await expect(caption).toHaveText("첫 모음 한마디");
-    } finally {
-      await deleteRecord();
-    }
-  });
-
-  test("칩이 화면 밖으로 넘칠 만큼 모음이 많아도, 사진을 넘기면 지금 모음 칩이 칩 줄 안에 보이게 따라 민다", async ({ page }) => {
-    // Arrange: 시드 모음 뒤로 이름이 긴 모음 다섯 개
-    const id = randomUUID();
-    const deleteRecord = await createDisposableRecord({ id, title: "E2E 모음 칩 많음" });
-    const carousel = page.getByRole("region", { name: "사진" });
-    const chips = carousel.getByRole("list", { name: "사진 모음" }).getByRole("button");
-    const groupCount = 6;
-
-    try {
-      for (let order = 1; order < groupCount; order += 1) {
-        await addRecordPhoto(id, { sortOrder: order, location: { place: `서울특별시 성동구 성수동 ${order}번째 자리`, lat: FOREST.lat + order * 0.01, lng: FOREST.lng } });
-      }
-      await openScreen(page, `/dates/${id}`, page.getByRole("heading", { name: "E2E 모음 칩 많음" }));
-      await expect(chips.last()).not.toBeInViewport({ ratio: 1 });
-
-      // Act
-      for (let order = 1; order < groupCount; order += 1) {
-        await carousel.getByRole("button", { name: "다음 사진" }).click();
-      }
-
-      // Assert
-      await expect(carousel.getByText(`${groupCount} / ${groupCount}`)).toBeVisible();
-      await expect(chips.last()).toHaveAttribute("aria-current", "true");
-      await expect(chips.last()).toBeInViewport({ ratio: 1 });
-    } finally {
-      await deleteRecord();
-    }
-  });
-
-  test("모음이 하나뿐이면 모음 칩을 두지 않는다", async ({ page }) => {
-    // Arrange
-    const id = randomUUID();
-    const deleteRecord = await createDisposableRecord({ id, title: "E2E 모음 하나" });
-
-    try {
-      // Act
-      await openScreen(page, `/dates/${id}`, page.getByRole("heading", { name: "E2E 모음 하나" }));
-
-      // Assert
-      await expect(page.getByRole("list", { name: "사진 모음" })).toHaveCount(0);
+      await expect(place).toHaveText("찍은 곳: 성수동");
     } finally {
       await deleteRecord();
     }

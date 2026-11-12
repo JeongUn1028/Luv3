@@ -1,16 +1,16 @@
 "use client";
 
 import useEmblaCarousel from "embla-carousel-react";
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, MapPinIcon } from "@/components/icons";
 import { SignedPhoto } from "@/components/SignedPhoto";
 import type { DetailGroup, DetailPhoto } from "@/lib/dates/detail";
-import { toGroupName } from "@/lib/dates/group-name";
 import { useResetOnLinkReopen } from "@/lib/navigation/use-reset-on-link-reopen";
+import { toShortRegionName } from "@/lib/places/region-name";
 
 interface PhotoCarouselProps {
   photos: DetailPhoto[];
-  /** 사진 모음. 둘 이상이면 사진 아래에 모음 칩을 둔다(#299) */
+  /** 사진 모음. 지금 보는 모음의 한마디를 찾는다(#309) */
   groups: DetailGroup[];
   /** 사진 대체 텍스트에 쓰는 기록 제목 */
   title: string;
@@ -21,10 +21,10 @@ interface PhotoCarouselProps {
 const navButtonClassName =
   "press-icon flex size-11 items-center justify-center text-ink-sub hover:text-ink disabled:opacity-30 disabled:hover:text-ink-sub";
 
-const groupChipClassName =
-  "press-wide flex min-h-11 items-center rounded-full border border-line bg-surface px-3.5 text-[13px] whitespace-nowrap text-ink aria-[current=true]:border-accent aria-[current=true]:text-accent";
-
-/** 화면 폭으로 넘겨 보는 사진과 지금 사진의 장소, 모음 칩, 지금 모음의 한마디 */
+/**
+ * 화면 폭으로 넘겨 보는 사진과 지금 사진의 장소, 지금 모음의 한마디.
+ * 모음 칩은 장소 줄과 같은 이름을 되풀이해 없앴다(#317). 다른 모음으로 넘어가면 장소 줄의 이름이 바뀌어 알 수 있다
+ */
 export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCarouselProps): ReactElement => {
   const [viewportRef, emblaApi] = useEmblaCarousel({ startIndex });
   const [selectedIndex, setSelectedIndex] = useState(startIndex);
@@ -50,18 +50,8 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
     };
   }, [emblaApi]);
 
-  // 사진을 넘겨 모음이 바뀌면 칩 줄(가로 스크롤)을 밀어 지금 모음 칩을 가운데로 둔다. 화면이 세로로 움직이지 않게 칩 줄만 민다
-  const chipListRef = useRef<HTMLUListElement>(null);
-  const currentGroupId = current?.groupId;
   // 한마디는 모음마다 하나라 같은 모음 사진을 넘기는 동안 그대로이고, 다른 모음으로 넘어가면 바뀐다(#309)
-  const currentCaption = groups.find(({ id }) => id === currentGroupId)?.caption;
-  useEffect(() => {
-    const list = chipListRef.current;
-    const chip = list?.querySelector<HTMLElement>('[aria-current="true"]');
-    if (!list || !chip || currentGroupId === undefined) return;
-    const isMotionReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    list.scrollTo({ left: chip.offsetLeft - (list.clientWidth - chip.offsetWidth) / 2, behavior: isMotionReduced ? "auto" : "smooth" });
-  }, [currentGroupId]);
+  const currentCaption = groups.find(({ id }) => id === current?.groupId)?.caption;
 
   return (
     <section aria-roledescription="carousel" aria-label="사진" className="flex flex-col">
@@ -91,13 +81,22 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
       </div>
 
       <div className="flex min-h-11 items-start gap-2 px-4 pt-2">
-        {/* 넘길 때 그 사진이 속한 모음의 장소를 읽어 준다(#249) */}
+        {/* 넘길 때 그 사진이 속한 모음의 장소를 읽어 준다(#249). 직접 붙인 장소 이름은 분홍으로, 다듬은 동 이름은 회색으로 둔다(#317) */}
         <div aria-live="polite" className="flex min-w-0 flex-1 flex-col gap-0.5 pt-2.5">
           {current && (
-            <p className="flex items-center gap-1 text-[13px] text-ink-sub">
-              <MapPinIcon className="size-3.5 shrink-0" />
+            <p className="flex flex-wrap items-center gap-x-1 text-[13px] text-ink-sub">
+              <MapPinIcon className="size-3.5 shrink-0 text-accent" />
               <span className="sr-only">찍은 곳: </span>
-              <span className="min-w-0 break-words">{current.place}</span>
+              {/* 사이의 빈칸은 줄 배치(flex)에서는 보이지 않고, 화면 읽기 프로그램이 두 이름을 붙여 읽지 않게 한다 */}
+              {current.placeName && (
+                <>
+                  <span className="min-w-0 text-[14px] break-words text-accent">{current.placeName}</span>{" "}
+                </>
+              )}
+              <span className="min-w-0 break-words">
+                {current.placeName && <span aria-hidden="true">· </span>}
+                {toShortRegionName(current.place)}
+              </span>
             </p>
           )}
         </div>
@@ -127,25 +126,6 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
           </div>
         )}
       </div>
-      {groups.length > 1 && (
-        // 칩에는 장소 이름만 적는다(장수 없음, 2026-11-11 사용자 결정). 같은 이름이 여럿일 수 있어 화면 읽기 프로그램에는 모음 번호를 함께 읽어 준다
-        // relative: 칩의 offsetLeft를 칩 줄 기준으로 재려고 둔다
-        <ul ref={chipListRef} aria-label="사진 모음" className="relative mt-2 flex gap-2 overflow-x-auto px-4 pb-1">
-          {groups.map(({ id, place, firstPhotoIndex }, index) => (
-            <li key={id} className="flex">
-              <button
-                type="button"
-                aria-current={id === current?.groupId ? "true" : undefined}
-                onClick={() => emblaApi?.scrollTo(firstPhotoIndex)}
-                className={groupChipClassName}
-              >
-                <span className="sr-only">{toGroupName(index + 1)} </span>
-                {place}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
       {/* 한마디가 없는 모음은 자리를 비운다. 다른 모음으로 넘어가 바뀔 때만 읽어 준다 */}
       <p aria-live="polite" className="px-4">
         {currentCaption && <span className="mt-2 block text-[14px] leading-[1.5] break-words whitespace-pre-line text-ink">{currentCaption}</span>}

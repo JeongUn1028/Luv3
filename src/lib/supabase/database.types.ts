@@ -139,14 +139,14 @@ isOneToOne: false
                   ]
                 },"photo_groups": {
                   Row: {
-                    "caption": string | null,"created_at": string,"date_id": string,"id": string,"place": string,"place_lat": number,"place_lng": number,"sort_order": number
+                    "caption": string | null,"created_at": string,"date_id": string,"id": string,"place": string,"place_lat": number,"place_lng": number,"place_name": string | null,"sort_order": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "caption"?: string | null,"created_at"?: string,"date_id": string,"id": string,"place": string,"place_lat": number,"place_lng": number,"sort_order": number
+                    "caption"?: string | null,"created_at"?: string,"date_id": string,"id": string,"place": string,"place_lat": number,"place_lng": number,"place_name"?: string | null,"sort_order": number
                   }
                   Update: {
-                    "caption"?: string | null,"created_at"?: string,"date_id"?: string,"id"?: string,"place"?: string,"place_lat"?: number,"place_lng"?: number,"sort_order"?: number
+                    "caption"?: string | null,"created_at"?: string,"date_id"?: string,"id"?: string,"place"?: string,"place_lat"?: number,"place_lng"?: number,"place_name"?: string | null,"sort_order"?: number
                   }
                   Relationships: [
                     {

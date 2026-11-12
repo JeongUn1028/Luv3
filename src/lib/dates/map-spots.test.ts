@@ -12,6 +12,7 @@ const createPhotoRow = (overrides: Partial<MapPhotoRow> = {}): MapPhotoRow => ({
   place: "성동구 성수1가1동",
   place_lat: SEONGSU.lat,
   place_lng: SEONGSU.lng,
+  place_name: null,
   record: { date: "2026-11-01", created_at: "2026-11-01T10:00:00+00:00" },
   ...overrides,
 });
@@ -29,6 +30,15 @@ describe("getDistanceMeters", () => {
 });
 
 describe("toPhotoSpots", () => {
+  // 핀을 누르면 뜨는 사진 줄 머리에 이 이름이 나온다(#317)
+  it("핀 이름은 대표 사진 모음에 붙인 장소 이름을, 없으면 다듬은 동 이름을 쓴다", () => {
+    const named = toPhotoSpots([createPhotoRow({ place_name: "골목 끝 카페" })]);
+    const unnamed = toPhotoSpots([createPhotoRow()]);
+
+    expect(named.map(({ place }) => place)).toEqual(["골목 끝 카페"]);
+    expect(unnamed.map(({ place }) => place)).toEqual(["성수동"]);
+  });
+
   it("50m 안에서 찍은 사진은 한 자리로 묶고, 대표 사진 좌표에 핀을 꽂는다", () => {
     // Arrange
     const rows = [createPhotoRow({ id: "p1" }), createPhotoRow({ id: "p2", sort_order: 1, place_lat: northOf(40) })];
@@ -37,7 +47,7 @@ describe("toPhotoSpots", () => {
     const spots = toPhotoSpots(rows);
 
     // Assert
-    expect(spots).toEqual([{ key: "p1", lat: SEONGSU.lat, lng: SEONGSU.lng, place: "성동구 성수1가1동", photoIds: ["p1", "p2"] }]);
+    expect(spots).toEqual([{ key: "p1", lat: SEONGSU.lat, lng: SEONGSU.lng, place: "성수동", photoIds: ["p1", "p2"] }]);
   });
 
   it("50m보다 멀면 자리를 나눈다", () => {
@@ -97,7 +107,7 @@ describe("toPhotoSpots", () => {
 
     // Assert: 핀 숫자는 핀에 모인 사진 수(photoIds 길이)다
     expect(spots.map(({ key, place, photoIds }) => ({ key, place, photoIds }))).toEqual([
-      { key: "최근 모음 첫째", place: "성동구 성수1가1동", photoIds: ["최근 모음 첫째", "최근 모음 둘째", "예전 모음"] },
+      { key: "최근 모음 첫째", place: "성수동", photoIds: ["최근 모음 첫째", "최근 모음 둘째", "예전 모음"] },
       { key: "먼 모음", place: "먼 곳", photoIds: ["먼 모음"] },
     ]);
   });

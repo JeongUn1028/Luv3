@@ -9,22 +9,21 @@ import { buildGroupRoute, type PhotoRoute } from "./route";
 
 export interface DetailPhoto {
   id: string;
-  /** 사진이 속한 모음. 모음 칩에서 지금 보는 모음을 표시할 때 쓴다(#299) */
+  /** 사진이 속한 모음. 지금 보는 모음의 한마디를 찾을 때 쓴다(#309) */
   groupId: string;
   /** 원본(긴 변 2000px) 서명 URL. 받지 못했으면 빈 칸으로 그린다 */
   url: string | undefined;
-  /** 사진이 속한 모음의 장소 이름(#249, #297) */
+  /** 사진이 속한 모음의 행정동 이름(#249, #297). 화면은 다듬어(성수동) 보여 준다 */
   place: string;
+  /** 사진이 속한 모음에 사용자가 붙인 장소 이름(#317). 없으면 undefined */
+  placeName: string | undefined;
 }
 
-/** 기록 상세 사진 아래의 모음 칩 하나(#299) */
+/** 기록 상세의 사진 모음 하나. 모음 칩은 없앴고(#317) 지금 보는 모음의 한마디를 찾을 때 쓴다 */
 export interface DetailGroup {
   id: string;
-  place: string;
   /** 모음 한마디(#309). 그 모음 사진을 보는 동안 사진 아래에 보여 준다 */
   caption: string | undefined;
-  /** 모음 첫 사진의 순서. 칩을 누르면 이 사진으로 넘어간다 */
-  firstPhotoIndex: number;
 }
 
 /** 기록 상세에서 처음 펼칠 사진을 고르는 주소 이름(`/dates/<id>?photo=<사진 id>`) */
@@ -101,6 +100,8 @@ export interface EditableGroup {
   location: PhotoLocation;
   /** 모음 한마디(#309). 없으면 빈 문자열 */
   caption: string;
+  /** 사용자가 붙인 장소 이름(#317). 없으면 빈 문자열 */
+  placeName: string;
   photos: { id: string; takenAt: string | undefined; previewUrl: string | undefined }[];
 }
 
@@ -131,6 +132,8 @@ export interface DetailRow {
     place: string;
     place_lat: number;
     place_lng: number;
+    /** 사진이 속한 모음에 사용자가 붙인 장소 이름(#317) */
+    place_name: string | null;
     taken_at: string | null;
   }[];
 }
@@ -144,14 +147,9 @@ const toPhotoLocation = ({ place, place_lat: lat, place_lng: lng }: DetailRow["p
 const toCaptionByGroupId = (groups: DetailRow["groups"]): Map<string, string> =>
   new Map(groups.flatMap(({ id, caption }) => (caption ? [[id, caption] as const] : [])));
 
-/** 사진 순서대로 놓인 사진에서 모음 칩을 만든다. 칩은 모음 첫 사진의 자리를 가리킨다 */
+/** 사진 순서대로 놓인 사진을 모음으로 묶어 모음마다 한마디를 붙인다 */
 const toDetailGroups = (photos: DetailRow["photos"], captionByGroupId: Map<string, string>): DetailGroup[] =>
-  groupPhotosInOrder(photos).map(([first]) => ({
-    id: first.group_id,
-    place: first.place,
-    caption: captionByGroupId.get(first.group_id),
-    firstPhotoIndex: photos.indexOf(first),
-  }));
+  groupPhotosInOrder(photos).map(([first]) => ({ id: first.group_id, caption: captionByGroupId.get(first.group_id) }));
 
 const sortPhotos = (photos: DetailRow["photos"]): DetailRow["photos"] => photos.toSorted(comparePhotoOrder);
 
@@ -191,7 +189,13 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[]): D
     authorNickname: row.author?.nickname,
     eventHref: linkedEvent?.href,
     linkedEvent,
-    photos: photos.map(({ id, group_id: groupId, path, place }) => ({ id, groupId, url: urlByPath.get(path), place })),
+    photos: photos.map(({ id, group_id: groupId, path, place, place_name: placeName }) => ({
+      id,
+      groupId,
+      url: urlByPath.get(path),
+      place,
+      placeName: placeName ?? undefined,
+    })),
     groups: toDetailGroups(photos, toCaptionByGroupId(row.groups)),
     route: buildGroupRoute(photos),
     filePaths: photos.flatMap(({ path, thumb_path }) => [path, thumb_path]),
@@ -212,6 +216,7 @@ const toEditableGroups = ({
     id: groupPhotos[0].group_id,
     location: toPhotoLocation(groupPhotos[0]),
     caption: captionByGroupId.get(groupPhotos[0].group_id) ?? "",
+    placeName: groupPhotos[0].place_name ?? "",
     photos: groupPhotos.map((photo) => ({ id: photo.id, takenAt: photo.taken_at ?? undefined, previewUrl: urlByPath.get(photo.thumb_path) })),
   }));
 

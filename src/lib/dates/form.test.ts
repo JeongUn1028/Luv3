@@ -26,6 +26,7 @@ const group = <Photo extends DraftPhoto>(id: string, photos: Photo[], location: 
   location,
   locationSource: "saved",
   pendingLocationPhotoId: undefined,
+  placeName: "",
   caption,
   photos,
 });
@@ -101,13 +102,20 @@ describe("validateDraft", () => {
       draft({
         title: "가".repeat(101),
         memo: "가".repeat(10_001),
-        groups: [group("g1", [photo("p1")], ONION, "가".repeat(101))],
+        groups: [{ ...group("g1", [photo("p1")], ONION, "가".repeat(101)), placeName: "가".repeat(31) }],
       }),
       TODAY,
     );
     expect(errors.title).toBe("제목은 100자까지 적을 수 있어요.");
     expect(errors.memo).toBe("정리 글은 10,000자까지 적을 수 있어요.");
     expect(errors["caption:g1"]).toBe("한마디는 100자까지 적을 수 있어요.");
+    expect(errors["placeName:g1"]).toBe("장소 이름은 30자까지 적을 수 있어요.");
+  });
+
+  // 앞뒤 공백은 저장할 때 지우므로 세지 않는다. 30자 딱 맞으면 저장된다(DB 제약과 같다)
+  it("장소 이름은 앞뒤 공백을 빼고 30자까지 받는다", () => {
+    const errors = validateDraft(draft({ groups: [{ ...group("g1", [photo("p1")]), placeName: ` ${"가".repeat(30)} ` }] }), TODAY);
+    expect(errors["placeName:g1"]).toBeUndefined();
   });
 
   it("날짜가 없거나 오늘보다 뒤면 알려 준다", () => {
@@ -160,6 +168,7 @@ describe("toCreateRecordArgs", () => {
         {
           id: "g1",
           location: ONION,
+          place_name: "",
           caption: "카페",
           photos: [{ id: "a" }, { id: "b" }],
         },
@@ -169,18 +178,18 @@ describe("toCreateRecordArgs", () => {
     });
   });
 
-  it("모음을 화면 순서대로 모음마다의 위치·한마디·사진과 함께 넘기고, 화면에만 쓰는 값은 넘기지 않는다", () => {
+  it("모음을 화면 순서대로 모음마다의 위치·장소 이름·한마디·사진과 함께 넘기고, 화면에만 쓰는 값은 넘기지 않는다", () => {
     // Arrange
     const withPreview = { ...photo("b"), previewUrl: "blob:b", isReadingInfo: false };
-    const groups = [group("g2", [photo("c")], FOREST, "숲"), group("g1", [photo("a"), withPreview], { ...ONION, place: " 성수 " })];
+    const groups = [{ ...group("g2", [photo("c")], FOREST, "숲"), placeName: " 서울숲 산책 " }, group("g1", [photo("a"), withPreview], { ...ONION, place: " 성수 " })];
 
     // Act
     const args = toCreateRecordArgs("r1", draft({ groups, coverPhotoId: "a" }));
 
     // Assert
     expect(args.p_groups).toEqual([
-      { id: "g2", location: FOREST, caption: "숲", photos: [{ id: "c" }] },
-      { id: "g1", location: { ...ONION, place: " 성수 " }, caption: "", photos: [{ id: "a" }, { id: "b" }] },
+      { id: "g2", location: FOREST, place_name: "서울숲 산책", caption: "숲", photos: [{ id: "c" }] },
+      { id: "g1", location: { ...ONION, place: " 성수 " }, place_name: "", caption: "", photos: [{ id: "a" }, { id: "b" }] },
     ]);
   });
 
@@ -202,6 +211,7 @@ describe("toCreateRecordArgs", () => {
       {
         id: "g1",
         location: ONION,
+        place_name: "",
         caption: "",
         photos: [{ id: "a", taken_at: "2026-11-10T14:03:22+09:00" }, { id: "b" }],
       },
@@ -341,7 +351,7 @@ describe("pickTagSuggestions", () => {
 });
 
 describe("hasRecordDraftChanges", () => {
-  it("쓴 내용(칸·모음·사진·모음 한마디·태그·모음 위치)이 처음과 다르면 바뀌었다고 본다", () => {
+  it("쓴 내용(칸·모음·사진·모음 한마디·태그·모음 위치·장소 이름)이 처음과 다르면 바뀌었다고 본다", () => {
     const initial = draft();
 
     expect([
@@ -351,7 +361,8 @@ describe("hasRecordDraftChanges", () => {
       hasRecordDraftChanges(initial, draft({ groups: [group("g1", [photo("p1")], ONION, "카페")] })),
       hasRecordDraftChanges(initial, draft({ tags: ["산책"] })),
       hasRecordDraftChanges(initial, draft({ groups: [group("g1", [photo("p1")], FOREST)] })),
-    ]).toEqual([true, true, true, true, true, true]);
+      hasRecordDraftChanges(initial, draft({ groups: [{ ...group("g1", [photo("p1")]), placeName: "골목 끝 카페" }] })),
+    ]).toEqual([true, true, true, true, true, true, true]);
   });
 
   // 저장 시도에 쓰는 판 번호와, 다시 연 폼에서 새로 만드는 미리보기 주소, 위치를 정한 곳은 쓴 내용이 아니다

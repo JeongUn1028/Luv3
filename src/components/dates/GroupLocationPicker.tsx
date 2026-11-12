@@ -8,6 +8,7 @@ import { useKakaoMap } from "@/components/dates/map/use-kakao-map";
 import type { PhotoLocation } from "@/lib/dates/form";
 import type { PlaceLocation } from "@/lib/places/location";
 import { fetchPlaceRegionName, UNKNOWN_PHOTO_PLACE } from "@/lib/places/region";
+import { formatRegionName } from "@/lib/places/region-name";
 import { toGroupName } from "@/lib/dates/group-name";
 
 /** 다른 모음의 위치. "모음 N과 같은 곳"으로 바로 고른다 */
@@ -143,7 +144,7 @@ export const GroupLocationPicker = ({ appKey, initialLocation, otherLocations, o
           <div className="flex min-w-0 flex-col">
             {/* 이름이 바뀌면 화면 읽기 프로그램이 따로 찾지 않아도 알 수 있게 읽어 준다 */}
             <p aria-live="polite" className="truncate text-[16px] text-ink">
-              {isLooking || !named ? "동네 이름 찾는 중…" : named.place}
+              {isLooking || !named ? "동네 이름 찾는 중…" : formatRegionName(named.place)}
             </p>
             <p className="text-[12px] text-ink-sub">핀 자리의 동네 이름이 모음 위치로 저장돼요</p>
           </div>
@@ -159,7 +160,7 @@ export const GroupLocationPicker = ({ appKey, initialLocation, otherLocations, o
               <li key={groupNumber} className="flex">
                 <button type="button" onClick={() => onChoose(location)} className={optionClassName}>
                   {toGroupName(groupNumber, "와")} 같은 곳
-                  <span className="text-[12px] text-ink-sub">{location.place}</span>
+                  <span className="text-[12px] text-ink-sub">{formatRegionName(location.place)}</span>
                 </button>
               </li>
             ))}

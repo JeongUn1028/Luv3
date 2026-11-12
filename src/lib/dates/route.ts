@@ -1,5 +1,6 @@
 import { toKstDate } from "@/lib/anniversary";
 import type { PlaceLocation } from "@/lib/places/location";
+import { toGroupPlaceLabel } from "./group-place";
 import { getDistanceMeters, PHOTO_SPOT_RADIUS_M } from "./map-spots";
 import { comparePhotoOrder, groupPhotosInOrder } from "./photo-groups";
 
@@ -11,6 +12,7 @@ export interface RoutePhotoRow {
   place: string;
   place_lat: number;
   place_lng: number;
+  place_name: string | null;
   /** 사진 정보의 찍은 시각(#249). #249 전에 올렸거나 정보가 없던 사진은 null */
   taken_at: string | null;
 }
@@ -19,7 +21,7 @@ export interface RoutePhotoRow {
 export interface RoutePoint extends PlaceLocation {
   /** 지도에 적는 1부터의 순서. 날이 바뀌어도 이어 센다 */
   number: number;
-  /** 첫 모음의 장소 이름 */
+  /** 첫 모음을 부르는 이름: 사용자가 붙인 장소 이름, 없으면 다듬은 동 이름(#317) */
   place: string;
   photoIds: string[];
   /** 이 점이 속한 줄(`PhotoRoute.lines`)의 순서. 선 색을 고를 때 쓴다 */
@@ -52,7 +54,7 @@ const toRouteGroups = (rows: RoutePhotoRow[]): RouteGroup[] =>
   groupPhotosInOrder(rows.toSorted(comparePhotoOrder)).map((photos) => {
     const [first] = photos;
     return {
-      place: first.place,
+      place: toGroupPlaceLabel(first),
       location: { lat: first.place_lat, lng: first.place_lng },
       photoIds: photos.map(({ id }) => id),
       firstDate: first.taken_at === null ? undefined : toKstDate(new Date(first.taken_at)),

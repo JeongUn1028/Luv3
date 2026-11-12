@@ -89,7 +89,7 @@ test.describe("누름 영역", () => {
     }
   });
 
-  test("기록 작성의 모음 카드 버튼과 한마디 칸은 44px 영역을 눌러도 눌리고 서로 겹치지 않는다", async ({ page }) => {
+  test("기록 작성의 모음 카드 버튼과 장소 이름·한마디 칸은 44px 영역을 눌러도 눌리고 서로 겹치지 않는다", async ({ page }) => {
     // Arrange: 앞으로·뒤로 버튼이 모두 켜지도록 사진 3장을 한 모음으로 고르고 가운데 사진을 누른다
     await openScreen(page, "/dates/new", page.locator("#memo"));
     const photo = { name: "photo.jpg", mimeType: "image/jpeg", buffer: readFileSync(PHOTO_FIXTURE_PATH) };
@@ -112,8 +112,10 @@ test.describe("누름 영역", () => {
 
     // Assert
     expect(missed).toEqual({ 위로: [], 아래로: [], 모음빼기: [], 위치: [], 사진더하기: [], 대표로: [], 앞으로: [], 뒤로: [], 빼기: [] });
-    const caption = await card.getByRole("textbox").boundingBox();
+    const caption = await card.getByRole("textbox", { name: /^한마디/ }).boundingBox();
     expect(caption?.height).toBeGreaterThanOrEqual(TAP_TARGET_SIZE);
+    const placeName = await card.getByRole("textbox", { name: /^장소 이름/ }).boundingBox();
+    expect(placeName?.height).toBeGreaterThanOrEqual(TAP_TARGET_SIZE);
   });
 
   test("하고 싶은 것의 위로·아래로 버튼은 44px 영역을 눌러도 눌린다", async ({ page }) => {

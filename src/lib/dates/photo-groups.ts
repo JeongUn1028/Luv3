@@ -1,8 +1,10 @@
-/** 사진 행에 붙여 읽는 사진 모음의 위치 칸(`photo_groups`, #297) */
+/** 사진 행에 붙여 읽는 사진 모음의 위치 칸(`photo_groups`, #297)과 사용자가 붙인 장소 이름(#317) */
 export interface PhotoGroupLocationRow {
   place: string;
   place_lat: number;
   place_lng: number;
+  /** 사용자가 붙인 장소 이름. 없으면 null이고 화면은 행정동 이름을 다듬어 보여 준다(toGroupPlaceLabel) */
+  place_name: string | null;
 }
 
 /**
@@ -10,14 +12,14 @@ export interface PhotoGroupLocationRow {
  *
  * @example supabase.from("photos").select(`id, ${PHOTO_GROUP_LOCATION_COLUMNS}`)
  */
-export const PHOTO_GROUP_LOCATION_COLUMNS = "group:photo_groups!photos_group_id_fkey(place, place_lat, place_lng)";
+export const PHOTO_GROUP_LOCATION_COLUMNS = "group:photo_groups!photos_group_id_fkey(place, place_lat, place_lng, place_name)";
 
 /**
  * 붙여 읽은 모음 위치를 사진의 위치 칸으로 편다. 위치는 모음마다 하나라 같은 모음의 사진은 위치가 같다.
  * 상세·지도·동선은 사진 행에 펴진 모음 위치와 `group_id`로 모음을 다시 묶는다(#299).
  *
- * @example toPhotoWithGroupLocation({ id: "a", group: { place: "성수동", place_lat: 37.5, place_lng: 127 } })
- * // { id: "a", place: "성수동", place_lat: 37.5, place_lng: 127 }
+ * @example toPhotoWithGroupLocation({ id: "a", group: { place: "성수동", place_lat: 37.5, place_lng: 127, place_name: null } })
+ * // { id: "a", place: "성수동", place_lat: 37.5, place_lng: 127, place_name: null }
  */
 export const toPhotoWithGroupLocation = <Row extends { group: PhotoGroupLocationRow }>({
   group,
@@ -27,10 +29,11 @@ export const toPhotoWithGroupLocation = <Row extends { group: PhotoGroupLocation
   place: group.place,
   place_lat: group.place_lat,
   place_lng: group.place_lng,
+  place_name: group.place_name,
 });
 
 /**
- * 사진 순서 비교. 순서가 같으면 id로 정해 상세의 모음 칩·사진 순서와 동선 번호가 늘 같은 순서를 쓴다.
+ * 사진 순서 비교. 순서가 같으면 id로 정해 상세의 사진 순서와 동선 번호가 늘 같은 순서를 쓴다.
  *
  * @example photos.toSorted(comparePhotoOrder)
  */

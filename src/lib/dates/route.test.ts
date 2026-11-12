@@ -14,6 +14,7 @@ const createGroupRows = ({
   firstSortOrder,
   location = SEONGSU,
   place = "성동구 성수2가3동",
+  placeName = null,
   takenAts = [],
 }: {
   groupId: string;
@@ -21,6 +22,7 @@ const createGroupRows = ({
   firstSortOrder: number;
   location?: { lat: number; lng: number };
   place?: string;
+  placeName?: string | null;
   takenAts?: (string | null)[];
 }): RoutePhotoRow[] =>
   photoIds.map((id, index) => ({
@@ -30,12 +32,28 @@ const createGroupRows = ({
     place,
     place_lat: location.lat,
     place_lng: location.lng,
+    place_name: placeName,
     taken_at: takenAts[index] ?? null,
   }));
 
 const getPointIds = (route: ReturnType<typeof buildGroupRoute>): string[][] => route?.points.map(({ photoIds }) => photoIds) ?? [];
 
 describe("buildGroupRoute", () => {
+  // 동선 목록("1. 골목 끝 카페 사진 2장")이 모음을 부르는 이름을 쓴다(#317)
+  it("점 이름은 모음에 붙인 장소 이름을, 없으면 다듬은 동 이름을 쓴다", () => {
+    // Arrange
+    const rows = [
+      ...createGroupRows({ groupId: "g1", photoIds: ["a1"], firstSortOrder: 0, placeName: "골목 끝 카페" }),
+      ...createGroupRows({ groupId: "g2", photoIds: ["b1"], firstSortOrder: 1, location: SEOUL_FOREST }),
+    ];
+
+    // Act
+    const route = buildGroupRoute(rows);
+
+    // Assert
+    expect(route?.points.map(({ place }) => place)).toEqual(["골목 끝 카페", "성수동"]);
+  });
+
   it("모음 하나를 점 하나로, 찍은 시각과 상관없이 모음 순서(사진 순서)대로 잇는다", () => {
     // Arrange: 모음 순서는 g1 → g2 → g3이고, 찍은 시각은 g2가 가장 이르다
     const rows = [

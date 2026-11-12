@@ -3,12 +3,13 @@
 import { useRef, useState, type ReactElement } from "react";
 import { FieldError, FieldLabel } from "@/components/FormField";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon, MapPinIcon } from "@/components/icons";
-import { CAPTION_MAX_LENGTH, type DraftErrors, type DraftPhoto, type DraftPhotoGroup, type GroupLocationSource } from "@/lib/dates/form";
+import { CAPTION_MAX_LENGTH, PLACE_NAME_MAX_LENGTH, type DraftErrors, type DraftPhoto, type DraftPhotoGroup, type GroupLocationSource } from "@/lib/dates/form";
 import { toGroupName } from "@/lib/dates/group-name";
 import { MAX_GROUP_PHOTOS } from "@/lib/dates/photo-group-draft";
 import { countChars } from "@/lib/form";
 import { runKeepingFocus } from "@/lib/keep-focus";
 import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/resize";
+import { formatRegionName } from "@/lib/places/region-name";
 
 export interface PickedPhoto extends DraftPhoto {
   /** 이번에 새로 고른 사진의 파일. 이미 저장된 사진(수정 화면)은 undefined */
@@ -28,6 +29,7 @@ export interface PhotoGroupActions {
   onRemovePhoto: (photoId: string) => void;
   onMovePhoto: (photoId: string, offset: -1 | 1) => void;
   onCaptionChange: (groupId: string, caption: string) => void;
+  onPlaceNameChange: (groupId: string, placeName: string) => void;
   onCoverChange: (photoId: string) => void;
   onOpenLocation: (groupId: string) => void;
 }
@@ -76,8 +78,8 @@ const PhotoThumb = ({ src }: PhotoThumbProps): ReactElement => {
 };
 
 /**
- * 사진 모음 하나(#298): 모음 이름·장수와 위·아래·빼기, 위치 줄, 사진 줄, 사진 더하기, 누른 사진의 순서·대표·빼기, 모음 한마디.
- * 위치와 한마디(#309)는 모음마다 하나라 사진마다 묻지 않는다. 사진을 다른 모음으로 옮기는 기능은 없다(2026-11-11 사용자 결정).
+ * 사진 모음 하나(#298): 모음 이름·장수와 위·아래·빼기, 위치 줄, 장소 이름, 사진 줄, 사진 더하기, 누른 사진의 순서·대표·빼기, 모음 한마디.
+ * 위치·장소 이름(#317)·한마디(#309)는 모음마다 하나라 사진마다 묻지 않는다. 사진을 다른 모음으로 옮기는 기능은 없다(2026-11-11 사용자 결정).
  *
  * @example <PhotoGroupCard group={group} index={0} groupCount={2} coverPhotoId={cover} selectedPhotoId={undefined} errors={{}} isDisabled={false} actions={actions} focusFallback={() => pickRef.current} />
  */
@@ -102,6 +104,8 @@ export const PhotoGroupCard = ({
   const selected = group.photos[selectedIndex];
   const captionId = `${headingId}-caption`;
   const captionError = errors[`caption:${group.id}`];
+  const placeNameId = `${headingId}-place-name`;
+  const placeNameError = errors[`placeName:${group.id}`];
   const locationNote = isReadingLocation
     ? undefined
     : group.location
@@ -161,7 +165,7 @@ export const PhotoGroupCard = ({
         <div className="flex min-w-0 flex-1 flex-col">
           <p className={`truncate text-[14px] ${group.location ? "text-ink" : "text-ink-sub"}`}>
             <span className="sr-only">{name} 위치: </span>
-            {isReadingLocation ? "위치 읽는 중…" : (group.location?.place ?? "위치 없음")}
+            {isReadingLocation ? "위치 읽는 중…" : group.location ? formatRegionName(group.location.place) : "위치 없음"}
           </p>
           {locationNote && <p className="text-[11px] text-ink-sub">{locationNote}</p>}
         </div>
@@ -184,6 +188,32 @@ export const PhotoGroupCard = ({
         </button>
       </div>
       <FieldError id={`${headingId}-location-error`} error={locationError} />
+
+      <div className="flex flex-col">
+        <FieldLabel
+          htmlFor={placeNameId}
+          label={
+            <>
+              장소 이름<span className="sr-only"> ({name})</span>
+            </>
+          }
+          hint="선택 · 비우면 동네 이름"
+        />
+        {/* 넘쳐도 지우지 않고 저장할 때 알리도록 제한의 두 배까지 받는다. 저장은 30자까지다(DB 제약과 같다) */}
+        <input
+          id={placeNameId}
+          type="text"
+          value={group.placeName}
+          maxLength={PLACE_NAME_MAX_LENGTH * 2}
+          placeholder="예: 골목 끝 카페"
+          disabled={isDisabled}
+          aria-invalid={Boolean(placeNameError)}
+          aria-describedby={placeNameError ? `${placeNameId}-error` : undefined}
+          onChange={(event) => actions.onPlaceNameChange(group.id, event.target.value)}
+          className="mt-2 h-11 w-full rounded-[8px] border border-line bg-background px-3 text-[16px] text-ink placeholder:text-ink-placeholder focus:border-accent focus:outline-none aria-[invalid=true]:border-accent disabled:opacity-50"
+        />
+        <FieldError id={`${placeNameId}-error`} error={placeNameError} />
+      </div>
 
       <ul aria-label={`${name} 사진`} className="-mx-3 flex gap-1.5 overflow-x-auto px-3">
         {group.photos.map((photo, photoIndex) => {
