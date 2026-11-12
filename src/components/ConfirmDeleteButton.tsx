@@ -20,8 +20,6 @@ interface ConfirmDeleteButtonProps {
   failureMessage: string;
   /** 한 화면에 "삭제"가 여럿일 때 무엇을 지우는지 읽어 줄 이름. 예: "댓글 삭제" */
   accessibleName?: string;
-  /** 지운 뒤 확인 창을 닫는다. 지워도 화면을 떠나지 않는 목록 안의 삭제에 쓴다(닫지 않으면 "지우는 중"에 멈춰 남는다) */
-  shouldCloseOnSuccess?: boolean;
   className?: string;
 }
 
@@ -35,7 +33,6 @@ export const ConfirmDeleteButton = ({
   noticeKey,
   failureMessage,
   accessibleName,
-  shouldCloseOnSuccess = false,
   className = "press-icon h-11 px-3 text-[14px] text-ink-sub hover:text-ink",
 }: ConfirmDeleteButtonProps): ReactElement => {
   const modalRef = useRef<ModalDialogHandle>(null);
@@ -69,10 +66,6 @@ export const ConfirmDeleteButton = ({
       return;
     }
     onDeleted();
-    if (shouldCloseOnSuccess) {
-      setIsDeleting(false);
-      modalRef.current?.close();
-    }
   };
 
   return (
