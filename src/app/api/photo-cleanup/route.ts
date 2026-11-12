@@ -28,6 +28,7 @@ const readPhotoFileReferences = async (supabase: SupabaseClient<Database>): Prom
  * 하루 넘은 파일을 찾는다. 환경 변수 `PHOTO_CLEANUP_DELETE=true`일 때만 지우고, 아니면 지울 목록만 돌려준다.
  * `?preview=1`로 부르면 그 값과 상관없이 지우지 않아 지우기 전에 목록을 볼 수 있다. CRON_SECRET이 맞는 요청만 받는다.
  * 지울 목록이 이상해 멈추면(`blocked`) Vercel 실행 기록에 실패로 보이도록 409를 돌려준다.
+ * 응답의 버킷 파일 수·크기 합계는 GitHub Actions의 저장 공간 월간 점검(storage-check.yml, #310)이 미리 보기로 읽는다.
  */
 export const GET = async (request: Request): Promise<Response> => {
   if (!isAuthorizedCronRequest(request.headers.get("authorization"), process.env.CRON_SECRET)) {

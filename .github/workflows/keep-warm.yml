@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     env:
-      # 운영 주소(docs/plan.md의 도메인 결정). 바꾸면 여기와 keepalive.yml을 함께 고친다
+      # 운영 주소(docs/plan.md의 도메인 결정). 바꾸면 여기와 keepalive.yml·storage-check.yml을 함께 고친다
       KEEP_WARM_URL: https://luv3.vercel.app/api/keepalive
     steps:
       - name: 운영 주소 부르기

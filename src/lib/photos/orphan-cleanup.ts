@@ -7,6 +7,12 @@ import { toCouplePhotoMediumPath } from "./paths";
  */
 const MIN_ORPHAN_AGE_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * 이보다 오래된 주인 없는 파일은 매달 정리 Cron이 이미 지웠어야 한다(이틀). 저장 공간 월간 점검(#310)이 Cron 뒤에
+ * 이 수를 본다. GitHub 예약 실행이 몇 시간 늦어도, Cron 때 하루가 안 돼 남은 파일을 정리 실패로 보지 않게 하루를 더 둔다
+ */
+const STALE_ORPHAN_AGE_MS = 2 * MIN_ORPHAN_AGE_MS;
+
 /** 한 번에 지울 수 있는 최대 파일 수. 두 사람만 써서 이보다 많으면 무언가 잘못 읽은 것으로 보고 멈춘다 */
 const MAX_ORPHANS_PER_RUN = 100;
 
@@ -34,8 +40,16 @@ interface OrphanScan {
   recentOrphanCount: number;
   /** 앱이 만드는 이름이 아니라 건드리지 않은 파일 */
   unknownPaths: string[];
+  /** `orphanPaths` 가운데 올린 지 이틀이 넘은 파일 수. 매달 정리가 제대로 돌았다면 그 뒤 하루 안에는 0이다 */
+  staleOrphanCount: number;
   /** 기록·커플 사진이 가리키는 파일 수 */
   inUseCount: number;
+  /** 목록을 읽을 때 버킷에 있던 파일 수(지우기 전 기준) */
+  fileCount: number;
+  /** 그 파일들의 크기 합계(바이트). 저장 공간 월간 점검(#310)이 무료 한도와 비교한다 */
+  totalBytes: number;
+  /** Storage가 크기를 주지 않아 `totalBytes`에서 빠진 파일 수 */
+  unsizedCount: number;
 }
 
 /**
@@ -63,20 +77,36 @@ const collectReferencedPaths = ({ photos, couplePhotoPath }: PhotoFileReferences
   return paths;
 };
 
-const isOldEnough = (createdAt: string | undefined, now: Date): boolean => {
+const isOlderThan = ({ createdAt, now, ageMs }: { createdAt: string | undefined; now: Date; ageMs: number }): boolean => {
   const uploadedAt = createdAt === undefined ? Number.NaN : Date.parse(createdAt);
   // 올린 시각을 모르면 업로드 중일 수 있어 지우지 않는다
-  return !Number.isNaN(uploadedAt) && now.getTime() - uploadedAt >= MIN_ORPHAN_AGE_MS;
+  return !Number.isNaN(uploadedAt) && now.getTime() - uploadedAt >= ageMs;
 };
 
-const scanOrphanFiles = (files: AlbumObject[], referencedPaths: ReadonlySet<string>, now: Date): OrphanScan => {
-  const scan: OrphanScan = { orphanPaths: [], recentOrphanCount: 0, unknownPaths: [], inUseCount: 0 };
+const isFileSize = (size: unknown): size is number => typeof size === "number" && Number.isFinite(size) && size >= 0;
 
-  for (const { path, createdAt } of files) {
+const scanOrphanFiles = (files: AlbumObject[], referencedPaths: ReadonlySet<string>, now: Date): OrphanScan => {
+  const scan: OrphanScan = {
+    orphanPaths: [],
+    recentOrphanCount: 0,
+    unknownPaths: [],
+    staleOrphanCount: 0,
+    inUseCount: 0,
+    fileCount: files.length,
+    totalBytes: 0,
+    unsizedCount: 0,
+  };
+
+  for (const { path, size, createdAt } of files) {
+    if (isFileSize(size)) scan.totalBytes += size;
+    else scan.unsizedCount += 1;
+
     if (referencedPaths.has(path)) scan.inUseCount += 1;
     else if (!APP_FILE_PATH.test(path)) scan.unknownPaths.push(path);
-    else if (isOldEnough(createdAt, now)) scan.orphanPaths.push(path);
-    else scan.recentOrphanCount += 1;
+    else if (isOlderThan({ createdAt, now, ageMs: MIN_ORPHAN_AGE_MS })) {
+      scan.orphanPaths.push(path);
+      if (isOlderThan({ createdAt, now, ageMs: STALE_ORPHAN_AGE_MS })) scan.staleOrphanCount += 1;
+    } else scan.recentOrphanCount += 1;
   }
   return scan;
 };
