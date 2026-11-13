@@ -5,6 +5,7 @@ import { LogoutForm } from "@/components/LogoutForm";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { NotificationSection } from "@/components/settings/NotificationSection";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
 import { getCurrentMember } from "@/lib/auth/member";
 import { HOME_PATH, SETTINGS_NICKNAME_PATH, SETTINGS_PASSWORD_PATH, SETTINGS_TRASH_PATH } from "@/lib/auth/paths";
@@ -83,6 +84,9 @@ const DataSourceSection = () => (
   </section>
 );
 
+// 알림 열쇠를 넣기 전에는 알림 칸을 그리지 않는다(#363, 카카오 지도 키와 같은 방식)
+const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
 const SettingsPage = () => (
   <PageShell
     bottomSpace="sm"
@@ -90,6 +94,7 @@ const SettingsPage = () => (
     header={<ScreenHeader back={{ href: HOME_PATH }} title="설정" />}
   >
     <div className="mt-6">
+      {vapidPublicKey && <NotificationSection publicKey={vapidPublicKey} />}
       {/* 세션을 읽는 부분만 요청 시점에 렌더링한다(cacheComponents) */}
       <LoadingSuspense
         fallback={

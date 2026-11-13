@@ -1,6 +1,6 @@
 import { availableParallelism } from "node:os";
 import { defineConfig } from "@playwright/test";
-import { BASE_URL, MEMBER_STATE_PATH } from "./e2e/support/constants";
+import { BASE_URL, E2E_VAPID_PUBLIC_KEY, MEMBER_STATE_PATH } from "./e2e/support/constants";
 import { DEVICE_SIZE_SPECS, isAllDevicesRun, SHARED_DATA_SPECS, SPEC_SUFFIX, TARGET_DEVICES } from "./e2e/support/devices";
 import { readLocalSupabase } from "./e2e/support/local-supabase";
 import type { DeviceOptions } from "./e2e/support/test";
@@ -75,6 +75,8 @@ export default defineConfig<DeviceOptions>({
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: supabase.publishableKey,
       // 지도 버튼을 켜려는 값이다. 카카오를 실제로 부르지 않게 E2E는 SDK를 가짜로 대신한다
       NEXT_PUBLIC_KAKAO_MAP_KEY: "e2e-dummy",
+      // 설정 화면의 알림 칸을 켜려는 값이다(#363). 비밀 키는 주지 않아 실제 알림을 보내지 않는다
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
     },
   },
 });
