@@ -1,4 +1,5 @@
 import { countChars, isIsoDate } from "@/lib/form";
+import { isObject } from "@/lib/guards";
 import type { AlbumTile } from "./album";
 import { isRecordId } from "./detail";
 
@@ -62,8 +63,6 @@ export const toSearchWords = (query: string): string[] =>
     .split(/\s+/)
     .map((word) => word.replace(/^#+/, ""))
     .filter(Boolean);
-
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 
 const CURSOR_PARAMS = { date: "beforeDate", createdAt: "beforeCreatedAt", id: "beforeId" } as const;
 // 시·분·초와 시간대는 범위까지 보고, 날짜 부분은 isIsoDate로 달력에 있는 날인지 본다

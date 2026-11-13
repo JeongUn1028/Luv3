@@ -1,8 +1,7 @@
 import { getCurrentMember } from "@/lib/auth/member";
 import { findAdmdongName } from "@/lib/places/admdong";
 import { loadAdmdongBoundaries } from "@/lib/places/admdong-server";
-
-const NO_STORE = { "Cache-Control": "no-store" };
+import { NO_STORE_HEADERS, toErrorResponse } from "@/lib/api-response";
 
 // 화면은 숫자를 그대로 넘긴다. Number가 받아 주는 빈 글자(0)·16진수·지수 표기는 잘못된 좌표로 본다
 const DECIMAL = /^-?\d+(\.\d+)?$/;
@@ -24,10 +23,10 @@ export const GET = async (request: Request): Promise<Response> => {
   const lat = toCoordinate(params.get("lat"), 90);
   const lng = toCoordinate(params.get("lng"), 180);
   if (lat === undefined || lng === undefined) {
-    return Response.json({ code: "INVALID_LOCATION", message: "좌표가 잘못됐어요." }, { status: 400, headers: NO_STORE });
+    return toErrorResponse("INVALID_LOCATION", "좌표가 잘못됐어요.", 400);
   }
 
   // 경계 파일을 읽지 못하면 빌드가 잘못된 것이라 전역 오류 처리로 넘긴다. 화면은 실패하면 "찍은 곳"으로 둔다
   const name = findAdmdongName(await loadAdmdongBoundaries(), { lat, lng });
-  return Response.json({ name: name ?? null }, { headers: NO_STORE });
+  return Response.json({ name: name ?? null }, { headers: NO_STORE_HEADERS });
 };

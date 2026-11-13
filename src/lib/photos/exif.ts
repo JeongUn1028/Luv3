@@ -1,3 +1,4 @@
+import { isObject } from "@/lib/guards";
 import type { PlaceLocation } from "@/lib/places/location";
 
 /** 사진 파일에서 읽은 정보. 읽지 못한 것은 undefined */
@@ -73,8 +74,6 @@ const EXIF_OPTIONS = {
   reviveValues: false,
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
-
 const NO_EXIF: PhotoExif = { coordinates: undefined, takenAt: undefined };
 
 /**
@@ -88,7 +87,7 @@ export const readPhotoExif = async (file: Blob): Promise<PhotoExif> => {
     // 기록 폼에서 사진을 고를 때만 필요해 그때 불러온다. lite는 JPEG·HEIC만 읽고 Worker·외부 주소를 쓰지 않는다
     const exifr = await import("exifr/dist/lite.esm.mjs");
     const output: unknown = await exifr.parse(file, EXIF_OPTIONS);
-    if (!isRecord(output)) return NO_EXIF;
+    if (!isObject(output)) return NO_EXIF;
     return {
       coordinates: toPhotoCoordinates(output.latitude, output.longitude),
       takenAt: toTakenAt(output.DateTimeOriginal, output.OffsetTimeOriginal),

@@ -1,3 +1,5 @@
+import { isObject } from "@/lib/guards";
+
 /**
  * 서버 로그에 남길 원인 항목. 운영에서 원인을 찾는 데 필요한 것만 고른다.
  * `details`·`hint`에는 행 값이나 내부 주소가 섞일 수 있어 그대로 남기지 않는다.
@@ -29,7 +31,7 @@ const toLoggedEntry = (key: string, value: unknown): [string, string | number][]
  * @example console.error("장소 찾기 실패", toLoggedCause(error.cause))
  */
 export const toLoggedCause = (cause: unknown): Record<string, string | number> => {
-  if (typeof cause !== "object" || cause === null) return {};
+  if (!isObject(cause)) return {};
 
   return Object.fromEntries([
     ...LOGGED_CAUSE_FIELDS.flatMap((field) => toLoggedEntry(field, Reflect.get(cause, field))),

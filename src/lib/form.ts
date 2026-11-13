@@ -1,6 +1,6 @@
 // 기록·일정 폼이 함께 쓰는 입력값 도우미
 
-const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+import { isObject, splitIsoDate } from "@/lib/guards";
 
 /**
  * DB의 `char_length`처럼 글자 수를 센다(이모지 하나 = 한 글자). JS의 `length`는 이모지를 두 글자로 센다.
@@ -23,10 +23,9 @@ export const countGraphemes = (text: string): number => Array.from(new Intl.Segm
  * @example isIsoDate("2026-02-31") // false
  */
 export const isIsoDate = (value: string): boolean => {
-  const match = ISO_DATE_PATTERN.exec(value);
-  if (!match) return false;
-  const [, year, month, day] = match.map(Number);
-  if (year === undefined || month === undefined || day === undefined) return false;
+  const parts = splitIsoDate(value);
+  if (!parts) return false;
+  const [year, month, day] = [Number(parts.year), Number(parts.month), Number(parts.day)];
   const date = new Date(Date.UTC(year, month - 1, day));
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 };
@@ -56,8 +55,6 @@ export const FIX_FIELDS_NOTICE = "입력한 내용을 확인해 주세요.";
 export const isResolvedFieldNotice = (notice: string | undefined, errors: Partial<Record<string, string>>): boolean =>
   notice === FIX_FIELDS_NOTICE && Object.keys(errors).length === 0;
 
-const isPlainRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
-
 /**
  * 폼 값이 같은지 안까지 비교한다. 글자·숫자·참거짓·배열·일반 객체만 다룬다.
  * 폼은 칸을 펼쳐 고치므로 칸 순서는 보지 않고, 값이 undefined인 칸은 없는 칸과 같게 본다.
@@ -69,6 +66,6 @@ export const isSameFormValue = (a: unknown, b: unknown): boolean => {
   if (Array.isArray(a) || Array.isArray(b)) {
     return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((item, index) => isSameFormValue(item, b[index]));
   }
-  if (!isPlainRecord(a) || !isPlainRecord(b)) return false;
+  if (!isObject(a) || !isObject(b)) return false;
   return [...new Set([...Object.keys(a), ...Object.keys(b)])].every((key) => isSameFormValue(a[key], b[key]));
 };

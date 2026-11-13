@@ -5,8 +5,7 @@ import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { cleanupOrphanPhotos, shouldDeleteOrphans, type PhotoFileReferences } from "@/lib/photos/orphan-cleanup";
 import { readAllRows } from "@/lib/supabase/read-all-rows";
 import type { Database } from "@/lib/supabase/database.types";
-
-const NO_STORE = { "Cache-Control": "no-store" };
+import { NO_STORE_HEADERS, toErrorResponse } from "@/lib/api-response";
 
 // 읽는 칸은 FILE_PATH_COLUMNS(src/lib/photos/album-files.ts)와 같아야 한다
 const readPhotoFileReferences = async (supabase: SupabaseClient<Database>): Promise<PhotoFileReferences> => {
@@ -44,17 +43,14 @@ const deletePhotoTrashRows = async (supabase: SupabaseClient<Database>, ids: str
  */
 export const GET = async (request: Request): Promise<Response> => {
   if (!isAuthorizedCronRequest(request.headers.get("authorization"), process.env.CRON_SECRET)) {
-    return Response.json({ code: "UNAUTHORIZED", message: "허락되지 않은 요청입니다." }, { status: 401, headers: NO_STORE });
+    return toErrorResponse("UNAUTHORIZED", "허락되지 않은 요청입니다.", 401);
   }
 
   // 회원이 아닌 서버가 모든 파일 목록을 읽고 지우려면 RLS를 넘는 비밀 키가 필요하다. 이 경로에서만 쓴다
   const secretKey = process.env.SUPABASE_SECRET_KEY;
   if (!secretKey) {
     console.error("사진 정리: SUPABASE_SECRET_KEY가 없습니다");
-    return Response.json(
-      { code: "CLEANUP_NOT_CONFIGURED", message: "사진 정리 설정이 없습니다." },
-      { status: 500, headers: NO_STORE },
-    );
+    return toErrorResponse("CLEANUP_NOT_CONFIGURED", "사진 정리 설정이 없습니다.", 500);
   }
 
   try {
@@ -70,9 +66,9 @@ export const GET = async (request: Request): Promise<Response> => {
     });
     // Hobby 플랜의 Cron 로그는 1시간 뒤 사라지지만, 그 안에 실행 기록에서 무엇을 지웠는지 볼 수 있게 남긴다
     console.info("사진 정리", JSON.stringify(result));
-    return Response.json(result, { status: result.status === "blocked" ? 409 : 200, headers: NO_STORE });
+    return Response.json(result, { status: result.status === "blocked" ? 409 : 200, headers: NO_STORE_HEADERS });
   } catch (error) {
     console.error("사진 정리 실패", error);
-    return Response.json({ code: "CLEANUP_FAILED", message: "사진을 정리하지 못했습니다." }, { status: 502, headers: NO_STORE });
+    return toErrorResponse("CLEANUP_FAILED", "사진을 정리하지 못했습니다.", 502);
   }
 };

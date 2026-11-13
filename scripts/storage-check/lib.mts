@@ -1,4 +1,5 @@
 // GitHub Actions에서 의존성 설치 없이 Node로 바로 실행하므로 `@/` 별칭이나 외부 패키지를 불러오지 않는다
+import { isObject } from "../../src/lib/guards.ts";
 import { formatStorageUsage, NEAR_LIMIT_RATIO } from "../backup/lib.mts";
 
 /** 정리 미리 보기 응답을 판단한 결과 */
@@ -41,9 +42,6 @@ const PATH_LIST_FIELDS = ["orphanPaths", "unknownPaths"] as const;
 type CleanupPreview = Record<(typeof NUMBER_FIELDS)[number], number> &
   Record<(typeof PATH_LIST_FIELDS)[number], string[]> & { reason?: string };
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
 
@@ -85,7 +83,7 @@ const findStatusHint = (httpStatus: number, errorCode: unknown): string | undefi
 // 실패 응답의 본문을 실행 기록에 옮긴다. 정리 결과(409 등)에는 파일 경로가 들어 있어 옮기지 않는다
 const describeErrorBody = (body: string, parsed: unknown): string => {
   if (parsed === undefined) return body.slice(0, SHOWN_BODY_LENGTH);
-  if (isRecord(parsed) && typeof parsed.code === "string") return `${parsed.code} ${String(parsed.message)}`;
+  if (isObject(parsed) && typeof parsed.code === "string") return `${parsed.code} ${String(parsed.message)}`;
   return "(정리 결과라 경로가 담겨 옮기지 않습니다)";
 };
 
@@ -154,14 +152,14 @@ export const evaluateCleanupPreview = ({ httpStatus, body }: EvaluateCleanupPrev
   const parsed = parseJson(body);
 
   if (httpStatus !== 200) {
-    const hint = findStatusHint(httpStatus, isRecord(parsed) ? parsed.code : undefined);
+    const hint = findStatusHint(httpStatus, isObject(parsed) ? parsed.code : undefined);
     result.problems.push(
       `사진 정리 미리 보기가 실패했습니다(HTTP ${httpStatus}${hint ? `: ${hint}` : ""}). 응답: ${describeErrorBody(body, parsed)}`,
     );
     return result;
   }
 
-  if (!isRecord(parsed)) {
+  if (!isObject(parsed)) {
     result.problems.push(`응답이 JSON 객체가 아닙니다: ${body.slice(0, SHOWN_BODY_LENGTH)}`);
     return result;
   }

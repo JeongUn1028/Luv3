@@ -1,4 +1,5 @@
 import { isIsoDate } from "@/lib/form";
+import { isObject } from "@/lib/guards";
 
 /** 공휴일 하루 */
 export interface Holiday {
@@ -40,8 +41,6 @@ export const parseHolidayYear = (value: string | null): number | undefined => {
   return year >= YEAR_RANGE.min && year <= YEAR_RANGE.max ? year : undefined;
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
-
 // 응답의 날짜는 20260505 같은 숫자다
 const toIsoDate = (locdate: unknown): string | undefined => {
   const text = typeof locdate === "number" || typeof locdate === "string" ? String(locdate) : "";
@@ -50,7 +49,7 @@ const toIsoDate = (locdate: unknown): string | undefined => {
 };
 
 const toHoliday = (item: unknown): Holiday => {
-  if (!isRecord(item)) throw new HolidayLoadError();
+  if (!isObject(item)) throw new HolidayLoadError();
   const date = toIsoDate(item.locdate);
   if (!date || typeof item.dateName !== "string" || item.dateName.trim() === "" || typeof item.isHoliday !== "string") throw new HolidayLoadError();
   return { date, name: item.dateName.trim() };
@@ -65,19 +64,19 @@ const toHoliday = (item: unknown): Holiday => {
  * @example parseRestDeInfo(await response.json()) // [{ date: "2026-05-05", name: "어린이날" }]
  */
 export const parseRestDeInfo = (body: unknown): Holiday[] => {
-  const response = isRecord(body) ? body.response : undefined;
-  if (!isRecord(response) || !isRecord(response.header) || !isRecord(response.body)) throw new HolidayLoadError();
+  const response = isObject(body) ? body.response : undefined;
+  if (!isObject(response) || !isObject(response.header) || !isObject(response.body)) throw new HolidayLoadError();
   const resultCode = response.header.resultCode;
   if (resultCode !== "00") throw new HolidayLoadError({ resultCode: typeof resultCode === "string" ? resultCode : undefined });
 
   const { items, totalCount } = response.body;
-  if (items !== "" && (!isRecord(items) || Array.isArray(items))) throw new HolidayLoadError();
-  const item = isRecord(items) ? items.item : undefined;
+  if (items !== "" && !isObject(items)) throw new HolidayLoadError();
+  const item = isObject(items) ? items.item : undefined;
   const rawItems: unknown[] = Array.isArray(item) ? item : item === undefined ? [] : [item];
   if (typeof totalCount !== "number" || rawItems.length < totalCount) throw new HolidayLoadError();
 
   return rawItems
-    .filter((raw) => !isRecord(raw) || raw.isHoliday !== "N")
+    .filter((raw) => !isObject(raw) || raw.isHoliday !== "N")
     .map(toHoliday);
 };
 
@@ -88,9 +87,9 @@ export const parseRestDeInfo = (body: unknown): Holiday[] => {
  * @example parseHolidayResults(await response.json())
  */
 export const parseHolidayResults = (body: unknown): Holiday[] => {
-  if (!isRecord(body) || !Array.isArray(body.holidays)) throw new HolidayLoadError();
+  if (!isObject(body) || !Array.isArray(body.holidays)) throw new HolidayLoadError();
   return body.holidays.map((holiday: unknown) => {
-    if (!isRecord(holiday) || typeof holiday.date !== "string" || !isIsoDate(holiday.date) || typeof holiday.name !== "string") throw new HolidayLoadError();
+    if (!isObject(holiday) || typeof holiday.date !== "string" || !isIsoDate(holiday.date) || typeof holiday.name !== "string") throw new HolidayLoadError();
     return { date: holiday.date, name: holiday.name };
   });
 };

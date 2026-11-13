@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { isObject } from "../../src/lib/guards.ts";
 import { FILE_PATH_COLUMNS } from "../../src/lib/photos/album-files.ts";
 
 /** 백업에 넣는 파일 하나. 경로는 버킷 이름을 뺀 저장 경로다 */
@@ -265,7 +266,7 @@ export const compareCounts = (expected: Record<string, number>, actual: Record<s
 
 const toQueryRows = (parsed: unknown): unknown[] => {
   if (Array.isArray(parsed)) return parsed;
-  if (typeof parsed === "object" && parsed !== null && "rows" in parsed && Array.isArray(parsed.rows)) return parsed.rows;
+  if (isObject(parsed) && Array.isArray(parsed.rows)) return parsed.rows;
   return [];
 };
 
@@ -284,8 +285,7 @@ export const parseLastMigration = (output: string): string | undefined => {
   }
 
   const [row] = toQueryRows(parsed);
-  if (typeof row !== "object" || row === null || !("version" in row)) return undefined;
-  return typeof row.version === "string" ? row.version : undefined;
+  return isObject(row) && typeof row.version === "string" ? row.version : undefined;
 };
 
 /**

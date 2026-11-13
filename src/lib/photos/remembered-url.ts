@@ -1,3 +1,4 @@
+import { isObject } from "@/lib/guards";
 import { SIGNED_URL_MIN_REMAINING } from "./limits";
 import type { SignedUrlWithExpiry } from "./signed-urls";
 
@@ -42,7 +43,7 @@ export const parseRememberedUrls = (raw: string | null): RememberedUrls => {
   } catch {
     return {};
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return {};
+  if (!isObject(parsed)) return {};
   return Object.fromEntries(Object.entries(parsed).filter((entry): entry is [string, RememberedUrl] => isRememberedUrl(entry[1])));
 };
 
