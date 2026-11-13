@@ -18,7 +18,7 @@ export class PlaceRegionError extends Error {
   }
 }
 
-/** 답이 없을 때 그 사진이 "위치 읽는 중"에 머물러 저장을 막지 않게 이만큼만 기다린다. 장소 찾기와 같다 */
+/** 답이 없을 때 그 사진이 "위치 읽는 중"에 머물러 저장을 막지 않게 이만큼만 기다린다 */
 const PLACE_REGION_TIMEOUT_MS = 5000;
 
 /**

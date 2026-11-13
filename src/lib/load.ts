@@ -28,7 +28,7 @@ const toLoggedEntry = (key: string, value: unknown): [string, string | number][]
 /**
  * 잡힌 오류의 원인에서 로그에 남겨도 되는 항목만 꺼낸다. Error의 name·message는 객체 펼치기로 옮겨지지 않아 하나씩 읽는다.
  *
- * @example console.error("장소 찾기 실패", toLoggedCause(error.cause))
+ * @example console.error("조회 실패", error.name, toLoggedCause(error.cause))
  */
 export const toLoggedCause = (cause: unknown): Record<string, string | number> => {
   if (!isObject(cause)) return {};
