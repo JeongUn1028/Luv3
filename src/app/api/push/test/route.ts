@@ -42,16 +42,22 @@ export const POST = async (request: Request): Promise<Response> => {
     // 지우지 못해도 다음에 보낼 때 다시 지운다. 보낸 결과는 그대로 알린다
     if (deleteError) console.error("시험 알림: 사라진 구독을 지우지 못했습니다", deleteError.message);
   }
-  // 받는 쪽 주소에는 기기를 가리키는 값이 있어 남기지 않고 수만 남긴다
+  // 받는 쪽 주소에는 기기를 가리키는 값이 있어 남기지 않고 수와 이유만 남긴다
   if (result.failedCount > 0) {
-    const counts = { sentCount: result.sentCount, failedCount: result.failedCount, expiredCount: result.expiredEndpoints.length };
+    const counts = {
+      sentCount: result.sentCount,
+      failedCount: result.failedCount,
+      expiredCount: result.expiredEndpoints.length,
+      reasons: result.failureReasons,
+    };
     console.error("시험 알림: 보내지 못한 기기가 있습니다", JSON.stringify(counts));
   }
 
   if (result.sentCount === 0) {
     return result.failedCount === 0
       ? toErrorResponse("PUSH_NOT_SUBSCRIBED", "알림이 꺼진 기기예요. 이 기기에서 알림을 다시 켜 주세요.", 409)
-      : toErrorResponse("PUSH_SEND_FAILED", TEST_PUSH_FAILED_MESSAGE, 502);
+      : // 실기기에서 원인을 바로 가를 수 있게 알림 서비스가 답한 이유를 붙인다(#368). 이 기기 하나에만 보내 이유도 하나다
+        toErrorResponse("PUSH_SEND_FAILED", `${TEST_PUSH_FAILED_MESSAGE} (이유: ${result.failureReasons.join(", ")})`, 502);
   }
   return Response.json({ sentCount: result.sentCount }, { headers: NO_STORE_HEADERS });
 };

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getCurrentMember } from "@/lib/auth/member";
 import { PUSH_TEST_MESSAGE } from "@/lib/push/message";
+import { TEST_PUSH_FAILED_MESSAGE } from "@/lib/push/test-push";
 import type { SendToSubscription, StoredPushSubscription } from "@/lib/push/send";
 import { getVapidConfig } from "@/lib/push/vapid";
 import { createWebPushSender } from "@/lib/push/web-push-sender";
@@ -64,7 +65,7 @@ const useSender = (send: SendToSubscription) => {
   vi.mocked(createWebPushSender).mockReturnValue(send);
 };
 
-const pushError = (statusCode: number) => Object.assign(new Error("push failed"), { statusCode });
+const pushError = (statusCode: number, body = "") => Object.assign(new Error("Received unexpected response code"), { statusCode, body });
 
 describe("POST /api/push/test", () => {
   beforeEach(() => {
@@ -218,6 +219,26 @@ describe("POST /api/push/test", () => {
     expect(response.status).toBe(502);
     await expect(response.json()).resolves.toMatchObject({ code: "PUSH_SEND_FAILED" });
     expect(calls.deletedEndpoints).toEqual([]);
-    expect(console.error).toHaveBeenCalledWith("시험 알림: 보내지 못한 기기가 있습니다", JSON.stringify({ sentCount: 0, failedCount: 1, expiredCount: 0 }));
+    expect(console.error).toHaveBeenCalledWith(
+      "시험 알림: 보내지 못한 기기가 있습니다",
+      JSON.stringify({ sentCount: 0, failedCount: 1, expiredCount: 0, reasons: ["500"] }),
+    );
+  });
+
+  // 실기기에서 "보내지 못했어요"만 보여 원인을 가를 수 없었다(#368). 알림 서비스가 답한 이유를 문구 뒤에 붙인다
+  it("보내지 못하면 알림 서비스가 답한 이유를 문구에 붙인다", async () => {
+    // Arrange
+    fakeSupabase({ rows: [subscription(PHONE)] });
+    useSender(() => Promise.reject(pushError(403, '{"reason":"BadJwtToken"}')));
+
+    // Act
+    const response = await POST(requestWith({ endpoint: PHONE }));
+
+    // Assert
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      code: "PUSH_SEND_FAILED",
+      message: `${TEST_PUSH_FAILED_MESSAGE} (이유: 403 BadJwtToken)`,
+    });
   });
 });
