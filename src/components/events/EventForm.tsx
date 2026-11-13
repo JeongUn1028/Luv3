@@ -34,6 +34,7 @@ import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
 import { clearError, FIX_FIELDS_NOTICE, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
+import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
 
 const choiceClassName =
@@ -197,6 +198,8 @@ export const EventForm = ({
       finishFailed({ draft: { ...draft, ...failedFields }, ...failure });
       return;
     }
+    // 새로 추가한 일정만 알린다. 고친 일정과 "이 날만 고치기"로 따로 나온 일정은 알리지 않는다(#364)
+    if (!eventId) requestPartnerPush({ kind: "event", id: newEventId });
     finishSaved({
       href: toCalendarHref({ date: getDateAfterSave(draft, { occurrenceDate: occurrence?.date, viewedDate }) }),
       reset: () => {

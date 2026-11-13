@@ -197,6 +197,40 @@ isOneToOne: false
       referencedColumns: ["id","date_id"]
     }
                   ]
+                },"push_sent": {
+                  Row: {
+                    "kind": string,"sent_at": string,"target_id": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "kind": string,"sent_at"?: string,"target_id": string
+                  }
+                  Update: {
+                    "kind"?: string,"sent_at"?: string,"target_id"?: string
+                  }
+                  Relationships: [
+                    
+                  ]
+                },"push_settings": {
+                  Row: {
+                    "badge_count": number,"member_id": string,"notify_comment": boolean,"notify_event": boolean,"notify_record": boolean
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "badge_count"?: number,"member_id": string,"notify_comment"?: boolean,"notify_event"?: boolean,"notify_record"?: boolean
+                  }
+                  Update: {
+                    "badge_count"?: number,"member_id"?: string,"notify_comment"?: boolean,"notify_event"?: boolean,"notify_record"?: boolean
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "push_settings_member_id_fkey"
+      columns: ["member_id"]
+isOneToOne: true
+      referencedRelation: "members"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"push_subscriptions": {
                   Row: {
                     "auth": string,"created_at": string,"endpoint": string,"id": string,"member_id": string,"p256dh": string
@@ -252,8 +286,14 @@ isOneToOne: false
 "assert_photo_groups":
 { Args: { "p_cover_photo_id": string,"p_groups": Json }; Returns: undefined
                            },
+"claim_partner_push":
+{ Args: { "p_kind": string,"p_target_id": string }; Returns: Json
+                           },
 "clear_couple_photo":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"clear_push_badge":
+{ Args: Record<PropertyKey, never>; Returns: undefined
                            },
 "count_date_tags":
 { Args: Record<PropertyKey, never>; Returns: {
@@ -265,6 +305,9 @@ isOneToOne: false
                            },
 "date_records_version":
 { Args: Record<PropertyKey, never>; Returns: string
+                           },
+"delete_push_subscriptions":
+{ Args: { "p_endpoints": (string)[] }; Returns: undefined
                            },
 "detach_event_occurrence":
 { Args: { "p_date": string,"p_event_id": string,"p_expected_revisions"?: (string)[],"p_memo"?: string,"p_new_event_id"?: string,"p_occurrence_date": string,"p_place"?: string,"p_start_time"?: string,"p_title": string }; Returns: string

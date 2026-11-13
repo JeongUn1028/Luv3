@@ -8,6 +8,7 @@ import { createSendingComment, type CommentAction } from "@/lib/comments/thread"
 import { countChars } from "@/lib/form";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
+import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { createClient } from "@/lib/supabase/client";
 
 const SAVE_FAILED_MESSAGE = "댓글을 남기지 못했어요. 잠시 후 다시 시도해 주세요.";
@@ -72,6 +73,8 @@ export const CommentForm = ({ recordId, memberNickname, isSending, onOptimisticA
         return;
       }
       failedRef.current = undefined;
+      // 응답만 끊겨 같은 id로 다시 남긴 경우(중복 키)도 알린다. 이미 알렸으면 서버가 다시 보내지 않는다
+      requestPartnerPush({ kind: "comment", id: comment.id });
       // await 뒤의 갱신은 다시 transition으로 감싸야 새 목록이 올 때까지 먼저 붙인 댓글이 남는다.
       // 저장하는 동안 기록 고치기로 옮겼으면 쓰던 폼이 새로 만들어지지 않게 다시 받지 않는다(#164)
       startTransition(() => {

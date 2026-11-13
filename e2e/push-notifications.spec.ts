@@ -40,7 +40,12 @@ const useFakePushManager = async (page: Page, permission: NotificationPermission
     const registration = { pushManager } as unknown as ServiceWorkerRegistration;
     Object.defineProperty(navigator, "serviceWorker", {
       configurable: true,
-      value: { register: async () => registration, ready: Promise.resolve(registration), getRegistration: async () => registration },
+      // 실제 서비스 워커 컨테이너처럼 메시지 이벤트를 받을 수 있게 EventTarget 위에 만든다(앱 아이콘 숫자, #364)
+      value: Object.assign(new EventTarget(), {
+        register: async () => registration,
+        ready: Promise.resolve(registration),
+        getRegistration: async () => registration,
+      }),
     });
     Object.defineProperty(Notification, "permission", { configurable: true, get: () => notificationPermission });
     Notification.requestPermission = async () => {

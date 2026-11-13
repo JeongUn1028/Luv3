@@ -541,6 +541,26 @@ export const getPushSubscriptionEndpoints = async (memberId: string): Promise<st
 };
 
 /**
+ * 멤버의 앱 아이콘 숫자(서버가 세는 "앱을 연 뒤 받은 알림 수", #364)를 정한다. 계정을 지우면 함께 지워진다.
+ *
+ * @example await setPushBadgeCount(memberId, 3)
+ */
+export const setPushBadgeCount = async (memberId: string, count: number): Promise<void> => {
+  assertNoError(await createAdminClient().from("push_settings").upsert({ member_id: memberId, badge_count: count }), "앱 아이콘 숫자 정하기");
+};
+
+/**
+ * 멤버의 앱 아이콘 숫자(#364). 아직 알림을 받은 적이 없으면 0이다.
+ *
+ * @example expect(await getPushBadgeCount(memberId)).toBe(0)
+ */
+export const getPushBadgeCount = async (memberId: string): Promise<number> => {
+  const { data, error } = await createAdminClient().from("push_settings").select("badge_count").eq("member_id", memberId).maybeSingle();
+  assertNoError({ error }, "앱 아이콘 숫자 조회");
+  return data?.badge_count ?? 0;
+};
+
+/**
  * 임시 멤버가 쓴 기록(사진 없음)·한 사람 일정을 만든다. 멤버의 `remove`가 함께 지운다.
  *
  * @example const { recordId, eventId } = await createMemberContent({ memberId, label: "내 글" })

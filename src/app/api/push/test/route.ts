@@ -2,22 +2,12 @@ import { getCurrentMember } from "@/lib/auth/member";
 import { NO_STORE_HEADERS, toErrorResponse } from "@/lib/api-response";
 import { PUSH_TEST_MESSAGE } from "@/lib/push/message";
 import { sendPushMessage } from "@/lib/push/send";
+import { readVapidConfig } from "@/lib/push/read-vapid";
 import { parseTestPushBody, TEST_PUSH_FAILED_MESSAGE } from "@/lib/push/test-push";
-import { getVapidConfig, type VapidConfig } from "@/lib/push/vapid";
 import { createWebPushSender } from "@/lib/push/web-push-sender";
 import { createClient } from "@/lib/supabase/server";
 
 const NOT_CONFIGURED_MESSAGE = "알림 설정이 아직 없어요.";
-
-/** 알림 열쇠를 읽는다. 하나만 넣은 설정 실수는 원인을 로그에 남기고 "설정 없음"과 같이 다룬다 */
-const readVapidConfig = (): VapidConfig | undefined => {
-  try {
-    return getVapidConfig();
-  } catch (error) {
-    console.error("시험 알림: 알림 열쇠 설정이 잘못됐습니다", error instanceof Error ? error.message : String(error));
-    return undefined;
-  }
-};
 
 /**
  * 설정 화면의 "시험 알림 보내기"(#363). 로그인한 사람의 구독 중, 요청을 보낸 기기(본문의 구독 주소)에만 시험 알림을 보낸다.
@@ -27,7 +17,7 @@ const readVapidConfig = (): VapidConfig | undefined => {
 export const POST = async (request: Request): Promise<Response> => {
   const member = await getCurrentMember();
 
-  const vapid = readVapidConfig();
+  const vapid = readVapidConfig("시험 알림");
   if (!vapid) return toErrorResponse("PUSH_NOT_CONFIGURED", NOT_CONFIGURED_MESSAGE, 503);
 
   const body = parseTestPushBody(await request.json().catch(() => undefined));

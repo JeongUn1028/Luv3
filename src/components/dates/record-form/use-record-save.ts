@@ -12,6 +12,7 @@ import type { LeavableSave } from "@/lib/navigation/use-leavable-save";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import type { PreviewUrls } from "@/lib/photos/preview-urls";
 import { resizePhoto } from "@/lib/photos/resize";
+import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { createClient } from "@/lib/supabase/client";
 import type { PickedPhoto } from "../PhotoGroupCard";
 
@@ -92,6 +93,8 @@ export const useRecordSave = ({ record, setDraft, setNotice, previews, leavableS
         });
         // 앞서 저장된 기록이 있어 이번 내용은 반영되지 않았으니, 저장된 내용을 바로 확인하게 한다
         if (result === "already-saved") savedHref = `/dates/${recordId}`;
+        // 앞선 시도에서 저장된 기록도 새 기록이라 알린다. 이미 알렸으면 서버가 다시 보내지 않는다
+        requestPartnerPush({ kind: "record", id: recordId });
       }
       // cacheComponents는 다녀온 화면을 Activity로 숨겨 상태를 보존한다. 다시 열었을 때 처음 상태가 되도록
       // 이동과 같은 transition에서 되돌린다(이동이 끝날 때 함께 반영돼 빈 폼이 잠깐 보이지 않는다)
