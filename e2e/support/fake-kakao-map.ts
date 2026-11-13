@@ -11,14 +11,22 @@ export interface FakeViewBox {
   maxLng: number;
 }
 
+interface FakeSdkOptions {
+  viewBox?: FakeViewBox;
+  /** 화면 안 핀을 숫자 동그라미 하나로 묶을지. 기본은 묶지 않는다 */
+  isClusteringInView?: boolean;
+}
+
 /**
  * 실제 카카오를 부르지 않게 지도 SDK를 대신하는 스크립트. 그린 핀과 지도 수를 창에 남겨 테스트가 읽고 누른다.
  * 사진 핀(CustomOverlay)은 실제처럼 지도 요소 안에 붙여 버튼을 누를 수 있다. 위치는 흉내 내지 않아 핀이 모두 왼쪽 위에 겹친다.
  * 선(Polyline)은 그린 좌표와 색만 남긴다(#251).
- * 묶음 기능(MarkerClusterer)은 묶지 않고 모든 핀을 낱개로 보여 주며, 핀을 넣을 때와 `fakeMap.idle()` 때 `clustered`를 알린다.
+ * 묶음 기능(MarkerClusterer)은 기본으로 묶지 않고 모든 핀을 낱개로 보여 주며, 핀을 넣을 때와 `fakeMap.idle()` 때 `clustered`를 알린다.
+ * `isClusteringInView`를 켜면 실제처럼 화면 안 핀을 숫자 동그라미 하나(`data-fake-cluster`)로 묶고, 글자는 실제 기본값처럼 핀 개수로 쓴 뒤
+ * 묶음 목록과 함께 알린다(#343). 실제도 핀을 넣는 그 자리에서 묶고 알린다.
  * "화면 안"은 `fakeMap.viewBox`로 정한다(`bounds.contain`).
  */
-const buildFakeSdk = (viewBox: FakeViewBox | undefined): string => `
+const buildFakeSdk = ({ viewBox, isClusteringInView }: FakeSdkOptions): string => `
 const handlersOf = (target) => (target.__handlers ??= {});
 const fire = (target, type, argument) => [...(handlersOf(target)[type] ?? [])].forEach((handler) => handler(argument));
 window.fakeMap = {
@@ -26,7 +34,7 @@ window.fakeMap = {
   fire,
   idle: () => {
     fire(window.fakeMap.map, "idle");
-    if (window.fakeMap.clusterer) fire(window.fakeMap.clusterer, "clustered", []);
+    window.fakeMap.clusterer?.cluster();
   },
 };
 class LatLngBounds {
@@ -74,9 +82,33 @@ window.kakao = {
       }
     },
     MarkerClusterer: class {
-      constructor({ map }) { this.map = map; this.items = []; window.fakeMap.clusterer = this; }
-      addMarkers(items) { this.items.push(...items); items.forEach((item) => item.setMap(this.map)); fire(this, "clustered", []); }
-      clear() { this.items.forEach((item) => item.setMap(null)); this.items = []; }
+      constructor({ map }) { this.map = map; this.items = []; this.clusterElement = undefined; window.fakeMap.clusterer = this; }
+      addMarkers(items) { this.items.push(...items); items.forEach((item) => item.setMap(this.map)); this.cluster(); }
+      clear() { this.clusterElement?.remove(); this.clusterElement = undefined; this.items.forEach((item) => item.setMap(null)); this.items = []; }
+      cluster() {
+        if (!${JSON.stringify(Boolean(isClusteringInView))}) {
+          fire(this, "clustered", []);
+          return;
+        }
+        this.clusterElement?.remove();
+        this.clusterElement = undefined;
+        const inView = this.items.filter((item) => new LatLngBounds().contain(item.getPosition()));
+        const clustered = inView.length >= 2 ? inView : [];
+        this.items.forEach((item) => {
+          const map = clustered.includes(item) ? null : this.map;
+          if (item.getMap() !== map) item.setMap(map);
+        });
+        if (clustered.length === 0) {
+          fire(this, "clustered", []);
+          return;
+        }
+        const element = document.createElement("div");
+        element.dataset.fakeCluster = "";
+        element.innerHTML = String(clustered.length);
+        this.map.container.append(element);
+        this.clusterElement = element;
+        fire(this, "clustered", [{ getMarkers: () => clustered, getClusterMarker: () => ({ getContent: () => element }) }]);
+      }
     },
     event: {
       addListener: (target, type, handler) => { (handlersOf(target)[type] ??= []).push(handler); },
@@ -105,13 +137,13 @@ export interface FakeWindow extends Window {
 /**
  * 지도 SDK 요청에 가짜 SDK를 돌려준다. 받은 SDK 주소를 돌려준다.
  *
- * @example await fakeMapSdk(page, { viewBox })
+ * @example await fakeMapSdk(page, { viewBox, isClusteringInView: true })
  */
-export const fakeMapSdk = async (page: Page, { viewBox }: { viewBox?: FakeViewBox } = {}): Promise<string[]> => {
+export const fakeMapSdk = async (page: Page, options: FakeSdkOptions = {}): Promise<string[]> => {
   const urls: string[] = [];
   await page.route(KAKAO_SDK_URL, (route) => {
     urls.push(route.request().url());
-    return route.fulfill({ contentType: "text/javascript", body: buildFakeSdk(viewBox) });
+    return route.fulfill({ contentType: "text/javascript", body: buildFakeSdk(options) });
   });
   return urls;
 };
