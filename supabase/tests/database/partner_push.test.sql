@@ -102,17 +102,20 @@ select is(
   '2', '보낼 때마다 상대 숫자가 1씩 오른다'
 );
 
-select throws_ok($$select * from public.push_settings$$, '42501', null, '알림 설정 표를 직접 읽을 수 없다');
+select is_empty(
+  $$select * from public.push_settings where member_id = '00000000-0000-0000-0000-00000000000b'$$,
+  '상대의 알림 설정과 숫자는 읽을 수 없다'
+);
 select throws_ok(
   $$update public.push_settings set badge_count = 0$$,
   '42501', null, '숫자를 직접 고칠 수 없다'
 );
 select throws_ok($$select * from public.push_sent$$, '42501', null, '보낸 기록 표를 직접 읽을 수 없다');
 
--- b가 새 일정 알림을 꺼 둔다(설정 화면 스위치는 이어지는 작업에서 더한다)
-reset role;
-update public.push_settings set notify_event = false where member_id = '00000000-0000-0000-0000-00000000000b';
-set local role authenticated;
+-- b가 설정 화면 스위치로 새 일정 알림을 꺼 둔다
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+select public.set_push_notify('event', false);
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
 
 select is(
   public.claim_partner_push('event', '30000000-0000-0000-0000-000000000001'),
@@ -122,7 +125,9 @@ select is(
 
 reset role;
 select results_eq(
-  $$select member_id, badge_count from public.push_settings$$,
+  $$select member_id, badge_count from public.push_settings where member_id in (
+    '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000c'
+  )$$,
   $$values ('00000000-0000-0000-0000-00000000000b'::uuid, 2)$$,
   '꺼 둔 종류는 숫자를 올리지 않고, 알림을 켠 기기가 없는 회원은 설정 행도 생기지 않는다'
 );
