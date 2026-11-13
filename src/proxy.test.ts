@@ -18,6 +18,7 @@ describe("proxy matcher", () => {
     "/favicon.icon",
     "/robots.txt.bak",
     "/dates/xpng",
+    "/vendor",
   ])("페이지 %s는 세션 확인을 거친다", (pathname) => {
     expect(matchesProxy(pathname)).toBe(true);
   });
@@ -33,6 +34,8 @@ describe("proxy matcher", () => {
     "/favicon.ico",
     "/robots.txt",
     "/_next/static/chunks/app.js",
+    // 사진 줄이기 웹 워커가 불러오는 라이브러리 사본(#312). 사진을 고를 때마다 받으므로 세션 갱신을 거치지 않는다
+    "/vendor/browser-image-compression-2.0.2.js",
   ])("공개 파일 %s는 세션 확인 없이 보낸다", (pathname) => {
     expect(matchesProxy(pathname)).toBe(false);
   });

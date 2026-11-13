@@ -1,6 +1,6 @@
 import imageCompression from "browser-image-compression";
 import heic2any from "heic2any";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PhotoError } from "./errors";
 import { BUCKET_FILE_SIZE_LIMIT } from "./limits";
 import { isAcceptedPhoto, isHeic, PHOTO_INPUT_ACCEPT, resizeCouplePhoto, resizePhoto } from "./resize";
@@ -16,11 +16,16 @@ const heicMock = vi.mocked(heic2any);
 const jpeg = (name: string, size = 10) => new File([new Uint8Array(size)], name, { type: "image/jpeg" });
 
 beforeEach(() => {
+  vi.stubGlobal("location", { origin: "http://localhost:3000" });
   compressMock.mockReset();
   heicMock.mockReset();
   compressMock.mockImplementation(async (file, options) =>
     jpeg(`${options.maxWidthOrHeight}-${file.name}`),
   );
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("isAcceptedPhoto", () => {
@@ -79,8 +84,8 @@ describe("resizeCouplePhoto", () => {
 
     expect(compressMock).toHaveBeenCalledTimes(2);
     const [originalOptions, mediumOptions] = compressMock.mock.calls.map(([, options]) => options);
-    expect(originalOptions).toMatchObject({ maxWidthOrHeight: 2000, fileType: "image/jpeg", maxIteration: 1, useWebWorker: false });
-    expect(mediumOptions).toMatchObject({ maxWidthOrHeight: 1100, fileType: "image/jpeg", maxIteration: 1, useWebWorker: false });
+    expect(originalOptions).toMatchObject({ maxWidthOrHeight: 2000, fileType: "image/jpeg", maxIteration: 1, useWebWorker: true });
+    expect(mediumOptions).toMatchObject({ maxWidthOrHeight: 1100, fileType: "image/jpeg", maxIteration: 1, useWebWorker: true });
     expect(result.original).toMatchObject({ name: "2000-a.jpg" });
     expect(result.medium).toMatchObject({ name: "1100-2000-a.jpg" });
   });
@@ -115,12 +120,19 @@ describe("resizePhoto", () => {
     }
   });
 
-  // 기본값은 웹 워커가 jsdelivr CDN에서 스크립트를 받아 와, CDN이 막히면 업로드가 멈춘다
-  it("외부 CDN 스크립트를 쓰는 웹 워커를 끈다", async () => {
+  // 줄이기가 화면을 그리는 스레드를 막지 않도록 웹 워커에서 하되, 라이브러리 기본값(jsdelivr CDN)은 CSP에 막혀
+  // 메인 스레드로 돌아가므로 우리 주소의 사본을 넘긴다(#312)
+  it("우리 주소의 라이브러리 사본을 쓰는 웹 워커에서 줄인다", async () => {
+    // Arrange
+    vi.stubGlobal("location", { origin: "https://luv3.test" });
+
+    // Act
     await resizePhoto(jpeg("a.jpg"));
 
+    // Assert
+    expect(compressMock).toHaveBeenCalledTimes(2);
     for (const [, options] of compressMock.mock.calls) {
-      expect(options.useWebWorker).toBe(false);
+      expect(options).toMatchObject({ useWebWorker: true, libURL: "https://luv3.test/vendor/browser-image-compression-2.0.2.js" });
     }
   });
 

@@ -1,15 +1,17 @@
 import imageCompression, { type Options } from "browser-image-compression";
+import { toImageCompressionLibUrl } from "./compression-lib";
 import { PhotoError } from "./errors";
 import { BUCKET_FILE_SIZE_LIMIT, MEDIUM_MAX_EDGE, ORIGINAL_MAX_EDGE, THUMB_MAX_EDGE, UPLOAD_CONTENT_TYPE } from "./limits";
 
-// 기본값인 웹 워커는 jsdelivr CDN에서 스크립트를 받아 와, CDN이 막히거나 느리면 업로드가 멈춘다.
-// 메인 스레드에서 한 장씩 처리해도 휴대폰에서 한 장에 1초 안팎이라 끈다.
+// 줄이기는 화면을 그리는 스레드를 막지 않도록 웹 워커에서 한다(#312). 워커는 라이브러리 스크립트를 다시 불러오는데,
+// 기본값(jsdelivr CDN)은 CSP에 막히고 CDN이 느리면 저장도 느려져 우리 주소의 사본을 쓴다(compressWithOptions에서 넣음).
+// 워커를 만들지 못하거나 워커에서 실패하면 라이브러리가 메인 스레드에서 다시 줄인다.
 // 라이브러리는 결과가 원래 파일보다 크면 화질을 0.95배씩 최대 10번 낮춰, 이미 압축된 작은 사진이 뭉개진다.
 // 다시 낮추는 횟수를 한 번으로 묶는다(최저 화질 = initialQuality × 0.95).
 // preserveExif는 기본값(false)을 둬 위치 정보(GPS) 같은 EXIF를 지운다.
 const BASE_OPTIONS = {
   fileType: UPLOAD_CONTENT_TYPE,
-  useWebWorker: false,
+  useWebWorker: true,
   maxIteration: 1,
 } as const satisfies Options;
 
@@ -92,7 +94,7 @@ const convertHeicToJpeg = async (file: File): Promise<File> => {
 // 라이브러리 타입은 File을 돌려준다고 하지만, Chrome(OffscreenCanvas)에서는 name만 붙인 Blob이 온다
 const compress = async (file: File, options: Options): Promise<File> => {
   try {
-    return await imageCompression(file, options);
+    return await imageCompression(file, { ...options, libURL: toImageCompressionLibUrl(location.origin) });
   } catch (error) {
     throw new PhotoError("decode-failed", { cause: error });
   }

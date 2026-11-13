@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/knip/schema.json",
-  "ignore": ["src/lib/supabase/database.types.ts"],
+  "ignore": ["src/lib/supabase/database.types.ts", "public/vendor/**"],
   "ignoreExportsUsedInFile": true,
   "playwright": {
     "config": [],

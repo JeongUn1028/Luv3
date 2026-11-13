@@ -1,5 +1,6 @@
 import type { Page, Request, Route } from "@playwright/test";
 import { RECORDS_PATH } from "@/lib/dates/album";
+import { IMAGE_COMPRESSION_LIB_PATH } from "@/lib/photos/compression-lib";
 import { UPLOAD_CONCURRENCY } from "@/lib/photos/upload";
 import { getKstYesterday, getSubmitButton, pickPhoto } from "./support/actions";
 import { pickDate } from "./support/date-picker";
@@ -7,7 +8,7 @@ import { createTestName } from "./support/names";
 import { deleteRecordWithFiles, getRecordIdsByTitle, listRecordFiles } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
-// 사진을 줄이는 대로 올리고 동시에 몇 장씩 올리는 저장(#312)의 진행 표시와 실패 정리
+// 사진을 줄이는 대로 올리고 동시에 몇 장씩 올리는 저장(#312)의 진행 표시·웹 워커 줄이기·실패 정리
 
 const ALBUM_UPLOAD_URL = "**/storage/v1/object/album/**";
 const CREATE_RECORD_URL = "**/rest/v1/rpc/create_date_record";
@@ -102,6 +103,29 @@ test.describe("사진이 있는 기록 저장", () => {
       expect(await listRecordFiles(savedId)).toHaveLength(photoCount * 2);
     } finally {
       releaseSave();
+      for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id);
+    }
+  });
+
+  test("사진을 줄이는 웹 워커는 우리 주소의 라이브러리 사본을 받고, 외부 CDN은 부르지 않는다", async ({ page }, testInfo) => {
+    // Arrange
+    const title = createTestName("워커로 줄이기", testInfo);
+    await fillNewRecord(page, { title, photoCount: 1 });
+    const requestedUrls: string[] = [];
+    page.on("request", (request) => requestedUrls.push(request.url()));
+    const workerStarted = page.waitForEvent("worker");
+    const libraryLoaded = page.waitForResponse((response) => new URL(response.url()).pathname === IMAGE_COMPRESSION_LIB_PATH);
+
+    try {
+      // Act
+      await getSubmitButton(page).tap();
+
+      // Assert
+      await workerStarted;
+      expect((await libraryLoaded).ok()).toBe(true);
+      await page.waitForURL(`**${RECORDS_PATH}`);
+      expect(requestedUrls.filter((url) => url.includes("cdn.jsdelivr.net"))).toEqual([]);
+    } finally {
       for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id);
     }
   });
