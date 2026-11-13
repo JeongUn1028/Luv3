@@ -160,11 +160,12 @@ export const setRecordSearchFields = async (id: string, { memo, caption }: { mem
 };
 
 /**
- * 기록의 모든 사진 모음에 같은 위치를 넣는다(#249, #297). `createDisposableRecord`의 사진 1장짜리 기록에 쓴다.
+ * 기록의 모든 사진 모음에 같은 위치를 넣는다(#249, #297). 위치는 모음마다 하나라 사진이 아닌 모음 위치를 바꾼다.
+ * `createDisposableRecord`의 사진 1장짜리 기록(모음 하나)에 쓴다.
  *
- * @example await setRecordPhotoLocation(id, { place: "어니언 성수", lat: 37.54, lng: 127.05 })
+ * @example await setRecordGroupsLocation(id, { place: "어니언 성수", lat: 37.54, lng: 127.05 })
  */
-export const setRecordPhotoLocation = async (recordId: string, { place, lat, lng }: PhotoGroupLocation): Promise<void> => {
+export const setRecordGroupsLocation = async (recordId: string, { place, lat, lng }: PhotoGroupLocation): Promise<void> => {
   assertNoError(
     await createAdminClient().from("photo_groups").update({ place, place_lat: lat, place_lng: lng }).eq("date_id", recordId),
     "사진 모음 위치",

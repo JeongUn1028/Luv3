@@ -3,7 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 import { RECORDS_MAP_PATH } from "@/lib/dates/map";
 import { MAP_PHOTOS_PATH } from "@/lib/dates/map-photos";
 import { createUniqueLocation, fakeMapSdk, moveFakeMap, toViewBoxAround, type FakeWindow } from "./support/fake-kakao-map";
-import { addLocatedPhotoRows, addRecordPhoto, createDisposableRecord, getRecordPhotoIds, setRecordPhotoLocation } from "./support/seed";
+import { addLocatedPhotoRows, addRecordPhoto, createDisposableRecord, getRecordPhotoIds, setRecordGroupsLocation } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
 /** 위도 0.0001도는 약 11m */
@@ -29,7 +29,7 @@ const createPhotoLocatedRecord = async ({
 }): Promise<LocatedRecord> => {
   const id = randomUUID();
   const remove = await createDisposableRecord(date ? { id, title, date } : { id, title });
-  await setRecordPhotoLocation(id, { place, ...location });
+  await setRecordGroupsLocation(id, { place, ...location });
   return { id, photoIds: await getRecordPhotoIds(id), remove };
 };
 
