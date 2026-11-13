@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
-import { SETTINGS_PATH } from "@/lib/auth/paths";
+import { LOGIN_PATH, SETTINGS_PATH, SIGN_OUT_PATH } from "@/lib/auth/paths";
 import { PUSH_TEST_PATH } from "@/lib/push/message";
 import { signInToHome } from "./support/actions";
-import { createDisposableMember, getPushSubscriptionEndpoints } from "./support/seed";
+import { createDisposableMember, getPushNotifyRow, getPushSubscriptionEndpoints } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
 // 구독 행을 세므로, 두 기기 프로젝트가 나란히 돌아도 섞이지 않게 테스트마다 임시 계정을 쓴다
@@ -125,6 +125,71 @@ test.describe("설정 알림 칸", () => {
     // Assert
     await expect(getSection(page).getByRole("alert")).toHaveText("알림이 꺼진 기기예요. 이 기기에서 알림을 다시 켜 주세요.");
     await expect(getSection(page).getByRole("button", { name: "알림 켜기" })).toBeVisible();
+  });
+
+  // 시안 4번 A: 켠 뒤에는 종류별 스위치가 보이고, 설정은 사람마다 하나라 다시 열어도 그대로다
+  test("알림을 켜면 종류별 스위치가 보이고, 끈 종류는 다시 열어도 꺼져 있다", async ({ page }) => {
+    // Arrange
+    await useFakePushManager(page);
+    await signInToHome(page, email, password);
+    await openScreen(page, SETTINGS_PATH, getSection(page).getByRole("button", { name: "알림 켜기" }));
+    await getSection(page).getByRole("button", { name: "알림 켜기" }).click();
+    const eventSwitch = getSection(page).getByRole("switch", { name: "새 일정" });
+    await expect(getSection(page).getByText("이 기기에서 받는 중")).toBeVisible();
+    for (const name of ["새 기록", "댓글", "새 일정"]) {
+      await expect(getSection(page).getByRole("switch", { name })).toBeChecked();
+    }
+
+    // Act
+    await eventSwitch.click();
+
+    // Assert
+    await expect(eventSwitch).not.toBeChecked();
+    await expect.poll(() => getPushNotifyRow(memberId)).toEqual({ notify_record: true, notify_comment: true, notify_event: false });
+
+    // Act: 다시 열기. 가짜 구독은 문서마다 새로 만들어져, 다른 기기에서 켠 것처럼 다시 켠다
+    await page.reload();
+    await getSection(page).getByRole("button", { name: "알림 켜기" }).click();
+
+    // Assert: 종류 설정은 사람마다 하나라 기기와 상관없이 그대로다
+    await expect(getSection(page).getByRole("switch", { name: "새 일정" })).not.toBeChecked();
+    await expect(getSection(page).getByRole("switch", { name: "새 기록" })).toBeChecked();
+  });
+
+  // 로그아웃한 뒤에도 이 기기로 상대 활동 알림이 오지 않게 한다
+  test("로그아웃하면 이 기기의 구독을 지운다", async ({ page }) => {
+    // Arrange
+    await useFakePushManager(page);
+    await signInToHome(page, email, password);
+    await openScreen(page, SETTINGS_PATH, getSection(page).getByRole("button", { name: "알림 켜기" }));
+    await getSection(page).getByRole("button", { name: "알림 켜기" }).click();
+    await expect.poll(() => getPushSubscriptionEndpoints(memberId)).toHaveLength(1);
+
+    // Act
+    await page.getByRole("button", { name: "로그아웃" }).click();
+
+    // Assert
+    await page.waitForURL(`**${LOGIN_PATH}`);
+    expect(await getPushSubscriptionEndpoints(memberId)).toEqual([]);
+  });
+
+  // 로그아웃이 실패해 그대로 로그인돼 있으면 알림도 그대로 와야 한다(#364 리뷰)
+  test("로그아웃하지 못하면 이 기기의 구독을 그대로 둔다", async ({ page }) => {
+    // Arrange
+    await useFakePushManager(page);
+    await signInToHome(page, email, password);
+    await openScreen(page, SETTINGS_PATH, getSection(page).getByRole("button", { name: "알림 켜기" }));
+    await getSection(page).getByRole("button", { name: "알림 켜기" }).click();
+    await expect.poll(() => getPushSubscriptionEndpoints(memberId)).toHaveLength(1);
+    await page.route(`**${SIGN_OUT_PATH}`, (route) => route.abort("internetdisconnected"));
+
+    // Act
+    await page.getByRole("button", { name: "로그아웃" }).click();
+
+    // Assert
+    await expect(page.getByRole("alert").filter({ hasText: "로그아웃하지 못했어요" })).toBeVisible();
+    expect(await getPushSubscriptionEndpoints(memberId)).toHaveLength(1);
+    await expect(getSection(page).getByRole("button", { name: "이 기기에서 알림 끄기" })).toBeVisible();
   });
 
   test("알림을 거절한 기기에는 켜기 버튼 대신 아이폰 설정에서 허용하라고 안내한다", async ({ page }) => {

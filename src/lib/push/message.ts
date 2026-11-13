@@ -21,6 +21,12 @@ export const PUSH_TEST_PATH = "/api/push/test";
  */
 export const PUSH_RECEIVED_MESSAGE = "luv3:push-received";
 
+/**
+ * 로그아웃 요청(폼)에 이 기기의 구독 주소를 담는 칸(#364). 로그아웃 경로가 세션이 있을 때 그 행을 지워,
+ * 로그아웃한 기기로 상대 활동 알림이 가지 않게 한다
+ */
+export const SIGN_OUT_PUSH_ENDPOINT_FIELD = "push_endpoint";
+
 /** 저장에 성공한 휴대폰이 상대에게 알림을 부탁하는 경로(#364, `POST`) */
 export const PUSH_NOTIFY_PATH = "/api/push/notify";
 

@@ -561,6 +561,23 @@ export const getPushBadgeCount = async (memberId: string): Promise<number> => {
 };
 
 /**
+ * 멤버의 종류별 알림 설정(설정 화면 스위치, #364). 바꾼 적이 없으면 행이 없어 `undefined`다(모두 켬).
+ *
+ * @example expect(await getPushNotifyRow(memberId)).toMatchObject({ notify_event: false })
+ */
+export const getPushNotifyRow = async (
+  memberId: string,
+): Promise<{ notify_record: boolean; notify_comment: boolean; notify_event: boolean } | undefined> => {
+  const { data, error } = await createAdminClient()
+    .from("push_settings")
+    .select("notify_record, notify_comment, notify_event")
+    .eq("member_id", memberId)
+    .maybeSingle();
+  assertNoError({ error }, "알림 종류 설정 조회");
+  return data ?? undefined;
+};
+
+/**
  * 임시 멤버가 쓴 기록(사진 없음)·한 사람 일정을 만든다. 멤버의 `remove`가 함께 지운다.
  *
  * @example const { recordId, eventId } = await createMemberContent({ memberId, label: "내 글" })

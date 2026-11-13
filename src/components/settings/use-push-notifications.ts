@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
+import { deletePushSubscriptionRow } from "@/lib/push/device-subscription";
 import { PUSH_TEST_PATH } from "@/lib/push/message";
 import {
   isIosDevice,
@@ -53,11 +54,6 @@ const saveSubscription = async (subscription: PushSubscription): Promise<void> =
   const { endpoint, p256dh, auth } = toStoredSubscription(subscription.toJSON());
   const { error } = await createClient().rpc("save_push_subscription", { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth });
   if (error) throw new Error(`알림 구독을 저장하지 못했습니다: ${error.message}`, { cause: error });
-};
-
-const deleteSubscriptionRow = async (endpoint: string): Promise<void> => {
-  const { error } = await createClient().from("push_subscriptions").delete().eq("endpoint", endpoint);
-  if (error) throw new Error(`알림 구독을 지우지 못했습니다: ${error.message}`, { cause: error });
 };
 
 /** 서비스 워커가 켜지기를 기다리되, 정한 시간 안에 켜지지 않으면 실패로 본다 */
@@ -125,7 +121,7 @@ export const usePushNotifications = (publicKey: string): PushNotificationsState 
       const isUsable = existing !== null && isSameServerKey(existing.options.applicationServerKey, serverKey);
       // 알림 열쇠를 바꾼 뒤의 예전 구독으로는 보낼 수 없어, 서버의 행을 지우고 끊은 뒤 새로 만든다
       if (existing && !isUsable) {
-        await deleteSubscriptionRow(existing.endpoint);
+        await deletePushSubscriptionRow(existing.endpoint);
         await existing.unsubscribe();
       }
       const subscription = isUsable ? existing : await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: serverKey });
@@ -148,7 +144,7 @@ export const usePushNotifications = (publicKey: string): PushNotificationsState 
       const subscription = await registration?.pushManager.getSubscription();
       if (subscription) {
         // 서버의 행을 먼저 지운다. 끊기만 하고 행이 남으면 알림 서비스가 사라졌다고 답할 때까지 보내려 한다
-        await deleteSubscriptionRow(subscription.endpoint);
+        await deletePushSubscriptionRow(subscription.endpoint);
         await subscription.unsubscribe();
       }
       setCheckedStatus("off");
