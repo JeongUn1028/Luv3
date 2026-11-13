@@ -16,7 +16,11 @@ const nextConfig: NextConfig = {
   // 모든 응답에 보안 헤더를 붙인다(#170). Supabase 주소를 CSP에 넣으므로 빌드할 때 환경 변수가 있어야 한다(Vercel 미리 보기만 예외)
   headers: async () => {
     const supabaseUrl = resolveHeaderSupabaseUrl({ supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL, vercelEnv: process.env.VERCEL_ENV });
-    return [{ source: "/:path*", headers: buildSecurityHeaders({ supabaseUrl, isDev: process.env.NODE_ENV === "development" }) }];
+    return [
+      { source: "/:path*", headers: buildSecurityHeaders({ supabaseUrl, isDev: process.env.NODE_ENV === "development" }) },
+      // 알림 서비스 워커(#363)는 고친 버전이 바로 퍼지게 저장해 두지 않는다. 등록할 때도 updateViaCache: "none"을 준다
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache" }] },
+    ];
   },
   turbopack: {
     rules: {
