@@ -91,16 +91,20 @@ export const POST = async (request: Request): Promise<Response> => {
   );
   const expiredEndpoints = results.flatMap((result) => result.expiredEndpoints);
   const sentCount = results.reduce((sum, result) => sum + result.sentCount, 0);
-  const failedCount = results.reduce((sum, result) => sum + result.failedCount, 0);
+  const failureReasons = results.flatMap((result) => result.failureReasons);
+  const failedCount = failureReasons.length;
 
   if (expiredEndpoints.length > 0) {
     // 상대 기기의 구독이라 RLS로는 지울 수 없어 함수로 지운다. 지우지 못해도 다음에 보낼 때 다시 지운다
     const { error: deleteError } = await supabase.rpc("delete_push_subscriptions", { p_endpoints: expiredEndpoints });
     if (deleteError) console.error("상대 알림: 사라진 구독을 지우지 못했습니다", deleteError.message);
   }
-  // 받는 쪽 주소에는 기기를 가리키는 값이 있어 남기지 않고 수만 남긴다
+  // 받는 쪽 주소에는 기기를 가리키는 값이 있어 남기지 않고 수와 이유만 남긴다
   if (failedCount > 0) {
-    console.error("상대 알림: 보내지 못한 기기가 있습니다", JSON.stringify({ sentCount, failedCount, expiredCount: expiredEndpoints.length }));
+    // 열쇠를 잘못 넣으면 모든 기기가 같은 이유로 실패한다. 같은 이유는 한 번만 적고 수를 센다
+    const reasons = failureReasons.reduce<Record<string, number>>((counts, reason) => ({ ...counts, [reason]: (counts[reason] ?? 0) + 1 }), {});
+    const summary = { sentCount, failedCount, expiredCount: expiredEndpoints.length, reasons };
+    console.error("상대 알림: 보내지 못한 기기가 있습니다", JSON.stringify(summary));
   }
 
   return Response.json({ sentCount }, { headers: NO_STORE_HEADERS });

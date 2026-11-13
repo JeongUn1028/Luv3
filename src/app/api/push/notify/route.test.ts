@@ -61,7 +61,7 @@ const useSender = (send: SendToSubscription) => {
   vi.mocked(createWebPushSender).mockReturnValue(send);
 };
 
-const pushError = (statusCode: number) => Object.assign(new Error("push failed"), { statusCode });
+const pushError = (statusCode: number) => Object.assign(new Error("Received unexpected response code"), { statusCode, body: "" });
 
 describe("POST /api/push/notify", () => {
   beforeEach(() => {
@@ -251,9 +251,9 @@ describe("POST /api/push/notify", () => {
     // Arrange
     const calls = fakeSupabase({
       rows: { dates: RECORD_ROW },
-      claim: ready({ badge: 1, subscriptions: [subscription("phone"), subscription("gone"), subscription("forbidden"), subscription("down")] }),
+      claim: ready({ badge: 1, subscriptions: [subscription("phone"), subscription("gone"), subscription("forbidden"), subscription("down"), subscription("alsoDown")] }),
     });
-    const failures: Record<string, number> = { gone: 410, forbidden: 403, down: 500 };
+    const failures: Record<string, number> = { gone: 410, forbidden: 403, down: 500, alsoDown: 500 };
     useSender(({ endpoint }) => {
       const status = failures[endpoint.replace("https://push.example/", "")];
       return status ? Promise.reject(pushError(status)) : Promise.resolve();
@@ -265,7 +265,10 @@ describe("POST /api/push/notify", () => {
     // Assert
     await expect(response.json()).resolves.toEqual({ sentCount: 1 });
     expect(calls.rpcs[1]).toEqual({ name: "delete_push_subscriptions", args: { p_endpoints: ["https://push.example/gone"] } });
-    expect(console.error).toHaveBeenCalledWith("상대 알림: 보내지 못한 기기가 있습니다", JSON.stringify({ sentCount: 1, failedCount: 2, expiredCount: 1 }));
+    expect(console.error).toHaveBeenCalledWith(
+      "상대 알림: 보내지 못한 기기가 있습니다",
+      JSON.stringify({ sentCount: 1, failedCount: 3, expiredCount: 1, reasons: { "403": 1, "500": 2 } }),
+    );
   });
 
   it("사라진 구독을 지우지 못해도 보낸 결과를 돌려주고 원인을 로그에 남긴다", async () => {
