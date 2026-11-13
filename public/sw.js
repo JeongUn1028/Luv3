@@ -35,7 +35,7 @@ const PUSH_RECEIVED_MESSAGE = "luv3:push-received";
 /**
  * 앱 아이콘 숫자를 바꾼다(#364). 숫자는 서버가 세어 알림에 담는다(앱을 연 뒤 받은 알림 수).
  * 앱을 보고 있으면 받은 알림을 이미 본 셈이라 숫자를 띄우지 않고, 앱 창에 알려 서버 숫자를 지우게 한다.
- * 숫자를 지원하지 않는 브라우저와 숫자가 없는 알림은 조용히 건너뛴다
+ * 숫자를 지원하지 않는 브라우저와 숫자가 없는 알림(시험 알림)은 조용히 건너뛴다
  */
 const updateBadge = async (badge) => {
   if (badge === undefined) return;
