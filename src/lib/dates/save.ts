@@ -1,6 +1,7 @@
+import { PhotoError } from "@/lib/photos/errors";
 import type { ResizedPhoto } from "@/lib/photos/resize";
 import { removeUploadedPhotos, resizeAndUploadPhotos, type PhotoStorage, type UploadedPhoto } from "@/lib/photos/upload";
-import { callWithRetry, isDuplicateKey, isOutcomeUnknown } from "@/lib/save-outcome";
+import { callWithRetry, isDuplicateKey, isOutcomeUnknown, type SaveFailure } from "@/lib/save-outcome";
 import { toCreateRecordArgs, type CreateDateRecordArgs, type DateRecordDraft, type UpdateDateRecordArgs } from "./form";
 import { getDraftPhotos } from "./photo-group-draft";
 
@@ -240,3 +241,15 @@ const uploadNewPhotos = async ({
     onProgress: (done) => onProgress?.({ step: "uploading", done, total }),
   });
 };
+
+/**
+ * 기록 저장 오류를 일정·할 일 폼과 같은 실패 모양으로 바꾼다(#315). 문구는 화면에 그대로 보여 줄 수 있다.
+ *
+ * @example const failure = toDateRecordSaveFailure(error)
+ */
+export const toDateRecordSaveFailure = (error: unknown): SaveFailure => ({
+  message: error instanceof PhotoError || error instanceof SaveDateRecordError ? error.message : "저장하지 못했어요. 잠시 후 다시 시도해 주세요.",
+  isGone: error instanceof DateRecordGoneError,
+  hasConflict: error instanceof DateRecordConflictError,
+  mayHaveSaved: error instanceof SaveDateRecordError && error.mayHaveSaved,
+});

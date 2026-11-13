@@ -1,5 +1,6 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useRef, useState } from "react";
+import { isScreenOutdatedAfterFailure, type SaveFailure } from "@/lib/save-outcome";
 import { refreshOutsideForm } from "./refresh-outside-form";
 import { saveNoticeStore } from "./save-notices";
 import { markAllScreensLoaded, markAllScreensStale } from "./screen-freshness";
@@ -31,10 +32,8 @@ interface FinishSavedParams {
   reset: () => void;
 }
 
-interface FinishFailedParams<Draft> extends FailedSave<Draft> {
-  /** 고치는 대상이 이미 지워졌는지. 돌아가도 고칠 폼이 없으므로 내용을 보관하지 않고 그 이유를 알린다 */
-  isGone?: boolean;
-}
+/** 실패한 내용과 실패 이유(`SaveFailure`). 고치는 대상이 이미 지워졌으면(`isGone`) 돌아가도 고칠 폼이 없으므로 내용을 보관하지 않고 그 이유를 알린다 */
+type FinishFailedParams<Draft> = FailedSave<Draft> & Partial<Omit<SaveFailure, "message">>;
 
 interface LeavableSave<Draft> {
   /** 지난번 실패로 보관된 내용. 있으면 폼의 처음 값으로 쓴다 */
@@ -51,6 +50,8 @@ interface LeavableSave<Draft> {
  * 저장하는 사이 다른 화면으로 옮겨도 끌고 오지 않는 폼 저장 도우미(#104).
  * 폼이 숨겨지면(Activity) layout effect가 정리되므로, 주소를 비교하지 않고도 지금 이 폼을 보고 있는지 알 수 있다.
  * 같은 주소를 다시 열어 새 폼이 만들어진 경우에도 예전 폼은 떠난 것으로 본다.
+ *
+ * 저장 실패(`SaveFailure`)는 `finishFailed({ draft, ...failure })`로 넘기고, 다시 저장할 칸은 `toFailedSaveFields`(revision.ts)로 만든다.
  *
  * @example
  * const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey: "todo:new", subject: "하고 싶은 것을", failedSaves });
@@ -91,9 +92,10 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
       });
       if (!isVisible) saveNoticeStore.add({ formKey, isFailure: false, title: `${subject} 저장했어요`, href });
     },
-    finishFailed: ({ draft, message, isGone = false }) => {
-      // 숨겨 둔 목록에 지워진 항목이 남아 있으므로, 뒤로 돌아가면 바로 새로 불러오게 한다
-      if (isGone) markAllScreensStale();
+    finishFailed: ({ draft, message, ...failure }) => {
+      const { isGone = false } = failure;
+      // 숨겨 둔 목록·상세가 예전 내용을 보여 주면 돌아갈 때 바로 새로 불러오게 한다
+      if (isScreenOutdatedAfterFailure(failure)) markAllScreensStale();
       if (isVisibleRef.current) return;
       if (!isGone) failedSaves.set(formKey, { draft, message });
       saveNoticeStore.add({

@@ -38,24 +38,14 @@ import {
 import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
 import { clearError, countChars, FIX_FIELDS_NOTICE, isResolvedFieldNotice } from "@/lib/form";
 import { subscribeToAppReturn } from "@/lib/navigation/app-return";
-import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
 import { BACK_TRANSITION, FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { useDiscardOnLeave } from "@/lib/navigation/use-discard-on-leave";
-import { addMaybeSavedRevision } from "@/lib/revision";
+import { toFailedSaveFields } from "@/lib/revision";
 import type { EditableRecord } from "@/lib/dates/detail";
-import {
-  DateRecordAlreadyLinkedError,
-  DateRecordConflictError,
-  DateRecordGoneError,
-  SaveDateRecordError,
-  saveDateRecord,
-  updateDateRecord,
-  type SaveProgress,
-} from "@/lib/dates/save";
+import { DateRecordAlreadyLinkedError, saveDateRecord, toDateRecordSaveFailure, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
 import { toSaveProgressLabel } from "@/lib/dates/save-progress";
-import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { readPhotoInfo } from "@/lib/photos/photo-info";
 import { usePreviewUrls } from "@/lib/photos/preview-urls";
@@ -65,11 +55,6 @@ import type { PickedPhoto } from "./PhotoGroupCard";
 import { PhotoGroupsField } from "./PhotoGroupsField";
 import { RecordSaveButton } from "./RecordSaveButton";
 import { TagField } from "./TagField";
-
-const toSaveErrorMessage = (error: unknown): string => {
-  if (error instanceof PhotoError || error instanceof SaveDateRecordError) return error.message;
-  return "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
-};
 
 const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto> => ({
   date: prefill?.date ?? toKstDate(new Date()),
@@ -376,24 +361,19 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
       if (!record) forgetScrollPosition("records");
       finishSaved({ href: savedHref, reset: () => resetForm(record ? toEditDraft(record) : createEmptyDraft()) });
     } catch (error) {
-      const message = toSaveErrorMessage(error);
-      const isGone = error instanceof DateRecordGoneError;
-      const hasConflict = error instanceof DateRecordConflictError;
-      const mayHaveSaved = error instanceof SaveDateRecordError && error.mayHaveSaved;
+      const failure = toDateRecordSaveFailure(error);
       const failedFields = {
-        hasConflict,
-        uncertainSaveRecordId: mayHaveSaved ? recordId : nextDraft.uncertainSaveRecordId,
-        expectedRevisions: addMaybeSavedRevision({ expectedRevisions: nextDraft.expectedRevisions, revision: nextDraft.nextRevision, mayHaveSaved }),
+        ...toFailedSaveFields({ failure, expectedRevisions: nextDraft.expectedRevisions, revision: nextDraft.nextRevision }),
+        // 저장됐을 수 있으면 다시 저장할 때 같은 id를 써서 기록이 둘이 되지 않게 한다
+        uncertainSaveRecordId: failure.mayHaveSaved ? recordId : nextDraft.uncertainSaveRecordId,
       };
       setDraft((current) => ({ ...current, ...failedFields }));
-      // 저장됐거나 상대가 고쳤다면 숨겨 둔 목록·상세가 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
-      if (mayHaveSaved || hasConflict) markAllScreensStale();
-      setIsRecordGone(isGone);
+      setIsRecordGone(failure.isGone);
       setLinkedRecordId(error instanceof DateRecordAlreadyLinkedError ? error.recordId : undefined);
-      setNotice(message);
+      setNotice(failure.message);
       setIsSaving(false);
       setProgress(undefined);
-      finishFailed({ draft: { ...nextDraft, ...failedFields }, message, isGone });
+      finishFailed({ draft: { ...nextDraft, ...failedFields }, ...failure });
     }
   };
 

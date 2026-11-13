@@ -7,10 +7,9 @@ import { TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
-import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
-import { addMaybeSavedRevision } from "@/lib/revision";
+import { toFailedSaveFields } from "@/lib/revision";
 import { createClient } from "@/lib/supabase/client";
 import { TODO_CONTENT_MAX_LENGTH, validateTodoContent } from "@/lib/todos/form";
 import { TODOS_PATH } from "@/lib/todos/list";
@@ -82,17 +81,14 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
         content,
         // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다
         newTodoId: todoId ? undefined : saveId,
-        expectedRevisions: addMaybeSavedRevision({ expectedRevisions, revision, mayHaveSaved: failure.mayHaveSaved }),
-        hasConflict: failure.hasConflict,
+        ...toFailedSaveFields({ failure, expectedRevisions, revision }),
       };
       setNewTodoId(failedDraft.newTodoId);
       setExpectedRevisions(failedDraft.expectedRevisions);
       setHasConflict(failedDraft.hasConflict);
-      // 저장됐거나 상대가 고쳤다면 숨겨 둔 목록이 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
-      if (failure.mayHaveSaved || failure.hasConflict) markAllScreensStale();
       setNotice(failure.message);
       setIsSaving(false);
-      finishFailed({ draft: failedDraft, message: failure.message, isGone: failure.isGone });
+      finishFailed({ draft: failedDraft, ...failure });
       return;
     }
     finishSaved({

@@ -3,6 +3,7 @@ import {
   callWithRetry,
   createRowWithRetry,
   isDuplicateKey,
+  isScreenOutdatedAfterFailure,
   isOutcomeUnknown,
   toRejectedOutcome,
   toSaveFailure,
@@ -239,5 +240,18 @@ describe("toSaveFailure", () => {
 
   it("uncertain이면 저장됐을 수 있다고 알린다", () => {
     expect(toSaveFailure("uncertain", messages)).toEqual({ message: UNCERTAIN_SAVE_MESSAGE, isGone: false, hasConflict: false, mayHaveSaved: true });
+  });
+});
+
+describe("isScreenOutdatedAfterFailure", () => {
+  it("지워졌거나, 저장됐을 수 있거나, 상대가 고쳤으면 숨겨 둔 화면을 새로 불러와야 한다", () => {
+    expect(isScreenOutdatedAfterFailure({ isGone: true })).toBe(true);
+    expect(isScreenOutdatedAfterFailure({ mayHaveSaved: true })).toBe(true);
+    expect(isScreenOutdatedAfterFailure({ hasConflict: true })).toBe(true);
+  });
+
+  it("저장되지 않은 것이 분명한 실패면 화면을 그대로 둔다", () => {
+    expect(isScreenOutdatedAfterFailure({ isGone: false, mayHaveSaved: false, hasConflict: false })).toBe(false);
+    expect(isScreenOutdatedAfterFailure({})).toBe(false);
   });
 });

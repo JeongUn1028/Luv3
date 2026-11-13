@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addMaybeSavedRevision, saveRowAtRevision, type RevisionedTable } from "./revision";
+import { saveRowAtRevision, toFailedSaveFields, type RevisionedTable } from "./revision";
 
 interface Calls {
   insert: unknown[];
@@ -43,23 +43,33 @@ const createFakeTable = ({ insertError, updatedRows = [{ id: "row" }], isRowTher
   return { table, calls };
 };
 
-describe("addMaybeSavedRevision", () => {
-  it("저장됐을 수 있으면 이번 판 번호를 허용 목록 끝에 더한다", () => {
-    expect(addMaybeSavedRevision({ expectedRevisions: ["r1"], revision: "r2", mayHaveSaved: true })).toEqual(["r1", "r2"]);
+describe("toFailedSaveFields", () => {
+  const MAY_HAVE_SAVED = { hasConflict: false, mayHaveSaved: true };
+  const NOT_SAVED = { hasConflict: false, mayHaveSaved: false };
+
+  it("상대가 고쳐 거부됐으면 그 사실을 남긴다", () => {
+    expect(toFailedSaveFields({ failure: { hasConflict: true, mayHaveSaved: false }, expectedRevisions: ["r1"], revision: "r2" })).toEqual({
+      hasConflict: true,
+      expectedRevisions: ["r1"],
+    });
+  });
+
+  it("저장됐을 수 있으면 이번 판 번호를 허용 목록 끝에 더해 다음 저장이 내 판으로 거부되지 않게 한다", () => {
+    expect(toFailedSaveFields({ failure: MAY_HAVE_SAVED, expectedRevisions: ["r1"], revision: "r2" }).expectedRevisions).toEqual(["r1", "r2"]);
   });
 
   it("허용 목록이 없을 때 저장됐을 수 있으면 이번 판 번호만 담는다", () => {
-    expect(addMaybeSavedRevision({ expectedRevisions: undefined, revision: "r2", mayHaveSaved: true })).toEqual(["r2"]);
+    expect(toFailedSaveFields({ failure: MAY_HAVE_SAVED, expectedRevisions: undefined, revision: "r2" }).expectedRevisions).toEqual(["r2"]);
   });
 
   it("저장되지 않은 것이 분명하면 허용 목록을 그대로 둔다", () => {
     const expectedRevisions = ["r1"];
 
-    expect(addMaybeSavedRevision({ expectedRevisions, revision: "r2", mayHaveSaved: false })).toBe(expectedRevisions);
+    expect(toFailedSaveFields({ failure: NOT_SAVED, expectedRevisions, revision: "r2" }).expectedRevisions).toBe(expectedRevisions);
   });
 
   it("이번 판 번호가 없으면(새로 만드는 기록) 허용 목록을 그대로 둔다", () => {
-    expect(addMaybeSavedRevision({ expectedRevisions: undefined, revision: undefined, mayHaveSaved: true })).toBeUndefined();
+    expect(toFailedSaveFields({ failure: MAY_HAVE_SAVED, expectedRevisions: undefined, revision: undefined }).expectedRevisions).toBeUndefined();
   });
 });
 
