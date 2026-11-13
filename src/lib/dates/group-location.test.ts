@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PhotoLocation } from "./form";
-import { findNearbyGroupLocation, isSameMapSpot, isSamePhotoLocation, toOtherGroupLocations } from "./group-location";
+import { findNearbyGroupLocation, isSameMapSpot, isSamePhotoLocation, toGroupLocationText, toOtherGroupLocations } from "./group-location";
 
 const ONION: PhotoLocation = { place: "성동구 성수2가1동", lat: 37.5447, lng: 127.0582 };
 const FOREST: PhotoLocation = { place: "성동구 성수1가1동", lat: 37.5444, lng: 127.0374 };
@@ -76,5 +76,38 @@ describe("findNearbyGroupLocation", () => {
 
   it("다른 모음에 위치가 없으면 없다", () => {
     expect(findNearbyGroupLocation([group("g1"), group("g2", ONION)], 1)).toBeUndefined();
+  });
+});
+
+describe("toGroupLocationText", () => {
+  it("첫 사진 정보를 읽는 중이면 읽는 중이라고만 보인다", () => {
+    expect(toGroupLocationText({ location: undefined, locationSource: undefined, isReadingLocation: true })).toEqual({ label: "위치 읽는 중…", note: undefined });
+  });
+
+  it("위치가 있으면 다듬은 동네 이름과 어디서 정했는지 보인다", () => {
+    expect([
+      toGroupLocationText({ location: FOREST, locationSource: "photo", isReadingLocation: false }),
+      toGroupLocationText({ location: FOREST, locationSource: "picked", isReadingLocation: false }),
+    ]).toEqual([
+      { label: "성동구 성수동", note: "첫 사진 정보에서 읽었어요" },
+      { label: "성동구 성수동", note: "직접 골랐어요" },
+    ]);
+  });
+
+  it("이미 저장된 모음이거나 정한 곳을 모르면 어디서 정했는지 보이지 않는다", () => {
+    expect([
+      toGroupLocationText({ location: FOREST, locationSource: "saved", isReadingLocation: false }),
+      toGroupLocationText({ location: FOREST, locationSource: undefined, isReadingLocation: false }),
+    ]).toEqual([
+      { label: "성동구 성수동", note: undefined },
+      { label: "성동구 성수동", note: undefined },
+    ]);
+  });
+
+  it("위치가 없으면 첫 사진에 위치 정보가 없다고 알린다", () => {
+    expect(toGroupLocationText({ location: undefined, locationSource: undefined, isReadingLocation: false })).toEqual({
+      label: "위치 없음",
+      note: "첫 사진에 위치 정보가 없어요",
+    });
   });
 });
