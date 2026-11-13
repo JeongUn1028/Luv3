@@ -530,6 +530,17 @@ export const createDisposableMember = async (password: string, nickname = "임�
 };
 
 /**
+ * 멤버가 알림을 켠 기기 주소들(#363). 계정을 지우면 구독도 함께 지워진다.
+ *
+ * @example expect(await getPushSubscriptionEndpoints(memberId)).toHaveLength(1)
+ */
+export const getPushSubscriptionEndpoints = async (memberId: string): Promise<string[]> => {
+  const { data, error } = await createAdminClient().from("push_subscriptions").select("endpoint").eq("member_id", memberId);
+  assertNoError({ error }, "알림 구독 조회");
+  return (data ?? []).map(({ endpoint }) => endpoint);
+};
+
+/**
  * 임시 멤버가 쓴 기록(사진 없음)·한 사람 일정을 만든다. 멤버의 `remove`가 함께 지운다.
  *
  * @example const { recordId, eventId } = await createMemberContent({ memberId, label: "내 글" })

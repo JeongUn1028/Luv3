@@ -19,6 +19,8 @@ describe("proxy matcher", () => {
     "/robots.txt.bak",
     "/dates/xpng",
     "/vendor",
+    "/sw.js/x",
+    "/xsw.js",
   ])("페이지 %s는 세션 확인을 거친다", (pathname) => {
     expect(matchesProxy(pathname)).toBe(true);
   });
@@ -36,6 +38,8 @@ describe("proxy matcher", () => {
     "/_next/static/chunks/app.js",
     // 사진 줄이기 웹 워커가 불러오는 라이브러리 사본(#312). 사진을 고를 때마다 받으므로 세션 갱신을 거치지 않는다
     "/vendor/browser-image-compression-2.0.2.js",
+    // 알림을 받는 서비스 워커(#363). 브라우저가 로그인 여부와 상관없이 새 버전을 확인한다
+    "/sw.js",
   ])("공개 파일 %s는 세션 확인 없이 보낸다", (pathname) => {
     expect(matchesProxy(pathname)).toBe(false);
   });

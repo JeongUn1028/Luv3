@@ -23,6 +23,12 @@ export const E2E_TODOS = [
   { id: "e2e00000-0000-4000-8000-000000000023", content: "E2E 하고 싶은 것 셋" },
 ] as const;
 
+/**
+ * 설정 화면 알림 칸(#363)을 켜는 알림 공개 키. 짝인 비밀 키는 버렸다(E2E는 실제 알림 서비스로 보내지 않는다).
+ * 서버에 비밀 키가 없어 시험 알림 경로는 E2E에서 응답을 대신 정해 확인한다
+ */
+export const E2E_VAPID_PUBLIC_KEY = "BKXrWzqjlDoTWjYSf0GxUqoH9IjwAJ-FY1jmrD-fhONCWU-ZWiqWuPwPUwdS1KyE65HYNUSNJfkFM9xVe8UBi2k";
+
 export const COUPLE_PHOTO_PATH = "couple/e2e00000-0000-4000-8000-000000000031.jpg";
 
 /** 사진 있는 기록에 넣는 사진 수. 고치기 화면이 스크롤되는 만큼 넣는다 */
