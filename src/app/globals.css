@@ -10,6 +10,8 @@
   --color-ink-sub: #8a8a8a;
   --color-ink-placeholder: #6e6e6e;
   --color-accent: #f2d2da;
+  /* 저장하는 동안 원래 분홍이 차오르기 전의 한 톤 어두운 분홍(#312) */
+  --color-accent-dim: #a3838c;
   --color-highlight: #f5cfd9;
   --color-label: #c8a2ac;
   /* 한 사람 일정 형광펜(함께 일정은 highlight 분홍) */

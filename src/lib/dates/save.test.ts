@@ -88,8 +88,6 @@ describe("saveDateRecord", () => {
       expect.objectContaining({ p_id: RECORD_ID, p_cover_photo_id: PHOTO_A }),
     );
     expect(progress).toEqual([
-      { step: "resizing", done: 0, total: 2 },
-      { step: "resizing", done: 1, total: 2 },
       { step: "uploading", done: 0, total: 2 },
       { step: "uploading", done: 1, total: 2 },
       { step: "uploading", done: 2, total: 2 },
@@ -280,7 +278,7 @@ describe("updateDateRecord", () => {
         p_cover_photo_id: PHOTO_C,
       }),
     );
-    expect(progress.at(0)).toEqual({ step: "resizing", done: 0, total: 1 });
+    expect(progress.at(0)).toEqual({ step: "uploading", done: 0, total: 1 });
     expect(progress.at(-1)).toEqual({ step: "saving", done: 1, total: 1 });
   });
 
