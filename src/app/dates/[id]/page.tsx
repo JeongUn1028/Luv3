@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { AuthorTag } from "@/components/AuthorTag";
 import { DeleteRecordButton } from "@/components/dates/DeleteRecordButton";
+import { FirstPhotoGate } from "@/components/dates/FirstPhotoGate";
 import { PhotoCarousel } from "@/components/dates/PhotoCarousel";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
@@ -48,7 +49,7 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
   const startPhotoId = Array.isArray(photoParam) ? photoParam[0] : photoParam;
   // 댓글은 기록을 기다리지 않고 함께 읽는다. 댓글을 못 읽어도 기록은 보여 준다
   const [record, comments] = await Promise.all([
-    catchLoadError(() => getDateRecordDetail(id), DateRecordLoadError),
+    catchLoadError(() => getDateRecordDetail(id, startPhotoId), DateRecordLoadError),
     catchLoadError(() => getRecordComments({ recordId: id, memberId: member.id }), CommentLoadError),
   ]);
 
@@ -91,41 +92,44 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
           </>
         }
       />
-      <article className="flex flex-col">
-        {/* 지도의 사진 미리보기에서 고른 사진부터 펼친다(#249) */}
-        <PhotoCarousel photos={record.photos} groups={record.groups} title={record.title} startIndex={findStartPhotoIndex(record.photos, startPhotoId)} />
-        <div className="flex flex-col px-4 pt-6">
-          <div className="flex items-center justify-between gap-3">
-            <p className="min-w-0 text-[13px] break-words text-ink-sub">
-              <time dateTime={record.date}>{formatRecordPeriod(record)}</time>
-            </p>
-            {record.authorNickname && <AuthorTag nickname={record.authorNickname} />}
+      {/* 동선 지도는 처음 펼친 사진을 받은 뒤에 불러온다(#313) */}
+      <FirstPhotoGate>
+        <article className="flex flex-col">
+          {/* 지도의 사진 미리보기에서 고른 사진부터 펼친다(#249) */}
+          <PhotoCarousel photos={record.photos} groups={record.groups} title={record.title} startIndex={findStartPhotoIndex(record.photos, startPhotoId)} />
+          <div className="flex flex-col px-4 pt-6">
+            <div className="flex items-center justify-between gap-3">
+              <p className="min-w-0 text-[13px] break-words text-ink-sub">
+                <time dateTime={record.date}>{formatRecordPeriod(record)}</time>
+              </p>
+              {record.authorNickname && <AuthorTag nickname={record.authorNickname} />}
+            </div>
+            <h1 className="mt-1.5 font-display text-[22px] leading-[1.4] break-words text-ink">{record.title}</h1>
+            {record.tags.length > 0 && (
+              <ul aria-label="태그" className="mt-3 flex flex-wrap gap-x-1.5 gap-y-[18px]">
+                {record.tags.map((tag) => (
+                  <li key={tag}>
+                    <RecordTagLink tag={tag} />
+                  </li>
+                ))}
+              </ul>
+            )}
+            {record.memo && (
+              <p className="mt-5 text-[15px] leading-[1.75] break-words whitespace-pre-wrap text-ink">{record.memo}</p>
+            )}
+            {/* 사진 위치를 찍은 순서대로 이은 동선(#251). 이을 곳이 둘 미만이면 그리지 않는다 */}
+            {record.route && mapKey && <RecordRoute route={record.route} appKey={mapKey} />}
+            {/* 이미 쓴 기록도 일정과 잇고, 잘못 이었으면 연결만 끊는다(#237). 이을 일정은 기록을 그린 뒤에 읽어 화면을 늦추지 않고, 늦게 나타나도 글을 밀지 않게 본문 끝에 둔다 */}
+            {record.linkedEvent ? (
+              <LinkedEventRow recordId={record.id} event={record.linkedEvent} />
+            ) : (
+              <LoadingSuspense fallback={null}>
+                <LinkEventSuggestion recordId={record.id} date={record.date} endDate={record.endDate} />
+              </LoadingSuspense>
+            )}
           </div>
-          <h1 className="mt-1.5 font-display text-[22px] leading-[1.4] break-words text-ink">{record.title}</h1>
-          {record.tags.length > 0 && (
-            <ul aria-label="태그" className="mt-3 flex flex-wrap gap-x-1.5 gap-y-[18px]">
-              {record.tags.map((tag) => (
-                <li key={tag}>
-                  <RecordTagLink tag={tag} />
-                </li>
-              ))}
-            </ul>
-          )}
-          {record.memo && (
-            <p className="mt-5 text-[15px] leading-[1.75] break-words whitespace-pre-wrap text-ink">{record.memo}</p>
-          )}
-          {/* 사진 위치를 찍은 순서대로 이은 동선(#251). 이을 곳이 둘 미만이면 그리지 않는다 */}
-          {record.route && mapKey && <RecordRoute route={record.route} appKey={mapKey} />}
-          {/* 이미 쓴 기록도 일정과 잇고, 잘못 이었으면 연결만 끊는다(#237). 이을 일정은 기록을 그린 뒤에 읽어 화면을 늦추지 않고, 늦게 나타나도 글을 밀지 않게 본문 끝에 둔다 */}
-          {record.linkedEvent ? (
-            <LinkedEventRow recordId={record.id} event={record.linkedEvent} />
-          ) : (
-            <LoadingSuspense fallback={null}>
-              <LinkEventSuggestion recordId={record.id} date={record.date} endDate={record.endDate} />
-            </LoadingSuspense>
-          )}
-        </div>
-      </article>
+        </article>
+      </FirstPhotoGate>
       <RecordComments recordId={record.id} comments={comments} memberNickname={member.nickname} />
     </>
   );
