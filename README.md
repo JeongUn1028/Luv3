@@ -68,6 +68,28 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 
 스키마를 바꾸면 `supabase/migrations/`에 새 파일을 추가하고 `pnpm db:reset && pnpm db:types`로 타입을 다시 만든다.
 
+## 버전과 릴리스
+
+지금 버전은 **1.0.0**이다(`package.json`의 `version`, [Releases](https://github.com/JeongUn1028/Luv3/releases)). 버전은 [SemVer](https://semver.org/lang/ko/)를 따르고 태그는 `v1.0.0`처럼 앞에 `v`를 붙인다. 1.0.0은 운영 중이던 `e55ff70`에 붙였다(#330). 그래서 그 커밋의 `package.json`에는 처음 값 `0.1.0`이 남아 있다.
+
+다음 버전은 PR마다 올리지 않고, 여러 PR을 묶어 릴리스할 때만 태그를 붙인다. 앞 태그 뒤로 머지된 PR을 보고 정한다.
+
+- `feat`가 하나라도 있으면 MINOR를 올린다(1.0.0 → 1.1.0)
+- `fix`·`perf`만 있으면 PATCH를 올린다(1.0.0 → 1.0.1)
+
+릴리스하는 법:
+
+1. 앞 태그 뒤로 들어간 것을 보고 다음 버전을 정한다: `git fetch --tags && git log --oneline v1.0.0..origin/main`(`v1.0.0` 자리에 마지막 태그)
+2. `package.json`의 `version`만 바꾸는 `chore` PR(예: `chore: 버전 1.1.0으로 올리기`)을 머지한다
+3. 그 머지 커밋이 운영에 배포됐는지 본다(GitHub에서 그 커밋의 `Vercel` 상태가 "Deployment has completed")
+4. 그 머지 커밋에 태그와 Release를 함께 만든다. 노트는 GitHub가 앞 Release 뒤로 머지된 PR 제목으로 만든다(CHANGELOG는 손으로 쓰지 않는다)
+
+   ```bash
+   gh release create v1.1.0 --target <머지 커밋 전체 SHA> --title v1.1.0 --generate-notes
+   ```
+
+1.0.0 노트만은 `--generate-notes`를 쓰지 않았다. #295까지의 main 기록이 한 번 다시 쓰여 GitHub가 기억하는 그 PR들의 머지 커밋이 지금 기록에 없으므로, 자동 목록에 최근 17개만 나왔다. 그래서 커밋 제목의 PR 번호로 168개를 모두 뽑아 붙였다. 1.0.0 뒤로는 태그끼리 비교하므로 자동 목록을 그대로 쓰면 된다.
+
 ## 운영 Supabase 설정
 
 마이그레이션 외에 대시보드에서 직접 맞춰야 하는 값이다.
