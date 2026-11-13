@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useEffectEvent, useRef, type ReactElement } from "react";
+import { findScrollParent } from "@/lib/scroll-parent";
 
 interface LoadMoreTriggerProps {
   /** 더 받을 것이 있는지 */
@@ -13,13 +14,6 @@ interface LoadMoreTriggerProps {
 
 /** 맨 아래에 닿기 전에 미리 부르는 거리. 그리드 칸 서너 줄쯤이다 */
 const PRELOAD_DISTANCE_PX = 600;
-
-const findScrollParent = (element: HTMLElement): HTMLElement | null => {
-  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
-    if (/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) return parent;
-  }
-  return null;
-};
 
 /**
  * 목록 맨 아래에 두어, 스크롤이 가까이 오면 다음 묶음을 부른다(#273, #274). 실패하면 "다시 불러오기" 버튼을 보여 준다.
