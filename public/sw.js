@@ -22,10 +22,32 @@ const readMessage = (data) => {
       title: typeof message.title === "string" && message.title ? message.title : DEFAULT_TITLE,
       body: typeof message.body === "string" ? message.body : "",
       url: typeof message.url === "string" ? message.url : HOME_PATH,
+      badge: Number.isInteger(message.badge) && message.badge >= 0 ? message.badge : undefined,
     };
   } catch {
-    return { title: DEFAULT_TITLE, body: "", url: HOME_PATH };
+    return { title: DEFAULT_TITLE, body: "", url: HOME_PATH, badge: undefined };
   }
+};
+
+// 앱을 보고 있는 동안 알림이 오면 앱 창에 보내는 메시지. src/lib/push/message.ts의 PUSH_RECEIVED_MESSAGE와 같다
+const PUSH_RECEIVED_MESSAGE = "luv3:push-received";
+
+/**
+ * 앱 아이콘 숫자를 바꾼다(#364). 숫자는 서버가 세어 알림에 담는다(앱을 연 뒤 받은 알림 수).
+ * 앱을 보고 있으면 받은 알림을 이미 본 셈이라 숫자를 띄우지 않고, 앱 창에 알려 서버 숫자를 지우게 한다.
+ * 숫자를 지원하지 않는 브라우저와 숫자가 없는 알림(시험 알림)은 조용히 건너뛴다
+ */
+const updateBadge = async (badge) => {
+  if (badge === undefined) return;
+  const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  const shown = windows.filter((client) => client.visibilityState === "visible");
+  if (shown.length > 0) {
+    shown.forEach((client) => client.postMessage({ type: PUSH_RECEIVED_MESSAGE }));
+    return;
+  }
+  const { navigator } = self;
+  if (!navigator || typeof navigator.setAppBadge !== "function") return;
+  await navigator.setAppBadge(badge);
 };
 
 /**
@@ -44,13 +66,17 @@ const toAppUrl = (path) => {
 };
 
 self.addEventListener("push", (event) => {
-  const { title, body, url } = readMessage(event.data);
+  const { title, body, url, badge } = readMessage(event.data);
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: "/icon-192.png",
-      data: { url },
-    }),
+    Promise.all([
+      self.registration.showNotification(title, {
+        body,
+        icon: "/icon-192.png",
+        data: { url },
+      }),
+      // 숫자를 바꾸지 못해도 알림은 보인다
+      updateBadge(badge).catch(() => undefined),
+    ]),
   );
 });
 

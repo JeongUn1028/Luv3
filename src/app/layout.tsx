@@ -3,6 +3,7 @@ import { Cormorant_Garamond, Gowun_Dodum, Jua } from "next/font/google";
 import { AppReturn } from "@/components/AppReturn";
 import { HistoryReturn } from "@/components/HistoryReturn";
 import { OfflineNotice } from "@/components/OfflineNotice";
+import { PushBadgeReset } from "@/components/PushBadgeReset";
 import { SaveNotices } from "@/components/SaveNotices";
 import { SessionLostDialog } from "@/components/SessionLostDialog";
 import { StartupSplash } from "@/components/StartupSplash";
@@ -90,6 +91,7 @@ const RootLayout = ({ children }: LayoutProps<"/">) => (
       <SessionLostDialog />
       <HistoryReturn />
       <AppReturn />
+      <PushBadgeReset />
     </body>
   </html>
 );
