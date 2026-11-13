@@ -54,7 +54,7 @@ const fakeSupabase = ({ rows = {}, loadError, claim, claimError, deleteError }: 
   return calls;
 };
 
-const RECORD_ROW = { date: "2026-11-12", title: "한강 피크닉" };
+const RECORD_ROW = { id: RECORD_ID };
 const ready = (...recipients: { badge: number; subscriptions: StoredPushSubscription[] }[]) => ({ status: "ready", recipients });
 
 const useSender = (send: SendToSubscription) => {
@@ -124,17 +124,17 @@ describe("POST /api/push/notify", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     await expect(response.json()).resolves.toEqual({ sentCount: 2 });
-    expect(calls.reads).toEqual([{ table: "dates", columns: "date, title", id: RECORD_ID }]);
+    expect(calls.reads).toEqual([{ table: "dates", columns: "id", id: RECORD_ID }]);
     expect(calls.rpcs).toEqual([{ name: "claim_partner_push", args: { p_kind: "record", p_target_id: RECORD_ID } }]);
     expect(createWebPushSender).toHaveBeenCalledWith(VAPID);
-    const payload = JSON.stringify({ title: "진아님이 기록을 남겼어요", body: "11월 12일 · 한강 피크닉", url: `/dates/${RECORD_ID}`, badge: 3 });
+    const payload = JSON.stringify({ title: "진아님이 기록을 남겼어요", body: "", url: `/dates/${RECORD_ID}`, badge: 3 });
     expect(send).toHaveBeenCalledWith(subscription("phone"), payload);
     expect(send).toHaveBeenCalledWith(subscription("tablet"), payload);
   });
 
   it("댓글이면 그 댓글이 달린 기록의 댓글로 가는 알림을 보낸다", async () => {
     // Arrange
-    const calls = fakeSupabase({ rows: { comments: { date_id: RECORD_ID, content: "또 가자" } }, claim: ready({ badge: 1, subscriptions: [subscription("phone")] }) });
+    const calls = fakeSupabase({ rows: { comments: { date_id: RECORD_ID } }, claim: ready({ badge: 1, subscriptions: [subscription("phone")] }) });
     const send = vi.fn<SendToSubscription>(() => Promise.resolve());
     useSender(send);
 
@@ -142,17 +142,17 @@ describe("POST /api/push/notify", () => {
     await POST(requestWith({ kind: "comment", id: COMMENT_ID }));
 
     // Assert
-    expect(calls.reads).toEqual([{ table: "comments", columns: "date_id, content", id: COMMENT_ID }]);
+    expect(calls.reads).toEqual([{ table: "comments", columns: "date_id", id: COMMENT_ID }]);
     expect(send).toHaveBeenCalledWith(
       subscription("phone"),
-      JSON.stringify({ title: "진아님의 댓글", body: "또 가자", url: `/dates/${RECORD_ID}#record-comments`, badge: 1 }),
+      JSON.stringify({ title: "진아님이 댓글을 남겼어요", body: "", url: `/dates/${RECORD_ID}#record-comments`, badge: 1 }),
     );
   });
 
   it("새 일정이면 캘린더의 그 날로 가는 알림을 보낸다", async () => {
     // Arrange
     const calls = fakeSupabase({
-      rows: { events: { date: "2026-11-20", start_time: "19:00:00", title: "저녁 약속" } },
+      rows: { events: { date: "2026-11-20" } },
       claim: ready({ badge: 1, subscriptions: [subscription("phone")] }),
     });
     const send = vi.fn<SendToSubscription>(() => Promise.resolve());
@@ -162,10 +162,10 @@ describe("POST /api/push/notify", () => {
     await POST(requestWith({ kind: "event", id: EVENT_ID }));
 
     // Assert
-    expect(calls.reads).toEqual([{ table: "events", columns: "date, start_time, title", id: EVENT_ID }]);
+    expect(calls.reads).toEqual([{ table: "events", columns: "date", id: EVENT_ID }]);
     expect(send).toHaveBeenCalledWith(
       subscription("phone"),
-      JSON.stringify({ title: "진아님이 일정을 추가했어요", body: "11월 20일(금) 19:00 · 저녁 약속", url: "/calendar?month=2026-11&date=2026-11-20", badge: 1 }),
+      JSON.stringify({ title: "진아님이 일정을 추가했어요", body: "", url: "/calendar?month=2026-11&date=2026-11-20", badge: 1 }),
     );
   });
 

@@ -46,43 +46,29 @@ describe("parsePartnerPushClaim", () => {
   });
 });
 
+// 잠금 화면에 글 내용이 보이지 않게, 누가 무엇을 했는지만 한 줄로 알린다(본문 없음, #364)
 describe("알림 문구", () => {
-  it("새 기록 알림은 남긴 사람·날짜·제목을 보이고 기록 상세를 연다", () => {
-    expect(toRecordPushMessage({ nickname: "진아", recordId: ID, date: "2026-11-12", title: "한강 피크닉" })).toEqual({
+  it("새 기록 알림은 남긴 사람만 알리고 기록 상세를 연다", () => {
+    expect(toRecordPushMessage({ nickname: "진아", recordId: ID })).toEqual({
       title: "진아님이 기록을 남겼어요",
-      body: "11월 12일 · 한강 피크닉",
+      body: "",
       url: `/dates/${ID}`,
     });
   });
 
-  it("댓글 알림은 댓글을 보이고 그 기록 상세의 댓글로 간다", () => {
-    expect(toCommentPushMessage({ nickname: "진아", recordId: ID, content: "이 사진 너무\n잘 나왔다" })).toEqual({
-      title: "진아님의 댓글",
-      body: "이 사진 너무 잘 나왔다",
+  it("댓글 알림은 남긴 사람만 알리고 그 기록 상세의 댓글로 간다", () => {
+    expect(toCommentPushMessage({ nickname: "진아", recordId: ID })).toEqual({
+      title: "진아님이 댓글을 남겼어요",
+      body: "",
       url: `/dates/${ID}#record-comments`,
     });
   });
 
-  it("댓글이 50자를 넘으면 앞 50자에 말줄임표를 붙인다(이모지는 한 글자로 센다)", () => {
-    // Arrange
-    const content = `${"😀".repeat(50)}넘친 글`;
-
-    // Act
-    const { body } = toCommentPushMessage({ nickname: "진아", recordId: ID, content });
-
-    // Assert
-    expect(body).toBe(`${"😀".repeat(50)}…`);
-  });
-
-  it("새 일정 알림은 날짜(요일)·시간·제목을 보이고 캘린더의 그 날을 연다", () => {
-    expect(toEventPushMessage({ nickname: "진아", date: "2026-11-20", startTime: "19:00:00", title: "저녁 약속" })).toEqual({
+  it("새 일정 알림은 추가한 사람만 알리고 캘린더의 그 날을 연다", () => {
+    expect(toEventPushMessage({ nickname: "진아", date: "2026-11-20" })).toEqual({
       title: "진아님이 일정을 추가했어요",
-      body: "11월 20일(금) 19:00 · 저녁 약속",
+      body: "",
       url: "/calendar?month=2026-11&date=2026-11-20",
     });
-  });
-
-  it("시간 없는 일정은 시간 없이 날짜만 적는다", () => {
-    expect(toEventPushMessage({ nickname: "진아", date: "2026-11-19", startTime: null, title: "생일 준비" }).body).toBe("11월 19일(목) · 생일 준비");
   });
 });

@@ -36,21 +36,24 @@ const toRefusalResponse = (refusal: PartnerPushRefusal): Response => {
 /** 글을 읽지 못했을 때 loadMessage 대신 돌려받는 표시. 글이 없는 경우(`undefined`)와 가른다 */
 const LOAD_FAILED: unique symbol = Symbol("load-failed");
 
-/** 알릴 글을 읽어 알림 문구를 만든다. 글이 없으면(지워졌거나 잘못된 id) `undefined`. 문구는 휴대폰이 보낸 값을 믿지 않고 DB에서 만든다 */
+/**
+ * 알릴 글이 아직 있는지 보고 알림 문구를 만든다. 글이 없으면(지워졌거나 잘못된 id) `undefined`.
+ * 문구에는 글 내용을 넣지 않으므로 누르면 열 주소에 필요한 칸만 읽는다
+ */
 const loadMessage = async (supabase: ServerClient, { kind, id }: PartnerPushBody, nickname: string): Promise<PushMessage | undefined> => {
   if (kind === "record") {
-    const { data, error } = await supabase.from("dates").select("date, title").eq("id", id).maybeSingle();
+    const { data, error } = await supabase.from("dates").select("id").eq("id", id).maybeSingle();
     if (error) throw new Error(`알릴 기록을 읽지 못했습니다: ${error.message}`, { cause: error });
-    return data ? toRecordPushMessage({ nickname, recordId: id, date: data.date, title: data.title }) : undefined;
+    return data ? toRecordPushMessage({ nickname, recordId: id }) : undefined;
   }
   if (kind === "comment") {
-    const { data, error } = await supabase.from("comments").select("date_id, content").eq("id", id).maybeSingle();
+    const { data, error } = await supabase.from("comments").select("date_id").eq("id", id).maybeSingle();
     if (error) throw new Error(`알릴 댓글을 읽지 못했습니다: ${error.message}`, { cause: error });
-    return data ? toCommentPushMessage({ nickname, recordId: data.date_id, content: data.content }) : undefined;
+    return data ? toCommentPushMessage({ nickname, recordId: data.date_id }) : undefined;
   }
-  const { data, error } = await supabase.from("events").select("date, start_time, title").eq("id", id).maybeSingle();
+  const { data, error } = await supabase.from("events").select("date").eq("id", id).maybeSingle();
   if (error) throw new Error(`알릴 일정을 읽지 못했습니다: ${error.message}`, { cause: error });
-  return data ? toEventPushMessage({ nickname, date: data.date, startTime: data.start_time, title: data.title }) : undefined;
+  return data ? toEventPushMessage({ nickname, date: data.date }) : undefined;
 };
 
 /**
