@@ -5,12 +5,16 @@ import { LogoutForm } from "@/components/LogoutForm";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { NotificationSection } from "@/components/settings/NotificationSection";
+import { PushTypeSwitches } from "@/components/settings/PushTypeSwitches";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
 import { getCurrentMember } from "@/lib/auth/member";
 import { HOME_PATH, SETTINGS_NICKNAME_PATH, SETTINGS_PASSWORD_PATH, SETTINGS_TRASH_PATH } from "@/lib/auth/paths";
+import { catchLoadError } from "@/lib/load";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { ADMDONG_SOURCE } from "@/lib/places/admdong";
+import { getPushNotifySettings, PushSettingsLoadError } from "@/lib/push/queries";
 
 export const metadata: Metadata = { title: "설정 · Luv3" };
 
@@ -84,6 +88,14 @@ const DataSourceSection = () => (
   </section>
 );
 
+/** 알림 칸의 종류별 스위치(#364). 사람마다 설정이 있어 세션을 읽는다 */
+const PushTypeSwitchesSection = async () => {
+  const settings = await catchLoadError(getPushNotifySettings, PushSettingsLoadError);
+  if (settings instanceof PushSettingsLoadError) return <LoadErrorMessage message={settings.message} />;
+  // 다른 기기에서 바꾼 값이 새로 오면 스위치를 그 값으로 다시 그린다
+  return <PushTypeSwitches key={JSON.stringify(settings)} initialSettings={settings} />;
+};
+
 // 알림 열쇠를 넣기 전에는 알림 칸을 그리지 않는다(#363, 카카오 지도 키와 같은 방식)
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
 
@@ -94,7 +106,17 @@ const SettingsPage = () => (
     header={<ScreenHeader back={{ href: HOME_PATH }} title="설정" />}
   >
     <div className="mt-6">
-      {vapidPublicKey && <NotificationSection publicKey={vapidPublicKey} />}
+      {vapidPublicKey && (
+        <NotificationSection
+          publicKey={vapidPublicKey}
+          typeSwitches={
+            // 이 기기에서 알림을 켰을 때만 보인다. 세션을 읽는 부분만 요청 시점에 렌더링한다(cacheComponents)
+            <LoadingSuspense fallback={<SkeletonBlock className="mt-2 h-[153px] rounded-[10px]" />}>
+              <PushTypeSwitchesSection />
+            </LoadingSuspense>
+          }
+        />
+      )}
       {/* 세션을 읽는 부분만 요청 시점에 렌더링한다(cacheComponents) */}
       <LoadingSuspense
         fallback={

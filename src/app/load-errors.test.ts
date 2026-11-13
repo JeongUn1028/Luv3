@@ -20,6 +20,7 @@ const LOAD_CALLS = [
   { at: "app/dates/[id]/edit/page.tsx", query: "getEditableRecord", errorClass: "DateRecordLoadError" },
   { at: "app/events/[id]/edit/page.tsx", query: "getEvent", errorClass: "EventLoadError" },
   { at: "app/todos/[id]/edit/page.tsx", query: "getTodo", errorClass: "TodoLoadError" },
+  { at: "app/settings/page.tsx", query: "getPushNotifySettings", errorClass: "PushSettingsLoadError" },
   { at: "app/settings/trash/page.tsx", query: "getTrashSections", errorClass: "TrashLoadError" },
   { at: "app/settings/trash/[id]/page.tsx", query: "getTrashPhoto", errorClass: "TrashLoadError" },
 ] as const;

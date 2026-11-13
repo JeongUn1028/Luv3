@@ -1,5 +1,7 @@
 // 상대 활동 알림(#364). 저장한 휴대폰이 보내는 부탁, DB(claim_partner_push)의 답, 알림 문구를 다룬다.
 // 서버 경로(/api/push/notify)와 저장하는 화면이 함께 쓴다
+// 알림 문구는 잠금 화면에 그대로 보이므로 글 내용(제목·댓글·날짜)은 보이지 않게 누가 무엇을 했는지만 제목 한 줄로 알리고
+// 본문은 비운다(사용자 결정). 무엇을 봐야 하는지는 누르면 열리는 화면이 보여 준다
 
 import { toCalendarHref } from "@/lib/calendar/month";
 import { COMMENTS_HEADING_ID } from "@/lib/comments/comment";
@@ -71,32 +73,21 @@ export const parsePartnerPushClaim = (value: unknown): PartnerPushClaim | undefi
   return recipients.every((recipient) => recipient !== undefined) ? { status: "ready", recipients } : undefined;
 };
 
-/** 댓글 알림 본문에 보여 줄 글자 수(#29 시안 2번) */
-const COMMENT_PREVIEW_LENGTH = 50;
-
-// 날짜만 있는 값이라 시간대 영향을 받지 않게 UTC로 읽는다
-const MONTH_DAY_FORMAT = new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", timeZone: "UTC" });
-const WEEKDAY_FORMAT = new Intl.DateTimeFormat("ko-KR", { weekday: "short", timeZone: "UTC" });
-
-const toUtcDate = (isoDate: string): Date => new Date(`${isoDate}T00:00:00Z`);
-
 export interface RecordPushParams {
   /** 기록을 남긴 사람 */
   nickname: string;
   recordId: string;
-  date: string;
-  title: string;
 }
 
 /**
  * 새 기록 알림. 누르면 기록 상세를 연다.
  *
- * @example toRecordPushMessage({ nickname: "진아", recordId, date: "2026-11-12", title: "한강 피크닉" })
- * // { title: "진아님이 기록을 남겼어요", body: "11월 12일 · 한강 피크닉", url: "/dates/<id>" }
+ * @example toRecordPushMessage({ nickname: "진아", recordId })
+ * // { title: "진아님이 기록을 남겼어요", body: "", url: "/dates/<id>" }
  */
-export const toRecordPushMessage = ({ nickname, recordId, date, title }: RecordPushParams): PushMessage => ({
+export const toRecordPushMessage = ({ nickname, recordId }: RecordPushParams): PushMessage => ({
   title: `${nickname}님이 기록을 남겼어요`,
-  body: `${MONTH_DAY_FORMAT.format(toUtcDate(date))} · ${title}`,
+  body: "",
   url: toRecordHref(recordId),
 });
 
@@ -104,37 +95,34 @@ export interface CommentPushParams {
   nickname: string;
   /** 댓글을 남긴 기록 */
   recordId: string;
-  content: string;
 }
 
 /**
- * 댓글 알림. 본문은 댓글 앞 50자(줄바꿈은 띄어쓰기로)이고, 누르면 그 기록 상세의 댓글로 간다.
+ * 댓글 알림. 누르면 그 기록 상세의 댓글로 간다.
  *
- * @example toCommentPushMessage({ nickname: "진아", recordId, content: "다음에 또 가자" })
- * // { title: "진아님의 댓글", body: "다음에 또 가자", url: "/dates/<id>#record-comments" }
+ * @example toCommentPushMessage({ nickname: "진아", recordId })
+ * // { title: "진아님이 댓글을 남겼어요", body: "", url: "/dates/<id>#record-comments" }
  */
-export const toCommentPushMessage = ({ nickname, recordId, content }: CommentPushParams): PushMessage => {
-  const characters = Array.from(content.replace(/\s+/g, " ").trim());
-  const preview = characters.length > COMMENT_PREVIEW_LENGTH ? `${characters.slice(0, COMMENT_PREVIEW_LENGTH).join("")}…` : characters.join("");
-  return { title: `${nickname}님의 댓글`, body: preview, url: `${toRecordHref(recordId)}#${COMMENTS_HEADING_ID}` };
-};
+export const toCommentPushMessage = ({ nickname, recordId }: CommentPushParams): PushMessage => ({
+  title: `${nickname}님이 댓글을 남겼어요`,
+  body: "",
+  url: `${toRecordHref(recordId)}#${COMMENTS_HEADING_ID}`,
+});
 
 export interface EventPushParams {
   nickname: string;
+  /** 일정 날짜. 반복 일정은 첫날이다 */
   date: string;
-  /** DB의 time 값(HH:MM:SS). 시간 없는 일정이면 `null` */
-  startTime: string | null;
-  title: string;
 }
 
 /**
- * 새 일정 알림. 반복 일정은 첫날을 적고, 누르면 캘린더의 그 날을 연다.
+ * 새 일정 알림. 누르면 캘린더의 그 날을 연다.
  *
- * @example toEventPushMessage({ nickname: "진아", date: "2026-11-20", startTime: "19:00:00", title: "저녁 약속" })
- * // { title: "진아님이 일정을 추가했어요", body: "11월 20일(금) 19:00 · 저녁 약속", url: "/calendar?month=2026-11&date=2026-11-20" }
+ * @example toEventPushMessage({ nickname: "진아", date: "2026-11-20" })
+ * // { title: "진아님이 일정을 추가했어요", body: "", url: "/calendar?month=2026-11&date=2026-11-20" }
  */
-export const toEventPushMessage = ({ nickname, date, startTime, title }: EventPushParams): PushMessage => {
-  const day = `${MONTH_DAY_FORMAT.format(toUtcDate(date))}(${WEEKDAY_FORMAT.format(toUtcDate(date))})`;
-  const when = startTime ? `${day} ${startTime.slice(0, 5)}` : day;
-  return { title: `${nickname}님이 일정을 추가했어요`, body: `${when} · ${title}`, url: toCalendarHref({ date }) };
-};
+export const toEventPushMessage = ({ nickname, date }: EventPushParams): PushMessage => ({
+  title: `${nickname}님이 일정을 추가했어요`,
+  body: "",
+  url: toCalendarHref({ date }),
+});

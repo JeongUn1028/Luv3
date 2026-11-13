@@ -343,6 +343,9 @@ isOneToOne: false
 "set_couple_photo":
 { Args: { "p_path": string }; Returns: string
                            },
+"set_push_notify":
+{ Args: { "p_enabled": boolean,"p_kind": string }; Returns: undefined
+                           },
 "swap_couple_photo_path":
 { Args: { "p_path": string }; Returns: string
                            },
