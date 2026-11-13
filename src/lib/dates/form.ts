@@ -141,10 +141,10 @@ export interface RecordPrefill {
   /** 기간 일정에서 넘어오면 끝 날짜 */
   endDate?: string | undefined;
   title: string;
-  /** 일정의 메모(#227). 예전 주소(날짜·제목 쿼리)로 열면 없다 */
-  memo?: string | undefined;
-  /** 이 기록을 이을 일정. 예전 주소로 열면 없다 */
-  eventLink?: RecordEventLink | undefined;
+  /** 일정의 메모(#227) */
+  memo: string;
+  /** 이 기록을 이을 일정 */
+  eventLink: RecordEventLink;
 }
 
 /**
@@ -153,29 +153,6 @@ export interface RecordPrefill {
  * @example takeChars(" 성수동 ", 2) // "성수"
  */
 export const takeChars = (text: string, max: number): string => Array.from(text.trim()).slice(0, max).join("");
-
-/**
- * 작성 화면 주소 쿼리를 폼 처음 값으로 읽는다. 쿼리가 없으면 undefined.
- * 주소는 손으로 바꿀 수 있어서, 없는 날짜·앞으로의 날짜는 비워 두고(저장 전에 날짜를 고르라고 알린다) 글자 수는 제한까지만 받는다.
- *
- * @example parseRecordPrefill({ date: "2026-11-01", title: "산책" }, "2026-11-02") // { date: "2026-11-01", title: "산책" }
- */
-export const parseRecordPrefill = (
-  params: Record<string, string | string[] | undefined>,
-  today: string,
-): RecordPrefill | undefined => {
-  // 예전 주소의 장소 쿼리는 기록 장소 칸을 없애(#296) 읽지 않는다
-  const { date, endDate, title } = params;
-  if (date === undefined && title === undefined) return undefined;
-  // 날짜를 받았는데 쓸 수 없으면 오늘로 바꾸지 않고 비워 둔다: 일정과 다른 날로 저장되지 않게 직접 고르게 한다
-  const startDate = date === undefined ? today : typeof date === "string" && isIsoDate(date) && date <= today ? date : "";
-  return {
-    date: startDate,
-    // 쓸 수 없는 끝 날짜는 받지 않아 하루 기록으로 시작한다
-    endDate: typeof endDate === "string" && isIsoDate(endDate) && startDate !== "" && startDate < endDate && endDate <= today ? endDate : undefined,
-    title: typeof title === "string" ? takeChars(title, TITLE_MAX_LENGTH) : "",
-  };
-};
 
 /**
  * 두 위치가 같은 곳인지(이름·좌표가 모두 같은지) 알려 준다. 둘 다 없어도 같다.

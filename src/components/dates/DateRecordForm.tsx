@@ -149,7 +149,7 @@ interface DateRecordFormProps {
 export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: DateRecordFormProps): ReactElement => {
   const router = useRouter();
   // 지난 일정에서 넘어온 새 기록은 일정마다 다른 폼이다. 다른 일정의 실패한 내용이 채워지지 않게 값까지 구분한다
-  const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.endDate ?? ""}:${prefill?.title ?? ""}:${prefill?.eventLink?.eventId ?? ""}`}`;
+  const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.endDate ?? ""}:${prefill?.title ?? ""}:${prefill?.eventLink.eventId ?? ""}`}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "기록을", failedSaves });
   // 쓴 내용이 있는지 견줄 처음 내용. 실패해서 다시 채운 내용도 아직 저장되지 않았으므로 이것과 견준다
   const [initialDraft, setInitialDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft(prefill)));
@@ -181,7 +181,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
   // 오늘을 기본값으로 연 새 기록 폼은 다시 보일 때 아무것도 쓰지 않았으면 날짜를 오늘로 맞춘다(#162).
   // 화면을 새로 받아도 같은 key라 처음 그린 날의 날짜가 남는다. 숨겨 둔 폼(Activity)은 다시 보일 때 효과가 다시 돌고,
   // 보고 있던 폼은 앱으로 돌아올 때 알림을 받는다. 그리기 전에 맞춰 어제 날짜가 잠깐 보이지 않게 한다
-  const hasDefaultDate = !record && prefill?.date === undefined;
+  const hasDefaultDate = !record && !prefill;
   const moveUntouchedDateToToday = useEffectEvent(() => {
     const currentToday = toKstDate(new Date());
     // 날짜를 직접 고친 것도 쓴 내용이라 그대로 둔다
