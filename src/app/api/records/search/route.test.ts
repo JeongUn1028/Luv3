@@ -59,6 +59,19 @@ describe("GET /api/records/search", () => {
     expect(searchRecords).not.toHaveBeenCalled();
   });
 
+  it("다음 자리 날짜가 달력에 없는 날이면 DB에 묻지 않고 400을 돌려준다", async () => {
+    // Arrange
+    const search = new URLSearchParams({ beforeDate: "2026-13-45", beforeCreatedAt: "2026-11-02T09:00:00.123456+00:00", beforeId: "8f5c2b1e-4d3a-4f6b-9c7d-1e2f3a4b5c6d" });
+
+    // Act
+    const response = await GET(requestWith(search.toString()));
+
+    // Assert
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({ code: "INVALID_QUERY" });
+    expect(searchRecords).not.toHaveBeenCalled();
+  });
+
   it("찾다 실패하면 검색어 없이 원인만 남기고 502를 돌려준다", async () => {
     // Arrange
     vi.mocked(searchRecords).mockRejectedValue(new RecordSearchLoadError({ cause: { code: "57014", message: "canceling statement" } }));

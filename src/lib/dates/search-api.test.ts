@@ -51,6 +51,25 @@ describe("parseRecordSearchParams", () => {
     expect(parse(`beforeDate=${CURSOR.date}&beforeCreatedAt=어제&beforeId=${CURSOR.id}`)).toBeUndefined();
     expect(parse(`beforeDate=${CURSOR.date}&beforeCreatedAt=${encodeURIComponent(CURSOR.createdAt)}&beforeId=1`)).toBeUndefined();
   });
+
+  it("다음 자리 날짜가 형식만 맞고 달력에 없는 날이면 받지 않는다", () => {
+    const withDate = (date: string) => parse(`beforeDate=${date}&beforeCreatedAt=${encodeURIComponent(CURSOR.createdAt)}&beforeId=${CURSOR.id}`);
+
+    expect(withDate("2026-13-45")).toBeUndefined();
+    expect(withDate("2026-02-30")).toBeUndefined();
+    expect(withDate("2028-02-29")).toBeDefined();
+  });
+
+  it("다음 자리 작성 시각이 형식만 맞고 달력·시계에 없는 값이면 받지 않는다", () => {
+    const withCreatedAt = (createdAt: string) => parse(`beforeDate=${CURSOR.date}&beforeCreatedAt=${encodeURIComponent(createdAt)}&beforeId=${CURSOR.id}`);
+
+    expect(withCreatedAt("2026-13-45T03:04:05Z")).toBeUndefined();
+    expect(withCreatedAt("2026-02-30T03:04:05Z")).toBeUndefined();
+    expect(withCreatedAt("2026-11-02T25:61:00Z")).toBeUndefined();
+    expect(withCreatedAt("2026-11-02T03:04:60Z")).toBeUndefined();
+    expect(withCreatedAt("2026-11-02T03:04:05+25:00")).toBeUndefined();
+    expect(withCreatedAt("2026-11-02T23:59:59.999999+09:00")).toBeDefined();
+  });
 });
 
 describe("parseRecordSearchPage", () => {
