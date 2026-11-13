@@ -2,14 +2,14 @@ import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { RECORDS_MAP_PATH } from "@/lib/dates/map";
 import { createUniqueLocation, fakeMapSdk, KAKAO_SDK_URL, toViewBoxAround, type FakeWindow } from "./support/fake-kakao-map";
-import { createDisposableRecord, setRecordPhotoLocation } from "./support/seed";
+import { createDisposableRecord, setRecordGroupsLocation } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
 /** 사진 1장짜리 일회용 기록을 만들고 그 사진에 위치를 넣는다. 지도의 핀은 사진 위치로만 그린다(#296) */
 const createPinnedRecord = async ({ title, place, lat, lng }: { title: string; place: string; lat: number; lng: number }): Promise<{ id: string; remove: () => Promise<void> }> => {
   const id = randomUUID();
   const remove = await createDisposableRecord({ id, title });
-  await setRecordPhotoLocation(id, { place, lat, lng });
+  await setRecordGroupsLocation(id, { place, lat, lng });
   return { id, remove };
 };
 

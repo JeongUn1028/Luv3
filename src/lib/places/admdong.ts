@@ -1,3 +1,5 @@
+// scripts/admdong도 이 파일을 Node로 바로 불러와 `@/` 별칭 대신 확장자를 붙인 상대 경로를 쓴다
+import { isObject } from "../guards.ts";
 import type { PlaceLocation } from "./location";
 
 // 행정동 경계로 좌표의 동네 이름을 찾는다(#249). 카카오 로컬 API 결과는 저장할 수 없어(약관) 공개 경계 데이터로 계산한다.
@@ -58,7 +60,6 @@ export class AdmdongFileError extends Error {
   }
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 const isIntegerArray = (value: unknown): value is number[] => Array.isArray(value) && value.every(Number.isInteger);
 
 const decodeRing = (ring: number[]): Int32Array => {
@@ -74,7 +75,7 @@ const decodeRing = (ring: number[]): Int32Array => {
 };
 
 const decodeRegion = (region: unknown, index: number): Region => {
-  if (!isRecord(region) || typeof region.name !== "string" || region.name.trim() === "") throw new AdmdongFileError(`${index}번째 동의 이름`);
+  if (!isObject(region) || typeof region.name !== "string" || region.name.trim() === "") throw new AdmdongFileError(`${index}번째 동의 이름`);
   const { bbox, rings } = region;
   if (!isIntegerArray(bbox) || bbox.length !== 4) throw new AdmdongFileError(`${region.name}의 범위`);
   // 고리는 점 셋 이상(닫는 점 포함 넷)이어야 넓이가 있다
@@ -92,7 +93,7 @@ const decodeRegion = (region: unknown, index: number): Region => {
  * @example const boundaries = decodeAdmdongBoundaries(JSON.parse(text))
  */
 export const decodeAdmdongBoundaries = (file: unknown): AdmdongBoundaries => {
-  if (!isRecord(file) || typeof file.scale !== "number" || !(file.scale > 0) || !Array.isArray(file.regions)) throw new AdmdongFileError("전체 모양");
+  if (!isObject(file) || typeof file.scale !== "number" || !(file.scale > 0) || !Array.isArray(file.regions)) throw new AdmdongFileError("전체 모양");
   return { scale: file.scale, regions: file.regions.map(decodeRegion) };
 };
 

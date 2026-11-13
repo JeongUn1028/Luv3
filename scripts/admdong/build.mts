@@ -1,5 +1,6 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { isObject } from "../../src/lib/guards.ts";
 import { toAdmdongFeature, toAdmdongFile } from "./lib.mts";
 
 // 사진 좌표의 동네 이름을 계산할 행정동 경계 파일을 만든다(#249).
@@ -23,7 +24,7 @@ if (!sourcePath || !version) {
 }
 
 const geojson: unknown = JSON.parse(readFileSync(sourcePath, "utf8"));
-if (typeof geojson !== "object" || geojson === null || !("features" in geojson) || !Array.isArray(geojson.features)) {
+if (!isObject(geojson) || !Array.isArray(geojson.features)) {
   throw new Error("행정동 경계 GeoJSON이 아닙니다");
 }
 const features = geojson.features.map(toAdmdongFeature);

@@ -1,3 +1,4 @@
+import { isObject } from "@/lib/guards";
 import type { PlaceLocation } from "./location";
 
 /** 좌표 → 동네 이름 주소. 화면과 API 경로가 함께 쓴다. 이름은 서버의 행정동 경계로 계산한다(admdong.ts) */
@@ -17,10 +18,8 @@ export class PlaceRegionError extends Error {
   }
 }
 
-/** 답이 없을 때 그 사진이 "위치 읽는 중"에 머물러 저장을 막지 않게 이만큼만 기다린다. 장소 찾기와 같다 */
+/** 답이 없을 때 그 사진이 "위치 읽는 중"에 머물러 저장을 막지 않게 이만큼만 기다린다 */
 const PLACE_REGION_TIMEOUT_MS = 5000;
-
-const isRecord =(value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 
 /**
  * 화면에서 우리 API(`PLACE_REGION_PATH`)로 좌표의 동네 이름을 받는다. 경계 밖(해외·바다)이면 undefined.
@@ -38,6 +37,6 @@ export const fetchPlaceRegionName = async ({ location, fetcher = fetch }: { loca
   const body: unknown = await response.json().catch((cause: unknown) => {
     throw new PlaceRegionError({ cause });
   });
-  if (!isRecord(body) || (body.name !== null && typeof body.name !== "string")) throw new PlaceRegionError();
+  if (!isObject(body) || (body.name !== null && typeof body.name !== "string")) throw new PlaceRegionError();
   return body.name ?? undefined;
 };

@@ -13,7 +13,7 @@ import {
   getRecordPhotoDetails,
   getRecordPhotoLocations,
   addRecordPhoto,
-  setRecordPhotoLocation,
+  setRecordGroupsLocation,
 } from "./support/seed";
 import { getGroupPhoto, getSaveButton, getSubmitButton, PICKED_PHOTO_LOCATION, pickPhoto } from "./support/actions";
 import { fakeMapSdk } from "./support/fake-kakao-map";
@@ -21,7 +21,8 @@ import { MODAL_OPEN_GUARD_WAIT_MS, PHOTO_FIXTURE_PATH } from "./support/constant
 import { expect, openScreen, test } from "./support/test";
 import { createTestName } from "./support/names";
 
-const FOREST = { name: "서울숲", lat: 37.5444, lng: 127.0374 };
+/** 모음 위치 모양(`photo_groups`의 place·place_lat·place_lng) 그대로 둔다 */
+const FOREST = { place: "서울숲", lat: 37.5444, lng: 127.0374 };
 /** 서버가 리포의 행정동 경계로 "성동구 성수1가1동"을 돌려주는 자리 */
 const SEONGSU = { lat: 37.5444, lng: 127.0396 };
 const SEONGSU_NAME = "성동구 성수1가1동";
@@ -262,18 +263,18 @@ test.describe("모음 위치", () => {
     // Arrange
     const id = randomUUID();
     const deleteRecord = await createDisposableRecord({ id, title: "E2E 모음 위치 창" });
-    await setRecordPhotoLocation(id, { place: FOREST.name, lat: FOREST.lat, lng: FOREST.lng });
+    await setRecordGroupsLocation(id, FOREST);
     await fakeMapSdk(page);
 
     try {
       await openScreen(page, `/dates/${id}/edit`, page.locator("#memo"));
-      await expect(getGroupLocation(page, 1)).toHaveText(`모음 1 위치: ${FOREST.name}`);
+      await expect(getGroupLocation(page, 1)).toHaveText(`모음 1 위치: ${FOREST.place}`);
 
       // Act
       const dialog = await openLocationDialog(page, 1);
 
       // Assert: 저장된 이름을 다시 찾지 않고 그대로 보여 준다
-      await expect(dialog.getByText(FOREST.name, { exact: true })).toBeVisible();
+      await expect(dialog.getByText(FOREST.place, { exact: true })).toBeVisible();
       expect(await dialog.evaluate((element) => element.contains(document.activeElement))).toBe(true);
 
       // Act
@@ -522,7 +523,7 @@ test.describe("기록 상세의 모음", () => {
       const secondPhotoId = await addRecordPhoto(id, {
         sortOrder: 1,
         groupCaption: "창가 자리",
-        location: { place: FOREST.name, lat: FOREST.lat, lng: FOREST.lng },
+        location: FOREST,
       });
 
       // Act
@@ -530,7 +531,7 @@ test.describe("기록 상세의 모음", () => {
 
       // Assert: 사진 대체 글은 한마디가 아니라 기본 문구다
       await expect(carousel.getByText("2 / 2")).toBeVisible();
-      await expect(place).toHaveText(`찍은 곳: ${FOREST.name}`);
+      await expect(place).toHaveText(`찍은 곳: ${FOREST.place}`);
       await expect(caption).toHaveText("창가 자리");
       await expect(carousel.getByRole("group", { name: "2 / 2" }).getByRole("img")).toHaveAccessibleName("E2E 사진별 장소 사진 2");
 

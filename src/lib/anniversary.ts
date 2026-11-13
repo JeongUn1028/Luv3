@@ -1,7 +1,14 @@
+import { splitIsoDate, type IsoDateParts } from "@/lib/guards";
+
+// subject는 오류 문구의 주어(조사 포함)
+const toDateParts = (isoDate: string, subject = "날짜는"): IsoDateParts => {
+  const parts = splitIsoDate(isoDate);
+  if (!parts) throw new Error(`${subject} YYYY-MM-DD 형식이어야 합니다: ${isoDate}`);
+  return parts;
+};
+
 /** 사귄 날. D-day는 이 날을 1일째로 센다(docs/plan.md "D-day 기준일"). */
 export const ANNIVERSARY_DATE = "2026-10-31";
-
-const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**
  * 기념일을 로고 아래 표기(`SINCE YYMMDD`)로 바꾼다.
@@ -9,10 +16,7 @@ const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
  * @example formatSinceLabel("2026-10-31") // "SINCE 261031"
  */
 export const formatSinceLabel = (isoDate: string): string => {
-  const match = ISO_DATE_PATTERN.exec(isoDate);
-  if (!match) throw new Error(`기념일은 YYYY-MM-DD 형식이어야 합니다: ${isoDate}`);
-
-  const [, year, month, day] = match;
+  const { year, month, day } = toDateParts(isoDate, "기념일은");
   return `SINCE ${year.slice(2)}${month}${day}`;
 };
 
@@ -56,9 +60,7 @@ export interface KstNow {
 export const toKstNow = (date: Date): KstNow => ({ date: toKstDate(date), time: KST_TIME_FORMAT.format(date) });
 
 const toUtcMidnight = (isoDate: string): number => {
-  const match = ISO_DATE_PATTERN.exec(isoDate);
-  if (!match) throw new Error(`날짜는 YYYY-MM-DD 형식이어야 합니다: ${isoDate}`);
-  const [, year, month, day] = match;
+  const { year, month, day } = toDateParts(isoDate);
   return Date.UTC(Number(year), Number(month) - 1, Number(day));
 };
 
@@ -83,9 +85,7 @@ export const countDaysTogether = (anniversary: string, today: string): number =>
 };
 
 const parseIsoDate = (isoDate: string): { year: number; monthDay: string } => {
-  const match = ISO_DATE_PATTERN.exec(isoDate);
-  if (!match) throw new Error(`날짜는 YYYY-MM-DD 형식이어야 합니다: ${isoDate}`);
-  const [, year, month, day] = match;
+  const { year, month, day } = toDateParts(isoDate);
   return { year: Number(year), monthDay: `${month}-${day}` };
 };
 

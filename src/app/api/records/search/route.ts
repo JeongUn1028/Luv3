@@ -2,11 +2,7 @@ import { getCurrentMember } from "@/lib/auth/member";
 import { parseRecordSearchParams } from "@/lib/dates/search-api";
 import { RecordSearchLoadError, searchRecords } from "@/lib/dates/search-queries";
 import { catchLoadError } from "@/lib/load";
-
-const NO_STORE = { "Cache-Control": "no-store" };
-
-const toErrorResponse = (code: string, message: string, status: number): Response =>
-  Response.json({ code, message }, { status, headers: NO_STORE });
+import { NO_STORE_HEADERS, toErrorResponse } from "@/lib/api-response";
 
 /**
  * 기록 탭 찾기(#273). 검색어·태그에 맞는 기록을 한 묶음씩 돌려준다.
@@ -21,5 +17,5 @@ export const GET = async (request: Request): Promise<Response> => {
   // 실패 원인만 로그에 남는다. 검색어는 둘만의 기록 내용이 드러나므로 남기지 않는다
   const page = await catchLoadError(() => searchRecords(params), RecordSearchLoadError);
   if (page instanceof RecordSearchLoadError) return toErrorResponse("RECORD_SEARCH_FAILED", page.message, 502);
-  return Response.json(page, { headers: NO_STORE });
+  return Response.json(page, { headers: NO_STORE_HEADERS });
 };

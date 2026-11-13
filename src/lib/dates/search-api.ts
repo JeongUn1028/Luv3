@@ -1,4 +1,5 @@
-import { countChars } from "@/lib/form";
+import { countChars, isIsoDate } from "@/lib/form";
+import { isObject } from "@/lib/guards";
 import type { AlbumTile } from "./album";
 import { isRecordId } from "./detail";
 
@@ -63,18 +64,22 @@ export const toSearchWords = (query: string): string[] =>
     .map((word) => word.replace(/^#+/, ""))
     .filter(Boolean);
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
-
 const CURSOR_PARAMS = { date: "beforeDate", createdAt: "beforeCreatedAt", id: "beforeId" } as const;
-const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})$/;
+// 시·분·초와 시간대는 범위까지 보고, 날짜 부분은 isIsoDate로 달력에 있는 날인지 본다
+const TIMESTAMP_PATTERN = /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d{1,6})?(Z|[+-](0\d|1[0-4]):[0-5]\d)$/;
+
+const isTimestamp = (value: string): boolean => {
+  const datePart = TIMESTAMP_PATTERN.exec(value)?.[1];
+  return datePart !== undefined && isIsoDate(datePart);
+};
 
 const isRecordCursor = (value: unknown): value is RecordCursor =>
   isObject(value) &&
   typeof value.date === "string" &&
-  ISO_DATE_PATTERN.test(value.date) &&
+  // 형식만 보면 13월 45일도 통과해 DB가 날짜 변환 오류를 낸다(400 대신 502). 작성 시각도 같다
+  isIsoDate(value.date) &&
   typeof value.createdAt === "string" &&
-  TIMESTAMP_PATTERN.test(value.createdAt) &&
+  isTimestamp(value.createdAt) &&
   typeof value.id === "string" &&
   isRecordId(value.id);
 

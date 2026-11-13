@@ -6,8 +6,8 @@ import {
   isSameExceptReadingPhotoInfo,
   isSamePhotoLocation,
   normalizeTag,
-  parseRecordPrefill,
   pickTagSuggestions,
+  takeChars,
   toCreateRecordArgs,
   validateDraft,
   type DateRecordDraft,
@@ -243,47 +243,10 @@ describe("toCreateRecordArgs", () => {
   });
 });
 
-describe("parseRecordPrefill", () => {
-  it("쿼리가 없으면 채울 값이 없다", () => {
-    expect(parseRecordPrefill({}, TODAY)).toBeUndefined();
-  });
-
-  it("주소 쿼리의 날짜·제목을 작성 폼 처음 값으로 읽고, 예전 주소의 장소는 읽지 않는다", () => {
-    expect(parseRecordPrefill({ date: "2026-11-01", title: " 전시 보기 ", place: "미술관" }, TODAY)).toEqual({
-      date: "2026-11-01",
-      endDate: undefined,
-      title: "전시 보기",
-    });
-    expect(parseRecordPrefill({ place: "미술관" }, TODAY)).toBeUndefined();
-  });
-
-  it("날짜 쿼리가 없으면 오늘로 둔다", () => {
-    expect(parseRecordPrefill({ title: "a" }, TODAY)?.date).toBe(TODAY);
-  });
-
-  it("없는 날짜·앞으로의 날짜·여러 값은 다른 날로 바꾸지 않고 비워서 직접 고르게 한다", () => {
-    expect(parseRecordPrefill({ date: "2026-02-31", title: "a" }, TODAY)?.date).toBe("");
-    expect(parseRecordPrefill({ date: "2026-11-03", title: "a" }, TODAY)?.date).toBe("");
-    expect(parseRecordPrefill({ date: ["2026-11-01", "2026-10-31"], title: "a" }, TODAY)?.date).toBe("");
-  });
-
-  it("글자 수 제한을 넘는 제목은 제한까지만 채운다", () => {
-    const prefill = parseRecordPrefill({ title: "😀".repeat(120) }, TODAY);
-    expect(prefill?.title).toBe("😀".repeat(100));
-  });
-
-  it("끝 날짜 쿼리를 작성 폼 처음 값으로 읽는다", () => {
-    expect(parseRecordPrefill({ date: "2026-10-30", endDate: "2026-11-01", title: "여행" }, TODAY)?.endDate).toBe("2026-11-01");
-    expect(parseRecordPrefill({ date: "2026-10-30", title: "여행" }, TODAY)?.endDate).toBeUndefined();
-  });
-
-  it("쓸 수 없는 끝 날짜는 받지 않아 하루 기록으로 시작한다", () => {
-    const parseEndDate = (date: string, endDate: string | string[]) => parseRecordPrefill({ date, endDate, title: "a" }, TODAY)?.endDate;
-    expect(parseEndDate("2026-10-30", "2026-02-31")).toBeUndefined();
-    expect(parseEndDate("2026-10-30", "2026-11-03")).toBeUndefined();
-    expect(parseEndDate("2026-10-30", "2026-10-30")).toBeUndefined();
-    expect(parseEndDate("2026-11-03", "2026-11-02")).toBeUndefined();
-    expect(parseEndDate("2026-10-30", ["2026-11-01", "2026-11-02"])).toBeUndefined();
+describe("takeChars", () => {
+  it("앞뒤 공백을 지우고 이모지도 한 글자로 세어 제한까지만 남긴다", () => {
+    expect(takeChars(" 성수동 ", 2)).toBe("성수");
+    expect(takeChars("😀".repeat(120), 100)).toBe("😀".repeat(100));
   });
 });
 

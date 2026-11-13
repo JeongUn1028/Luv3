@@ -1,3 +1,4 @@
+import { isObject } from "../../src/lib/guards.ts";
 import { distanceToSegmentSquared, type AdmdongFile, type AdmdongFileRegion } from "../../src/lib/places/admdong.ts";
 
 // 원본 행정동 경계(GeoJSON)를 앱이 서버에서 읽을 작은 파일로 줄인다(#249). 만드는 방법은 build.mts 주석에 있다
@@ -122,8 +123,6 @@ export const toAdmdongFileRegion = (feature: AdmdongFeature, { tolerance, scale 
   return { name, bbox, rings };
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
-
 /**
  * 원본 GeoJSON의 동 하나가 이 스크립트가 아는 모양인지 확인한다. 새 판에서 모양이 바뀌면 어느 동인지 알려 주며 멈춘다.
  *
@@ -131,10 +130,10 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
  * @example const features = geojson.features.map(toAdmdongFeature)
  */
 export const toAdmdongFeature = (value: unknown, index: number): AdmdongFeature => {
-  const properties = isRecord(value) && isRecord(value.properties) ? value.properties : undefined;
+  const properties = isObject(value) && isObject(value.properties) ? value.properties : undefined;
   const label = typeof properties?.adm_nm === "string" ? properties.adm_nm : `${index}번째 동`;
   if (typeof properties?.adm_nm !== "string" || typeof properties.sidonm !== "string") throw new Error(`${label}: 이름(adm_nm·sidonm)이 없습니다`);
-  const geometry = isRecord(value) && isRecord(value.geometry) ? value.geometry : undefined;
+  const geometry = isObject(value) && isObject(value.geometry) ? value.geometry : undefined;
   if ((geometry?.type !== "Polygon" && geometry?.type !== "MultiPolygon") || !Array.isArray(geometry.coordinates)) {
     throw new Error(`${label}: 경계가 Polygon·MultiPolygon이 아닙니다(${String(geometry?.type)})`);
   }

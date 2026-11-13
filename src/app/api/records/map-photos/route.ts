@@ -2,11 +2,7 @@ import { getCurrentMember } from "@/lib/auth/member";
 import { parseMapPhotoIds } from "@/lib/dates/map-photos";
 import { getMapPhotos, MapPhotoLoadError } from "@/lib/dates/map-queries";
 import { catchLoadError } from "@/lib/load";
-
-const NO_STORE = { "Cache-Control": "no-store" };
-
-const toErrorResponse = (code: string, message: string, status: number): Response =>
-  Response.json({ code, message }, { status, headers: NO_STORE });
+import { NO_STORE_HEADERS, toErrorResponse } from "@/lib/api-response";
 
 /**
  * 지도 사진(#249). 고른 사진 id(최대 40개)의 썸네일 서명 주소와 기록 제목·날짜를 돌려준다.
@@ -20,5 +16,5 @@ export const GET = async (request: Request): Promise<Response> => {
 
   const photos = await catchLoadError(() => getMapPhotos(photoIds), MapPhotoLoadError);
   if (photos instanceof MapPhotoLoadError) return toErrorResponse("MAP_PHOTOS_FAILED", photos.message, 502);
-  return Response.json({ items: photos }, { headers: NO_STORE });
+  return Response.json({ items: photos }, { headers: NO_STORE_HEADERS });
 };

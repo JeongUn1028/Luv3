@@ -1,4 +1,5 @@
 import { toKstDate } from "@/lib/anniversary";
+import { isObject } from "@/lib/guards";
 import type { SignedUrlWithExpiry } from "@/lib/photos/signed-urls";
 import { isRecordId } from "./detail";
 
@@ -93,7 +94,6 @@ export const toMapPhotos = (photoIds: string[], rows: MapPhotoDetailRow[], signe
   });
 };
 
-const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
 const isOptionalString = (value: unknown): value is string | undefined => value === undefined || typeof value === "string";
 
 const isMapPhoto = (value: unknown): value is MapPhoto =>
