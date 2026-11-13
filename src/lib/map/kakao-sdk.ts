@@ -35,6 +35,8 @@ export interface KakaoCustomOverlay {
   /** 지금 지도에 보이면 그 지도. 묶음 동그라미 안으로 들어가 숨겨졌으면 null */
   getMap: () => KakaoMap | null;
   getPosition: () => KakaoLatLng;
+  /** 띄운 요소. 문자열로 만들었으면 문자열이다 */
+  getContent: () => HTMLElement | string;
 }
 
 /** 지도 위에 그리는 선(동선, #251) */
@@ -45,15 +47,34 @@ export interface KakaoPolyline {
 /** 묶음 동그라미 하나에 쓰는 CSS. 카카오가 그대로 붙인다 */
 export type KakaoClusterStyle = Record<string, string>;
 
-/** 가까운 핀을 숫자 동그라미로 묶는 기능(clusterer 라이브러리). 화면이 멈출 때마다 다시 묶고 `clustered`를 알린다 */
+/** 묶음 기능에 넣는 것 */
+export type KakaoClusterItem = KakaoMarker | KakaoCustomOverlay;
+
+/** 묶음 하나(숫자 동그라미 하나와 그 안에 들어간 핀들) */
+export interface KakaoCluster {
+  getMarkers: () => KakaoClusterItem[];
+  /** 숫자 동그라미. 글자는 묶을 때마다 묶음 기능이 다시 쓴다 */
+  getClusterMarker: () => Pick<KakaoCustomOverlay, "getContent">;
+}
+
+/**
+ * 가까운 핀을 숫자 동그라미로 묶는 기능(clusterer 라이브러리). 핀을 넣을 때(그 자리에서)와 화면이 멈출 때마다 다시 묶고,
+ * 다 묶으면 보이는 묶음 목록과 함께 `clustered`를 알린다
+ */
 export interface KakaoMarkerClusterer {
-  addMarkers: (markers: (KakaoMarker | KakaoCustomOverlay)[]) => void;
+  addMarkers: (markers: KakaoClusterItem[]) => void;
   clear: () => void;
 }
 
 type KakaoEventTarget = KakaoMap | KakaoMarker | KakaoMarkerClusterer;
-/** `idle`은 지도를 움직이거나 확대를 바꾼 뒤 멈췄을 때다 */
-type KakaoEventType = "click" | "clustered" | "idle";
+/** `idle`은 지도를 움직이거나 확대를 바꾼 뒤 멈췄을 때다. `clustered`는 묶음 기능만 알린다 */
+type KakaoPlainEventType = "click" | "idle";
+
+/** 알림 받기·끊기. `clustered`만 묶음 목록을 넘기고(받지 않아도 된다), 나머지 알림에서 쓰는 인자는 적지 않았다 */
+interface KakaoEventListening {
+  (target: KakaoMarkerClusterer, type: "clustered", handler: (clusters: KakaoCluster[]) => void): void;
+  (target: KakaoEventTarget, type: KakaoPlainEventType, handler: () => void): void;
+}
 
 /** SDK가 `window.kakao.maps`에 내놓는 것 */
 export interface KakaoMaps {
@@ -79,8 +100,8 @@ export interface KakaoMaps {
     styles: KakaoClusterStyle[];
   }) => KakaoMarkerClusterer;
   event: {
-    addListener: (target: KakaoEventTarget, type: KakaoEventType, handler: () => void) => void;
-    removeListener: (target: KakaoEventTarget, type: KakaoEventType, handler: () => void) => void;
+    addListener: KakaoEventListening;
+    removeListener: KakaoEventListening;
   };
 }
 

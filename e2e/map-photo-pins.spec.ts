@@ -93,6 +93,45 @@ test.describe("지도 사진 핀", () => {
     }
   });
 
+  test("2장 자리와 1장 자리가 한 묶음이 되면 묶음 숫자는 사진 수 합 3이고, 확대해 묶음이 풀리면 2장 핀이 보인다", async ({ page }) => {
+    // Arrange: 50m보다 멀어 핀은 둘이지만 화면 안에서는 한 묶음이 되는 두 자리
+    const twoPhotoPlace = `E2E 묶음 2장 ${randomUUID()}`;
+    const onePhotoPlace = `E2E 묶음 1장 ${randomUUID()}`;
+    const location = createUniqueLocation();
+    const farLocation = northOf(location, 100);
+    const twoPhotoRecord = await createPhotoLocatedRecord({ title: "E2E 묶음 2장 기록", place: twoPhotoPlace, location });
+    await addRecordPhoto(twoPhotoRecord.id, { sortOrder: 1, location: { place: twoPhotoPlace, ...location } });
+    const onePhotoRecord = await createPhotoLocatedRecord({ title: "E2E 묶음 1장 기록", place: onePhotoPlace, location: farLocation });
+    const bothViewBox = { ...toViewBoxAround(location), maxLat: farLocation.lat + 0.0001 };
+    await fakeMapSdk(page, { viewBox: bothViewBox, isClusteringInView: true });
+    const cluster = page.locator("[data-fake-cluster]");
+
+    try {
+      // Act
+      await openMap(page);
+
+      // Assert: 핀 수(2)가 아닌 사진 수 합(3)
+      await expect(cluster).toHaveText("3");
+      await expect(getPhotoPin(page, twoPhotoPlace, 2)).not.toBeAttached();
+
+      // Act: 확대해 2장 자리만 보이면 묶음이 풀린다
+      await moveFakeMap(page, toViewBoxAround(location));
+
+      // Assert: 화면 밖 핀이 지도에 남는지는 가짜 지도마다 달라 화면 안 핀만 본다
+      await expect(cluster).not.toBeAttached();
+      await expect(getPhotoPin(page, twoPhotoPlace, 2)).toBeAttached();
+
+      // Act: 다시 둘 다 보이게 옮기면 다시 묶는다
+      await moveFakeMap(page, bothViewBox);
+
+      // Assert
+      await expect(cluster).toHaveText("3");
+    } finally {
+      await twoPhotoRecord.remove();
+      await onePhotoRecord.remove();
+    }
+  });
+
   test("사진을 받기 전 사진 핀은 가운데에 장수를 보여 주고, 사진을 받으면 사진으로 바꾼다", async ({ page }) => {
     // Arrange: 핀 썸네일 요청을 테스트가 풀어 줄 때까지 붙잡는다(느린 서버)
     const place = `E2E 받기 전 핀 ${randomUUID()}`;
