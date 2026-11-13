@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 /** 파일로 만든 사진 미리보기 주소 묶음 */
-interface PreviewUrls {
+export interface PreviewUrls {
   /** 파일로 미리보기 주소를 만들고 기억한다 */
   create: (file: File) => string;
   /** 만든 미리보기면 해제한다. 저장된 사진의 서명 주소처럼 만든 적 없는 주소는 건드리지 않는다 */

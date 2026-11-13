@@ -117,6 +117,6 @@ describe("로딩 표시", () => {
 
 describe("스크롤 위치", () => {
   it("새 기록을 저장하면 맨 위의 새 기록이 보이도록 기록 탭의 위치를 지운다", () => {
-    expect(readSource("components/dates/DateRecordForm.tsx")).toMatch(/if \(!record\) forgetScrollPosition\("records"/);
+    expect(readSource("components/dates/record-form/use-record-save.ts")).toMatch(/if \(!record\) forgetScrollPosition\("records"/);
   });
 });

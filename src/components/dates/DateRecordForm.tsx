@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useEffectEvent, useLayoutEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { DateField, TextAreaField, TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
-import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { toKstDate } from "@/lib/anniversary";
 import { RECORDS_PATH } from "@/lib/dates/album";
@@ -20,41 +18,22 @@ import {
   validateDraft,
   type DateRecordDraft,
   type DraftErrors,
-  type PhotoLocation,
   type RecordPrefill,
 } from "@/lib/dates/form";
-import {
-  addPhotoGroup,
-  addPhotosToGroup,
-  applyPhotoInfo,
-  findNextSelectedPhotoId,
-  getDraftPhotos,
-  moveGroupPhoto,
-  moveItem,
-  removeGroupPhoto,
-  removePhotoGroup,
-  setGroupLocation,
-} from "@/lib/dates/photo-group-draft";
-import { toPickNotice } from "@/lib/dates/photo-pick-notice";
+import { getDraftPhotos } from "@/lib/dates/photo-group-draft";
 import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
 import { clearError, countChars, FIX_FIELDS_NOTICE, isResolvedFieldNotice } from "@/lib/form";
 import { subscribeToAppReturn } from "@/lib/navigation/app-return";
-import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
-import { BACK_TRANSITION, FORWARD_TRANSITION } from "@/lib/navigation/transition";
+import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { useDiscardOnLeave } from "@/lib/navigation/use-discard-on-leave";
-import { toFailedSaveFields } from "@/lib/revision";
 import type { EditableRecord } from "@/lib/dates/detail";
-import { DateRecordAlreadyLinkedError, saveDateRecord, toDateRecordSaveFailure, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
-import { toSaveProgressLabel } from "@/lib/dates/save-progress";
-import { ALBUM_BUCKET } from "@/lib/photos/limits";
-import { readPhotoInfo } from "@/lib/photos/photo-info";
 import { usePreviewUrls } from "@/lib/photos/preview-urls";
-import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
-import { createClient } from "@/lib/supabase/client";
 import type { PickedPhoto } from "./PhotoGroupCard";
 import { PhotoGroupsField } from "./PhotoGroupsField";
-import { RecordSaveButton } from "./RecordSaveButton";
+import { RecordFormFooter } from "./record-form/RecordFormFooter";
+import { usePhotoGroupEditing } from "./record-form/use-photo-group-editing";
+import { useRecordSave } from "./record-form/use-record-save";
 import { TagField } from "./TagField";
 
 const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto> => ({
@@ -116,25 +95,21 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
   const router = useRouter();
   // 지난 일정에서 넘어온 새 기록은 일정마다 다른 폼이다. 다른 일정의 실패한 내용이 채워지지 않게 값까지 구분한다
   const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.endDate ?? ""}:${prefill?.title ?? ""}:${prefill?.eventLink.eventId ?? ""}`}`;
-  const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "기록을", failedSaves });
+  const { failedSave, ...leavableSave } = useLeavableSave({ formKey, subject: "기록을", failedSaves });
   // 쓴 내용이 있는지 견줄 처음 내용. 실패해서 다시 채운 내용도 아직 저장되지 않았으므로 이것과 견준다
   const [initialDraft, setInitialDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft(prefill)));
   // 미리보기는 모두 여기서 만들어, 화면을 떠날 때 빠짐없이 해제한다
   const previews = usePreviewUrls();
   const [draft, setDraft] = useState(() => (failedSave ? withNewPreviews(failedSave.draft, previews.create) : initialDraft));
   const [errors, setErrors] = useState<DraftErrors>({});
-  // 사진 줄에서 누른 사진. 그 사진의 순서·대표·빼기를 모음 카드 아래에 연다
-  const [selectedPhotoId, setSelectedPhotoId] = useState<string>();
   const [tagInput, setTagInput] = useState("");
   // 칸을 늘 열어 두면 빈 작성 화면에 스크롤이 생긴다(#52). 태그가 있는 기록은 열어 둔다
   const [isTagFieldOpen, setIsTagFieldOpen] = useState(draft.tags.length > 0);
   const tagInputRef = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState(failedSave?.message);
-  const [isRecordGone, setIsRecordGone] = useState(false);
-  // 일정에서 남기려는데 그 일정의 그날에 이미 남긴 기록이 있으면 그 기록 id(#227)
-  const [linkedRecordId, setLinkedRecordId] = useState<string>();
-  const [progress, setProgress] = useState<SaveProgress>();
-  const [isSaving, setIsSaving] = useState(false);
+  const photoGroups = usePhotoGroupEditing({ draft, setDraft, setErrors, setNotice, previews });
+  const recordSave = useRecordSave({ record, setDraft, setNotice, previews, leavableSave });
+  const { isSaving, isRecordGone } = recordSave;
   // 칸 오류를 모두 고치면 저장을 다시 누르기 전이라도 안내를 지운다. 효과로 지우면 한 번 더 그려지므로 그리는 중에 맞춘다
   if (isResolvedFieldNotice(notice, errors)) setNotice(undefined);
   const hasWrittenContent = hasRecordDraftChanges(initialDraft, draft) || tagInput.trim() !== "";
@@ -169,11 +144,9 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
     setTagInput("");
     setIsTagFieldOpen(nextDraft.tags.length > 0);
     setErrors({});
-    setSelectedPhotoId(undefined);
+    photoGroups.resetEditingState();
     setNotice(undefined);
-    setLinkedRecordId(undefined);
-    setProgress(undefined);
-    setIsSaving(false);
+    recordSave.resetSaveState();
   };
 
   // 새 기록 폼은 다시 열면 숨겨 둔 폼을 그대로 보여 주므로, 경고 창에서 버리기로 했으면 숨겨질 때 처음 내용으로 되돌린다(#284).
@@ -197,73 +170,6 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
   const handlePeriodChange = (isChecked: boolean) => {
     setDraft((current) => ({ ...current, endDate: isChecked ? "" : undefined }));
     setErrors((current) => clearError(current, "endDate"));
-  };
-
-  /** 고른 사진을 새 모음으로 만들거나(`groupId` 없음) 그 모음에 더하고, 사진마다 사진 정보를 읽기 시작한다 */
-  const handlePickPhotos = (files: File[], groupId?: string) => {
-    const images = files.filter(isAcceptedPhoto);
-    const picked = images.map((file) => ({
-      id: crypto.randomUUID(),
-      file,
-      previewUrl: previews.create(file),
-      isReadingInfo: true,
-    }));
-    const newGroupId = crypto.randomUUID();
-    const add = (current: RecordDraft, photos: PickedPhoto[]) =>
-      groupId ? addPhotosToGroup(current, { groupId, photos }) : addPhotoGroup(current, { groupId: newGroupId, photos });
-    const { droppedCount } = add(draft, picked);
-    const kept = picked.slice(0, picked.length - droppedCount);
-    picked.slice(kept.length).forEach(({ previewUrl }) => previews.revoke(previewUrl));
-    // 앞서 고른 사진의 정보가 아직 그려지기 전에 도착했을 수 있어, 그 값을 덮지 않게 최신 상태에 더한다.
-    // 정보를 읽기 시작하는 `kept`만 더해, 읽지 않는 사진이 "읽는 중"으로 남아 저장을 막는 일이 없게 한다
-    setDraft((current) => add(current, kept).draft);
-    setErrors((current) => clearError(current, "photos"));
-    kept.forEach(({ id, file }) => {
-      // 줄이거나 HEIC를 바꾸면 사진 정보가 사라지므로 고른 원본에서 읽는다. readPhotoInfo는 실패해도 빈 값으로 끝난다
-      void readPhotoInfo({ file }).then((info) => {
-        setDraft((current) => ({ ...current, groups: applyPhotoInfo(current.groups, { photoId: id, info }) }));
-      });
-    });
-
-    const pickNotice = toPickNotice({ skippedCount: files.length - images.length, droppedCount, isNewGroup: !groupId });
-    // 다른 칸 오류가 남아 있으면 칸 오류 안내는 그대로 둔다
-    setNotice((current) => pickNotice ?? (current === FIX_FIELDS_NOTICE ? current : undefined));
-  };
-
-  /** 사진들을 빼며 미리보기를 해제한다 */
-  const forgetPhotos = (photoIds: string[]) => {
-    const ids = new Set(photoIds);
-    getDraftPhotos(draft.groups).forEach(({ id, previewUrl }) => {
-      if (ids.has(id)) previews.revoke(previewUrl);
-    });
-  };
-
-  /** 빠지는 모음의 위치·장소 이름·한마디 오류를 지운다 */
-  const clearGroupErrors = (groupId: string) => {
-    setErrors((current) => clearError(clearError(clearError(current, `group:${groupId}`), `placeName:${groupId}`), `caption:${groupId}`));
-  };
-
-  const handleRemovePhoto = (photoId: string) => {
-    forgetPhotos([photoId]);
-    // 빼면 같은 모음의 이웃 사진을 골라, 이어서 빼거나 고칠 수 있게 한다
-    setSelectedPhotoId(findNextSelectedPhotoId(draft.groups, photoId));
-    // 마지막 사진이면 모음도 사라지므로 그 모음의 위치·한마디 오류도 지운다
-    const group = draft.groups.find(({ photos }) => photos.some(({ id }) => id === photoId));
-    if (group?.photos.length === 1) clearGroupErrors(group.id);
-    setDraft((current) => removeGroupPhoto(current, photoId));
-  };
-
-  const handleRemoveGroup = (groupId: string) => {
-    const photoIds = draft.groups.find(({ id }) => id === groupId)?.photos.map(({ id }) => id) ?? [];
-    forgetPhotos(photoIds);
-    if (selectedPhotoId && photoIds.includes(selectedPhotoId)) setSelectedPhotoId(undefined);
-    clearGroupErrors(groupId);
-    setDraft((current) => removePhotoGroup(current, groupId));
-  };
-
-  const handleGroupLocationChange = (groupId: string, location: PhotoLocation) => {
-    setDraft((current) => ({ ...current, groups: setGroupLocation(current.groups, { groupId, location }) }));
-    setErrors((current) => clearError(current, `group:${groupId}`));
   };
 
   const handleOpenTagField = () => {
@@ -306,60 +212,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
     setErrors(nextErrors);
 
     const recordId = record?.id ?? nextDraft.uncertainSaveRecordId ?? crypto.randomUUID();
-
-    beginSave();
-    setNotice(undefined);
-    setIsSaving(true);
-    try {
-      const supabase = createClient();
-      const storage = supabase.storage.from(ALBUM_BUCKET);
-      const files = new Map(getDraftPhotos(nextDraft.groups).flatMap(({ id, file }) => (file ? [[id, file] as const] : [])));
-      let savedHref = record ? `/dates/${record.id}` : RECORDS_PATH;
-      if (record) {
-        await updateDateRecord({
-          recordId,
-          draft: nextDraft,
-          files,
-          storage,
-          resize: resizePhoto,
-          updateRecord: (args) => supabase.rpc("update_date_record", args),
-          onProgress: setProgress,
-        });
-      } else {
-        const result = await saveDateRecord({
-          recordId,
-          draft: nextDraft,
-          files,
-          storage,
-          resize: resizePhoto,
-          createRecord: (args) => supabase.rpc("create_date_record", args),
-          onProgress: setProgress,
-        });
-        // 앞서 저장된 기록이 있어 이번 내용은 반영되지 않았으니, 저장된 내용을 바로 확인하게 한다
-        if (result === "already-saved") savedHref = `/dates/${recordId}`;
-      }
-      // cacheComponents는 다녀온 화면을 Activity로 숨겨 상태를 보존한다. 다시 열었을 때 처음 상태가 되도록
-      // 이동과 같은 transition에서 되돌린다(이동이 끝날 때 함께 반영돼 빈 폼이 잠깐 보이지 않는다)
-      // 이미 그려진 미리보기는 URL을 해제해도 그대로 보인다. 수정 화면은 페이지가 매번 새 key로 다시 그린다
-      getDraftPhotos(draft.groups).forEach(({ previewUrl }) => previews.revoke(previewUrl));
-      // 목록은 날짜 내림차순이라 새 기록은 맨 위에 있다. 보던 위치로 돌아가면 저장되지 않은 것처럼 보인다
-      if (!record) forgetScrollPosition("records");
-      finishSaved({ href: savedHref, reset: () => resetForm(record ? toEditDraft(record) : createEmptyDraft()) });
-    } catch (error) {
-      const failure = toDateRecordSaveFailure(error);
-      const failedFields = {
-        ...toFailedSaveFields({ failure, expectedRevisions: nextDraft.expectedRevisions, revision: nextDraft.nextRevision }),
-        // 저장됐을 수 있으면 다시 저장할 때 같은 id를 써서 기록이 둘이 되지 않게 한다
-        uncertainSaveRecordId: failure.mayHaveSaved ? recordId : nextDraft.uncertainSaveRecordId,
-      };
-      setDraft((current) => ({ ...current, ...failedFields }));
-      setIsRecordGone(failure.isGone);
-      setLinkedRecordId(error instanceof DateRecordAlreadyLinkedError ? error.recordId : undefined);
-      setNotice(failure.message);
-      setIsSaving(false);
-      setProgress(undefined);
-      finishFailed({ draft: { ...nextDraft, ...failedFields }, ...failure });
-    }
+    await recordSave.save({ draft: nextDraft, recordId, reset: () => resetForm(record ? toEditDraft(record) : createEmptyDraft()) });
   };
 
   // 기록을 지웠을 때(DeleteRecordButton)와 같이 옮기면서 다시 불러온다
@@ -392,36 +245,13 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
         <PhotoGroupsField
           groups={draft.groups}
           coverPhotoId={draft.coverPhotoId}
-          selectedPhotoId={selectedPhotoId}
+          selectedPhotoId={photoGroups.selectedPhotoId}
           errors={errors}
           isDisabled={isSaving}
           mapKey={mapKey}
-          onAddGroup={(files) => handlePickPhotos(files)}
-          onLocationChange={handleGroupLocationChange}
-          // 사진 정보는 고른 뒤 따로 도착해 draft를 바꾼다. 그 값을 덮지 않게 사진 칸은 최신 상태에 맞춰 바꾼다
-          actions={{
-            onSelectPhoto: setSelectedPhotoId,
-            onAddPhotos: (groupId, files) => handlePickPhotos(files, groupId),
-            onRemoveGroup: handleRemoveGroup,
-            onMoveGroup: (index, offset) => setDraft((current) => ({ ...current, groups: moveItem(current.groups, index, offset) })),
-            onRemovePhoto: handleRemovePhoto,
-            onMovePhoto: (photoId, offset) => setDraft((current) => ({ ...current, groups: moveGroupPhoto(current.groups, { photoId, offset }) })),
-            onCaptionChange: (groupId, caption) => {
-              setDraft((current) => ({
-                ...current,
-                groups: current.groups.map((group) => (group.id === groupId ? { ...group, caption } : group)),
-              }));
-              setErrors((current) => clearError(current, `caption:${groupId}`));
-            },
-            onPlaceNameChange: (groupId, placeName) => {
-              setDraft((current) => ({
-                ...current,
-                groups: current.groups.map((group) => (group.id === groupId ? { ...group, placeName } : group)),
-              }));
-              setErrors((current) => clearError(current, `placeName:${groupId}`));
-            },
-            onCoverChange: (photoId) => setDraft((current) => ({ ...current, coverPhotoId: photoId })),
-          }}
+          onAddGroup={photoGroups.handleAddGroup}
+          onLocationChange={photoGroups.handleLocationChange}
+          actions={photoGroups.actions}
         />
 
         <div className="flex flex-col">
@@ -525,39 +355,16 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
           className="grow"
         />
 
-        <div className="flex flex-col">
-          {notice && (
-            <p role="alert" className="mb-3 text-[13px] text-accent">
-              {notice}
-            </p>
-          )}
-          {isRecordGone ? (
-            // 다시 저장해도 실패하고 사진만 또 올리게 되므로 저장 버튼 대신 나가는 길을 준다
-            <button
-              type="button"
-              onClick={handleGoToRecords}
-              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background"
-            >
-              기록 목록으로
-            </button>
-          ) : linkedRecordId ? (
-            // 다시 저장해도 거부되므로 저장 버튼 대신 남긴 기록으로 가는 길을 준다
-            <Link
-              href={`/dates/${linkedRecordId}`}
-              transitionTypes={FORWARD_TRANSITION}
-              className="press-wide flex h-[52px] w-full items-center justify-center rounded-[10px] bg-accent font-display text-[15px] text-background"
-            >
-              남긴 기록 보기
-            </Link>
-          ) : draft.hasConflict ? (
-            <ReloadLatestButton />
-          ) : (
-            <RecordSaveButton isSaving={isSaving} isReadingPhotoInfo={isReadingPhotoInfo} progress={progress} />
-          )}
-          <p aria-live="polite" className="sr-only">
-            {progress ? toSaveProgressLabel(progress) : ""}
-          </p>
-        </div>
+        <RecordFormFooter
+          notice={notice}
+          isRecordGone={isRecordGone}
+          linkedRecordId={recordSave.linkedRecordId}
+          hasConflict={draft.hasConflict}
+          isSaving={isSaving}
+          isReadingPhotoInfo={isReadingPhotoInfo}
+          progress={recordSave.progress}
+          onGoToRecords={handleGoToRecords}
+        />
       </form>
     </PageShell>
   );
