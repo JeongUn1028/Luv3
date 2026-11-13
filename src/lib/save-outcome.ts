@@ -155,3 +155,11 @@ export const toSaveFailure = (outcome: SaveOutcome, { failedMessage, goneMessage
       return { ...NO_FAILURE_FLAGS, message: failedMessage };
   }
 };
+
+/**
+ * 저장에 실패한 뒤 숨겨 둔 목록·상세를 새로 불러와야 하는지. 지워졌거나, 저장됐을 수 있거나, 상대가 고쳤으면 예전 내용을 보여 준다.
+ *
+ * @example if (isScreenOutdatedAfterFailure(failure)) markAllScreensStale();
+ */
+export const isScreenOutdatedAfterFailure = ({ isGone = false, mayHaveSaved = false, hasConflict = false }: Partial<Omit<SaveFailure, "message">>): boolean =>
+  isGone || mayHaveSaved || hasConflict;

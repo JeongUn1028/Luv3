@@ -33,9 +33,8 @@ import { deleteEvent, saveEvent } from "@/lib/events/save";
 import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
 import { clearError, FIX_FIELDS_NOTICE, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
-import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
-import { addMaybeSavedRevision } from "@/lib/revision";
+import { toFailedSaveFields } from "@/lib/revision";
 
 const choiceClassName =
   "flex h-[51px] min-w-0 items-center justify-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-[15px] text-ink-sub has-checked:border-accent has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent has-disabled:opacity-50";
@@ -190,15 +189,12 @@ export const EventForm = ({
       const failedFields = {
         // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다(이 날만 고치면 따로 나올 일정의 id)
         newEventId,
-        hasConflict: failure.hasConflict,
-        expectedRevisions: addMaybeSavedRevision({ expectedRevisions: draft.expectedRevisions, revision, mayHaveSaved: failure.mayHaveSaved }),
+        ...toFailedSaveFields({ failure, expectedRevisions: draft.expectedRevisions, revision }),
       };
       setDraft((current) => ({ ...current, ...failedFields }));
-      // 저장됐거나 상대가 고쳤다면 숨겨 둔 캘린더가 예전 내용을 보여 주므로, 돌아가면 새로 불러오게 한다
-      if (failure.mayHaveSaved || failure.hasConflict) markAllScreensStale();
       setNotice(failure.message);
       setIsSaving(false);
-      finishFailed({ draft: { ...draft, ...failedFields }, message: failure.message, isGone: failure.isGone });
+      finishFailed({ draft: { ...draft, ...failedFields }, ...failure });
       return;
     }
     finishSaved({
