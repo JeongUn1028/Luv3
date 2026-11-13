@@ -138,7 +138,7 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
               isSessionLost = true;
               return;
             }
-            // 받지 못한 핀은 빈 동그라미로 두고, 지도가 다시 멈출 때 다시 받는다
+            // 받지 못한 핀은 분홍 바탕 장수로 두고, 지도가 다시 멈출 때 다시 받는다
             console.error("지도 사진 핀 썸네일 받기 실패", error);
           })
           .finally(() => batch.forEach((photoId) => pendingThumbsRef.current.delete(photoId)));

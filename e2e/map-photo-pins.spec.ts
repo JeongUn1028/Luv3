@@ -40,6 +40,18 @@ const openMap = async (page: Page): Promise<void> => {
 /** 지도 위 사진 핀. 이름은 "<장소> 사진 N장"이다. 같은 이름의 스크린 리더용 목록 버튼은 글자로 이름을 가져 aria-label로만 고른다 */
 const getPhotoPin = (page: Page, place: string, count: number): Locator => page.getByLabel(`${place} 사진 ${count}장`, { exact: true });
 
+/**
+ * 사진 핀 안에 보이는 장수 글자가 어디 있는지 돌려준다. 사진을 받기 전에는 핀 가운데("center"),
+ * 받은 뒤에는 오른쪽 위 표시("corner")에 있다(#331). 보이는 장수 글자가 하나가 아니면 실패한다
+ */
+const getVisibleCountPlace = async (pin: Locator, count: number): Promise<"center" | "corner"> => {
+  const visibleCount = pin.getByText(count.toString(), { exact: true }).filter({ visible: true });
+  await expect(visibleCount).toHaveCount(1);
+  const [pinBox, countBox] = await Promise.all([pin.boundingBox(), visibleCount.boundingBox()]);
+  if (!pinBox || !countBox) throw new Error("핀이나 장수 글자의 자리를 읽지 못했다");
+  return countBox.y < pinBox.y ? "corner" : "center";
+};
+
 /** 가짜 지도는 핀을 모두 왼쪽 위에 겹쳐 두므로, 다른 핀에 가리지 않게 요소에 바로 누름을 보낸다 */
 const pressPhotoPin = async (pin: Locator): Promise<void> => {
   await pin.dispatchEvent("click");
@@ -73,9 +85,73 @@ test.describe("지도 사진 핀", () => {
       // Assert
       const pin = getPhotoPin(page, place, 2);
       await expect(pin).toBeAttached();
-      await expect(pin).toContainText("2");
-      await expect(pin.locator("img")).toHaveAttribute("src", /.+/);
+      await expect(pin.locator("img")).toBeVisible();
+      expect(await getVisibleCountPlace(pin, 2)).toBe("corner");
       expect((await pin.boundingBox())?.width).toBeGreaterThanOrEqual(44);
+    } finally {
+      await record.remove();
+    }
+  });
+
+  test("사진을 받기 전 사진 핀은 가운데에 장수를 보여 주고, 사진을 받으면 사진으로 바꾼다", async ({ page }) => {
+    // Arrange: 핀 썸네일 요청을 테스트가 풀어 줄 때까지 붙잡는다(느린 서버)
+    const place = `E2E 받기 전 핀 ${randomUUID()}`;
+    const location = createUniqueLocation();
+    const record = await createPhotoLocatedRecord({ title: "E2E 받기 전 핀 기록", place, location });
+    const release = Promise.withResolvers<void>();
+    await page.route(`**${MAP_PHOTOS_PATH}?*`, async (route) => {
+      await release.promise;
+      await route.continue();
+    });
+    await fakeMapSdk(page, { viewBox: toViewBoxAround(location) });
+
+    try {
+      // 붙잡은 요청이 있어 네트워크가 조용해지기를 기다리는 openMap 대신 화면만 연다
+      await page.goto(RECORDS_MAP_PATH);
+      const pin = getPhotoPin(page, place, 1);
+      await expect(pin).toBeAttached();
+
+      // Assert: 1장이어도 빈 동그라미 대신 장수를 보인다
+      expect(await getVisibleCountPlace(pin, 1)).toBe("center");
+      await expect(pin.locator("img")).toBeHidden();
+
+      // Act
+      release.resolve();
+
+      // Assert: 1장짜리는 사진만 보이고 장수 표시는 없다
+      await expect(pin.locator("img")).toBeVisible();
+      await expect(pin.getByText("1", { exact: true })).toBeHidden();
+    } finally {
+      release.resolve();
+      await record.remove();
+    }
+  });
+
+  test("사진 핀의 사진을 받지 못하면 빈 동그라미 대신 가운데 장수로 둔다", async ({ page }) => {
+    // Arrange: 핀 썸네일 주소를 받을 수 없는 주소로 바꾼다
+    const place = `E2E 못 받은 핀 ${randomUUID()}`;
+    const location = createUniqueLocation();
+    const record = await createPhotoLocatedRecord({ title: "E2E 못 받은 핀 기록", place, location });
+    await addRecordPhoto(record.id, { sortOrder: 1, location: { place, ...location } });
+    const missingThumbUrl = "/e2e-missing-thumb.jpg";
+    await page.route(`**${MAP_PHOTOS_PATH}?*`, async (route) => {
+      const response = await route.fetch();
+      const body = (await response.json()) as { items: { id: string; thumbUrl?: string }[] };
+      await route.fulfill({ response, json: { items: body.items.map((item) => ({ ...item, thumbUrl: missingThumbUrl })) } });
+    });
+    await fakeMapSdk(page, { viewBox: toViewBoxAround(location) });
+
+    try {
+      // Act
+      await openMap(page);
+      const pin = getPhotoPin(page, place, 2);
+      const pinImage = pin.locator("img");
+      await expect(pinImage).toHaveAttribute("src", missingThumbUrl);
+      await expect.poll(() => pinImage.evaluate((image: HTMLImageElement) => image.complete)).toBe(true);
+
+      // Assert
+      await expect(pinImage).toBeHidden();
+      expect(await getVisibleCountPlace(pin, 2)).toBe("center");
     } finally {
       await record.remove();
     }
