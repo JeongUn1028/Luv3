@@ -35,7 +35,7 @@ interface FinishSavedParams {
 /** 실패한 내용과 실패 이유(`SaveFailure`). 고치는 대상이 이미 지워졌으면(`isGone`) 돌아가도 고칠 폼이 없으므로 내용을 보관하지 않고 그 이유를 알린다 */
 type FinishFailedParams<Draft> = FailedSave<Draft> & Partial<Omit<SaveFailure, "message">>;
 
-interface LeavableSave<Draft> {
+export interface LeavableSave<Draft> {
   /** 지난번 실패로 보관된 내용. 있으면 폼의 처음 값으로 쓴다 */
   failedSave: FailedSave<Draft> | undefined;
   /** 저장을 시작할 때 부른다 */
