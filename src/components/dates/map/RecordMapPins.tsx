@@ -4,7 +4,6 @@ import { use, useEffect, useRef, useState, type ReactElement } from "react";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { ScreenMessage } from "@/components/ScreenMessage";
 import { fetchMapPhotos } from "@/lib/dates/fetch-map-photos";
-import { toMapPinsSignature, type MapPins } from "@/lib/dates/map";
 import {
   MAP_PHOTOS_UNAUTHORIZED_STATUS,
   MapPhotosError,
@@ -13,15 +12,15 @@ import {
   type CachedThumb,
   type MapPhoto,
 } from "@/lib/dates/map-photos";
-import type { MapPhotoSpot } from "@/lib/dates/map-spots";
+import { toPhotoSpotsSignature, type MapPhotoSpot } from "@/lib/dates/map-spots";
 import type { KakaoMarkerClusterer } from "@/lib/map/kakao-sdk";
 import { isMapClickFromPinPress } from "@/lib/map/pin-press";
 import { createClusterer, drawPins, findVisiblePhotoPins, type DrawnPhotoPin, type DrawnPins } from "./map-drawing";
 import { MapPhotoStrip } from "./MapPhotoStrip";
 import type { LoadedKakaoMap } from "./use-kakao-map";
 
-/** 서버가 읽은 지도 핀. 읽지 못했으면 화면에 보여 줄 문구를 담는다 */
-export type MapPinsResult = { status: "loaded"; pins: MapPins } | { status: "failed"; message: string };
+/** 서버가 읽은 지도 사진 핀(자리) 목록. 읽지 못했으면 화면에 보여 줄 문구를 담는다 */
+export type MapPinsResult = { status: "loaded"; spots: MapPhotoSpot[] } | { status: "failed"; message: string };
 
 interface RecordMapPinsProps {
   pinsPromise: Promise<MapPinsResult>;
@@ -68,8 +67,8 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
   /** 마지막으로 핀을 누른 시각(performance.now). 그 누름이 지도로 이어져 칸을 바로 닫지 않게 한다 */
   const pinPressedAtRef = useRef<number | undefined>(undefined);
   const [opened, setOpened] = useState<OpenedSpot | undefined>();
-  const pins = result.status === "loaded" ? result.pins : undefined;
-  const openSpot = pins?.photoSpots.find(({ key }) => key === opened?.key);
+  const spots = result.status === "loaded" ? result.spots : undefined;
+  const openSpot = spots?.find(({ key }) => key === opened?.key);
 
   // 지도의 빈 곳을 누르면 열린 칸을 닫는다
   useEffect(() => {
@@ -84,7 +83,7 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
 
   // 지도(외부 라이브러리)에 핀을 그리고, 화면 안 사진 핀의 썸네일을 받는다
   useEffect(() => {
-    if (!kakao || !pins) return;
+    if (!kakao || !spots) return;
     const { maps, map } = kakao;
     clustererRef.current ??= createClusterer(maps, map);
     const clusterer = clustererRef.current;
@@ -95,9 +94,9 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
     };
 
     // 돌아온 화면은 서버에서 다시 받아 배열이 새것이어도 내용이 같을 수 있다. 내용이 바뀌었을 때만 다시 그려 보던 자리를 지킨다
-    const signature = toMapPinsSignature(pins);
+    const signature = toPhotoSpotsSignature(spots);
     if (drawnRef.current?.signature !== signature) {
-      drawnRef.current = { signature, ...drawPins({ maps, map, clusterer, pins, onPressSpot: handlePressSpot }) };
+      drawnRef.current = { signature, ...drawPins({ maps, map, clusterer, spots, onPressSpot: handlePressSpot }) };
     }
     const { photoPins } = drawnRef.current;
     // 사진 핀의 key가 대표 사진 id다
@@ -149,7 +148,7 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
     // 이미 묶어 둔 뒤라 알림이 다시 오지 않을 수 있다(돌아온 화면, 바로 묶는 경우)
     loadVisibleThumbs();
     return () => maps.event.removeListener(clusterer, "clustered", loadVisibleThumbs);
-  }, [kakao, pins]);
+  }, [kakao, spots]);
 
   if (result.status === "failed") {
     return (
@@ -158,7 +157,7 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
       </div>
     );
   }
-  if (result.pins.photoSpots.length === 0) {
+  if (result.spots.length === 0) {
     return (
       <div className="absolute inset-0 flex flex-col bg-background">
         <ScreenMessage message="아직 지도에 표시할 사진이 없어요. 위치가 있는 사진을 올리면 여기에 나와요." />
@@ -170,7 +169,7 @@ export const RecordMapPins = ({ pinsPromise, kakao }: RecordMapPinsProps): React
     <>
       {/* 지도의 핀은 묶이면 숨겨지고 스크린 리더로 찾기 어려워, 같은 자리를 목록으로도 둔다 */}
       <ul aria-label="지도에 있는 사진" className="sr-only">
-        {result.pins.photoSpots.map(({ key, place, photoIds }) => (
+        {result.spots.map(({ key, place, photoIds }) => (
           <li key={key}>
             <button type="button" onClick={() => setOpened((current) => toOpenedSpot(current, key, thumbsRef.current))}>
               {place} 사진 {photoIds.length}장

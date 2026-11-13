@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMapPins, toMapPinsSignature } from "./map";
-import { compareNewestFirst } from "./map-spots";
+import { compareNewestFirst, toPhotoSpots, toPhotoSpotsSignature } from "./map-spots";
 import type { MapPhotoRow } from "./map-spots";
 
 describe("compareNewestFirst", () => {
@@ -40,33 +39,23 @@ const createPhotoRow = (overrides: Partial<MapPhotoRow> = {}): MapPhotoRow => ({
   ...overrides,
 });
 
-describe("buildMapPins", () => {
-  it("위치가 있는 사진을 사진 핀으로 묶는다", () => {
-    // Act
-    const { photoSpots } = buildMapPins({ photos: [createPhotoRow({ id: "p1", date_id: "1" })] });
-
-    // Assert
-    expect(photoSpots.map(({ key, photoIds }) => ({ key, photoIds }))).toEqual([{ key: "p1", photoIds: ["p1"] }]);
-  });
-});
-
-describe("toMapPinsSignature", () => {
-  const withPhotos = (photos: MapPhotoRow[]) => buildMapPins({ photos });
+describe("toPhotoSpotsSignature", () => {
+  const withPhotos = (photos: MapPhotoRow[]) => toPhotoSpots(photos);
 
   it("새로 받았어도 내용이 같으면 같다", () => {
-    expect(toMapPinsSignature(withPhotos([createPhotoRow()]))).toBe(toMapPinsSignature(withPhotos([createPhotoRow()])));
+    expect(toPhotoSpotsSignature(withPhotos([createPhotoRow()]))).toBe(toPhotoSpotsSignature(withPhotos([createPhotoRow()])));
   });
 
   it("자리가 옮겨지면 달라진다", () => {
-    expect(toMapPinsSignature(withPhotos([createPhotoRow()]))).not.toBe(toMapPinsSignature(withPhotos([createPhotoRow({ place_lat: 35 })])));
+    expect(toPhotoSpotsSignature(withPhotos([createPhotoRow()]))).not.toBe(toPhotoSpotsSignature(withPhotos([createPhotoRow({ place_lat: 35 })])));
   });
 
   it("핀의 이름이 바뀌면 달라진다", () => {
-    expect(toMapPinsSignature(withPhotos([createPhotoRow()]))).not.toBe(toMapPinsSignature(withPhotos([createPhotoRow({ place: "새 이름" })])));
+    expect(toPhotoSpotsSignature(withPhotos([createPhotoRow()]))).not.toBe(toPhotoSpotsSignature(withPhotos([createPhotoRow({ place: "새 이름" })])));
   });
 
   it("사진 핀에 사진이 더해지면 달라진다", () => {
     const first = createPhotoRow();
-    expect(toMapPinsSignature(withPhotos([first]))).not.toBe(toMapPinsSignature(withPhotos([first, createPhotoRow({ id: "p2", sort_order: 1 })])));
+    expect(toPhotoSpotsSignature(withPhotos([first]))).not.toBe(toPhotoSpotsSignature(withPhotos([first, createPhotoRow({ id: "p2", sort_order: 1 })])));
   });
 });

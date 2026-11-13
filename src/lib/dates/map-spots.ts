@@ -106,3 +106,12 @@ export const toPhotoSpots = (rows: MapPhotoRow[]): MapPhotoSpot[] => {
   }
   return spots;
 };
+
+/**
+ * 지도에 그릴 사진 핀(자리) 목록을 나타내는 글자. 다시 불러와도 이 값이 같으면 핀을 다시 그리지 않아 보던 자리가 움직이지 않는다.
+ * 핀 key는 대표 사진 id라, 사진 위치만 고쳐도 다시 그리도록 좌표도 넣는다. `MapPhotoSpot`에 화면에 보이는 칸을 더하면 여기에도 넣는다.
+ *
+ * @example if (toPhotoSpotsSignature(spots) !== drawnSignature) redraw()
+ */
+export const toPhotoSpotsSignature = (spots: MapPhotoSpot[]): string =>
+  JSON.stringify(spots.map(({ key, lat, lng, place, photoIds }) => [key, lat, lng, place, photoIds]));

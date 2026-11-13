@@ -8,15 +8,15 @@ import { ScreenMessage } from "@/components/ScreenMessage";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
 import { getCurrentMember } from "@/lib/auth/member";
 import { RECORDS_PATH } from "@/lib/dates/album";
-import type { MapPins } from "@/lib/dates/map";
 import { getMapPins, MapPinLoadError } from "@/lib/dates/map-queries";
+import type { MapPhotoSpot } from "@/lib/dates/map-spots";
 import { catchLoadError } from "@/lib/load";
 
 export const metadata: Metadata = { title: "지도 · Luv3" };
 
 // 오류 객체는 화면(클라이언트)으로 넘길 수 없어 보여 줄 문구만 담는다
-const toMapPinsResult = (result: MapPins | MapPinLoadError): MapPinsResult =>
-  result instanceof MapPinLoadError ? { status: "failed", message: result.message } : { status: "loaded", pins: result };
+const toMapPinsResult = (result: MapPhotoSpot[] | MapPinLoadError): MapPinsResult =>
+  result instanceof MapPinLoadError ? { status: "failed", message: result.message } : { status: "loaded", spots: result };
 
 const MapContent = async () => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다

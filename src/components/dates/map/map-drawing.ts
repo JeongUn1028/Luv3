@@ -1,4 +1,3 @@
-import type { MapPins } from "@/lib/dates/map";
 import type { MapPhotoSpot } from "@/lib/dates/map-spots";
 import type { KakaoClusterStyle, KakaoCustomOverlay, KakaoMap, KakaoMarkerClusterer, KakaoMaps } from "@/lib/map/kakao-sdk";
 import { createPhotoPinElement, type PhotoPinElement } from "./photo-pin";
@@ -40,7 +39,7 @@ interface DrawPinsParams {
   maps: KakaoMaps;
   map: KakaoMap;
   clusterer: KakaoMarkerClusterer;
-  pins: MapPins;
+  spots: MapPhotoSpot[];
   onPressSpot: (spot: MapPhotoSpot) => void;
 }
 
@@ -56,13 +55,13 @@ export const createClusterer = (maps: KakaoMaps, map: KakaoMap): KakaoMarkerClus
  * 사진 핀(동그라미)을 묶음 기능에 넣고, 모든 핀이 보이게 범위를 맞춘다. 앞서 그린 핀은 지운다.
  * 사진 핀은 대표 사진 좌표 한가운데에 놓는다.
  *
- * @example drawn = drawPins({ maps, map, clusterer, pins, onPressSpot })
+ * @example drawn = drawPins({ maps, map, clusterer, spots, onPressSpot })
  */
-export const drawPins = ({ maps, map, clusterer, pins, onPressSpot }: DrawPinsParams): DrawnPins => {
+export const drawPins = ({ maps, map, clusterer, spots, onPressSpot }: DrawPinsParams): DrawnPins => {
   clusterer.clear();
   const bounds = new maps.LatLngBounds();
 
-  const photoPins = pins.photoSpots.map((spot) => {
+  const photoPins = spots.map((spot) => {
     const position = new maps.LatLng(spot.lat, spot.lng);
     const pin = createPhotoPinElement({ label: `${spot.place} 사진 ${spot.photoIds.length}장`, count: spot.photoIds.length, onPress: () => onPressSpot(spot) });
     // clickable: 핀을 누를 때 지도의 누름(열린 칸 닫기)까지 일어나지 않게 한다. 휴대폰에서는 지도의 누름이 늦게 올 수 있어
@@ -75,7 +74,7 @@ export const drawPins = ({ maps, map, clusterer, pins, onPressSpot }: DrawPinsPa
   clusterer.addMarkers(photoPins.map(({ overlay }) => overlay));
 
   // 핀 하나로 범위를 맞추면 가장 크게 확대되므로 자리만 옮기고 레벨은 그대로 둔다
-  const [onlySpot] = pins.photoSpots;
+  const [onlySpot] = spots;
   if (photoPins.length === 1 && onlySpot) map.setCenter(new maps.LatLng(onlySpot.lat, onlySpot.lng));
   else if (photoPins.length > 1) map.setBounds(bounds);
   return { photoPins };

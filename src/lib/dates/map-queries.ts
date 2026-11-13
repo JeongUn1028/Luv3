@@ -3,8 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { getSignedUrls } from "@/lib/photos/signed-urls";
 import { readAllRows } from "@/lib/supabase/read-all-rows";
-import { buildMapPins, type MapPins } from "./map";
 import { toMapPhotos, type MapPhoto } from "./map-photos";
+import { toPhotoSpots, type MapPhotoSpot } from "./map-spots";
 import { PHOTO_GROUP_LOCATION_COLUMNS, toPhotoWithGroupLocation } from "./photo-groups";
 
 /** 지도의 핀을 불러오지 못했을 때 */
@@ -23,7 +23,7 @@ export class MapPinLoadError extends Error {
  * @throws {MapPinLoadError} 조회가 실패했을 때
  * @example const pins = await getMapPins()
  */
-export const getMapPins = async (): Promise<MapPins> => {
+export const getMapPins = async (): Promise<MapPhotoSpot[]> => {
   const supabase = await createClient();
   const toError = (cause: unknown) => new MapPinLoadError({ cause });
   const photos = await readAllRows({
@@ -35,7 +35,7 @@ export const getMapPins = async (): Promise<MapPins> => {
     },
     toError,
   });
-  return buildMapPins({ photos: photos.map(toPhotoWithGroupLocation) });
+  return toPhotoSpots(photos.map(toPhotoWithGroupLocation));
 };
 
 /** 지도의 사진(썸네일·사진 줄)을 불러오지 못했을 때 */
