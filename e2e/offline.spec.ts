@@ -105,14 +105,16 @@ test.describe("인터넷이 끊기면", () => {
     await page.getByRole("textbox").fill(content);
     await goOffline(page);
 
+    // 끊긴 채 저장하면 바로 목록으로 돌아가지 않고(#345) 폼에 남아 그 자리에서 알린다
     await getSaveButton(page).click();
 
     // 요청이 서버에 닿았는지 앱은 알 수 없어, 다시 저장해도 둘이 되지 않는다고 알린다(#161)
-    await expect(page.locator("main").getByRole("alert")).toContainText("저장됐는지 확인하지 못했어요");
+    await expect(page.locator("main").getByRole("alert").locator("visible=true")).toContainText("저장됐는지 확인하지 못했어요");
+    expect(new URL(page.url()).pathname).toBe("/todos/new");
     await expect(getSessionLostDialog(page)).toBeHidden();
-    await expect(page.locator("main").getByRole("textbox")).toHaveValue(content);
+    await expect(page.locator("main").getByRole("textbox").locator("visible=true")).toHaveValue(content);
     const notice = await getBox(getOfflineNotice(page));
-    expect(notice.bottom).toBeLessThanOrEqual((await getBox(page.locator("main header"))).top);
+    expect(notice.bottom).toBeLessThanOrEqual((await getBox(page.locator("main header").locator("visible=true"))).top);
   });
 
   test("저장 중에 떠난 화면의 위쪽 알림은 안내 아래에 놓인다", async ({ page }) => {
@@ -135,7 +137,7 @@ test.describe("인터넷이 끊기면", () => {
     await saveRequested;
     await goOffline(page);
 
-    await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
+    // 저장을 기다리지 않고 바로 목록으로 돌아간다(#345)
     await page.waitForURL("**/todos");
     finishSave();
 

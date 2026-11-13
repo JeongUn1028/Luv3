@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, type Locator, type Page, type Request } from "@playwright/test";
 import { toKstDate } from "@/lib/anniversary";
+import { TODOS_PATH } from "@/lib/todos/list";
 import { withJpegExif } from "@/test-utils/exif-image";
 import { BASE_URL, PHOTO_FIXTURE_PATH } from "./constants";
 
@@ -148,3 +149,16 @@ export const getCouplePhoto = (page: Page): Locator => page.getByRole("img", { n
  */
 export const expectImageLoaded = (image: Locator): Promise<void> =>
   expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
+
+/**
+ * 할 일 저장이 실패한 뒤 목록 위쪽 알림의 "돌아가기"로 폼에 돌아간다.
+ * 할 일은 저장을 기다리지 않고 바로 목록으로 돌아가므로(#345) 실패는 폼이 아니라 위쪽 알림이 먼저 알린다.
+ *
+ * @example await returnToFailedTodoForm(page, "/todos/new")
+ */
+export const returnToFailedTodoForm = async (page: Page, formPath: string): Promise<void> => {
+  await page.waitForURL(`**${TODOS_PATH}`);
+  const notice = page.getByRole("alert").filter({ hasText: "하고 싶은 것을 저장하지 못했어요" });
+  await notice.getByRole("link", { name: "돌아가기" }).tap();
+  await page.waitForURL(`**${formPath}`);
+};

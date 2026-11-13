@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, type ReactElement } from "react";
+import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactElement } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { createClient } from "@/lib/supabase/client";
 import { applyTodoAction, groupTodos, TODOS_PATH, type Todo, type TodoAction } from "@/lib/todos/list";
+import { findSettledPendingIds, mergePendingTodos, pendingTodoStore, type PendingTodo, type ShownTodo } from "@/lib/todos/pending";
 
 const SAVE_FAILED_MESSAGE = "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
 const ALREADY_DELETED_MESSAGE = "이미 지워진 항목이에요. 목록을 새로 불러왔어요.";
@@ -16,8 +17,13 @@ const ALREADY_DELETED_MESSAGE = "이미 지워진 항목이에요. 목록을 새
 /** 항목의 완료 체크 id. 다른 목록으로 옮겨 그린 뒤 초점을 돌려줄 때 찾는다 */
 const toCheckboxId = (todoId: string): string => `todo-${todoId}-done`;
 
-const MOVE_BUTTON_CLASS_NAME =
-  "flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink press-icon aria-disabled:opacity-25 aria-disabled:hover:text-ink-sub";
+// 저장 중인 항목이 저장을 마치면 흐린 모양에서 원래 모양으로 부드럽게 바뀐다(#345). 자리는 그대로라 움직이지 않는다
+const SETTLE_TRANSITION_CLASS_NAME = "transition-[color,opacity] duration-200 motion-reduce:transition-none";
+
+const MOVE_BUTTON_CLASS_NAME = `flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink press-icon aria-disabled:opacity-25 aria-disabled:hover:text-ink-sub ${SETTLE_TRANSITION_CLASS_NAME}`;
+
+// 서버에서 그릴 때는 저장 중인 항목이 없다. 같은 값을 돌려줘야 다시 그리지 않는다
+const NO_PENDING_TODOS: readonly PendingTodo[] = [];
 
 interface TodoListProps {
   /** 서버에서 읽은 전체 목록(하지 않은 것·완료한 것 모두) */
@@ -47,20 +53,32 @@ const saveTodoAction = async (action: TodoAction): Promise<string | undefined> =
  * 둘이 함께 쓰는 하고 싶은 것 목록. 하지 않은 항목은 정한 순서대로, 완료한 항목은 아래에 따로 그린다.
  * 체크·순서 바꾸기는 저장을 기다리지 않고 화면에 먼저 반영하고, 저장이 끝나면 서버 목록으로 다시 맞춘다.
  * 순서는 위·아래 버튼으로 한 칸씩 바꿔, 화면 읽기 프로그램으로도 같은 방법으로 바꿀 수 있다.
+ * 폼에서 저장 중인 항목(#345)은 서버 목록이 따라잡을 때까지 흐리게 먼저 보여 주고, 아직 서버에 없을 수 있어 누를 수 없게 한다.
  *
  * @example <TodoList todos={await getTodos()} />
  */
 export const TodoList = ({ todos }: TodoListProps): ReactElement => {
   const router = useRouter();
   const [optimisticTodos, addOptimisticAction] = useOptimistic(todos, applyTodoAction);
+  const pendingTodos = useSyncExternalStore(pendingTodoStore.subscribe, pendingTodoStore.getPendingTodos, () => NO_PENDING_TODOS);
+  const shownTodos = mergePendingTodos(optimisticTodos, pendingTodos);
+  // 서버 목록이 따라잡은 항목은 보관함에서 뺀다. 이미 서버 값으로 그리고 있어 화면은 바뀌지 않는다
+  useLayoutEffect(() => {
+    pendingTodoStore.remove(findSettledPendingIds(todos, pendingTodos));
+  }, [todos, pendingTodos]);
   const [notice, setNotice] = useState<string>();
   // 순서를 바꾼 결과를 화면 읽기 프로그램에 알려 준다(버튼만 눌러서는 바뀐 자리를 알 수 없다)
   const [announcement, setAnnouncement] = useState("");
   useResetOnHide(() => {
     setNotice(undefined);
     setAnnouncement("");
+    // 저장은 끝났는데 목록에 들어오지 않은 항목(그사이 상대가 지움)이 흐린 채 남지 않게 한다
+    pendingTodoStore.removeSaved();
   });
-  const { open, done } = groupTodos(optimisticTodos);
+  const { open, done } = groupTodos(shownTodos);
+  // 아직 서버에 없는 새 항목은 순서를 바꿀 때 이웃으로 치지 않는다. 고치는 중인 항목은 서버에도 있어 이웃으로 친다
+  const movable = open.filter(({ isNew }) => !isNew);
+  const movableIndexById = new Map(movable.map(({ id }, index) => [id, index]));
   // 완료를 바꾸면 항목이 다른 목록으로 옮겨 그려져 체크가 새로 만들어지고 초점이 문서 처음으로 빠진다.
   // 저장이 실패해 되돌아갈 때도 같으므로, 저장이 끝나 목록이 정해질 때까지 초점이 빠질 때마다 그 항목의 체크로 돌려준다
   const focusedToggleIdRef = useRef<string>(undefined);
@@ -89,11 +107,11 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
     });
   };
 
-  const handleMove = (todo: Todo, offset: -1 | 1) => {
-    const index = open.findIndex(({ id }) => id === todo.id);
+  const handleMove = (todo: ShownTodo, offset: -1 | 1) => {
+    const index = movableIndexById.get(todo.id) ?? -1;
     const nextIndex = index + offset;
     // 끝에 있는 버튼은 초점을 잃지 않도록 disabled 대신 aria-disabled로 두고 여기서 막는다
-    if (index === -1 || nextIndex < 0 || nextIndex >= open.length) return;
+    if (todo.isPending || index === -1 || nextIndex < 0 || nextIndex >= movable.length) return;
     setAnnouncement(`${todo.content}, ${nextIndex + 1}번째로 옮겼어요`);
     runAction({ type: "move", id: todo.id, offset });
   };
@@ -118,7 +136,7 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
     </>
   );
 
-  if (optimisticTodos.length === 0) {
+  if (shownTodos.length === 0) {
     return (
       // 빈 목록 문구의 자리가 바뀌지 않게, 위 여백은 안내가 있을 때만 둔다
       <div className={notice ? "flex flex-1 flex-col pt-2" : "flex flex-1 flex-col"}>
@@ -137,28 +155,31 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
 
       {open.length > 0 && (
         <ul aria-label="하고 싶은 것" className="flex flex-col">
-          {open.map((todo, index) => (
-            <TodoItem key={todo.id} todo={todo} onToggle={handleToggle}>
-              <button
-                type="button"
-                aria-label={`${todo.content} 위로 옮기기`}
-                aria-disabled={index === 0}
-                onClick={() => handleMove(todo, -1)}
-                className={MOVE_BUTTON_CLASS_NAME}
-              >
-                <ChevronUpIcon className="size-5" />
-              </button>
-              <button
-                type="button"
-                aria-label={`${todo.content} 아래로 옮기기`}
-                aria-disabled={index === open.length - 1}
-                onClick={() => handleMove(todo, 1)}
-                className={MOVE_BUTTON_CLASS_NAME}
-              >
-                <ChevronDownIcon className="size-5" />
-              </button>
-            </TodoItem>
-          ))}
+          {open.map((todo) => {
+            const index = todo.isPending ? -1 : (movableIndexById.get(todo.id) ?? -1);
+            return (
+              <TodoItem key={todo.id} todo={todo} onToggle={handleToggle}>
+                <button
+                  type="button"
+                  aria-label={`${todo.content} 위로 옮기기`}
+                  aria-disabled={index <= 0}
+                  onClick={() => handleMove(todo, -1)}
+                  className={MOVE_BUTTON_CLASS_NAME}
+                >
+                  <ChevronUpIcon className="size-5" />
+                </button>
+                <button
+                  type="button"
+                  aria-label={`${todo.content} 아래로 옮기기`}
+                  aria-disabled={index === -1 || index === movable.length - 1}
+                  onClick={() => handleMove(todo, 1)}
+                  className={MOVE_BUTTON_CLASS_NAME}
+                >
+                  <ChevronDownIcon className="size-5" />
+                </button>
+              </TodoItem>
+            );
+          })}
         </ul>
       )}
 
@@ -179,15 +200,20 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
 };
 
 interface TodoItemProps {
-  todo: Todo;
+  todo: ShownTodo;
   onToggle: (todo: Todo, isCompleted: boolean) => void;
   /** 오른쪽 끝 버튼(순서 바꾸기). 완료한 항목에는 없다 */
   children?: ReactElement[];
 }
 
-/** 목록 한 줄: 완료 체크 + 내용(누르면 고치기 화면) + 순서 버튼 */
+/** 저장 중인 항목은 고치기 화면을 열지 않는다. 새 항목은 아직 서버에 없어 찾을 수 없다고 나온다 */
+const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDefault();
+
+/** 목록 한 줄: 완료 체크 + 내용(누르면 고치기 화면) + 순서 버튼. 저장 중이면 흐리게 그리고 누를 수 없게 한다 */
 const TodoItem = ({ todo, onToggle, children }: TodoItemProps): ReactElement => {
   const isCompleted = todo.completedAt !== undefined;
+  const { isPending } = todo;
+  const textColorClassName = isCompleted || isPending ? "text-ink-sub" : "text-ink";
   return (
     <li className="flex min-h-[60px] items-center border-b border-line">
       <label className="flex size-11 shrink-0 cursor-pointer items-center justify-center">
@@ -195,17 +221,21 @@ const TodoItem = ({ todo, onToggle, children }: TodoItemProps): ReactElement => 
           id={toCheckboxId(todo.id)}
           type="checkbox"
           checked={isCompleted}
+          disabled={isPending}
           aria-label={`${todo.content} 완료`}
           onChange={(event) => onToggle(todo, event.target.checked)}
-          className="size-5 accent-accent"
+          className={`size-5 accent-accent disabled:opacity-35 ${SETTLE_TRANSITION_CLASS_NAME}`}
         />
       </label>
       <Link
         href={`${TODOS_PATH}/${todo.id}/edit`}
         transitionTypes={FORWARD_TRANSITION}
-        className={`min-w-0 flex-1 py-3 pr-2 text-[15px] leading-[1.5] break-words ${isCompleted ? "text-ink-sub line-through" : "text-ink"}`}
+        aria-disabled={isPending}
+        onClick={isPending ? preventOpening : undefined}
+        className={`min-w-0 flex-1 py-3 pr-2 text-[15px] leading-[1.5] break-words ${textColorClassName} ${isCompleted ? "line-through" : ""} ${SETTLE_TRANSITION_CLASS_NAME}`}
       >
         {todo.content}
+        {isPending && <span className="sr-only"> (저장 중)</span>}
       </Link>
       {children}
     </li>

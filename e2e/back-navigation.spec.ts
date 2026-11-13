@@ -229,13 +229,12 @@ test.describe("뒤로 버튼", () => {
       await page.getByRole("button", { name: "저장", exact: true }).waitFor();
       await deleteTodo();
 
-      // Act
+      // Act: 저장을 기다리지 않고 바로 목록으로 돌아간다(#345). 목록은 지워진 것을 알기 전에 숨겨 둔 그대로다
       await page.getByRole("button", { name: "저장", exact: true }).click();
-      await expect(page.locator("main").locator("visible=true").getByRole("alert")).toBeVisible();
-      await getBackButton(page).tap();
       await page.waitForURL(`**${TODOS_PATH}`);
 
-      // Assert
+      // Assert: 저장이 "이미 지워졌어요"로 실패하면 보고 있는 목록을 새로 받는다
+      await expect(page.getByRole("alert").filter({ hasText: "이미 지워졌어요" })).toBeVisible();
       await expect(page.locator("main").locator("visible=true").getByText(content)).toHaveCount(0);
     } finally {
       await deleteTodo();

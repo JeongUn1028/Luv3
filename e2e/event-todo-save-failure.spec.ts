@@ -3,7 +3,7 @@ import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { deleteEventsByTitle, deleteTodosByContent, getEventIdsByTitle, getTodoIdsByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getKstYesterday, getSubmitButton } from "./support/actions";
+import { getKstYesterday, getSubmitButton, returnToFailedTodoForm } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 일정·하고 싶은 것 저장이 실패하는 경우를 모은 스펙(#161). 기록은 record-save-failure.spec.ts에 있다
@@ -137,8 +137,9 @@ test.describe("새 하고 싶은 것을 저장하는데 응답만 끊기면", ()
     await loseResponses(page, TODOS_URL);
 
     try {
-      // Act
+      // Act: 할 일은 바로 목록으로 돌아가 실패를 위쪽 알림으로 알린다(#345)
       await getSubmitButton(page).tap();
+      await returnToFailedTodoForm(page, "/todos/new");
       await expect(getFormAlert(page)).toContainText(RESPONSE_LOST_MESSAGE);
       const [savedId] = await getTodoIdsByContent(content);
       expect(savedId).toBeDefined();
@@ -148,9 +149,9 @@ test.describe("새 하고 싶은 것을 저장하는데 응답만 끊기면", ()
       await getSubmitButton(page).tap();
       await page.waitForURL(`**${TODOS_PATH}`);
 
-      // Assert
+      // Assert: 저장을 기다리지 않고 돌아가므로 저장이 끝날 때까지 기다려 본다(#345)
+      await expect.poll(() => getTodoIdsByContent(fixedContent)).toEqual([savedId]);
       expect(await getTodoIdsByContent(content)).toEqual([]);
-      expect(await getTodoIdsByContent(fixedContent)).toEqual([savedId]);
     } finally {
       await deleteTodosByContent(content);
       await deleteTodosByContent(fixedContent);
