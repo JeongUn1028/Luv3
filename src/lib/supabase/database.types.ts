@@ -197,6 +197,26 @@ isOneToOne: false
       referencedColumns: ["id","date_id"]
     }
                   ]
+                },"push_subscriptions": {
+                  Row: {
+                    "auth": string,"created_at": string,"endpoint": string,"id": string,"member_id": string,"p256dh": string
+                  }
+                  ComputedFields: never
+                  Insert: {
+                    "auth": string,"created_at"?: string,"endpoint": string,"id"?: string,"member_id"?: string,"p256dh": string
+                  }
+                  Update: {
+                    "auth"?: string,"created_at"?: string,"endpoint"?: string,"id"?: string,"member_id"?: string,"p256dh"?: string
+                  }
+                  Relationships: [
+                    {
+      foreignKeyName: "push_subscriptions_member_id_fkey"
+      columns: ["member_id"]
+isOneToOne: false
+      referencedRelation: "members"
+      referencedColumns: ["id"]
+    }
+                  ]
                 },"todos": {
                   Row: {
                     "author_id": string,"completed_at": string | null,"content": string,"created_at": string,"id": string,"revision": string,"sort_order": number
@@ -268,6 +288,9 @@ isOneToOne: false
                            },
 "move_todo":
 { Args: { "p_id": string,"p_offset": number }; Returns: undefined
+                           },
+"save_push_subscription":
+{ Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string }; Returns: undefined
                            },
 "search_date_records":
 { Args: { "p_before_created_at"?: string,"p_before_date"?: string,"p_before_id"?: string,"p_limit"?: number,"p_tag"?: string,"p_words"?: (string)[] }; Returns: {
