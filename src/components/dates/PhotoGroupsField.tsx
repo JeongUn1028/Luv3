@@ -3,12 +3,12 @@
 import { useRef, useState, type ReactElement } from "react";
 import { flushSync } from "react-dom";
 import { FIELD_LABEL_CLASS_NAME, FieldError } from "@/components/FormField";
-import { isSamePhotoLocation, type DraftErrors, type DraftPhotoGroup, type PhotoLocation } from "@/lib/dates/form";
+import type { DraftErrors, DraftPhotoGroup, PhotoLocation } from "@/lib/dates/form";
+import { findNearbyGroupLocation, toOtherGroupLocations, type OtherGroupLocation } from "@/lib/dates/group-location";
 import { toGroupName } from "@/lib/dates/group-name";
 import { MAX_GROUPS, MAX_RECORD_PHOTOS, getDraftPhotos } from "@/lib/dates/photo-group-draft";
 import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/resize";
 import { GroupLocationDialog, type GroupLocationDialogHandle } from "./GroupLocationDialog";
-import type { OtherGroupLocation } from "./GroupLocationPicker";
 import { PhotoGroupCard, type PhotoGroupActions, type PickedPhoto } from "./PhotoGroupCard";
 
 interface PhotoGroupsFieldProps {
@@ -32,20 +32,6 @@ interface LocationTarget {
   initialLocation: PhotoLocation | undefined;
   otherLocations: OtherGroupLocation[];
 }
-
-/** 위치 고르기 창에 보일 다른 모음의 위치. 같은 곳은 앞 모음 하나만 두고, 지금 위치와 같은 곳은 뺀다 */
-const toOtherLocations = (groups: DraftPhotoGroup<PickedPhoto>[], groupId: string | undefined): OtherGroupLocation[] => {
-  const current = groups.find(({ id }) => id === groupId)?.location;
-  return groups.reduce<OtherGroupLocation[]>((others, { id, location }, index) => {
-    if (id === groupId || !location || isSamePhotoLocation(location, current)) return others;
-    if (others.some((other) => isSamePhotoLocation(other.location, location))) return others;
-    return [...others, { groupNumber: index + 1, location }];
-  }, []);
-};
-
-/** 위치가 없는 모음의 지도를 처음 놓을 자리: 바로 앞 모음들 중 가장 가까운 모음의 위치, 없으면 뒤 모음의 위치 */
-const findNearbyLocation = (groups: DraftPhotoGroup<PickedPhoto>[], index: number): PhotoLocation | undefined =>
-  groups.slice(0, index).findLast(({ location }) => location)?.location ?? groups.slice(index + 1).find(({ location }) => location)?.location;
 
 /**
  * 기록 폼의 사진 칸(#298): 사진을 한 번에 고른 묶음(모음) 단위로 올린다. 모음 하나가 장소 하나라 위치는 모음마다 하나다.
@@ -82,8 +68,8 @@ export const PhotoGroupsField = ({
       setLocationTarget({
         groupId,
         title: `${toGroupName(index + 1)} 위치 고르기`,
-        initialLocation: group.location ?? findNearbyLocation(groups, index),
-        otherLocations: toOtherLocations(groups, groupId),
+        initialLocation: group.location ?? findNearbyGroupLocation(groups, index),
+        otherLocations: toOtherGroupLocations(groups, groupId),
       }),
     );
     locationDialogRef.current?.open();

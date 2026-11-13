@@ -155,14 +155,6 @@ export interface RecordPrefill {
 export const takeChars = (text: string, max: number): string => Array.from(text.trim()).slice(0, max).join("");
 
 /**
- * 두 위치가 같은 곳인지(이름·좌표가 모두 같은지) 알려 준다. 둘 다 없어도 같다.
- *
- * @example isSamePhotoLocation(group.location, other.location) // true면 "다른 모음과 같은 곳"으로 고를 필요가 없다
- */
-export const isSamePhotoLocation = (left: PhotoLocation | undefined, right: PhotoLocation | undefined): boolean =>
-  left?.place === right?.place && left?.lat === right?.lat && left?.lng === right?.lng;
-
-/**
  * 적은 태그를 다듬는다. 앞의 #은 습관처럼 붙이므로 지운다.
  *
  * @example normalizeTag(" #카페 ") // "카페"

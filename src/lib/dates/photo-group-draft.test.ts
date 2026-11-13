@@ -6,6 +6,7 @@ import {
   addPhotoGroup,
   addPhotosToGroup,
   applyPhotoInfo,
+  findNextSelectedPhotoId,
   getDraftPhotos,
   moveGroupPhoto,
   moveItem,
@@ -296,5 +297,17 @@ describe("applyPhotoInfo", () => {
 
     // Assert
     expect(changed).toMatchObject({ location: FOREST, locationSource: "picked" });
+  });
+});
+
+describe("findNextSelectedPhotoId", () => {
+  const groups = [group("g1", [photo("a"), photo("b"), photo("c")]), group("g2", [photo("d")])];
+
+  it("같은 모음의 다음 사진을 고르고, 마지막 사진이면 앞 사진을 고른다", () => {
+    expect([findNextSelectedPhotoId(groups, "b"), findNextSelectedPhotoId(groups, "c")]).toEqual(["c", "b"]);
+  });
+
+  it("모음에 사진이 하나뿐이거나 없는 사진이면 고르지 않는다", () => {
+    expect([findNextSelectedPhotoId(groups, "d"), findNextSelectedPhotoId(groups, "z")]).toEqual([undefined, undefined]);
   });
 });

@@ -3,7 +3,8 @@
 import { useImperativeHandle, useRef, useState, type ReactElement, type Ref } from "react";
 import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import type { PhotoLocation } from "@/lib/dates/form";
-import { GroupLocationPicker, type OtherGroupLocation } from "./GroupLocationPicker";
+import type { OtherGroupLocation } from "@/lib/dates/group-location";
+import { GroupLocationPicker } from "./GroupLocationPicker";
 
 /** 창을 여는 기능 */
 export interface GroupLocationDialogHandle {
