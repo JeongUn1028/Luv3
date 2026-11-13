@@ -6,16 +6,11 @@ import { SINGLE_PIN_LEVEL } from "@/components/dates/map/map-drawing";
 import { MapLoadStatus } from "@/components/dates/map/MapLoadStatus";
 import { useKakaoMap } from "@/components/dates/map/use-kakao-map";
 import type { PhotoLocation } from "@/lib/dates/form";
+import { isSameMapSpot, type OtherGroupLocation } from "@/lib/dates/group-location";
 import type { PlaceLocation } from "@/lib/places/location";
 import { fetchPlaceRegionName, UNKNOWN_PHOTO_PLACE } from "@/lib/places/region";
 import { formatRegionName } from "@/lib/places/region-name";
 import { toGroupName } from "@/lib/dates/group-name";
-
-/** 다른 모음의 위치. "모음 N과 같은 곳"으로 바로 고른다 */
-export interface OtherGroupLocation {
-  groupNumber: number;
-  location: PhotoLocation;
-}
 
 interface GroupLocationPickerProps {
   appKey: string;
@@ -24,12 +19,6 @@ interface GroupLocationPickerProps {
   otherLocations: OtherGroupLocation[];
   onChoose: (location: PhotoLocation) => void;
 }
-
-/** 같은 자리인지 견줄 때 허용하는 차이. 지도는 좌표를 조금 바꿔 돌려줄 수 있다 */
-const SAME_SPOT_DELTA = 1e-7;
-
-const isSameSpot = (left: PlaceLocation | undefined, right: PlaceLocation): boolean =>
-  left !== undefined && Math.abs(left.lat - right.lat) < SAME_SPOT_DELTA && Math.abs(left.lng - right.lng) < SAME_SPOT_DELTA;
 
 /** 내 위치를 이만큼만 기다린다. 답이 없으면 지도를 직접 움직이게 한다 */
 const MY_LOCATION_TIMEOUT_MS = 10_000;
@@ -53,15 +42,15 @@ export const GroupLocationPicker = ({ appKey, initialLocation, otherLocations, o
   const [named, setNamed] = useState<PhotoLocation | undefined>(initialLocation);
   const [myLocationNotice, setMyLocationNotice] = useState<string>();
   const lookupRef = useRef(0);
-  const isLooking = center !== undefined && (named === undefined || !isSameSpot(named, center));
+  const isLooking = center !== undefined && (named === undefined || !isSameMapSpot(named, center));
 
   const lookUpCenter = (location: PlaceLocation) => {
     // 내 위치로 옮기면 지도가 멈춘 뒤 같은 자리를 한 번 더 알린다
-    if (isSameSpot(center, location)) return;
+    if (isSameMapSpot(center, location)) return;
     setCenter(location);
     // 이름을 이미 받은 자리로 돌아와도 번호를 올려, 그 전에 다른 자리로 보낸 찾기가 늦게 와서 이름을 덮지 못하게 한다
     const lookup = (lookupRef.current += 1);
-    if (isSameSpot(named, location)) return;
+    if (isSameMapSpot(named, location)) return;
     // 이름을 받지 못해도(경계 밖, 실패) 좌표는 쓸 수 있어 사진 정보와 같이 "찍은 곳"으로 둔다(#249)
     void fetchPlaceRegionName({ location })
       .catch(() => undefined)

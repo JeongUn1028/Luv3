@@ -24,10 +24,10 @@ import {
   type RecordPrefill,
 } from "@/lib/dates/form";
 import {
-  MAX_GROUP_PHOTOS,
   addPhotoGroup,
   addPhotosToGroup,
   applyPhotoInfo,
+  findNextSelectedPhotoId,
   getDraftPhotos,
   moveGroupPhoto,
   moveItem,
@@ -35,6 +35,7 @@ import {
   removePhotoGroup,
   setGroupLocation,
 } from "@/lib/dates/photo-group-draft";
+import { toPickNotice } from "@/lib/dates/photo-pick-notice";
 import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
 import { clearError, countChars, FIX_FIELDS_NOTICE, isResolvedFieldNotice } from "@/lib/form";
 import { subscribeToAppReturn } from "@/lib/navigation/app-return";
@@ -98,22 +99,6 @@ const withNewPreviews = (draft: RecordDraft, createPreview: (file: File) => stri
     photos: group.photos.map((photo) => (photo.file ? { ...photo, previewUrl: createPreview(photo.file) } : photo)),
   })),
 });
-
-/** 빼려는 사진 다음에 고를 사진: 같은 모음의 다음 사진, 없으면 앞 사진. 모음이 빠지면 고르지 않는다 */
-const findNextSelection = (draft: RecordDraft, photoId: string): string | undefined => {
-  const photos = draft.groups.find((group) => group.photos.some(({ id }) => id === photoId))?.photos ?? [];
-  const index = photos.findIndex(({ id }) => id === photoId);
-  return (photos[index + 1] ?? photos[index - 1])?.id;
-};
-
-/** 고른 사진에 대해 알릴 문구. 받을 수 없는 파일과 모음에 넘쳐 뺀 사진 수를 알린다 */
-const toPickNotice = ({ skipped, dropped, isNewGroup }: { skipped: number; dropped: number; isNewGroup: boolean }): string | undefined => {
-  const messages = [
-    skipped > 0 && `JPEG·PNG·WebP·HEIC 사진만 올릴 수 있어 ${skipped}개는 뺐어요.`,
-    dropped > 0 && `모음 하나에 사진은 ${MAX_GROUP_PHOTOS}장까지라 ${dropped}장은 뺐어요.${isNewGroup ? " 남은 사진은 새 모음으로 골라 주세요." : ""}`,
-  ].filter(Boolean);
-  return messages.length > 0 ? messages.join(" ") : undefined;
-};
 
 interface DateRecordFormProps {
   /** 고칠 기록. 없으면 새 기록을 쓴다 */
@@ -240,7 +225,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
       });
     });
 
-    const pickNotice = toPickNotice({ skipped: files.length - images.length, dropped: droppedCount, isNewGroup: !groupId });
+    const pickNotice = toPickNotice({ skippedCount: files.length - images.length, droppedCount, isNewGroup: !groupId });
     // 다른 칸 오류가 남아 있으면 칸 오류 안내는 그대로 둔다
     setNotice((current) => pickNotice ?? (current === FIX_FIELDS_NOTICE ? current : undefined));
   };
@@ -261,7 +246,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
   const handleRemovePhoto = (photoId: string) => {
     forgetPhotos([photoId]);
     // 빼면 같은 모음의 이웃 사진을 골라, 이어서 빼거나 고칠 수 있게 한다
-    setSelectedPhotoId(findNextSelection(draft, photoId));
+    setSelectedPhotoId(findNextSelectedPhotoId(draft.groups, photoId));
     // 마지막 사진이면 모음도 사라지므로 그 모음의 위치·한마디 오류도 지운다
     const group = draft.groups.find(({ photos }) => photos.some(({ id }) => id === photoId));
     if (group?.photos.length === 1) clearGroupErrors(group.id);

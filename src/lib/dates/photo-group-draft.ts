@@ -14,6 +14,17 @@ export const MAX_RECORD_PHOTOS = MAX_GROUP_PHOTOS * MAX_GROUPS;
  */
 export const getDraftPhotos = <Photo extends DraftPhoto>(groups: DraftPhotoGroup<Photo>[]): Photo[] => groups.flatMap(({ photos }) => photos);
 
+/**
+ * 빼려는 사진 다음에 고를 사진: 같은 모음의 다음 사진, 없으면 앞 사진. 모음이 통째로 빠지면 고르지 않는다.
+ *
+ * @example setSelectedPhotoId(findNextSelectedPhotoId(draft.groups, photoId))
+ */
+export const findNextSelectedPhotoId = (groups: Pick<DraftPhotoGroup, "photos">[], photoId: string): string | undefined => {
+  const photos = groups.find((group) => group.photos.some(({ id }) => id === photoId))?.photos ?? [];
+  const index = photos.findIndex(({ id }) => id === photoId);
+  return (photos[index + 1] ?? photos[index - 1])?.id;
+};
+
 /** 사진을 뺀 뒤 대표 사진이 남아 있지 않으면 첫 사진을 대표로 정한다 */
 const withCover = <Photo extends DraftPhoto>(draft: DateRecordDraft<Photo>): DateRecordDraft<Photo> => {
   const photos = getDraftPhotos(draft.groups);

@@ -4,7 +4,6 @@ import {
   getMinEndDate,
   hasRecordDraftChanges,
   isSameExceptReadingPhotoInfo,
-  isSamePhotoLocation,
   normalizeTag,
   pickTagSuggestions,
   takeChars,
@@ -131,20 +130,6 @@ describe("validateDraft", () => {
     expect(validateDraft(draft({ groups: [], coverPhotoId: undefined }), TODAY).photos).toBe(
       "사진을 한 장 이상 골라 주세요.",
     );
-  });
-});
-
-describe("isSamePhotoLocation", () => {
-  it("이름과 좌표가 모두 같거나 둘 다 없으면 같은 곳이다", () => {
-    expect([isSamePhotoLocation(ONION, { ...ONION }), isSamePhotoLocation(undefined, undefined)]).toEqual([true, true]);
-  });
-
-  it("이름이나 좌표 하나라도 다르거나 한쪽만 있으면 다른 곳이다", () => {
-    expect([
-      isSamePhotoLocation(ONION, { ...ONION, place: "어니언" }),
-      isSamePhotoLocation(ONION, { ...ONION, lng: 127 }),
-      isSamePhotoLocation(ONION, undefined),
-    ]).toEqual([false, false, false]);
   });
 });
 
