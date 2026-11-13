@@ -54,6 +54,7 @@ import {
   updateDateRecord,
   type SaveProgress,
 } from "@/lib/dates/save";
+import { toSaveProgressLabel } from "@/lib/dates/save-progress";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { readPhotoInfo } from "@/lib/photos/photo-info";
@@ -62,13 +63,8 @@ import { isAcceptedPhoto, resizePhoto } from "@/lib/photos/resize";
 import { createClient } from "@/lib/supabase/client";
 import type { PickedPhoto } from "./PhotoGroupCard";
 import { PhotoGroupsField } from "./PhotoGroupsField";
+import { RecordSaveButton } from "./RecordSaveButton";
 import { TagField } from "./TagField";
-
-const toProgressLabel = ({ step, done, total }: SaveProgress): string => {
-  if (step === "resizing") return `사진 준비 중… ${done + 1}/${total}`;
-  if (step === "uploading") return `사진 올리는 중… ${done}/${total}`;
-  return "기록 저장 중…";
-};
 
 const toSaveErrorMessage = (error: unknown): string => {
   if (error instanceof PhotoError || error instanceof SaveDateRecordError) return error.message;
@@ -591,16 +587,10 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
           ) : draft.hasConflict ? (
             <ReloadLatestButton />
           ) : (
-            <button
-              type="submit"
-              disabled={isSaving || isReadingPhotoInfo}
-              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-            >
-              {progress ? toProgressLabel(progress) : isSaving ? "저장 중…" : isReadingPhotoInfo ? "사진 정보 읽는 중…" : "저장"}
-            </button>
+            <RecordSaveButton isSaving={isSaving} isReadingPhotoInfo={isReadingPhotoInfo} progress={progress} />
           )}
           <p aria-live="polite" className="sr-only">
-            {progress ? toProgressLabel(progress) : ""}
+            {progress ? toSaveProgressLabel(progress) : ""}
           </p>
         </div>
       </form>

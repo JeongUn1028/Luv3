@@ -1,12 +1,12 @@
 import type { ResizedPhoto } from "@/lib/photos/resize";
-import { removeUploadedPhotos, uploadPhotos, type PhotoStorage, type UploadedPhoto } from "@/lib/photos/upload";
+import { removeUploadedPhotos, resizeAndUploadPhotos, type PhotoStorage, type UploadedPhoto } from "@/lib/photos/upload";
 import { callWithRetry, isDuplicateKey, isOutcomeUnknown } from "@/lib/save-outcome";
 import { toCreateRecordArgs, type CreateDateRecordArgs, type DateRecordDraft, type UpdateDateRecordArgs } from "./form";
 import { getDraftPhotos } from "./photo-group-draft";
 
-/** 저장 단계: 사진 줄이기 → 올리기 → 기록 저장 */
+/** 저장 단계: 사진 올리기(줄이며 올린다) → 기록 저장. `done`은 원본·썸네일까지 다 올린 장수다(#312) */
 export interface SaveProgress {
-  step: "resizing" | "uploading" | "saving";
+  step: "uploading" | "saving";
   done: number;
   total: number;
 }
@@ -57,7 +57,7 @@ export class SaveDateRecordError extends Error {
 }
 
 /**
- * 기록 하나를 저장한다: 사진을 한 장씩 줄이고(메모리 절약), 모두 올린 뒤, 기록·사진 행을 한 번에 만든다.
+ * 기록 하나를 저장한다: 사진을 줄이는 대로 올리고(`resizeAndUploadPhotos`), 모두 올린 뒤 기록·사진 행을 한 번에 만든다.
  * 응답만 끊기면 한 번 더 보내고, 그래도 모르면 저장됐을 수 있어 사진을 남긴다(남은 파일은 #31에서 정리한다).
  * 앞선 시도가 이미 저장했으면 `already-saved`를 돌려준다. 같은 폼으로 새로 쓴 내용이 앞선 기록을 덮어 사진을 지우지 않도록 고치지 않으므로,
  * 호출하는 쪽이 저장된 기록을 보여 줘 사용자가 확인하게 한다.
@@ -218,7 +218,7 @@ interface UploadNewPhotosParams extends Pick<SaveDateRecordParams, "storage" | "
   photoFiles: { id: string; file: File }[];
 }
 
-/** 사진을 한 장씩 줄이고(메모리 절약) 모두 올린다. 올릴 사진이 없으면 아무것도 하지 않는다 */
+/** 사진을 줄이는 대로 올린다. 올릴 사진이 없으면 아무것도 하지 않는다 */
 const uploadNewPhotos = async ({
   recordId,
   photoFiles,
@@ -230,17 +230,12 @@ const uploadNewPhotos = async ({
   const total = photoFiles.length;
   if (total === 0) return [];
 
-  const resized = [];
-  for (const [index, { id, file }] of photoFiles.entries()) {
-    onProgress?.({ step: "resizing", done: index, total });
-    resized.push({ photoId: id, ...(await resize(file)) });
-  }
-
   onProgress?.({ step: "uploading", done: 0, total });
-  return uploadPhotos({
+  return resizeAndUploadPhotos({
     storage,
     dateId: recordId,
-    photos: resized,
+    photos: photoFiles.map(({ id, file }) => ({ photoId: id, file })),
+    resize,
     mayAlreadyExist,
     onProgress: (done) => onProgress?.({ step: "uploading", done, total }),
   });
