@@ -70,7 +70,7 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 
 ## 버전과 릴리스
 
-지금 버전은 **1.0.0**이다(`package.json`의 `version`, [Releases](https://github.com/JeongUn1028/Luv3/releases)). 버전은 [SemVer](https://semver.org/lang/ko/)를 따르고 태그는 `v1.0.0`처럼 앞에 `v`를 붙인다. 1.0.0은 운영 중이던 `e55ff70`에 붙였다(#330). 그래서 그 커밋의 `package.json`에는 처음 값 `0.1.0`이 남아 있다.
+지금 버전은 **1.1.0**이다(`package.json`의 `version`, [Releases](https://github.com/JeongUn1028/Luv3/releases)). 버전은 [SemVer](https://semver.org/lang/ko/)를 따르고 태그는 `v1.0.0`처럼 앞에 `v`를 붙인다. 1.0.0은 운영 중이던 `e55ff70`에 붙였다(#330). 그래서 그 커밋의 `package.json`에는 처음 값 `0.1.0`이 남아 있다.
 
 다음 버전은 PR마다 올리지 않고, 여러 PR을 묶어 릴리스할 때만 태그를 붙인다. 앞 태그 뒤로 머지된 PR을 보고 정한다.
 
