@@ -4,7 +4,9 @@ import useEmblaCarousel from "embla-carousel-react";
 import { useEffect, useState, type ReactElement } from "react";
 import { ChevronLeftIcon, ChevronRightIcon, MapPinIcon } from "@/components/icons";
 import { DetailPhotoFrame } from "@/components/dates/DetailPhotoFrame";
+import { useFirstPhotoGate } from "@/components/dates/FirstPhotoGate";
 import type { DetailGroup, DetailPhoto } from "@/lib/dates/detail";
+import { toSlidePhotoLoad } from "@/lib/dates/detail-photo-loading";
 import { useResetOnLinkReopen } from "@/lib/navigation/use-reset-on-link-reopen";
 import { toShortRegionName } from "@/lib/places/region-name";
 
@@ -23,7 +25,8 @@ const navButtonClassName =
 
 /**
  * 화면 폭으로 넘겨 보는 사진과 지금 사진의 장소, 지금 모음의 한마디.
- * 모음 칩은 장소 줄과 같은 이름을 되풀이해 없앴다(#317). 다른 모음으로 넘어가면 장소 줄의 이름이 바뀌어 알 수 있다
+ * 모음 칩은 장소 줄과 같은 이름을 되풀이해 없앴다(#317). 다른 모음으로 넘어가면 장소 줄의 이름이 바뀌어 알 수 있다.
+ * 사진은 지금 사진을 먼저 받고, 다 받으면 앞뒤 한 장을 미리 받는다(#313). 처음 펼친 사진은 원본을 받는 동안 썸네일을 먼저 보여 준다
  */
 export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCarouselProps): ReactElement => {
   const [viewportRef, emblaApi] = useEmblaCarousel({ startIndex });
@@ -31,6 +34,23 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
   const total = photos.length;
   // 숨겨 둔 상세를 다른 사진 주소로 다시 열면 화면은 그대로지만, Embla가 바뀐 시작 순서로 다시 맞추고(reInit) 아래에서 상태도 맞춘다
   const current = photos[selectedIndex];
+  // 원본을 다 받은 사진
+  const [shownPhotoIds, setShownPhotoIds] = useState<ReadonlySet<string>>(() => new Set());
+  // 받기 시작한 사진. 다 받기 전에 멀리 넘겨도 주소를 빼지 않아, 받던 것을 끊고 나중에 처음부터 다시 받지 않는다
+  const [requestedPhotoIds, setRequestedPhotoIds] = useState<ReadonlySet<string>>(() => new Set());
+  const { markFirstPhotoShown } = useFirstPhotoGate();
+  // 받을 주소가 없는 사진은 기다릴 것이 없다
+  const isSelectedShown = current === undefined || current.url === undefined || shownPhotoIds.has(current.id);
+  const loads = photos.map((_, index) => toSlidePhotoLoad({ index, selectedIndex, isSelectedShown }));
+  const newlyRequestedIds = photos.filter(({ id }, index) => loads[index] !== "later" && !requestedPhotoIds.has(id)).map(({ id }) => id);
+  // 받을 차례가 된 사진을 이번 그리기에서 바로 기억한다(이전 그리기의 값으로 다음 값을 정하는 React의 그리기 중 갱신)
+  if (newlyRequestedIds.length > 0) setRequestedPhotoIds(new Set([...requestedPhotoIds, ...newlyRequestedIds]));
+
+  const handlePhotoShown = (photoId: string) => {
+    setShownPhotoIds((ids) => (ids.has(photoId) ? ids : new Set(ids).add(photoId)));
+    // 처음 펼친 사진이 아니어도(받기 전에 넘김) 지금 보는 사진을 받았으면 기다리던 동선 지도를 불러도 된다
+    markFirstPhotoShown();
+  };
 
   // 숨겨 둔 상세를 같은 사진 주소로 다시 열면 시작 순서가 그대로라 Embla가 다시 맞추지 않아, 마지막에 넘겨 본 사진이 남는다.
   // 링크로 다시 열었을 때만 주소의 사진으로 돌리고, 뒤로 가기로 돌아왔을 때는 보던 사진을 둔다(#249)
@@ -58,23 +78,29 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
       {/* 넘기는 영역은 화면 폭 그대로 두어 화면 끝에서 시작한 손짓도 넘긴다 */}
       <div ref={viewportRef} className="overflow-hidden">
         <div className="flex touch-pan-y">
-          {photos.map((photo, index) => (
-            <div
-              key={photo.id}
-              role="group"
-              aria-roledescription="slide"
-              aria-label={`${index + 1} / ${total}`}
-              // 양옆 16px 여백과 16px 모서리는 홈 커플 사진과 같다(#321). 사진 왼쪽 끝이 아래 글자와 줄이 맞고, 넘기는 동안 사진 사이가 32px 벌어진다
-              className="min-w-0 shrink-0 grow-0 basis-full px-4"
-            >
-              <DetailPhotoFrame
-                url={photo.url}
-                alt={`${title} 사진 ${index + 1}`}
-                // 처음 펼친 사진은 바로 보이므로 먼저 받고, 나머지는 넘길 때 받는다
-                loading={index === startIndex ? "eager" : "lazy"}
-              />
-            </div>
-          ))}
+          {photos.map((photo, index) => {
+            const load = loads[index];
+            return (
+              <div
+                key={photo.id}
+                role="group"
+                aria-roledescription="slide"
+                aria-label={`${index + 1} / ${total}`}
+                // 양옆 16px 여백과 16px 모서리는 홈 커플 사진과 같다(#321). 사진 왼쪽 끝이 아래 글자와 줄이 맞고, 넘기는 동안 사진 사이가 32px 벌어진다
+                className="min-w-0 shrink-0 grow-0 basis-full px-4"
+              >
+                <DetailPhotoFrame
+                  // 받을 차례가 아닌 사진은 주소를 넘기지 않아 받지 않는다(브라우저의 lazy는 옆 칸도 미리 받아 첫 사진과 회선을 나눠 쓴다)
+                  url={load !== "later" || requestedPhotoIds.has(photo.id) ? photo.url : undefined}
+                  // 썸네일은 처음 펼칠 사진에만 온다. 넘겨 보는 사진은 미리 받아 두므로 썸네일을 거치지 않는다
+                  placeholderUrl={index === startIndex ? photo.thumbUrl : undefined}
+                  alt={`${title} 사진 ${index + 1}`}
+                  fetchPriority={load === "now" ? "high" : "low"}
+                  onShown={() => handlePhotoShown(photo.id)}
+                />
+              </div>
+            );
+          })}
         </div>
       </div>
 

@@ -175,6 +175,7 @@ export const setRecordPhotoLocation = async (recordId: string, { place, lat, lng
  * `createDisposableRecord`로 만든 기록에 사진을 한 장 더 붙인다. 파일은 기록 폴더에 올려 기록을 지울 때 함께 지워진다.
  * 위치를 주면 그 위치의 모음을 새로 만들어 넣고, 주지 않으면 첫 모음에 넣는다(위치는 모음마다 하나다, #297).
  * `groupCaption`은 사진이 들어간 모음의 한마디다(한마디는 모음마다 하나다, #309). `groupPlaceName`은 새로 만드는 모음의 장소 이름이다(#317).
+ * `hasSeparateThumb`를 주면 썸네일을 원본과 다른 파일(`-thumb.jpg`)로 올린다. 주지 않으면 원본 파일을 썸네일로도 쓴다.
  *
  * @example const photoId = await addRecordPhoto(id, { sortOrder: 1, groupCaption: "창가 자리", location: FOREST })
  */
@@ -186,11 +187,22 @@ export const addRecordPhoto = async (
     groupPlaceName,
     location,
     takenAt,
-  }: { sortOrder: number; groupCaption?: string; groupPlaceName?: string; location?: { place: string; lat: number; lng: number }; takenAt?: string },
+    hasSeparateThumb = false,
+  }: {
+    sortOrder: number;
+    groupCaption?: string;
+    groupPlaceName?: string;
+    location?: { place: string; lat: number; lng: number };
+    takenAt?: string;
+    hasSeparateThumb?: boolean;
+  },
 ): Promise<string> => {
   const admin = createAdminClient();
-  const path = `${recordId}/${randomUUID()}.jpg`;
+  const fileName = randomUUID();
+  const path = `${recordId}/${fileName}.jpg`;
   await uploadPhoto(admin, path);
+  const thumbPath = hasSeparateThumb ? `${recordId}/${fileName}-thumb.jpg` : path;
+  if (hasSeparateThumb) await uploadPhoto(admin, thumbPath);
   const id = randomUUID();
   const groupId = location
     ? await insertPhotoGroup(admin, { recordId, sortOrder, location, caption: groupCaption, placeName: groupPlaceName })
@@ -204,7 +216,7 @@ export const addRecordPhoto = async (
       date_id: recordId,
       group_id: groupId,
       path,
-      thumb_path: path,
+      thumb_path: thumbPath,
       sort_order: sortOrder,
       taken_at: takenAt,
     }),

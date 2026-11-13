@@ -7,6 +7,7 @@ import { SINGLE_PIN_LEVEL } from "@/components/dates/map/map-drawing";
 import { MapLoadStatus } from "@/components/dates/map/MapLoadStatus";
 import { useKakaoMap } from "@/components/dates/map/use-kakao-map";
 import { drawRoute, getRouteLineColor } from "./route-drawing";
+import { useRouteMapStart } from "./use-route-map-start";
 
 interface RecordRouteProps {
   route: PhotoRoute;
@@ -16,13 +17,15 @@ interface RecordRouteProps {
 /**
  * 기록 상세의 "이날 다닌 곳" 작은 지도(#251). 모음 위치를 모음 순서대로 선으로 잇고 점에 번호를 적는다(#299).
  * 페이지를 내리는 손가락을 지도가 가로채지 않게 지도는 누르거나 움직일 수 없다. 순서는 화면 읽기 프로그램에 목록으로 읽어 준다.
+ * 지도는 화면에 가까워지고 첫 사진을 받은 뒤에 불러와, 상세를 열자마자 첫 사진과 회선을 나눠 쓰지 않는다(#313).
  *
  * @example {record.route && <RecordRoute route={record.route} appKey={appKey} />}
  */
 export const RecordRoute = ({ route, appKey }: RecordRouteProps): ReactElement => {
   const headingId = useId();
   const containerRef = useRef<HTMLDivElement>(null);
-  const { kakao, status, retry } = useKakaoMap({ containerRef, appKey, initialLevel: SINGLE_PIN_LEVEL });
+  const shouldLoad = useRouteMapStart(containerRef);
+  const { kakao, status, retry } = useKakaoMap({ containerRef, appKey, initialLevel: SINGLE_PIN_LEVEL, shouldLoad });
   const isTrip = route.lines.length > 1;
 
   // 지도(외부 라이브러리)에 선과 점을 그린다. 기록이 바뀌면 지우고 다시 그린다

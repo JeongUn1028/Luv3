@@ -6,7 +6,7 @@ import { getHomePhotoSignedUrls, getSignedUrls } from "@/lib/photos/signed-urls"
 import { toLatestRecord, toTagSuggestions, type LatestRecord } from "./album";
 import type { AlbumFirstPage } from "./album-pages";
 import { PHOTO_GROUP_LOCATION_COLUMNS, toPhotoWithGroupLocation } from "./photo-groups";
-import { isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
+import { findStartPhotoRow, isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
 import { ALL_RECORDS_FIRST_PAGE, loadRecordPage } from "./search-queries";
 
 /** 앨범 그리드를 불러오지 못했을 때 */
@@ -126,17 +126,21 @@ const signPaths = async (supabase: Awaited<ReturnType<typeof createClient>>, pat
 };
 
 /**
- * 기록 하나와 사진 전체를 불러오고, 원본 사진에 서명 URL을 붙인다.
+ * 기록 하나와 사진 전체를 불러오고, 원본 사진과 처음 펼칠 사진의 썸네일에 서명 URL을 붙인다.
  *
+ * @param startPhotoId 주소로 고른 처음 펼칠 사진(`?photo=`). 없으면 첫 사진이다
  * @returns 없는 기록이거나 id 형식이 틀리면 undefined
  * @throws {DateRecordLoadError} 조회나 서명 URL 발급이 실패했을 때
  * @example const record = await getDateRecordDetail(id); if (!record) notFound()
  */
-export const getDateRecordDetail = async (id: string): Promise<DateRecordDetail | undefined> => {
+export const getDateRecordDetail = async (id: string, startPhotoId?: string): Promise<DateRecordDetail | undefined> => {
   const supabase = await createClient();
   const row = await getDetailRow(supabase, id);
   if (!row) return undefined;
-  return toDateRecordDetail(row, await signPaths(supabase, row.photos.map(({ path }) => path)));
+  // 처음 펼칠 사진의 썸네일을 기록 목록 칸과 같은 서명 함수로 함께 서명한다. 목록 칸에서 받은 사진이면 같은 주소라 다시 받지 않고 바로 보인다(#313)
+  const startThumbPath = findStartPhotoRow(row.photos, startPhotoId)?.thumb_path;
+  const paths = row.photos.map(({ path }) => path);
+  return toDateRecordDetail(row, await signPaths(supabase, startThumbPath ? [...paths, startThumbPath] : paths), startPhotoId);
 };
 
 /**

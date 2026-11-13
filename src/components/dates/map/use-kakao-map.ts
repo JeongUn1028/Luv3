@@ -20,6 +20,8 @@ interface UseKakaoMapParams {
   appKey: string;
   /** 처음 확대 레벨 */
   initialLevel: number;
+  /** false면 true가 될 때까지 SDK를 부르지 않는다. 첫 화면에 꼭 필요하지 않은 지도를 늦게 부를 때 쓴다(#313) */
+  shouldLoad?: boolean;
 }
 
 interface UseKakaoMapResult {
@@ -32,10 +34,11 @@ interface UseKakaoMapResult {
 /**
  * 카카오 지도를 컨테이너에 한 번 만들고, 컨테이너 크기가 바뀌면 다시 맞춘다. 실패하면 `retry`로 다시 불러온다.
  * cacheComponents가 화면을 Activity로 숨기면 effect가 정리됐다가 다시 돌므로, 지도는 ref에 두어 돌아왔을 때 보던 자리를 지킨다.
+ * `shouldLoad`가 false인 동안은 "불러오는 중"으로 두고 카카오에 요청하지 않는다.
  *
  * @example const { kakao, status, retry } = useKakaoMap({ containerRef, appKey, initialLevel: 3 })
  */
-export const useKakaoMap = ({ containerRef, appKey, initialLevel }: UseKakaoMapParams): UseKakaoMapResult => {
+export const useKakaoMap = ({ containerRef, appKey, initialLevel, shouldLoad = true }: UseKakaoMapParams): UseKakaoMapResult => {
   const mapRef = useRef<KakaoMap | undefined>(undefined);
   const [kakao, setKakao] = useState<LoadedKakaoMap | undefined>();
   const [status, setStatus] = useState<KakaoMapStatus>("loading");
@@ -43,7 +46,7 @@ export const useKakaoMap = ({ containerRef, appKey, initialLevel }: UseKakaoMapP
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container || !shouldLoad) return;
     let isActive = true;
 
     loadKakaoMaps(appKey)
@@ -68,7 +71,7 @@ export const useKakaoMap = ({ containerRef, appKey, initialLevel }: UseKakaoMapP
       isActive = false;
       resizeObserver.disconnect();
     };
-  }, [containerRef, appKey, loadAttempt, initialLevel]);
+  }, [containerRef, appKey, loadAttempt, initialLevel, shouldLoad]);
 
   const retry = () => {
     setStatus("loading");
