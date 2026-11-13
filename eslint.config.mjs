@@ -23,6 +23,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 라이브러리를 그대로 복사한 파일(src/lib/photos/compression-lib.ts)
+    "public/vendor/**",
   ]),
 ]);
 
