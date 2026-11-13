@@ -82,7 +82,7 @@ export const toPushFailureReason = (reason: unknown): string => {
 /**
  * 같은 알림을 여러 기기에 한꺼번에 보내고, 기기마다 결과를 모은다. 한 기기가 실패해도 나머지에는 보낸다.
  *
- * @example await sendPushMessage({ subscriptions, message, send: createWebPushSender(vapid) })
+ * @example await sendPushMessage({ subscriptions, message: PUSH_TEST_MESSAGE, send: createWebPushSender(vapid) })
  */
 export const sendPushMessage = async ({ subscriptions, message, send }: SendPushMessageParams): Promise<PushSendResult> => {
   const payload = JSON.stringify(message);

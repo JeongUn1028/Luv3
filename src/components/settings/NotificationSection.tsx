@@ -25,12 +25,12 @@ interface NotificationSectionProps {
 }
 
 /**
- * 설정 화면의 알림 칸(#363). 기기마다 알림을 켜고 끄며, 켠 기기에서는 종류별 스위치를 보여 준다(#364, 시안 4번 A).
+ * 설정 화면의 알림 칸(#363). 기기마다 알림을 켜고 끄며, 켠 기기에서는 종류별 스위치(#364, 시안 4번 A)와 시험 알림을 보여 준다.
  *
  * @example {publicKey && <NotificationSection publicKey={publicKey} typeSwitches={<PushTypeSwitches initialSettings={settings} />} />}
  */
 export const NotificationSection = ({ publicKey, typeSwitches }: NotificationSectionProps): ReactElement => {
-  const { status, pending, errorMessage, enable, disable } = usePushNotifications(publicKey);
+  const { status, pending, notice, enable, disable, sendTest } = usePushNotifications(publicKey);
   const isBusy = pending !== undefined;
 
   return (
@@ -57,13 +57,18 @@ export const NotificationSection = ({ publicKey, typeSwitches }: NotificationSec
         </button>
       )}
       {status === "on" && (
-        <button type="button" onClick={disable} disabled={isBusy} className={outlineButtonClassName}>
-          {pending === "disable" ? "알림 끄는 중…" : "이 기기에서 알림 끄기"}
-        </button>
+        <>
+          <button type="button" onClick={sendTest} disabled={isBusy} className={outlineButtonClassName}>
+            {pending === "test" ? "시험 알림 보내는 중…" : "시험 알림 보내기"}
+          </button>
+          <button type="button" onClick={disable} disabled={isBusy} className={outlineButtonClassName}>
+            {pending === "disable" ? "알림 끄는 중…" : "이 기기에서 알림 끄기"}
+          </button>
+        </>
       )}
-      {errorMessage && (
-        <p role="alert" className="mt-3 text-[13px] text-accent">
-          {errorMessage}
+      {notice && (
+        <p role={notice.tone === "error" ? "alert" : "status"} className={`mt-3 text-[13px] ${notice.tone === "error" ? "text-accent" : "text-ink-sub"}`}>
+          {notice.text}
         </p>
       )}
     </section>

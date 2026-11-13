@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import type { PushMessage } from "./message";
+import { PUSH_TEST_MESSAGE } from "./message";
 import { sendPushMessage, toPushFailureReason, type StoredPushSubscription } from "./send";
-
-const MESSAGE: PushMessage = { title: "새 기록", body: "11월 12일 · 한강", url: "/" };
 
 const subscription = (name: string): StoredPushSubscription => ({ endpoint: `https://push.example/${name}`, p256dh: "key", auth: "auth" });
 
@@ -16,12 +14,12 @@ describe("sendPushMessage", () => {
     const subscriptions = [subscription("phone"), subscription("tablet")];
 
     // Act
-    const result = await sendPushMessage({ subscriptions, message: MESSAGE, send });
+    const result = await sendPushMessage({ subscriptions, message: PUSH_TEST_MESSAGE, send });
 
     // Assert
     expect(result).toEqual({ sentCount: 2, expiredEndpoints: [], failedCount: 0, failureReasons: [] });
-    expect(send).toHaveBeenCalledWith(subscriptions[0], JSON.stringify(MESSAGE));
-    expect(send).toHaveBeenCalledWith(subscriptions[1], JSON.stringify(MESSAGE));
+    expect(send).toHaveBeenCalledWith(subscriptions[0], JSON.stringify(PUSH_TEST_MESSAGE));
+    expect(send).toHaveBeenCalledWith(subscriptions[1], JSON.stringify(PUSH_TEST_MESSAGE));
   });
 
   it("알림 서비스가 404·410으로 답한 기기는 지울 구독으로 모은다", async () => {
@@ -33,7 +31,7 @@ describe("sendPushMessage", () => {
     // Act
     const result = await sendPushMessage({
       subscriptions: [subscription("phone"), subscription("gone"), subscription("missing")],
-      message: MESSAGE,
+      message: PUSH_TEST_MESSAGE,
       send,
     });
 
@@ -59,7 +57,7 @@ describe("sendPushMessage", () => {
     const send = vi.fn(() => Promise.reject(reason));
 
     // Act
-    const result = await sendPushMessage({ subscriptions: [subscription("phone")], message: MESSAGE, send });
+    const result = await sendPushMessage({ subscriptions: [subscription("phone")], message: PUSH_TEST_MESSAGE, send });
 
     // Assert
     expect(result).toEqual({ sentCount: 0, expiredEndpoints: [], failedCount: 1, failureReasons: [expectedReason] });
@@ -70,7 +68,7 @@ describe("sendPushMessage", () => {
     const send = vi.fn(() => Promise.resolve());
 
     // Act
-    const result = await sendPushMessage({ subscriptions: [], message: MESSAGE, send });
+    const result = await sendPushMessage({ subscriptions: [], message: PUSH_TEST_MESSAGE, send });
 
     // Assert
     expect(result).toEqual({ sentCount: 0, expiredEndpoints: [], failedCount: 0, failureReasons: [] });
@@ -93,7 +91,7 @@ describe("sendPushMessage", () => {
     // Act
     const result = await sendPushMessage({
       subscriptions: [subscription("forbidden"), subscription("phone"), subscription("gone"), subscription("slow")],
-      message: MESSAGE,
+      message: PUSH_TEST_MESSAGE,
       send,
     });
 
