@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { LOGIN_PATH, SETTINGS_PATH, SIGN_OUT_PATH } from "@/lib/auth/paths";
-import { PUSH_TEST_PATH } from "@/lib/push/message";
 import { signInToHome } from "./support/actions";
 import { createDisposableMember, getPushNotifyRow, getPushSubscriptionEndpoints } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
@@ -83,7 +82,7 @@ test.describe("설정 알림 칸", () => {
 
     // Assert
     await expect(getSection(page).getByText("받는 중")).toBeVisible();
-    await expect(getSection(page).getByRole("button", { name: "시험 알림 보내기" })).toBeVisible();
+    await expect(getSection(page).getByRole("button", { name: "시험 알림 보내기" })).toHaveCount(0);
     await expect.poll(() => getPushSubscriptionEndpoints(memberId)).toHaveLength(1);
 
     // Act: 끄기
@@ -92,39 +91,6 @@ test.describe("설정 알림 칸", () => {
     // Assert
     await expect(getSection(page).getByRole("button", { name: "알림 켜기" })).toBeVisible();
     await expect.poll(() => getPushSubscriptionEndpoints(memberId)).toEqual([]);
-  });
-
-  test("시험 알림을 보내면 보냈다고 알리고, 서버에 구독이 없으면 다시 켜게 한다", async ({ page }) => {
-    // Arrange
-    await useFakePushManager(page);
-    await signInToHome(page, email, password);
-    await openScreen(page, SETTINGS_PATH, getSection(page).getByRole("button", { name: "알림 켜기" }));
-    await getSection(page).getByRole("button", { name: "알림 켜기" }).click();
-    await expect(getSection(page).getByText("받는 중")).toBeVisible();
-
-    // Act: 보낸 경우(실제 알림 서비스로 보내지 않게 응답을 정한다)
-    const requestBodies: unknown[] = [];
-    await page.route(`**${PUSH_TEST_PATH}`, (route) => {
-      requestBodies.push(route.request().postDataJSON());
-      return route.fulfill({ json: { sentCount: 1 } });
-    });
-    await getSection(page).getByRole("button", { name: "시험 알림 보내기" }).click();
-
-    // Assert: "이 기기"에서 받는지 보는 것이라, 이 기기의 구독 주소에만 보내 달라고 한다
-    await expect(getSection(page).getByRole("status")).toHaveText("시험 알림을 보냈어요. 잠시 뒤 도착해요.");
-    const [savedEndpoint] = await getPushSubscriptionEndpoints(memberId);
-    expect(requestBodies).toEqual([{ endpoint: savedEndpoint }]);
-
-    // Act: 서버에 구독이 없는 경우
-    await page.unroute(`**${PUSH_TEST_PATH}`);
-    await page.route(`**${PUSH_TEST_PATH}`, (route) =>
-      route.fulfill({ status: 409, json: { code: "PUSH_NOT_SUBSCRIBED", message: "알림이 꺼진 기기예요. 이 기기에서 알림을 다시 켜 주세요." } }),
-    );
-    await getSection(page).getByRole("button", { name: "시험 알림 보내기" }).click();
-
-    // Assert
-    await expect(getSection(page).getByRole("alert")).toHaveText("알림이 꺼진 기기예요. 이 기기에서 알림을 다시 켜 주세요.");
-    await expect(getSection(page).getByRole("button", { name: "알림 켜기" })).toBeVisible();
   });
 
   // 시안 4번 A: 켠 뒤에는 종류별 스위치가 보이고, 설정은 사람마다 하나라 다시 열어도 그대로다

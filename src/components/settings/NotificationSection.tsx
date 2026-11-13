@@ -7,8 +7,8 @@ import { usePushNotifications } from "./use-push-notifications";
 
 /** 켜기 전 상태마다 칸 아래에 적는 설명. 켠 뒤에는 설명 칸 대신 종류별 스위치를 보여 준다 */
 const STATUS_DESCRIPTION: Record<Exclude<PushStatus, "on">, string> = {
-  checking: "켜 두면 이 기기로 알림을 받아요. 시험 알림으로 잘 오는지 확인할 수 있어요.",
-  off: "켜 두면 이 기기로 알림을 받아요. 시험 알림으로 잘 오는지 확인할 수 있어요.",
+  checking: "켜 두면 상대가 남긴 기록·댓글·일정을 이 기기로 알려 드려요.",
+  off: "켜 두면 상대가 남긴 기록·댓글·일정을 이 기기로 알려 드려요.",
   denied: "알림을 허용하지 않은 기기예요. 아이폰 설정 → 알림 → Luv3에서 알림 허용을 켠 뒤 다시 열어 주세요.",
   "needs-install": "홈 화면에 추가한 Luv3에서만 켤 수 있어요. Safari에서 공유 → 홈 화면에 추가를 누른 뒤 거기서 켜 주세요.",
   unsupported: "이 브라우저에서는 알림을 받을 수 없어요.",
@@ -25,12 +25,12 @@ interface NotificationSectionProps {
 }
 
 /**
- * 설정 화면의 알림 칸(#363). 기기마다 알림을 켜고 끄며, 켠 기기에서는 종류별 스위치(#364, 시안 4번 A)와 시험 알림을 보여 준다.
+ * 설정 화면의 알림 칸(#363). 기기마다 알림을 켜고 끄며, 켠 기기에서는 종류별 스위치를 보여 준다(#364, 시안 4번 A).
  *
  * @example {publicKey && <NotificationSection publicKey={publicKey} typeSwitches={<PushTypeSwitches initialSettings={settings} />} />}
  */
 export const NotificationSection = ({ publicKey, typeSwitches }: NotificationSectionProps): ReactElement => {
-  const { status, pending, notice, enable, disable, sendTest } = usePushNotifications(publicKey);
+  const { status, pending, errorMessage, enable, disable } = usePushNotifications(publicKey);
   const isBusy = pending !== undefined;
 
   return (
@@ -57,18 +57,13 @@ export const NotificationSection = ({ publicKey, typeSwitches }: NotificationSec
         </button>
       )}
       {status === "on" && (
-        <>
-          <button type="button" onClick={sendTest} disabled={isBusy} className={outlineButtonClassName}>
-            {pending === "test" ? "시험 알림 보내는 중…" : "시험 알림 보내기"}
-          </button>
-          <button type="button" onClick={disable} disabled={isBusy} className={outlineButtonClassName}>
-            {pending === "disable" ? "알림 끄는 중…" : "이 기기에서 알림 끄기"}
-          </button>
-        </>
+        <button type="button" onClick={disable} disabled={isBusy} className={outlineButtonClassName}>
+          {pending === "disable" ? "알림 끄는 중…" : "이 기기에서 알림 끄기"}
+        </button>
       )}
-      {notice && (
-        <p role={notice.tone === "error" ? "alert" : "status"} className={`mt-3 text-[13px] ${notice.tone === "error" ? "text-accent" : "text-ink-sub"}`}>
-          {notice.text}
+      {errorMessage && (
+        <p role="alert" className="mt-3 text-[13px] text-accent">
+          {errorMessage}
         </p>
       )}
     </section>
