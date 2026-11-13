@@ -13,6 +13,7 @@ import { toFailedSaveFields } from "@/lib/revision";
 import { createClient } from "@/lib/supabase/client";
 import { TODO_CONTENT_MAX_LENGTH, validateTodoContent } from "@/lib/todos/form";
 import { TODOS_PATH } from "@/lib/todos/list";
+import { pendingTodoStore } from "@/lib/todos/pending";
 import { saveTodo } from "@/lib/todos/save";
 
 /** 저장에 실패해 보관하는 폼 내용 */
@@ -69,14 +70,20 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
     setError(nextError);
     if (nextError) return;
 
-    beginSave();
     setNotice(undefined);
     setIsSaving(true);
     const saveId = newTodoId ?? crypto.randomUUID();
+    const pendingId = todoId ?? saveId;
+    const savedContent = content.trim();
     // 시도마다 새 판 번호를 쓴다. 내용이 바뀌면 판 번호도 바뀌어야 열어 둔 상대의 화면이 알아챈다
     const revision = crypto.randomUUID();
-    const failure = await saveTodo({ content: content.trim(), todoId, newTodoId: saveId, expectedRevisions, revision });
+    // 저장을 기다리지 않고 목록으로 돌아가, 서버 목록이 따라잡을 때까지 목록이 이 내용을 먼저 보여 준다(#345)
+    pendingTodoStore.add({ id: pendingId, content: savedContent, revision, previousRevisions: todoId ? expectedRevisions : [], isNew: !todoId });
+    // 인터넷이 끊겨 폼에 남으면 목록에 먼저 보여 줄 일이 없다(저장은 실패한다)
+    if (!beginSave({ returnTo: TODOS_PATH })) pendingTodoStore.remove([pendingId]);
+    const failure = await saveTodo({ content: savedContent, todoId, newTodoId: saveId, expectedRevisions, revision });
     if (failure) {
+      pendingTodoStore.remove([pendingId]);
       const failedDraft: TodoDraft = {
         content,
         // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다
@@ -91,6 +98,7 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
       finishFailed({ draft: failedDraft, ...failure });
       return;
     }
+    pendingTodoStore.markSaved(pendingId);
     finishSaved({
       href: TODOS_PATH,
       reset: () => {

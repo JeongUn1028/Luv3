@@ -7,6 +7,7 @@ export interface TodoRow {
   content: string;
   sort_order: number;
   completed_at: string | null;
+  revision: string;
 }
 
 /** 화면에 그리는 하고 싶은 것 하나 */
@@ -17,6 +18,8 @@ export interface Todo {
   sortOrder: number;
   /** 완료한 시각(ISO). 아직 하지 않았으면 undefined */
   completedAt: string | undefined;
+  /** 판 번호(#161). 목록에 먼저 보여 준 저장 중인 내용을 서버 목록이 따라잡았는지 견준다(#345) */
+  revision: string;
 }
 
 /** 목록에서 하는 동작. 저장이 끝나기 전에 화면에 먼저 반영할 때 쓴다 */
@@ -29,11 +32,12 @@ export type TodoAction =
  *
  * @example const todos = data.map(toTodo)
  */
-export const toTodo = ({ id, content, sort_order, completed_at }: TodoRow): Todo => ({
+export const toTodo = ({ id, content, sort_order, completed_at, revision }: TodoRow): Todo => ({
   id,
   content,
   sortOrder: sort_order,
   completedAt: completed_at ?? undefined,
+  revision,
 });
 
 const isOpen = (todo: Todo): boolean => todo.completedAt === undefined;
@@ -49,7 +53,7 @@ const toTime = (todo: Todo): number => (todo.completedAt === undefined ? 0 : Dat
  *
  * @example const { open, done } = groupTodos(todos); open.slice(0, 3) // 홈에 보여 줄 맨 위 3개
  */
-export const groupTodos = (todos: Todo[]): { open: Todo[]; done: Todo[] } => ({
+export const groupTodos = <T extends Todo>(todos: T[]): { open: T[]; done: T[] } => ({
   open: todos.filter(isOpen).toSorted(compareBySortOrder),
   done: todos
     .filter((todo) => !isOpen(todo))

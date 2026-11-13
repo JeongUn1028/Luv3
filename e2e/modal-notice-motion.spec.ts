@@ -145,7 +145,7 @@ test.describe("움직임을 켠 기기에서", () => {
   });
 
   test("저장 알림이 내려왔다가 닫으면 위로 사라진다", async ({ page }, testInfo) => {
-    // Arrange: 저장을 붙들어 폼을 떠난 뒤에 끝나게 한다
+    // Arrange: 저장을 붙들어 목록으로 돌아간 뒤에 실패하게 한다. 바로 돌아간 저장(#345)은 성공 알림을 띄우지 않는다
     const content = createTestName("E2E 움직임 알림", testInfo);
     await openScreen(page, "/todos/new", page.locator("#todo-content"));
     let release = (): void => undefined;
@@ -153,20 +153,20 @@ test.describe("움직임을 켠 기기에서", () => {
       release = resolve;
     });
     await page.route("**/rest/v1/todos*", async (route: Route) => {
-      if (route.request().method() === "POST") await released;
-      await route.continue();
+      if (route.request().method() !== "POST") return route.continue();
+      await released;
+      await route.fulfill({ status: 400, json: { code: "23514", message: "E2E 거절" } });
     });
 
     try {
       await page.locator("#todo-content").fill(content);
       await getSubmitButton(page).tap();
-      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${TODOS_PATH}`);
       await recordAnimations(page);
 
       // Act
       release();
-      const notice = page.getByRole("status").filter({ has: page.getByRole("button", { name: "닫기" }) });
+      const notice = page.getByRole("alert").filter({ has: page.getByRole("button", { name: "닫기" }) });
 
       // Assert
       await expect(notice).toBeVisible();

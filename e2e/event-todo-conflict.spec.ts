@@ -15,7 +15,7 @@ import {
   renameTodo,
 } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getSubmitButton } from "./support/actions";
+import { getSubmitButton, returnToFailedTodoForm } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 고치기 화면을 연 사이 상대가 같은 일정·하고 싶은 것을 고친 경우를 모은 스펙(#161). 기록은 record-save-failure.spec.ts에 있다
@@ -207,6 +207,8 @@ test.describe("하고 싶은 것 고치기 화면을 연 사이", () => {
 
       // Act
       await getSubmitButton(page).tap();
+      // 할 일은 바로 목록으로 돌아가 실패를 위쪽 알림으로 알린다(#345)
+      await returnToFailedTodoForm(page, `/todos/${id}/edit`);
 
       // Assert
       await expect(getFormAlert(page)).toContainText(TODO_CONFLICT_MESSAGE);
@@ -219,9 +221,9 @@ test.describe("하고 싶은 것 고치기 화면을 연 사이", () => {
       await getTodoContentField(page).fill(`${content} 다시 고침`);
       await getSubmitButton(page).tap();
 
-      // Assert
+      // Assert: 저장을 기다리지 않고 돌아가므로 저장이 끝날 때까지 기다려 본다(#345)
       await page.waitForURL(`**${TODOS_PATH}`);
-      expect(await getTodoContent(id)).toBe(`${content} 다시 고침`);
+      await expect.poll(() => getTodoContent(id)).toBe(`${content} 다시 고침`);
     } finally {
       await deleteTodo();
     }
@@ -241,9 +243,9 @@ test.describe("하고 싶은 것 고치기 화면을 연 사이", () => {
       // Act
       await getSubmitButton(page).tap();
 
-      // Assert
+      // Assert: 저장을 기다리지 않고 돌아가므로 저장이 끝날 때까지 기다려 본다(#345)
       await page.waitForURL(`**${TODOS_PATH}`);
-      expect(await getTodoContent(id)).toBe(`${content} 내 수정`);
+      await expect.poll(() => getTodoContent(id)).toBe(`${content} 내 수정`);
     } finally {
       await deleteTodo();
     }
@@ -260,6 +262,7 @@ test.describe("하고 싶은 것 고치기 화면을 연 사이", () => {
       await getTodoContentField(page).fill(`${content} 1`);
       await loseResponses(page, TODOS_URL);
       await getSubmitButton(page).tap();
+      await returnToFailedTodoForm(page, `/todos/${id}/edit`);
       await expect(getFormAlert(page)).toContainText(RESPONSE_LOST_MESSAGE);
       expect(await getTodoContent(id)).toBe(`${content} 1`);
 
@@ -270,7 +273,7 @@ test.describe("하고 싶은 것 고치기 화면을 연 사이", () => {
 
       // Assert
       await page.waitForURL(`**${TODOS_PATH}`);
-      expect(await getTodoContent(id)).toBe(`${content} 2`);
+      await expect.poll(() => getTodoContent(id)).toBe(`${content} 2`);
     } finally {
       await deleteTodo();
     }

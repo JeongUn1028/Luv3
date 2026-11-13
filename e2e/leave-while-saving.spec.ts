@@ -4,7 +4,16 @@ import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { pickDate } from "./support/date-picker";
-import { createDisposableEvent, createDisposableRecord, createDisposableTodo, deleteEventsByTitle, deleteRecordWithFiles, deleteTodosByContent } from "./support/seed";
+import {
+  createDisposableEvent,
+  createDisposableRecord,
+  createDisposableTodo,
+  deleteEventsByTitle,
+  deleteRecordWithFiles,
+  deleteTodosByContent,
+  getTodoContent,
+  getTodoIdsByContent,
+} from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { getGroupPhoto, getKstYesterday, getSubmitButton, getTab, pickPhoto } from "./support/actions";
 import { createTestName } from "./support/names";
@@ -53,6 +62,14 @@ const leaveRecordFormToTodos = async (page: Page): Promise<void> => {
   await page.waitForURL(`**${RECORDS_PATH}`);
   await getTab(page, TODOS_PATH).tap();
   await page.waitForURL(`**${TODOS_PATH}`);
+};
+
+/** 목록에서 + 를 눌러 새 항목 폼을 연다. 저장하면 뒤로 가기로 이 목록에 돌아가고, 폼은 앞으로 가기 기록에 남는다 */
+const openNewTodoFromList = async (page: Page): Promise<void> => {
+  await openScreen(page, TODOS_PATH, page.locator("main").locator("visible=true").first());
+  await page.locator('main a[href="/todos/new"]').locator("visible=true").first().tap();
+  await page.waitForURL("**/todos/new");
+  await page.locator("#todo-content").waitFor();
 };
 
 const getRecordId = (requestBody: string): string => {
@@ -242,8 +259,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await getSubmitButton(page).tap();
     await save.requested;
     try {
-      // Act: 다른 폼으로 옮겨 쓰는 중에 저장이 끝난다
-      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
+      // Act: 바로 돌아간 목록(#345)에서 다른 폼으로 옮겨 쓰는 중에 저장이 끝난다
       await page.waitForURL(`**${TODOS_PATH}`);
       await getTab(page, CALENDAR_PATH).tap();
       await page.waitForURL(`**${CALENDAR_PATH}*`);
@@ -252,14 +268,17 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await page.locator("#event-title").locator("visible=true").fill("쓰던 일정");
       save.release();
 
-      // Assert
-      await expect(getNotice(page, "status", "하고 싶은 것을 저장했어요")).toBeVisible();
+      // Assert: 바로 돌아간 저장이라 "저장했어요" 알림은 없다
+      await expect.poll(() => getTodoIdsByContent(content)).toHaveLength(1);
       // 다시 불러오면 폼이 새로 만들어져 비는 것을 잡으려면, 그 응답이 올 만큼 기다려야 한다
       await page.waitForTimeout(2_000);
       expect(new URL(page.url()).pathname).toBe("/events/new");
       await expect(page.locator("#event-title").locator("visible=true")).toHaveValue("쓰던 일정");
+      await expect(getNotice(page, "status", "하고 싶은 것을 저장했어요")).toHaveCount(0);
 
-      await getNotice(page, "status", "하고 싶은 것을 저장했어요").getByRole("link", { name: "보기" }).tap();
+      await page.goBack();
+      await page.waitForURL(`**${CALENDAR_PATH}*`);
+      await page.goBack();
       await page.waitForURL(`**${TODOS_PATH}`);
       await expect(page.locator("main").locator("visible=true").getByText(content)).toBeVisible();
     } finally {
@@ -277,7 +296,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await getSubmitButton(page).tap();
       await save.requested;
 
-      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
+      // 저장을 기다리지 않고 바로 목록으로 돌아간다(#345)
       await page.waitForURL(`**${TODOS_PATH}`);
       save.release();
       const notice = getNotice(page, "alert", "하고 싶은 것을 저장하지 못했어요");
@@ -295,20 +314,23 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
   test("고치기를 저장한 뒤 숨겨 둔 폼으로 돌아오면 저장한 값이 보인다", async ({ page }, testInfo) => {
     // Arrange: 예전 값이 남아 있으면 다시 저장할 때 방금 고친 내용을 덮어쓴다
     const id = randomUUID();
-    const deleteTodo = await createDisposableTodo({ id, content: createTestName("E2E 고쳐 저장", testInfo) });
+    const content = createTestName("E2E 고쳐 저장", testInfo);
+    const deleteTodo = await createDisposableTodo({ id, content });
     try {
-      await openScreen(page, `/todos/${id}/edit`, page.locator("#todo-content"));
-      await page.locator("#todo-content").fill("고쳐서 저장한 항목");
+      await openScreen(page, TODOS_PATH, page.locator("main").locator("visible=true").getByText(content));
+      await page.locator(`main a[href="/todos/${id}/edit"]`).locator("visible=true").tap();
+      await page.waitForURL(`**/todos/${id}/edit`);
+      await page.locator("#todo-content").locator("visible=true").fill("고쳐서 저장한 항목");
       const save = await holdSaveRequest(page, TODOS_URL);
       await getSubmitButton(page).tap();
       await save.requested;
-      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
+      // 저장을 기다리지 않고 뒤로 가기로 목록에 돌아간다(#345). 폼은 앞으로 가기 기록에 숨겨 둔다
       await page.waitForURL(`**${TODOS_PATH}`);
       save.release();
-      await expect(getNotice(page, "status", "하고 싶은 것을 저장했어요")).toBeVisible();
+      await expect.poll(() => getTodoContent(id)).toBe("고쳐서 저장한 항목");
 
       // Act
-      await page.goBack();
+      await page.goForward();
       await page.waitForURL(`**/todos/${id}/edit`);
 
       // Assert
@@ -327,7 +349,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await getSubmitButton(page).tap();
     await save.requested;
     try {
-      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
+      // 저장을 기다리지 않고 바로 목록으로 돌아간다(#345)
       await page.waitForURL(`**${TODOS_PATH}`);
       await page.waitForLoadState("networkidle");
       await getTab(page, CALENDAR_PATH).tap();
@@ -335,7 +357,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await page.locator(`main a[href^="/events/new"]`).locator("visible=true").first().tap();
       await page.waitForURL("**/events/new*");
       save.release();
-      await expect(getNotice(page, "status", "하고 싶은 것을 저장했어요")).toBeVisible();
+      await expect.poll(() => getTodoIdsByContent(content)).toHaveLength(1);
 
       // Act
       await page.goBack();
@@ -353,26 +375,28 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
   test("실패 알림은 다른 길로 폼에 돌아와도 사라지고, 실패한 내용은 한 번만 채운다", async ({ page }, testInfo) => {
     // Arrange
     const content = createTestName("E2E 한 번만", testInfo);
-    await openScreen(page, "/todos/new", page.locator("#todo-content"));
+    await openNewTodoFromList(page);
     await page.locator("#todo-content").fill(content);
     const save = await holdSaveRequest(page, TODOS_URL, failRequest);
     await getSubmitButton(page).tap();
     await save.requested;
-    await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
+    // 저장을 기다리지 않고 뒤로 가기로 목록에 돌아간다(#345)
     await page.waitForURL(`**${TODOS_PATH}`);
     save.release();
     const notice = getNotice(page, "alert", "하고 싶은 것을 저장하지 못했어요");
     await expect(notice).toBeVisible();
 
-    // Act: 알림을 누르지 않고 뒤로 가기로 돌아간다
-    await page.goBack();
+    // Act: 알림을 누르지 않고 앞으로 가기로 폼에 돌아간다
+    await page.goForward();
     await page.waitForURL("**/todos/new");
 
     // Assert
     await expect(page.locator("#todo-content").locator("visible=true")).toHaveValue(content);
     await expect(notice).toHaveCount(0);
 
-    // Act: 쓰지 않기로 하고 나갔다가 새로 연다(채운 내용은 쓴 내용이라 버릴지 묻는다)
+    // Act: 쓰지 않기로 하고 나갔다가 새로 연다(채운 내용은 쓴 내용이라 버릴지 묻는다).
+    // 저장하며 돌아간 뒤로 가기에서 0.4초 안에 또 뒤로 가면 두 번 누른 것으로 보고 무시하므로(history-back.ts) 사람이 누르는 만큼 기다린다
+    await page.waitForTimeout(500);
     await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
     await page.getByRole("dialog", { name: "쓰던 내용을 버리고 나갈까요?" }).getByRole("button", { name: "나가기" }).tap();
     await page.waitForURL(`**${TODOS_PATH}`);
@@ -392,7 +416,6 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       const save = await holdSaveRequest(page, TODOS_URL);
       await getSubmitButton(page).tap();
       await save.requested;
-      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
       await page.waitForURL(`**${TODOS_PATH}`);
 
       // Act: 저장이 끝나기 전에 상대가 지운다

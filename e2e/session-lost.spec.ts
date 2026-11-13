@@ -3,7 +3,7 @@ import type { Locator, Page, Request } from "@playwright/test";
 import { E2E_MEMBER, E2E_TODOS } from "./support/constants";
 import { createComment, createDisposableEvent, createDisposableRecord, createNonMemberAccount, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getGroupPhoto, getSaveButton, isScreenRequest, pickPhoto } from "./support/actions";
+import { getGroupPhoto, getSaveButton, isScreenRequest, pickPhoto, returnToFailedTodoForm } from "./support/actions";
 import { createTestName } from "./support/names";
 
 const [, , TODO] = E2E_TODOS;
@@ -19,6 +19,17 @@ const getMemberPassword = (): string => {
   return password;
 };
 
+/**
+ * 목록에서 + 를 눌러 새 할 일 폼을 연다. 저장하면 서버를 거치지 않고 뒤로 가기로 이 목록에 돌아가므로(#345),
+ * 로그인이 풀려 있어도 로그인 화면으로 넘어가지 않는다
+ */
+const openNewTodoFromList = async (page: Page): Promise<void> => {
+  await openScreen(page, "/todos", page.locator("main").locator("visible=true").first());
+  await page.locator('main a[href="/todos/new"]').locator("visible=true").first().tap();
+  await page.waitForURL("**/todos/new");
+  await getSaveButton(page).waitFor();
+};
+
 const signInAgain = async (page: Page, password: string, email: string = E2E_MEMBER.email): Promise<void> => {
   const dialog = getDialog(page);
   await dialog.getByLabel("이메일").fill(email);
@@ -32,8 +43,8 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
     const content = createTestName("E2E 세션", testInfo);
 
     try {
-      await openScreen(page, "/todos/new", getSaveButton(page));
-      await page.getByRole("textbox").fill(content);
+      await openNewTodoFromList(page);
+      await page.locator("main").getByRole("textbox").locator("visible=true").fill(content);
       await dropSession(page);
 
       // Act: 먼저 틀린 비밀번호로 시도한다
@@ -44,11 +55,12 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
       await signInAgain(page, getMemberPassword());
       await expect(getDialog(page)).toBeHidden();
 
-      // Assert
-      await expect(page.locator("main").getByRole("textbox")).toHaveValue(content);
+      // Assert: 할 일은 바로 목록으로 돌아가므로(#345) 위쪽 알림의 "돌아가기"로 폼에 돌아가면 적은 내용이 남아 있다
+      await returnToFailedTodoForm(page, "/todos/new");
+      await expect(page.locator("main").getByRole("textbox").locator("visible=true")).toHaveValue(content);
       await getSaveButton(page).click();
       await page.waitForURL("**/todos");
-      await expect(page.getByText(content).first()).toBeVisible();
+      await expect(page.locator("main").locator("visible=true").getByText(content).first()).toBeVisible();
     } finally {
       await deleteTodosByContent(content);
     }
@@ -171,8 +183,8 @@ test("허용목록 밖 계정으로 다시 로그인하면 알리고 로그아�
   const password = randomUUID();
   const deleteAccount = await createNonMemberAccount(email, password);
   try {
-    await openScreen(page, "/todos/new", getSaveButton(page));
-    await page.getByRole("textbox").fill("E2E 저장되지 않는 항목");
+    await openNewTodoFromList(page);
+    await page.locator("main").getByRole("textbox").locator("visible=true").fill("E2E 저장되지 않는 항목");
     await dropSession(page);
     await getSaveButton(page).click();
 
@@ -200,9 +212,10 @@ test.describe("로그인 문제가 아니면", () => {
       await page.route("**/rest/v1/todos**", (route) => (handle.abort ? route.abort() : route.fulfill({ status: 500, json: {} })));
 
       await getSaveButton(page).click();
+      await returnToFailedTodoForm(page, "/todos/new");
 
       // 끊긴 요청과 5xx는 서버가 저장했는지 알 수 없어 그렇게 알린다(#161)
-      await expect(page.locator("main").getByRole("alert")).toContainText("저장됐는지 확인하지 못했어요");
+      await expect(page.locator("main").getByRole("alert").locator("visible=true")).toContainText("저장됐는지 확인하지 못했어요");
       await expect(getDialog(page)).toBeHidden();
     });
   }
@@ -215,8 +228,9 @@ test.describe("로그인 문제가 아니면", () => {
 
     await getSaveButton(page).click();
     await checked;
+    await returnToFailedTodoForm(page, "/todos/new");
 
-    await expect(page.locator("main").getByRole("alert")).toContainText("저장하지 못했어요");
+    await expect(page.locator("main").getByRole("alert").locator("visible=true")).toContainText("저장하지 못했어요");
     await expect(getDialog(page)).toBeHidden();
   });
 });
