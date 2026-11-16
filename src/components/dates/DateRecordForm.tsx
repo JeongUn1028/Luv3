@@ -1,83 +1,33 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { startTransition, useEffectEvent, useLayoutEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
-import { flushSync } from "react-dom";
-import { DateField, TextAreaField, TextField } from "@/components/FormField";
+import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
+import { TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { toKstDate } from "@/lib/anniversary";
 import { RECORDS_PATH } from "@/lib/dates/album";
-import {
-  MEMO_MAX_LENGTH,
-  TITLE_MAX_LENGTH,
-  addTag,
-  getMinEndDate,
-  hasRecordDraftChanges,
-  isSameExceptReadingPhotoInfo,
-  validateDraft,
-  type DateRecordDraft,
-  type DraftErrors,
-  type RecordPrefill,
-} from "@/lib/dates/form";
+import { TITLE_MAX_LENGTH, addTag, hasRecordDraftChanges, isSameExceptReadingPhotoInfo, validateDraft, type DraftErrors, type RecordPrefill } from "@/lib/dates/form";
 import { getDraftPhotos } from "@/lib/dates/photo-group-draft";
 import { showInvalidFields } from "@/lib/focus-invalid-field";
-import { clearError, clearFieldError, countChars, isResolvedFieldNotice, toPeriodEndDate } from "@/lib/form";
-import { subscribeToAppReturn } from "@/lib/navigation/app-return";
+import { clearError, clearFieldError, isResolvedFieldNotice, toPeriodEndDate } from "@/lib/form";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { useDiscardOnLeave } from "@/lib/navigation/use-discard-on-leave";
 import type { EditableRecord } from "@/lib/dates/detail";
 import { usePreviewUrls } from "@/lib/photos/preview-urls";
-import type { PickedPhoto } from "./PhotoGroupCard";
 import { PhotoGroupsField } from "./PhotoGroupsField";
+import { createEmptyRecordDraft, toEditRecordDraft, withNewPreviews, type RecordDraft } from "./record-form/record-draft";
+import { RecordDateFields } from "./record-form/RecordDateFields";
 import { RecordFormFooter } from "./record-form/RecordFormFooter";
+import { RecordMemoField } from "./record-form/RecordMemoField";
 import { usePhotoGroupEditing } from "./record-form/use-photo-group-editing";
 import { useRecordSave } from "./record-form/use-record-save";
+import { useRecordTags } from "./record-form/use-record-tags";
+import { useUntouchedDateToday } from "./record-form/use-untouched-date-today";
 import { TagField } from "./TagField";
 
-const createEmptyDraft = (prefill?: RecordPrefill): DateRecordDraft<PickedPhoto> => ({
-  date: prefill?.date ?? toKstDate(new Date()),
-  endDate: prefill?.endDate,
-  title: prefill?.title ?? "",
-  memo: prefill?.memo ?? "",
-  eventLink: prefill?.eventLink,
-  groups: [],
-  coverPhotoId: undefined,
-  tags: [],
-});
-
-const toEditDraft = ({ revision, date, endDate, title, memo, coverPhotoId, tags, groups }: EditableRecord): DateRecordDraft<PickedPhoto> => ({
-  expectedRevisions: [revision],
-  date,
-  endDate,
-  title,
-  memo,
-  coverPhotoId,
-  tags,
-  groups: groups.map(({ id, location, placeName, caption, photos }) => ({
-    id,
-    location,
-    locationSource: "saved",
-    pendingLocationPhotoId: undefined,
-    placeName,
-    caption,
-    photos: photos.map((photo) => ({ ...photo, file: undefined, isReadingInfo: false })),
-  })),
-});
-
-type RecordDraft = DateRecordDraft<PickedPhoto>;
-
 const failedSaves = new Map<string, FailedSave<RecordDraft>>();
-
-/** 예전 폼의 미리보기는 숨겨질 때 해제됐으므로 파일로 다시 만든다 */
-const withNewPreviews = (draft: RecordDraft, createPreview: (file: File) => string): RecordDraft => ({
-  ...draft,
-  groups: draft.groups.map((group) => ({
-    ...group,
-    photos: group.photos.map((photo) => (photo.file ? { ...photo, previewUrl: createPreview(photo.file) } : photo)),
-  })),
-});
 
 interface DateRecordFormProps {
   /** 고칠 기록. 없으면 새 기록을 쓴다 */
@@ -97,16 +47,14 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
   const formKey = `record:${record ? record.id : `new:${prefill?.date ?? ""}:${prefill?.endDate ?? ""}:${prefill?.title ?? ""}:${prefill?.eventLink.eventId ?? ""}`}`;
   const { failedSave, ...leavableSave } = useLeavableSave({ formKey, subject: "기록을", failedSaves });
   // 쓴 내용이 있는지 견줄 처음 내용. 실패해서 다시 채운 내용도 아직 저장되지 않았으므로 이것과 견준다
-  const [initialDraft, setInitialDraft] = useState(() => (record ? toEditDraft(record) : createEmptyDraft(prefill)));
+  const [initialDraft, setInitialDraft] = useState(() => (record ? toEditRecordDraft(record) : createEmptyRecordDraft(prefill)));
   // 미리보기는 모두 여기서 만들어, 화면을 떠날 때 빠짐없이 해제한다
   const previews = usePreviewUrls();
   const [draft, setDraft] = useState(() => (failedSave ? withNewPreviews(failedSave.draft, previews.create) : initialDraft));
   const [errors, setErrors] = useState<DraftErrors>({});
-  const [tagInput, setTagInput] = useState("");
-  // 칸을 늘 열어 두면 빈 작성 화면에 스크롤이 생긴다(#52). 태그가 있는 기록은 열어 둔다
-  const [isTagFieldOpen, setIsTagFieldOpen] = useState(draft.tags.length > 0);
-  const tagInputRef = useRef<HTMLInputElement>(null);
   const [notice, setNotice] = useState(failedSave?.message);
+  const recordTags = useRecordTags({ draft, setDraft, setErrors });
+  const { tagInput, setTagInput, isTagFieldOpen } = recordTags;
   const photoGroups = usePhotoGroupEditing({ draft, setDraft, setErrors, setNotice, previews });
   const recordSave = useRecordSave({ record, setDraft, setNotice, previews, leavableSave });
   const { isSaving, isRecordGone } = recordSave;
@@ -117,32 +65,14 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
   const shouldConfirmLeave = hasWrittenContent && !isSaving && !isRecordGone;
   const isReadingPhotoInfo = getDraftPhotos(draft.groups).some(({ isReadingInfo }) => isReadingInfo);
   const today = toKstDate(new Date());
-  const isPeriod = draft.endDate !== undefined;
 
-  // 오늘을 기본값으로 연 새 기록 폼은 다시 보일 때 아무것도 쓰지 않았으면 날짜를 오늘로 맞춘다(#162).
-  // 화면을 새로 받아도 같은 key라 처음 그린 날의 날짜가 남는다. 숨겨 둔 폼(Activity)은 다시 보일 때 효과가 다시 돌고,
-  // 보고 있던 폼은 앱으로 돌아올 때 알림을 받는다. 그리기 전에 맞춰 어제 날짜가 잠깐 보이지 않게 한다
-  const hasDefaultDate = !record && !prefill;
-  const moveUntouchedDateToToday = useEffectEvent(() => {
-    const currentToday = toKstDate(new Date());
-    // 날짜를 직접 고친 것도 쓴 내용이라 그대로 둔다
-    if (hasWrittenContent || draft.date >= currentToday) return;
-    setInitialDraft((current) => ({ ...current, date: currentToday }));
-    setDraft((current) => ({ ...current, date: currentToday }));
-  });
-  useLayoutEffect(() => {
-    if (!hasDefaultDate) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- 다시 보일 때 바깥 시계에 맞춘다. 날짜가 지났을 때만 바꿔 연달아 그리지 않는다
-    moveUntouchedDateToToday();
-    return subscribeToAppReturn(moveUntouchedDateToToday);
-  }, [hasDefaultDate]);
+  useUntouchedDateToday({ isEnabled: !record && !prefill, hasWrittenContent, date: draft.date, setInitialDraft, setDraft });
 
   /** 폼을 `nextDraft`로 처음부터 다시 쓰는 상태로 되돌린다. 저장한 뒤와 쓴 내용을 버리고 나갈 때 쓴다 */
   const resetForm = (nextDraft: RecordDraft) => {
     setInitialDraft(nextDraft);
     setDraft(nextDraft);
-    setTagInput("");
-    setIsTagFieldOpen(nextDraft.tags.length > 0);
+    recordTags.resetTags(nextDraft.tags);
     setErrors({});
     photoGroups.resetEditingState();
     setNotice(undefined);
@@ -154,7 +84,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
   // 나가기를 고른 뒤 숨겨지기 전에 사진 정보가 도착해도 버린다
   const discardOnLeave = useDiscardOnLeave({
     content: draft,
-    reset: () => resetForm(createEmptyDraft(prefill)),
+    reset: () => resetForm(createEmptyRecordDraft(prefill)),
     isSameContent: isSameExceptReadingPhotoInfo,
   });
 
@@ -166,20 +96,6 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
   const handlePeriodChange = (isChecked: boolean) => {
     setDraft((current) => ({ ...current, endDate: toPeriodEndDate(isChecked) }));
     setErrors((current) => clearError(current, "endDate"));
-  };
-
-  const handleOpenTagField = () => {
-    // iOS는 누르는 동작 안에서 초점을 줘야 키보드를 연다. 칸을 먼저 그려야 초점을 줄 수 있다
-    flushSync(() => setIsTagFieldOpen(true));
-    tagInputRef.current?.focus();
-  };
-
-  const handleAddTag = (text: string) => {
-    const { tags, error } = addTag(draft.tags, text);
-    setDraft((current) => ({ ...current, tags }));
-    setErrors((current) => (error ? { ...current, tags: error } : clearError(current, "tags")));
-    // 전에 쓴 태그를 눌렀을 때는 적던 글자를 그대로 둔다
-    if (!error && text === tagInput) setTagInput("");
   };
 
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
@@ -199,7 +115,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
     if (showInvalidFields({ form, errors: nextErrors, setErrors, setNotice })) return;
 
     const recordId = record?.id ?? nextDraft.uncertainSaveRecordId ?? crypto.randomUUID();
-    await recordSave.save({ draft: nextDraft, recordId, reset: () => resetForm(record ? toEditDraft(record) : createEmptyDraft()) });
+    await recordSave.save({ draft: nextDraft, recordId, reset: () => resetForm(record ? toEditRecordDraft(record) : createEmptyRecordDraft()) });
   };
 
   // 기록을 지웠을 때(DeleteRecordButton)와 같이 옮기면서 다시 불러온다
@@ -241,41 +157,15 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
           actions={photoGroups.actions}
         />
 
-        <div className="flex flex-col">
-          <DateField
-            id="date"
-            label={isPeriod ? "시작 날짜" : "날짜"}
-            max={today}
-            value={draft.date}
-            isDisabled={isSaving}
-            error={errors.date}
-            onChange={(date) => updateField("date", date)}
-          />
-          <label className="mt-1 flex h-11 w-fit items-center gap-2 text-[13px] text-ink-sub">
-            <input
-              type="checkbox"
-              checked={isPeriod}
-              disabled={isSaving}
-              onChange={(event) => handlePeriodChange(event.target.checked)}
-              className="size-4 accent-accent"
-            />
-            기간으로 남기기
-          </label>
-          {isPeriod && (
-            <DateField
-              id="endDate"
-              label="끝 날짜"
-              min={getMinEndDate(draft.date, today)}
-              max={today}
-              value={draft.endDate ?? ""}
-              openDate={draft.date}
-              isDisabled={isSaving}
-              error={errors.endDate}
-              onChange={(date) => updateField("endDate", date)}
-              className="mt-2"
-            />
-          )}
-        </div>
+        <RecordDateFields
+          date={draft.date}
+          endDate={draft.endDate}
+          today={today}
+          errors={errors}
+          isDisabled={isSaving}
+          onDateChange={updateField}
+          onPeriodChange={handlePeriodChange}
+        />
 
         <TextField
           id="title"
@@ -291,7 +181,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
               <button
                 type="button"
                 disabled={isSaving}
-                onClick={handleOpenTagField}
+                onClick={recordTags.handleOpenTagField}
                 // 글자 줄만큼만 차지하면서 44px을 누를 수 있게 넓힌다. 아래 입력 칸의 오른쪽 위 끝이 조금 겹치므로 칸보다 위에 둔다
                 className="press-icon relative z-10 text-[13px] leading-[19px] text-ink-sub after:absolute after:-inset-y-[12.5px] after:inset-x-0 disabled:opacity-50"
               >
@@ -304,43 +194,19 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
 
         {isTagFieldOpen && (
           <TagField
-            inputRef={tagInputRef}
+            inputRef={recordTags.tagInputRef}
             tags={draft.tags}
             suggestions={tagSuggestions}
             input={tagInput}
             error={errors.tags}
             isDisabled={isSaving}
-            onInputChange={(value) => {
-              setTagInput(value);
-              setErrors((current) => clearError(current, "tags"));
-            }}
-            onAdd={handleAddTag}
-            onRemove={(tag) => {
-              setDraft((current) => ({ ...current, tags: current.tags.filter((existing) => existing !== tag) }));
-              setErrors((current) => clearError(current, "tags"));
-            }}
+            onInputChange={recordTags.handleTagInputChange}
+            onAdd={recordTags.handleAddTag}
+            onRemove={recordTags.handleRemoveTag}
           />
         )}
 
-        <TextAreaField
-          id="memo"
-          label="정리 글"
-          hint="선택"
-          aside={
-            <span id="memo-count" className="font-display text-[12px] tracking-[1px] text-ink-sub">
-              {countChars(draft.memo.trim()).toLocaleString()}/{MEMO_MAX_LENGTH.toLocaleString()}
-            </span>
-          }
-          describedBy="memo-count"
-          value={draft.memo}
-          // 최소 4줄. 남은 공간은 grow로 채우고, 사진·오류 문구로 내용이 길어지면 4줄을 남기고 페이지가 스크롤된다
-          rows={4}
-          placeholder="오늘 하루를 길게 남겨 두세요"
-          disabled={isSaving}
-          error={errors.memo}
-          onChange={(value) => updateField("memo", value)}
-          className="grow"
-        />
+        <RecordMemoField value={draft.memo} error={errors.memo} isDisabled={isSaving} onChange={(value) => updateField("memo", value)} />
 
         <RecordFormFooter
           notice={notice}
