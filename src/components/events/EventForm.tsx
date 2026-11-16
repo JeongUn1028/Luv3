@@ -2,25 +2,18 @@
 
 import { useState, type ReactElement, type SubmitEvent } from "react";
 import { AuthorTag } from "@/components/AuthorTag";
-import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
-import { EventRecordAction } from "@/components/events/EventRecordAction";
 import { FormFooter } from "@/components/FormFooter";
-import { DateField, FIELD_LABEL_CLASS_NAME, TextAreaField, TextField } from "@/components/FormField";
+import { DateField, TextAreaField, TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { ReloadLatestButton } from "@/components/ReloadLatestButton";
+import { SaveButton } from "@/components/SaveButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
-import { getEventKinds, getHighlightClassNames } from "@/lib/calendar/highlight";
-import { toKstDate } from "@/lib/anniversary";
-import { formatDayHeading, isCalendarMonthUrl, toCalendarHref } from "@/lib/calendar/month";
-import { DELETING_KEYS, deletingStore, toEventDayPrefix } from "@/lib/deleting";
-import { isRepeatRule } from "@/lib/events/calendar";
+import { toCalendarHref } from "@/lib/calendar/month";
 import {
   EVENT_MEMO_MAX_LENGTH,
   EVENT_PLACE_MAX_LENGTH,
   EVENT_TITLE_MAX_LENGTH,
   changeDraftScope,
-  getDateAfterSave,
-  getMinDateAfterStart,
   validateEventDraft,
   type EventDraft,
   type EventDraftErrors,
@@ -29,26 +22,13 @@ import {
   type ScopeValues,
 } from "@/lib/events/form";
 import type { EventRecordLink } from "@/lib/events/record-link";
-import { canShowEventBeforeSave, pendingEventStore, toPendingCalendarEvent } from "@/lib/events/pending";
-import { formatEventPeriod, formatRepeatRule, REPEAT_RULES } from "@/lib/events/recurrence";
-import { deleteEvent, saveEvent } from "@/lib/events/save";
 import { showInvalidFields } from "@/lib/focus-invalid-field";
-import { clearError, clearFieldError, isResolvedFieldNotice, isSameFormValue, toPeriodEndDate } from "@/lib/form";
+import { clearError, clearFieldError, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
-import { requestPartnerPush } from "@/lib/push/request-partner-push";
-import { toFailedSaveFields } from "@/lib/revision";
-import { createClient } from "@/lib/supabase/client";
-import { SaveButton } from "@/components/SaveButton";
-
-const choiceClassName =
-  "flex h-[51px] min-w-0 items-center justify-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-[15px] text-ink-sub has-checked:border-accent has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent has-disabled:opacity-50";
-
-const EDIT_SCOPES: { scope: EventEditScope; label: string }[] = [
-  { scope: "occurrence", label: "이 날만" },
-  { scope: "all", label: "전체" },
-];
-
-type TextField = "date" | "startTime" | "title" | "place" | "memo" | "repeatUntil" | "endDate";
+import { EventKindField, EventScopeField } from "./event-form/EventChoiceFields";
+import { EventFormActions } from "./event-form/EventFormActions";
+import { EventSpanFields, type EventTextField } from "./event-form/EventSpanFields";
+import { useEventSave } from "./event-form/use-event-save";
 
 const failedSaves = new Map<string, FailedSave<EventDraft>>();
 
@@ -70,32 +50,6 @@ interface EventFormProps {
   recordLink?: EventRecordLink | undefined;
 }
 
-/** 삭제 확인 창의 문구 */
-const toDeleteDialog = (
-  { date, endDate, title, repeatRule }: EventDraft,
-  occurrenceDate: string | undefined,
-): { title: string; description: string } => {
-  if (occurrenceDate) {
-    return {
-      title: "이 날 일정을 지울까요?",
-      description: `"${title}" 일정의 ${formatDayHeading(occurrenceDate)} 하루만 두 사람 캘린더에서 지워져요.`,
-    };
-  }
-  if (repeatRule) {
-    return {
-      title: "반복 일정 전체를 지울까요?",
-      description: `"${title}" 일정의 모든 날이 두 사람 캘린더에서 지워져요. 따로 고친 날도 함께 지워져요.`,
-    };
-  }
-  if (endDate) {
-    return {
-      title: "기간 일정을 지울까요?",
-      description: `"${title}" 일정의 ${formatEventPeriod({ start: date, end: endDate })} 모든 날이 두 사람 캘린더에서 지워져요.`,
-    };
-  }
-  return { title: "이 일정을 지울까요?", description: `"${title}" 일정이 두 사람 캘린더에서 모두 지워져요.` };
-};
-
 /** 공유 캘린더 일정 추가·수정 폼 */
 export const EventForm = ({
   initialDraft,
@@ -109,7 +63,7 @@ export const EventForm = ({
 }: EventFormProps): ReactElement => {
   // 캘린더에서 고른 날마다 다른 폼이다. 다른 날의 실패한 내용이 채워지지 않게 날짜까지 구분한다
   const formKey = `event:${eventId ? `${eventId}:${occurrence?.date ?? ""}` : `new:${initialDraft.date}`}`;
-  const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "일정을", failedSaves });
+  const { failedSave, ...leavableSave } = useLeavableSave({ formKey, subject: "일정을", failedSaves });
   const [draft, setDraft] = useState(failedSave?.draft ?? initialDraft);
   // 쓴 내용이 있는지 견줄 처음 내용. 상대가 고쳐 화면을 새로 받아도 폼은 처음 내용 그대로라 이 값과 견준다
   const [baseDraft, setBaseDraft] = useState(initialDraft);
@@ -119,30 +73,29 @@ export const EventForm = ({
   const [notice, setNotice] = useState(failedSave?.message);
   // 칸 오류를 모두 고치면 저장을 다시 누르기 전이라도 안내를 지운다. 효과로 지우면 한 번 더 그려지므로 그리는 중에 맞춘다
   if (isResolvedFieldNotice(notice, errors)) setNotice(undefined);
-  const [isSaving, setIsSaving] = useState(false);
-  // 이미 쓴 기록을 이으면 화면을 새로 받지 않고 버튼만 바꾼다. 새로 받으면 폼을 새로 그려 고치던 내용이 사라진다(#237)
-  const [linkedRecordId, setLinkedRecordId] = useState<string>();
-  const shownRecordLink: EventRecordLink | undefined = linkedRecordId ? { kind: "view", recordId: linkedRecordId } : recordLink;
-  // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알리므로 묻지 않는다(#104)
-  const shouldConfirmLeave = !isSameFormValue(toWrittenFields(draft), toWrittenFields(baseDraft)) && !isSaving;
   // 캘린더로 돌아가면 일정 날짜가 속한 달을 열고 그날을 고른다
   const backDate = viewedDate ?? initialDraft.date;
   const backHref = toCalendarHref({ date: backDate });
+  const { isSaving, save } = useEventSave({
+    initialDraft,
+    eventId,
+    pendingAuthorNickname: eventId ? authorNickname : ownerNickname,
+    occurrence,
+    viewedDate,
+    backDate,
+    setDraft,
+    setNotice,
+    leavableSave,
+  });
+  // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알리므로 묻지 않는다(#104)
+  const shouldConfirmLeave = !isSameFormValue(toWrittenFields(draft), toWrittenFields(baseDraft)) && !isSaving;
   const isOccurrenceScope = draft.scope === "occurrence";
-  // 이 날만 고칠 때와 따로 나온 일정은 반복과 기간을 바꾸지 않는다
-  const canEditSpan = !isOccurrenceScope && !isDetached;
-  const isPeriod = draft.endDate !== undefined;
-  const dateLabel = isPeriod ? "시작 날짜" : "날짜";
+  const dateLabel = draft.endDate === undefined ? "날짜" : "시작 날짜";
   const deleteOccurrenceDate = isOccurrenceScope ? occurrence?.date : undefined;
 
-  const updateField = (field: TextField, value: string) => {
+  const updateField = (field: EventTextField, value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
     setErrors((current) => clearFieldError(current, field));
-  };
-
-  const handlePeriodChange = (isChecked: boolean) => {
-    setDraft((current) => ({ ...current, endDate: toPeriodEndDate(isChecked) }));
-    setErrors((current) => clearError(current, "endDate"));
   };
 
   const changeScope = (scope: EventEditScope) => {
@@ -157,78 +110,14 @@ export const EventForm = ({
     event.preventDefault();
     if (isSaving) return;
     if (showInvalidFields({ form: event.currentTarget, errors: validateEventDraft(draft), setErrors, setNotice })) return;
-
-    setNotice(undefined);
-    setIsSaving(true);
-    // 반복을 바꾸면 하루씩 지웠던 날이 다시 생길 수 있다. 지운 지 오래라 캘린더도 이미 새로 받았으므로 숨김을 푼다(#346)
-    if (eventId) deletingStore.restoreStartingWith(toEventDayPrefix(eventId));
-    const newEventId = draft.newEventId ?? crypto.randomUUID();
-    // 시도마다 새 판 번호를 쓴다. 내용이 바뀌면 판 번호도 바뀌어야 열어 둔 상대의 화면이 알아챈다
-    const revision = crypto.randomUUID();
-    const dateAfterSave = getDateAfterSave(draft, { occurrenceDate: occurrence?.date, viewedDate });
-    const savedHref = toCalendarHref({ date: dateAfterSave });
-    // 하루짜리 일정만 저장을 기다리지 않고 캘린더에 먼저 그린다. 반복·기간·"이 날만 고치기"는 저장이 끝난 뒤 새로 받는다(#345)
-    const pendingId = eventId ?? newEventId;
-    const isShownBeforeSave = canShowEventBeforeSave({ draft, initialDraft });
-    if (isShownBeforeSave) {
-      pendingEventStore.add({
-        id: pendingId,
-        event: toPendingCalendarEvent({ id: pendingId, draft, authorNickname: eventId ? authorNickname : ownerNickname }),
-        revision,
-        // 응답만 끊겨 다시 저장하는 새 일정은 앞 시도가 저장됐을 수 있어 고치기로 다룬다. 서버에 그 id가 들어와도 이번 내용이 따라잡을 때까지 덮는다
-        previousRevisions: draft.expectedRevisions ?? [],
-        isNew: !eventId && draft.newEventId === undefined,
-      });
-    }
-    // 저장을 기다리지 않고 캘린더로 돌아간다. 앞 화면이 같은 달을 보던 캘린더이고 폼을 연 그날로 돌아가면 뒤로 가서 숨겨 둔 캘린더를 그대로 보여 주고,
-    // 저장할 날이 다른 날·다른 달이면 그날을 고른 캘린더 주소로 옮긴다
-    const hasReturned = beginSave({
-      returnTo: savedHref,
-      canGoBackTo: (url) => dateAfterSave === backDate && isCalendarMonthUrl(url, dateAfterSave.slice(0, 7), toKstDate(new Date())),
-    });
-    // 인터넷이 끊겨 폼에 남으면 캘린더에 먼저 그릴 일이 없다(저장은 실패한다)
-    if (!hasReturned) pendingEventStore.discard(pendingId, revision);
-    const supabase = createClient();
-    const failure = await saveEvent({
-      events: supabase.from("events"),
-      detachOccurrence: (args) => supabase.rpc("detach_event_occurrence", args),
+    await save({
       draft,
-      eventId,
-      occurrenceDate: occurrence?.date,
-      newEventId,
-      revision,
-    });
-    if (failure) {
-      pendingEventStore.discard(pendingId, revision);
-      const failedFields = {
-        // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다(이 날만 고치면 따로 나올 일정의 id)
-        newEventId,
-        ...toFailedSaveFields({ failure, expectedRevisions: draft.expectedRevisions, revision }),
-      };
-      setDraft((current) => ({ ...current, ...failedFields }));
-      setNotice(failure.message);
-      setIsSaving(false);
-      finishFailed({ draft: { ...draft, ...failedFields }, ...failure });
-      return;
-    }
-    // 새로 추가한 일정만 알린다. 고친 일정과 "이 날만 고치기"로 따로 나온 일정은 알리지 않는다(#364)
-    if (!eventId) requestPartnerPush({ kind: "event", id: newEventId });
-    if (isShownBeforeSave) pendingEventStore.markSaved(pendingId, revision);
-    finishSaved({
-      href: savedHref,
       reset: () => {
         setDraft(initialDraft);
         setBaseDraft(initialDraft);
         setScopeValues({});
-        setIsSaving(false);
       },
     });
-  };
-
-  const handleDelete = async () => {
-    if (!eventId) return;
-    const supabase = createClient();
-    await deleteEvent({ events: supabase.from("events"), exceptions: supabase.from("event_exceptions"), eventId, occurrenceDate: deleteOccurrenceDate });
   };
 
   return (
@@ -242,26 +131,14 @@ export const EventForm = ({
           titleAddon={authorNickname && <AuthorTag nickname={authorNickname} className="ml-2" />}
           actions={
             eventId && (
-              <>
-                {shownRecordLink && (
-                  <EventRecordAction
-                    eventId={eventId}
-                    link={shownRecordLink}
-                    onLinked={setLinkedRecordId}
-                    className="press-icon flex h-11 shrink-0 items-center px-3 text-[14px] text-ink-sub hover:text-ink"
-                  />
-                )}
-                <ConfirmDeleteButton
-                  {...toDeleteDialog(initialDraft, deleteOccurrenceDate)}
-                  subject="일정을"
-                  noticeKey={`delete:${formKey}`}
-                  onConfirm={handleDelete}
-                  returnTo={backHref}
-                  canGoBackTo={(url) => isCalendarMonthUrl(url, backDate.slice(0, 7), toKstDate(new Date()))}
-                  deletingKey={DELETING_KEYS.event(eventId, deleteOccurrenceDate)}
-                  failureMessage="일정을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
-                />
-              </>
+              <EventFormActions
+                eventId={eventId}
+                formKey={formKey}
+                initialDraft={initialDraft}
+                deleteOccurrenceDate={deleteOccurrenceDate}
+                backDate={backDate}
+                recordLink={recordLink}
+              />
             )
           }
         />
@@ -269,26 +146,7 @@ export const EventForm = ({
     >
       {/* 칸이 많아 간격을 좁혀야 메모 4줄이 15 Pro 화면에 들어온다. 남은 높이는 메모 칸이 채워 기기마다 저장 버튼이 같은 자리에 온다(#57) */}
       <form onSubmit={handleSubmit} noValidate className="mt-3 flex flex-1 flex-col gap-4">
-        {occurrence && (
-          <fieldset className="flex flex-col">
-            <legend className={FIELD_LABEL_CLASS_NAME}>고칠 범위</legend>
-            <div className="mt-2 grid grid-cols-2 gap-2">
-              {EDIT_SCOPES.map(({ scope, label }) => (
-                <label key={scope} className={choiceClassName}>
-                  <input
-                    type="radio"
-                    name="event-scope"
-                    checked={draft.scope === scope}
-                    disabled={isSaving}
-                    onChange={() => changeScope(scope)}
-                    className="sr-only"
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-        )}
+        {occurrence && <EventScopeField scope={draft.scope} isDisabled={isSaving} onChange={changeScope} />}
 
         <TextField
           id="event-title"
@@ -301,30 +159,13 @@ export const EventForm = ({
           onChange={(value) => updateField("title", value)}
         />
 
-        <fieldset className="flex flex-col">
-          <legend className={FIELD_LABEL_CLASS_NAME}>누구 일정</legend>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            {getEventKinds(ownerNickname).map(({ isTogether, highlight, label }) => (
-              <label key={highlight} className={choiceClassName}>
-                <input
-                  type="radio"
-                  name="event-kind"
-                  checked={draft.isTogether === isTogether}
-                  // 함께 여부는 반복 전체에 하나다
-                  disabled={isSaving || isOccurrenceScope}
-                  onChange={() => setDraft((current) => ({ ...current, isTogether }))}
-                  className="sr-only"
-                />
-                {/* 캘린더 형광펜과 같은 색 띠로, 고른 종류가 캘린더에서 어떤 색으로 보일지 알려 준다 */}
-                <span
-                  aria-hidden="true"
-                  className={`h-2.5 w-4 shrink-0 -rotate-2 rounded-[2px] ${getHighlightClassNames({ highlight, isCurrentMonth: true }).band}`}
-                />
-                <span className="truncate">{label}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <EventKindField
+          ownerNickname={ownerNickname}
+          isTogether={draft.isTogether}
+          // 함께 여부는 반복 전체에 하나다
+          isDisabled={isSaving || isOccurrenceScope}
+          onChange={(isTogether) => setDraft((current) => ({ ...current, isTogether }))}
+        />
 
         <DateField
           id="event-date"
@@ -335,105 +176,16 @@ export const EventForm = ({
           onChange={(date) => updateField("date", date)}
         />
 
-        <div className="flex flex-col">
-          {/* 기간과 반복을 같은 줄에 두어 폼 높이가 늘지 않게 한다. 일정 폼은 높이 여유가 거의 없다(#57) */}
-          <div className="flex h-11 items-center justify-between gap-3">
-            <div className="flex items-center gap-4">
-              <label className="flex h-11 items-center gap-2 text-[15px] text-ink">
-                <input
-                  type="checkbox"
-                  checked={draft.isAllDay}
-                  disabled={isSaving}
-                  onChange={(event) => {
-                    const isAllDay = event.target.checked;
-                    setDraft((current) => ({ ...current, isAllDay }));
-                    setErrors((current) => clearError(current, "startTime"));
-                  }}
-                  className="size-5 accent-accent"
-                />
-                종일
-              </label>
-              {canEditSpan && (
-                <label className="flex h-11 items-center gap-2 text-[15px] text-ink has-disabled:opacity-50">
-                  <input
-                    type="checkbox"
-                    checked={isPeriod}
-                    disabled={isSaving || Boolean(draft.repeatRule)}
-                    onChange={(event) => handlePeriodChange(event.target.checked)}
-                    className="size-5 accent-accent"
-                  />
-                  기간
-                </label>
-              )}
-            </div>
-            {canEditSpan && (
-              <label htmlFor="event-repeat" className="flex h-11 min-w-0 items-center gap-2 text-[13px] text-ink-sub has-disabled:opacity-50">
-                반복
-                <select
-                  id="event-repeat"
-                  value={draft.repeatRule ?? ""}
-                  disabled={isSaving || isPeriod}
-                  onChange={(event) => {
-                    const { value } = event.target;
-                    setDraft((current) => ({ ...current, repeatRule: isRepeatRule(value) ? value : undefined }));
-                    setErrors((current) => clearError(current, "repeatUntil"));
-                  }}
-                  className="h-11 min-w-0 rounded-[10px] bg-transparent text-ink focus:outline-accent"
-                >
-                  <option value="">안 함</option>
-                  {REPEAT_RULES.map((rule) => (
-                    <option key={rule} value={rule}>
-                      {formatRepeatRule(rule)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-          </div>
-          {canEditSpan && (isPeriod || draft.repeatRule) && (
-            <p className={FIELD_LABEL_CLASS_NAME}>기간과 반복은 함께 쓸 수 없어요.</p>
-          )}
-          {canEditSpan && isPeriod && (
-            <DateField
-              id="event-end-date"
-              label="끝 날짜"
-              min={getMinDateAfterStart(draft.date)}
-              value={draft.endDate ?? ""}
-              openDate={draft.date}
-              isDisabled={isSaving}
-              error={errors.endDate}
-              onChange={(date) => updateField("endDate", date)}
-              className="mt-3"
-            />
-          )}
-          {!draft.isAllDay && (
-            <TextField
-              id="event-time"
-              label="시간"
-              type="time"
-              value={draft.startTime}
-              disabled={isSaving}
-              error={errors.startTime}
-              onChange={(value) => updateField("startTime", value)}
-              className="mt-3"
-            />
-          )}
-          {canEditSpan && draft.repeatRule && (
-            <DateField
-              id="event-repeat-until"
-              label="끝나는 날"
-              hint="선택"
-              min={getMinDateAfterStart(draft.date)}
-              value={draft.repeatUntil}
-              openDate={draft.date}
-              isClearable
-              isDisabled={isSaving}
-              error={errors.repeatUntil}
-              onChange={(date) => updateField("repeatUntil", date)}
-              className="mt-3"
-            />
-          )}
-        </div>
+        <EventSpanFields
+          draft={draft}
+          errors={errors}
+          isDisabled={isSaving}
+          // 이 날만 고칠 때와 따로 나온 일정은 반복과 기간을 바꾸지 않는다
+          canEditSpan={!isOccurrenceScope && !isDetached}
+          setDraft={setDraft}
+          setErrors={setErrors}
+          onFieldChange={updateField}
+        />
 
         <TextField
           id="event-place"
