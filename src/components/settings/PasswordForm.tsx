@@ -9,7 +9,7 @@ import {
   PASSWORD_CHANGE_UNAVAILABLE_MESSAGE,
   PASSWORD_MIN_LENGTH,
   WRONG_CURRENT_PASSWORD_MESSAGE,
-  getPasswordChangeErrorMessage,
+  changePassword,
   validatePasswordChange,
   type PasswordChangeErrors,
 } from "@/lib/auth/password-change";
@@ -22,22 +22,9 @@ import { createClient } from "@/lib/supabase/client";
 const NOTICE_FORM_KEY = "password";
 const SAVED_TITLE = "비밀번호를 바꿨어요";
 
-interface ChangePasswordParams {
-  email: string;
-  currentPassword: string;
-  newPassword: string;
-}
-
-/** 비밀번호를 바꾼다. 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
-const changePassword = async ({ email, currentPassword, newPassword }: ChangePasswordParams): Promise<string | undefined> => {
-  const { auth } = createClient();
-  // 서버의 현재 비밀번호 검사(`current_password`)는 꺼져 있으면 틀린 값도 그대로 통과시키므로, 설정과 상관없이 로그인으로 먼저 확인한다.
-  // 방금 만든 세션으로 바꾸므로 secure_password_change를 켜도 확인 메일을 요구받지 않는다
-  const { error: signInError } = await auth.signInWithPassword({ email, password: currentPassword });
-  if (signInError) return getPasswordChangeErrorMessage(signInError);
-  const { error } = await auth.updateUser({ password: newPassword, current_password: currentPassword });
-  return error ? getPasswordChangeErrorMessage(error) : undefined;
-};
+// async: 클라이언트를 만들다 던져도 거절된 약속이 되어 부르는 쪽의 catch가 받는다
+const changeOwnPassword = async (passwords: { email: string; currentPassword: string; newPassword: string }): Promise<string | undefined> =>
+  changePassword({ auth: createClient().auth, ...passwords });
 
 interface PasswordFieldProps {
   id: string;
@@ -116,7 +103,7 @@ export const PasswordForm = ({ email }: PasswordFormProps): ReactElement => {
 
     setIsPending(true);
     setMessage(undefined);
-    const failure = await changePassword({ email, currentPassword, newPassword }).catch(() => PASSWORD_CHANGE_UNAVAILABLE_MESSAGE);
+    const failure = await changeOwnPassword({ email, currentPassword, newPassword }).catch(() => PASSWORD_CHANGE_UNAVAILABLE_MESSAGE);
     setIsPending(false);
 
     if (!failure) {

@@ -1,12 +1,14 @@
 import { readFileSync } from "node:fs";
 import { parse } from "smol-toml";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
+  changePassword,
   PASSWORD_CHANGE_UNAVAILABLE_MESSAGE,
   PASSWORD_MIN_LENGTH,
   WRONG_CURRENT_PASSWORD_MESSAGE,
   getPasswordChangeErrorMessage,
   validatePasswordChange,
+  type PasswordChangeAuth,
 } from "./password-change";
 
 const VALID_FIELDS = {
@@ -104,5 +106,56 @@ describe("Supabase 설정", () => {
     const config = parse(readFileSync("supabase/config.toml", "utf8")) as { auth: { minimum_password_length: number } };
 
     expect(config.auth.minimum_password_length).toBe(PASSWORD_MIN_LENGTH);
+  });
+});
+
+interface FakeAuthParams {
+  signInError?: { status?: number; code?: string } | null;
+  updateError?: { status?: number; code?: string } | null;
+}
+
+/** 부른 값을 기록하고 정해 둔 결과를 돌려주는 가짜 auth */
+const createFakeAuth = ({ signInError = null, updateError = null }: FakeAuthParams = {}) => {
+  const auth = {
+    signInWithPassword: vi.fn(async () => ({ error: signInError })),
+    updateUser: vi.fn(async () => ({ error: updateError })),
+  } satisfies PasswordChangeAuth;
+  return auth;
+};
+
+const PASSWORDS = { email: "me@example.com", currentPassword: "current-password-1", newPassword: "new-password-1234" };
+
+describe("changePassword", () => {
+  it("현재 비밀번호로 로그인해 확인한 뒤 새 비밀번호로 바꾸고, 성공하면 문구가 없다", async () => {
+    // Arrange
+    const auth = createFakeAuth();
+
+    // Act
+    const message = await changePassword({ auth, ...PASSWORDS });
+
+    // Assert
+    expect(message).toBeUndefined();
+    expect(auth.signInWithPassword).toHaveBeenCalledWith({ email: "me@example.com", password: "current-password-1" });
+    expect(auth.updateUser).toHaveBeenCalledWith({ password: "new-password-1234", current_password: "current-password-1" });
+  });
+
+  it("현재 비밀번호가 틀리면 바꾸지 않고 틀렸다고 알린다(서버 검사가 꺼져 있어도)", async () => {
+    // Arrange
+    const auth = createFakeAuth({ signInError: { status: 400, code: "invalid_credentials" } });
+
+    // Act
+    const message = await changePassword({ auth, ...PASSWORDS });
+
+    // Assert
+    expect(message).toBe(WRONG_CURRENT_PASSWORD_MESSAGE);
+    expect(auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("바꾸기가 거절되면 그 이유에 맞는 문구를 돌려준다", async () => {
+    const auth = createFakeAuth({ updateError: { status: 422, code: "same_password" } });
+
+    const message = await changePassword({ auth, ...PASSWORDS });
+
+    expect(message).toBe("현재 비밀번호와 다른 비밀번호를 적어 주세요.");
   });
 });

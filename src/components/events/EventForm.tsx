@@ -37,6 +37,7 @@ import { clearError, FIX_FIELDS_NOTICE, isResolvedFieldNotice, isSameFormValue }
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
+import { createClient } from "@/lib/supabase/client";
 import { SaveButton } from "@/components/SaveButton";
 
 const choiceClassName =
@@ -203,7 +204,16 @@ export const EventForm = ({
     });
     // 인터넷이 끊겨 폼에 남으면 캘린더에 먼저 그릴 일이 없다(저장은 실패한다)
     if (!hasReturned) pendingEventStore.discard(pendingId, revision);
-    const failure = await saveEvent({ draft, eventId, occurrenceDate: occurrence?.date, newEventId, revision });
+    const supabase = createClient();
+    const failure = await saveEvent({
+      events: supabase.from("events"),
+      detachOccurrence: (args) => supabase.rpc("detach_event_occurrence", args),
+      draft,
+      eventId,
+      occurrenceDate: occurrence?.date,
+      newEventId,
+      revision,
+    });
     if (failure) {
       pendingEventStore.discard(pendingId, revision);
       const failedFields = {
@@ -233,7 +243,8 @@ export const EventForm = ({
 
   const handleDelete = async () => {
     if (!eventId) return;
-    await deleteEvent({ eventId, occurrenceDate: deleteOccurrenceDate });
+    const supabase = createClient();
+    await deleteEvent({ events: supabase.from("events"), exceptions: supabase.from("event_exceptions"), eventId, occurrenceDate: deleteOccurrenceDate });
   };
 
   return (

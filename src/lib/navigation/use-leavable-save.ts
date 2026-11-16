@@ -2,6 +2,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useRef, useState } from "react";
 import { isScreenOutdatedAfterFailure, type SaveFailure } from "@/lib/save-outcome";
 import { goBackInHistory, holdDocument } from "./history-back";
+import { isOnReturnedScreen, isWatchingForm, shouldReturnNow, toSavedNotice, toSaveFailedNotice } from "./leave-result";
 import { refreshOutsideForm } from "./refresh-outside-form";
 import { refreshSignedInScreen } from "./refresh-signed-in";
 import { saveNoticeStore } from "./save-notices";
@@ -60,9 +61,6 @@ export interface LeavableSave<Draft> {
   finishFailed: (params: FinishFailedParams<Draft>) => void;
 }
 
-/** 지금 보는 화면의 경로가 이 주소의 경로인지. 쿼리는 견주지 않는다(같은 목록·캘린더면 저장한 내용을 보여 준다) */
-const isCurrentPath = (href: string | undefined): boolean => href !== undefined && window.location.pathname === new URL(href, window.location.href).pathname;
-
 /**
  * 저장하는 사이 다른 화면으로 옮겨도 끌고 오지 않는 폼 저장 도우미(#104).
  * 폼이 숨겨지면(Activity) layout effect가 정리되므로, 주소를 비교하지 않고도 지금 이 폼을 보고 있는지 알 수 있다.
@@ -103,7 +101,7 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
       releaseDocumentRef.current?.();
       releaseDocumentRef.current = holdDocument();
       // 인터넷이 끊겼으면 저장은 실패하고, 돌아간 뒤에는 폼을 다시 열 수 없다. 폼에 남아 그 자리에서 알린다
-      hasReturnedRef.current = returnTo !== undefined && navigator.onLine;
+      hasReturnedRef.current = shouldReturnNow({ returnTo, isOnline: navigator.onLine });
       if (!hasReturnedRef.current || returnTo === undefined) return false;
       if (!goBackInHistory({ canReturnTo: canGoBackTo })) startTransition(() => router.replace(returnTo, { transitionTypes: BACK_TRANSITION }));
       return true;
@@ -111,7 +109,7 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
     finishSaved: ({ href, reset }) => {
       releaseDocumentRef.current?.();
       const hasReturned = hasReturnedRef.current;
-      const isVisible = isVisibleRef.current && !hasReturned;
+      const isVisible = isWatchingForm({ isVisible: isVisibleRef.current, hasReturned });
       startTransition(() => {
         if (isVisible) {
           router.replace(href, { transitionTypes: BACK_TRANSITION });
@@ -124,8 +122,8 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
         reset();
       });
       // 정해진 주소로 옮기는 이동이 끝나기 전에 저장이 끝나면 아직 폼 주소다. 곧 돌아갈 화면이 보여 주므로 알리지 않는다
-      const isOnReturnedScreen = hasReturned && (isCurrentPath(returnToRef.current) || isCurrentPath(formHrefRef.current));
-      if (!isVisible && !isOnReturnedScreen) saveNoticeStore.add({ formKey, isFailure: false, title: `${subject} 저장했어요`, href });
+      const isOnReturned = isOnReturnedScreen({ hasReturned, current: new URL(window.location.href), returnTo: returnToRef.current, startHref: formHrefRef.current });
+      if (!isVisible && !isOnReturned) saveNoticeStore.add(toSavedNotice({ formKey, subject, href }));
     },
     finishFailed: ({ draft, message, ...failure }) => {
       releaseDocumentRef.current?.();
@@ -136,15 +134,9 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
         markAllScreensStale();
         if (hasReturnedRef.current) void refreshSignedInScreen(() => startTransition(() => router.refresh()));
       }
-      if (isVisibleRef.current && !hasReturnedRef.current) return;
+      if (isWatchingForm({ isVisible: isVisibleRef.current, hasReturned: hasReturnedRef.current })) return;
       if (!isGone) failedSaves.set(formKey, { draft, message });
-      saveNoticeStore.add({
-        formKey,
-        isFailure: true,
-        title: `${subject} 저장하지 못했어요`,
-        description: isGone ? message : "쓴 내용은 그대로 있어요",
-        href: formHrefRef.current,
-      });
+      saveNoticeStore.add(toSaveFailedNotice({ formKey, subject, message, isGone, formHref: formHrefRef.current }));
     },
   };
 };

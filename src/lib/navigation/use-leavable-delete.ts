@@ -1,6 +1,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useRef } from "react";
 import { goBackInHistory, holdDocument } from "./history-back";
+import { isBackOnScreen, isOnReturnedScreen, shouldReturnNow, toDeletedNotice, toDeleteFailedNotice } from "./leave-result";
 import { refreshOutsideForm } from "./refresh-outside-form";
 import { saveNoticeStore } from "./save-notices";
 import { BACK_TRANSITION } from "./transition";
@@ -40,9 +41,6 @@ interface LeavableDelete {
   finishDeleteFailed: (canShowHere: boolean) => boolean;
 }
 
-/** 지금 보는 화면의 경로가 이 주소의 경로인지. 쿼리는 견주지 않는다 */
-const isCurrentPath = (href: string | undefined): boolean => href !== undefined && window.location.pathname === new URL(href, window.location.href).pathname;
-
 /**
  * 지우는 사이 다른 화면으로 옮겨도(아이폰 가장자리 밀기 등) 결과를 알리고 끌고 오지 않는 도우미(#261).
  * 저장의 `useLeavableSave`와 같이, 화면이 숨겨지면(Activity) layout effect가 정리되는 것으로 지금 이 화면을 보고 있는지 안다.
@@ -76,7 +74,7 @@ export const useLeavableDelete = ({ noticeKey, subject }: UseLeavableDeleteParam
   }, [noticeKey]);
 
   /** 지금 이 화면에 있는지. 바로 돌아갔으면 돌아갔다가 다시 이 화면으로 왔을 때만 그렇다 */
-  const isHere = (): boolean => isVisibleRef.current && (!hasReturnedRef.current || wasHiddenRef.current);
+  const isHere = (): boolean => isBackOnScreen({ isVisible: isVisibleRef.current, hasReturned: hasReturnedRef.current, wasHidden: wasHiddenRef.current });
 
   return {
     beginDelete: ({ returnTo, canGoBackTo } = {}) => {
@@ -88,7 +86,7 @@ export const useLeavableDelete = ({ noticeKey, subject }: UseLeavableDeleteParam
       releaseDocumentRef.current?.();
       releaseDocumentRef.current = holdDocument();
       // 인터넷이 끊겼으면 지우기는 실패하고, 돌아간 뒤에는 다시 지울 수 없다. 화면에 남아 그 자리에서 알린다
-      hasReturnedRef.current = returnTo !== undefined && navigator.onLine;
+      hasReturnedRef.current = shouldReturnNow({ returnTo, isOnline: navigator.onLine });
       if (!hasReturnedRef.current || returnTo === undefined) return false;
       if (!goBackInHistory({ canReturnTo: canGoBackTo })) startTransition(() => router.replace(returnTo, { transitionTypes: BACK_TRANSITION }));
       return true;
@@ -99,22 +97,20 @@ export const useLeavableDelete = ({ noticeKey, subject }: UseLeavableDeleteParam
       // 지금 보는 목록에 지운 항목이 남아 있을 수 있다. 다른 폼을 쓰는 중이면 쓰던 내용이 사라지므로 돌아갈 때로 미룬다
       refreshOutsideForm(() => startTransition(() => router.refresh()));
       // 돌아가는 이동이 끝나기 전이면 아직 이 화면 주소다. 곧 돌아갈 화면이 숨겨 보여 주므로 알리지 않는다
-      const isOnReturnedScreen = hasReturnedRef.current && (isCurrentPath(returnToRef.current) || isCurrentPath(startHrefRef.current));
-      if (!isOnReturnedScreen) saveNoticeStore.add({ formKey: noticeKey, isFailure: false, title: `${subject} 지웠어요` });
+      const isOnReturned = isOnReturnedScreen({
+        hasReturned: hasReturnedRef.current,
+        current: new URL(window.location.href),
+        returnTo: returnToRef.current,
+        startHref: startHrefRef.current,
+      });
+      if (!isOnReturned) saveNoticeStore.add(toDeletedNotice({ noticeKey, subject }));
       return false;
     },
     finishDeleteFailed: (canShowHere) => {
       releaseDocumentRef.current?.();
       const isHereNow = isHere();
       if (isHereNow && canShowHere) return true;
-      saveNoticeStore.add({
-        formKey: noticeKey,
-        isFailure: true,
-        title: `${subject} 지우지 못했어요`,
-        description: isHereNow ? "잠시 후 다시 시도해 주세요" : "돌아가서 다시 시도해 주세요",
-        // 이미 그 화면에 있으면 돌아갈 곳이 없다
-        href: isHereNow ? undefined : startHrefRef.current,
-      });
+      saveNoticeStore.add(toDeleteFailedNotice({ noticeKey, subject, isHere: isHereNow, startHref: startHrefRef.current }));
       return false;
     },
   };

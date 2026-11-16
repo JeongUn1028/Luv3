@@ -1,6 +1,5 @@
-import { saveRowAtRevision } from "@/lib/revision";
+import { saveRowAtRevision, type RevisionedTable } from "@/lib/revision";
 import { toSaveFailure, type SaveFailure } from "@/lib/save-outcome";
-import { createClient } from "@/lib/supabase/client";
 
 const MESSAGES = {
   failedMessage: "저장하지 못했어요. 잠시 후 다시 시도해 주세요.",
@@ -9,6 +8,8 @@ const MESSAGES = {
 };
 
 interface SaveTodoParams {
+  /** `supabase.from("todos")` */
+  todos: RevisionedTable<{ content: string }>;
   /** 저장할 내용. 앞뒤 공백은 이미 뺀 값이다 */
   content: string;
   /** 고칠 항목의 id. 없으면 새 항목을 목록 맨 아래에 추가한다 */
@@ -27,9 +28,10 @@ interface SaveTodoParams {
  * 화면을 연 뒤 상대가 내용을 고쳤으면(판 번호가 `expectedRevisions`에 없으면) 저장하지 않고 `hasConflict`로 알린다.
  *
  * @returns 실패하면 화면에 보여 줄 내용, 성공하면 undefined
- * @example const failure = await saveTodo({ content: "벚꽃 보기", todoId, newTodoId: crypto.randomUUID(), expectedRevisions: [revision], revision: crypto.randomUUID() })
+ * @example
+ * const failure = await saveTodo({ todos: supabase.from("todos"), content: "벚꽃 보기", todoId, newTodoId: crypto.randomUUID(), expectedRevisions: [revision], revision: crypto.randomUUID() })
  */
-export const saveTodo = async ({ content, todoId, newTodoId, expectedRevisions, revision }: SaveTodoParams): Promise<SaveFailure | undefined> => {
-  const outcome = await saveRowAtRevision({ table: createClient().from("todos"), rowId: todoId, newRowId: newTodoId, values: { content }, expectedRevisions, revision });
+export const saveTodo = async ({ todos, content, todoId, newTodoId, expectedRevisions, revision }: SaveTodoParams): Promise<SaveFailure | undefined> => {
+  const outcome = await saveRowAtRevision({ table: todos, rowId: todoId, newRowId: newTodoId, values: { content }, expectedRevisions, revision });
   return toSaveFailure(outcome, MESSAGES);
 };

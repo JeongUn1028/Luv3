@@ -7,8 +7,12 @@ import { HOME_PATH, LOGIN_PATH, isPublicPath } from "@/lib/auth/paths";
 
 const CACHE_HEADERS = ["cache-control", "expires", "pragma"] as const;
 
-/** 갱신된 세션 쿠키와 캐시 금지 헤더를 리다이렉트 응답에도 옮긴다. 빠뜨리면 다음 요청에서 로그아웃된다. */
-const redirectWithSession = (target: URL, sessionResponse: NextResponse): NextResponse => {
+/**
+ * 갱신된 세션 쿠키와 캐시 금지 헤더를 리다이렉트 응답에도 옮긴다. 빠뜨리면 다음 요청에서 로그아웃된다.
+ *
+ * @example return redirectWithSession(new URL(HOME_PATH, request.url), response)
+ */
+export const redirectWithSession = (target: URL, sessionResponse: NextResponse): NextResponse => {
   const response = NextResponse.redirect(target);
   sessionResponse.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
   CACHE_HEADERS.forEach((header) => {
