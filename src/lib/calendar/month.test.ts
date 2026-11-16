@@ -7,6 +7,7 @@ import {
   getDefaultSelectedDate,
   getGridRange,
   groupByDate,
+  isCalendarMonthUrl,
   parseMonth,
   shiftMonth,
   toCalendarHref,
@@ -156,5 +157,23 @@ describe("toCalendarHref", () => {
 
   it("달과 날을 함께 주면 둘 다 그대로 쓴다", () => {
     expect(toCalendarHref({ month: "2026-12", date: "2026-11-20" })).toBe("/calendar?month=2026-12&date=2026-11-20");
+  });
+});
+
+describe("isCalendarMonthUrl", () => {
+  const toUrl = (path: string): URL => new URL(path, "https://luv3.test");
+
+  it("그 달을 보는 캘린더 주소면 true다", () => {
+    expect(isCalendarMonthUrl(toUrl("/calendar?month=2026-11&date=2026-11-20"), "2026-11", "2026-12-01")).toBe(true);
+  });
+
+  it("달이 없거나 틀린 캘린더 주소는 오늘의 달로 본다", () => {
+    expect(isCalendarMonthUrl(toUrl("/calendar"), "2026-12", "2026-12-01")).toBe(true);
+    expect(isCalendarMonthUrl(toUrl("/calendar?month=11월"), "2026-11", "2026-12-01")).toBe(false);
+  });
+
+  it("다른 달이거나 캘린더가 아니면 false다", () => {
+    expect(isCalendarMonthUrl(toUrl("/calendar?month=2026-10"), "2026-11", "2026-12-01")).toBe(false);
+    expect(isCalendarMonthUrl(toUrl("/?month=2026-11"), "2026-11", "2026-12-01")).toBe(false);
   });
 });

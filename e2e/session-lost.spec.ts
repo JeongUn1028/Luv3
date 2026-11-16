@@ -66,18 +66,23 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
     }
   });
 
-  test("일정을 저장할 때 창이 나오고 닫아도 적은 내용이 남아 있다", async ({ page }) => {
-    await openScreen(page, "/events/new", page.locator("#event-memo"));
-    await page.locator("#event-title").fill("E2E 저장하지 않는 일정");
+  test("일정을 저장할 때 창이 나오고 닫아도 로그인 화면으로 넘어가지 않고 적은 내용이 남아 있다고 알린다", async ({ page }) => {
+    // Arrange: 일정도 저장하면 뒤로 가기로 캘린더에 돌아가므로(#345) 캘린더에서 폼을 연다. 서버를 거쳐 옮기면 로그인 화면으로 넘어간다
+    await openScreen(page, "/calendar", page.locator("main").locator("visible=true").first());
+    await page.locator('main a[href^="/events/new?date="]').locator("visible=true").first().tap();
+    await page.locator("#event-title").locator("visible=true").fill("E2E 저장하지 않는 일정");
     await dropSession(page);
 
+    // Act
     await getSaveButton(page).click();
     await expect(getDialog(page)).toBeVisible();
     await getDialog(page).getByRole("button", { name: "닫기" }).click();
 
+    // Assert
     await expect(getDialog(page)).toBeHidden();
-    await expect(page.locator("#event-title")).toHaveValue("E2E 저장하지 않는 일정");
-    await expect(page.locator("main").getByRole("alert")).toContainText("저장하지 못했어요");
+    const notice = page.getByRole("alert").filter({ hasText: "일정을 저장하지 못했어요" });
+    await expect(notice).toContainText("쓴 내용은 그대로 있어요");
+    expect(new URL(page.url()).pathname).toBe("/calendar");
   });
 
   test("사진이 있는 기록을 저장할 때 다시 로그인하면 고른 사진이 남아 있다", async ({ page }) => {

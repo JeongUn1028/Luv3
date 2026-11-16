@@ -11,7 +11,8 @@ import { PageShell } from "@/components/PageShell";
 import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { getEventKinds, getHighlightClassNames } from "@/lib/calendar/highlight";
-import { formatDayHeading, toCalendarHref } from "@/lib/calendar/month";
+import { toKstDate } from "@/lib/anniversary";
+import { formatDayHeading, isCalendarMonthUrl, toCalendarHref } from "@/lib/calendar/month";
 import { isRepeatRule } from "@/lib/events/calendar";
 import {
   EVENT_MEMO_MAX_LENGTH,
@@ -28,6 +29,7 @@ import {
   type ScopeValues,
 } from "@/lib/events/form";
 import type { EventRecordLink } from "@/lib/events/record-link";
+import { canShowEventBeforeSave, pendingEventStore, toPendingCalendarEvent } from "@/lib/events/pending";
 import { formatEventPeriod, formatRepeatRule, REPEAT_RULES } from "@/lib/events/recurrence";
 import { deleteEvent, saveEvent } from "@/lib/events/save";
 import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
@@ -179,14 +181,37 @@ export const EventForm = ({
     }
     setErrors(nextErrors);
 
-    beginSave();
     setNotice(undefined);
     setIsSaving(true);
     const newEventId = draft.newEventId ?? crypto.randomUUID();
     // 시도마다 새 판 번호를 쓴다. 내용이 바뀌면 판 번호도 바뀌어야 열어 둔 상대의 화면이 알아챈다
     const revision = crypto.randomUUID();
+    const dateAfterSave = getDateAfterSave(draft, { occurrenceDate: occurrence?.date, viewedDate });
+    const savedHref = toCalendarHref({ date: dateAfterSave });
+    // 하루짜리 일정만 저장을 기다리지 않고 캘린더에 먼저 그린다. 반복·기간·"이 날만 고치기"는 저장이 끝난 뒤 새로 받는다(#345)
+    const pendingId = eventId ?? newEventId;
+    const isShownBeforeSave = canShowEventBeforeSave({ draft, initialDraft });
+    if (isShownBeforeSave) {
+      pendingEventStore.add({
+        id: pendingId,
+        event: toPendingCalendarEvent({ id: pendingId, draft, authorNickname: eventId ? authorNickname : ownerNickname }),
+        revision,
+        // 응답만 끊겨 다시 저장하는 새 일정은 앞 시도가 저장됐을 수 있어 고치기로 다룬다. 서버에 그 id가 들어와도 이번 내용이 따라잡을 때까지 덮는다
+        previousRevisions: draft.expectedRevisions ?? [],
+        isNew: !eventId && draft.newEventId === undefined,
+      });
+    }
+    // 저장을 기다리지 않고 캘린더로 돌아간다. 앞 화면이 같은 달을 보던 캘린더이고 폼을 연 그날로 돌아가면 뒤로 가서 숨겨 둔 캘린더를 그대로 보여 주고,
+    // 저장할 날이 다른 날·다른 달이면 그날을 고른 캘린더 주소로 옮긴다
+    const hasReturned = beginSave({
+      returnTo: savedHref,
+      canGoBackTo: (url) => dateAfterSave === backDate && isCalendarMonthUrl(url, dateAfterSave.slice(0, 7), toKstDate(new Date())),
+    });
+    // 인터넷이 끊겨 폼에 남으면 캘린더에 먼저 그릴 일이 없다(저장은 실패한다)
+    if (!hasReturned) pendingEventStore.discard(pendingId, revision);
     const failure = await saveEvent({ draft, eventId, occurrenceDate: occurrence?.date, newEventId, revision });
     if (failure) {
+      pendingEventStore.discard(pendingId, revision);
       const failedFields = {
         // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다(이 날만 고치면 따로 나올 일정의 id)
         newEventId,
@@ -200,8 +225,9 @@ export const EventForm = ({
     }
     // 새로 추가한 일정만 알린다. 고친 일정과 "이 날만 고치기"로 따로 나온 일정은 알리지 않는다(#364)
     if (!eventId) requestPartnerPush({ kind: "event", id: newEventId });
+    if (isShownBeforeSave) pendingEventStore.markSaved(pendingId, revision);
     finishSaved({
-      href: toCalendarHref({ date: getDateAfterSave(draft, { occurrenceDate: occurrence?.date, viewedDate }) }),
+      href: savedHref,
       reset: () => {
         setDraft(initialDraft);
         setBaseDraft(initialDraft);

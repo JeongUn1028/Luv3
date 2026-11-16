@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactElement } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
+import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
@@ -18,8 +19,6 @@ const ALREADY_DELETED_MESSAGE = "이미 지워진 항목이에요. 목록을 새
 const toCheckboxId = (todoId: string): string => `todo-${todoId}-done`;
 
 // 저장 중인 항목이 저장을 마치면 흐린 모양에서 원래 모양으로 부드럽게 바뀐다(#345). 자리는 그대로라 움직이지 않는다
-const SETTLE_TRANSITION_CLASS_NAME = "transition-[color,opacity] duration-200 motion-reduce:transition-none";
-
 const MOVE_BUTTON_CLASS_NAME = `flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink press-icon aria-disabled:opacity-25 aria-disabled:hover:text-ink-sub ${SETTLE_TRANSITION_CLASS_NAME}`;
 
 // 서버에서 그릴 때는 저장 중인 항목이 없다. 같은 값을 돌려줘야 다시 그리지 않는다
@@ -60,7 +59,7 @@ const saveTodoAction = async (action: TodoAction): Promise<string | undefined> =
 export const TodoList = ({ todos }: TodoListProps): ReactElement => {
   const router = useRouter();
   const [optimisticTodos, addOptimisticAction] = useOptimistic(todos, applyTodoAction);
-  const pendingTodos = useSyncExternalStore(pendingTodoStore.subscribe, pendingTodoStore.getPendingTodos, () => NO_PENDING_TODOS);
+  const pendingTodos = useSyncExternalStore(pendingTodoStore.subscribe, pendingTodoStore.getPending, () => NO_PENDING_TODOS);
   const shownTodos = mergePendingTodos(optimisticTodos, pendingTodos);
   // 서버 목록이 따라잡은 항목은 보관함에서 뺀다. 이미 서버 값으로 그리고 있어 화면은 바뀌지 않는다
   useLayoutEffect(() => {

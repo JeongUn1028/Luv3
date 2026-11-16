@@ -26,6 +26,8 @@ export interface CalendarEvent {
   authorNickname: string | undefined;
   /** 이 줄의 날에 이어진 기록 id(#227). 이어진 기록을 읽지 않은 화면(홈)이나 기록이 없으면 undefined */
   recordId?: string | undefined;
+  /** 판 번호. 캘린더만 읽는다(#345). 저장 중인 일정을 먼저 그린 뒤 서버 값이 따라잡았는지 견준다 */
+  revision?: string | undefined;
 }
 
 /** 달력에 표시하는 데이트 기록(누르면 기록 상세) */
@@ -77,6 +79,8 @@ export interface CalendarEventRow {
   exceptions: { date: string }[];
   /** 이 일정에서 남긴 기록(캘린더만 읽는다) */
   records?: LinkedRecordRow[];
+  /** 판 번호(캘린더만 읽는다) */
+  revision?: string;
 }
 
 /**
@@ -136,6 +140,7 @@ export const toCalendarEvent = ({
   repeat_rule,
   end_date,
   author,
+  revision,
 }: CalendarEventRow): CalendarEvent => ({
   id,
   date,
@@ -146,6 +151,7 @@ export const toCalendarEvent = ({
   place: place ?? undefined,
   isTogether: is_together,
   authorNickname: author?.nickname,
+  ...(revision === undefined ? {} : { revision }),
 });
 
 /**

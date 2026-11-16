@@ -3,7 +3,7 @@ import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { deleteEventsByTitle, deleteTodosByContent, getEventIdsByTitle, getTodoIdsByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getKstYesterday, getSubmitButton, returnToFailedTodoForm } from "./support/actions";
+import { getKstYesterday, getSubmitButton, returnToFailedEventForm, returnToFailedTodoForm } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 일정·하고 싶은 것 저장이 실패하는 경우를 모은 스펙(#161). 기록은 record-save-failure.spec.ts에 있다
@@ -51,7 +51,9 @@ test.describe("새 일정을 저장하는데 응답만 끊기면", () => {
       await getSubmitButton(page).tap();
       await page.waitForURL(`**${CALENDAR_PATH}*`);
 
-      // Assert
+      // Assert: 저장을 기다리지 않고 돌아가므로 저장이 끝날 때까지 기다려 본다(#345)
+      await expect.poll(() => getEventIdsByTitle(title)).toHaveLength(1);
+      await expect(page.locator("main").locator("visible=true").getByText(title)).toBeVisible();
       expect(await getEventIdsByTitle(title)).toHaveLength(1);
     } finally {
       await deleteEventsByTitle(title);
@@ -66,8 +68,9 @@ test.describe("새 일정을 저장하는데 응답만 끊기면", () => {
     await loseResponses(page, EVENTS_URL);
 
     try {
-      // Act
+      // Act: 일정은 바로 캘린더로 돌아가 실패를 위쪽 알림으로 알린다(#345)
       await getSubmitButton(page).tap();
+      await returnToFailedEventForm(page, "/events/new");
       await expect(getFormAlert(page)).toContainText(RESPONSE_LOST_MESSAGE);
       const [savedId] = await getEventIdsByTitle(title);
       expect(savedId).toBeDefined();
@@ -78,8 +81,8 @@ test.describe("새 일정을 저장하는데 응답만 끊기면", () => {
       await page.waitForURL(`**${CALENDAR_PATH}*`);
 
       // Assert
+      await expect.poll(() => getEventIdsByTitle(fixedTitle)).toEqual([savedId]);
       expect(await getEventIdsByTitle(title)).toEqual([]);
-      expect(await getEventIdsByTitle(fixedTitle)).toEqual([savedId]);
     } finally {
       await deleteEventsByTitle(title);
       await deleteEventsByTitle(fixedTitle);
@@ -96,6 +99,7 @@ test("응답이 끊겼다는 안내가 나와도 일정 추가 폼의 저장 버
   try {
     // Act
     await getSubmitButton(page).tap();
+    await returnToFailedEventForm(page, "/events/new");
     await expect(getFormAlert(page)).toContainText(RESPONSE_LOST_MESSAGE);
 
     // Assert
@@ -112,6 +116,7 @@ test("새 일정 저장이 실패한 뒤 제목을 지워 처음 상태로 되�
   await openNewEventForm(page, title);
   await page.route(EVENTS_URL, (route) => (route.request().method() === "GET" ? route.continue() : route.fulfill({ status: 400, json: { code: "23514", message: "E2E 거절" } })));
   await getSubmitButton(page).tap();
+  await returnToFailedEventForm(page, "/events/new");
   await expect(getFormAlert(page)).toBeVisible();
 
   try {

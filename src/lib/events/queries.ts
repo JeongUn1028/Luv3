@@ -23,7 +23,8 @@ const EVENT_COLUMNS =
   "id, date, start_time, title, place, is_together, repeat_rule, repeat_until, end_date, created_at, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date)";
 
 /** 캘린더는 일정 줄에 "기록 보기"를 달려고 일정에서 남긴 기록도 읽는다(#227). 기록 날짜가 달 밖이어도 빠지지 않는다 */
-const CALENDAR_EVENT_COLUMNS = `${EVENT_COLUMNS}, records:dates(id, event_date)` as const;
+// 저장 중인 일정을 먼저 그린 뒤 서버 값이 따라잡았는지 판 번호로 안다(#345)
+const CALENDAR_EVENT_COLUMNS = `${EVENT_COLUMNS}, revision, records:dates(id, event_date)` as const;
 
 type ServerClient = Awaited<ReturnType<typeof createClient>>;
 

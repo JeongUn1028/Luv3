@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { expect, type Locator, type Page, type Request } from "@playwright/test";
 import { toKstDate } from "@/lib/anniversary";
+import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { withJpegExif } from "@/test-utils/exif-image";
 import { BASE_URL, PHOTO_FIXTURE_PATH } from "./constants";
@@ -150,18 +151,29 @@ export const getCouplePhoto = (page: Page): Locator => page.getByRole("img", { n
 export const expectImageLoaded = (image: Locator): Promise<void> =>
   expect.poll(() => image.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
 
+const returnToFailedForm = async (page: Page, { listUrl, subject, formPath }: { listUrl: string; subject: string; formPath: string }): Promise<void> => {
+  await page.waitForURL(listUrl);
+  const notice = page.getByRole("alert").filter({ hasText: `${subject} 저장하지 못했어요` });
+  await notice.getByRole("link", { name: "돌아가기" }).tap();
+  await page.waitForURL((url) => `${url.pathname}${url.search}`.startsWith(formPath));
+};
+
 /**
  * 할 일 저장이 실패한 뒤 목록 위쪽 알림의 "돌아가기"로 폼에 돌아간다.
  * 할 일은 저장을 기다리지 않고 바로 목록으로 돌아가므로(#345) 실패는 폼이 아니라 위쪽 알림이 먼저 알린다.
  *
  * @example await returnToFailedTodoForm(page, "/todos/new")
  */
-export const returnToFailedTodoForm = async (page: Page, formPath: string): Promise<void> => {
-  await page.waitForURL(`**${TODOS_PATH}`);
-  const notice = page.getByRole("alert").filter({ hasText: "하고 싶은 것을 저장하지 못했어요" });
-  await notice.getByRole("link", { name: "돌아가기" }).tap();
-  await page.waitForURL(`**${formPath}`);
-};
+export const returnToFailedTodoForm = (page: Page, formPath: string): Promise<void> =>
+  returnToFailedForm(page, { listUrl: `**${TODOS_PATH}`, subject: "하고 싶은 것을", formPath });
+
+/**
+ * 일정 저장이 실패한 뒤 캘린더 위쪽 알림의 "돌아가기"로 폼에 돌아간다. 일정도 저장을 기다리지 않고 바로 캘린더로 돌아간다(#345).
+ *
+ * @example await returnToFailedEventForm(page, `/events/${id}/edit`)
+ */
+export const returnToFailedEventForm = (page: Page, formPath: string): Promise<void> =>
+  returnToFailedForm(page, { listUrl: `**${CALENDAR_PATH}*`, subject: "일정을", formPath });
 
 /**
  * 지금 문서에 표시를 남긴다. 문서를 통째로 다시 불러오면 사라지므로, `isSameDocument`가 `true`면 같은 문서 안에서 옮긴 것이다(#378).

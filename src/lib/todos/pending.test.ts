@@ -1,6 +1,6 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { Todo } from "./list";
-import { createPendingTodoStore, findSettledPendingIds, mergePendingTodos, type PendingTodo } from "./pending";
+import { findSettledPendingIds, mergePendingTodos, type PendingTodo } from "./pending";
 
 const createTodo = (overrides: Partial<Todo> & Pick<Todo, "id">): Todo => ({
   content: `할 일 ${overrides.id}`,
@@ -127,72 +127,5 @@ describe("findSettledPendingIds", () => {
 
     // Assert
     expect(settledIds).toEqual(["arrived", "caught-up-edit", "deleted-edit"]);
-  });
-});
-
-describe("createPendingTodoStore", () => {
-  it("더하고 저장 끝을 표시하고 빼면 그때마다 듣는 쪽에 알린다", () => {
-    // Arrange
-    const store = createPendingTodoStore();
-    const listener = vi.fn();
-    store.subscribe(listener);
-
-    // Act
-    store.add(createPending({ id: "a" }));
-    store.markSaved("a");
-    const saved = store.getPendingTodos();
-    store.remove(["a"]);
-
-    // Assert
-    expect(saved).toEqual([createPending({ id: "a", isSaved: true })]);
-    expect(store.getPendingTodos()).toEqual([]);
-    expect(listener).toHaveBeenCalledTimes(3);
-  });
-
-  it("바뀐 것이 없으면 알리지 않고 같은 목록을 돌려준다", () => {
-    // Arrange: useSyncExternalStore는 같은 값을 돌려받아야 다시 그리지 않는다
-    const store = createPendingTodoStore();
-    store.add(createPending({ id: "a" }));
-    const before = store.getPendingTodos();
-    const listener = vi.fn();
-    store.subscribe(listener);
-
-    // Act
-    store.remove(["없는 항목"]);
-    store.markSaved("없는 항목");
-    store.removeSaved();
-
-    // Assert
-    expect(store.getPendingTodos()).toBe(before);
-    expect(listener).not.toHaveBeenCalled();
-  });
-
-  it("같은 항목을 다시 고치면 대신하고, 앞선 저장의 판도 저장 전 판으로 친다", () => {
-    // Arrange
-    const store = createPendingTodoStore();
-    store.add(createPending({ id: "a", content: "첫 고침", revision: "r2", previousRevisions: ["r1"], isNew: false }));
-
-    // Act
-    store.add(createPending({ id: "a", content: "두 번째 고침", revision: "r3", previousRevisions: ["r1"], isNew: false }));
-
-    // Assert: 첫 고침이 저장된 목록(r2)이 와도 두 번째 고침을 계속 보여 준다
-    const [pending] = store.getPendingTodos();
-    expect(store.getPendingTodos()).toHaveLength(1);
-    expect(pending?.content).toBe("두 번째 고침");
-    expect(pending?.previousRevisions).toEqual(expect.arrayContaining(["r1", "r2"]));
-  });
-
-  it("목록을 떠날 때는 저장이 끝난 항목만 빼고 저장 중인 항목은 남긴다", () => {
-    // Arrange
-    const store = createPendingTodoStore();
-    store.add(createPending({ id: "saved" }));
-    store.add(createPending({ id: "saving" }));
-    store.markSaved("saved");
-
-    // Act
-    store.removeSaved();
-
-    // Assert
-    expect(store.getPendingTodos().map(({ id }) => id)).toEqual(["saving"]);
   });
 });

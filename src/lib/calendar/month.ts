@@ -159,6 +159,14 @@ export const groupByDate = <Item extends { date: string; endDate?: string | unde
 /** 캘린더 탭 주소 */
 export const CALENDAR_PATH = "/calendar";
 
+/**
+ * 이 주소가 그 달을 보여 주는 캘린더 화면인지. 달이 없거나 틀린 주소는 화면처럼 오늘의 달로 본다.
+ *
+ * @example isCalendarMonthUrl(new URL("https://luv3.test/calendar?month=2026-11"), "2026-11", "2026-12-01") // true
+ */
+export const isCalendarMonthUrl = (url: URL, month: string, today: string): boolean =>
+  url.pathname === CALENDAR_PATH && parseMonth(url.searchParams.get("month") ?? undefined, today) === month;
+
 /** 캘린더 탭에서 열 달·고를 날 */
 export interface CalendarHrefParams {
   /** 열 달 YYYY-MM. 없으면 `date`가 속한 달, 둘 다 없으면 이번 달 */
