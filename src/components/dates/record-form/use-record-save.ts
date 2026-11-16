@@ -3,7 +3,6 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import type { EditableRecord } from "@/lib/dates/detail";
-import type { DateRecordDraft } from "@/lib/dates/form";
 import { getDraftPhotos } from "@/lib/dates/photo-group-draft";
 import { toFailedRecordFields } from "@/lib/dates/record-form-outcome";
 import { DateRecordAlreadyLinkedError, saveDateRecord, toDateRecordSaveFailure, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
@@ -14,9 +13,7 @@ import type { PreviewUrls } from "@/lib/photos/preview-urls";
 import { resizePhoto } from "@/lib/photos/resize";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { createClient } from "@/lib/supabase/client";
-import type { PickedPhoto } from "../PhotoGroupCard";
-
-type RecordDraft = DateRecordDraft<PickedPhoto>;
+import type { RecordDraft } from "./record-draft";
 
 interface UseRecordSaveParams {
   /** 고칠 기록. 없으면 새 기록을 저장한다 */

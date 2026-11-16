@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type Dispatch, type SetStateAction } from "react";
-import type { DateRecordDraft, DraftErrors, PhotoLocation } from "@/lib/dates/form";
+import type { DraftErrors, PhotoLocation } from "@/lib/dates/form";
 import {
   addPhotoGroup,
   addPhotosToGroup,
@@ -20,8 +20,8 @@ import { readPhotoInfo } from "@/lib/photos/photo-info";
 import type { PreviewUrls } from "@/lib/photos/preview-urls";
 import { isAcceptedPhoto } from "@/lib/photos/accepted";
 import type { PhotoGroupActions, PickedPhoto } from "../PhotoGroupCard";
+import type { RecordDraft } from "./record-draft";
 
-type RecordDraft = DateRecordDraft<PickedPhoto>;
 
 interface UsePhotoGroupEditingParams {
   draft: RecordDraft;
