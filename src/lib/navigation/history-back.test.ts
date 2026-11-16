@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { claimBackMotion, getBackSteps, goBackInHistory, isBackMotionPending } from "./history-back";
+import { claimBackMotion, getBackSteps, goBackInHistory, holdDocument, isBackMotionPending } from "./history-back";
 
 const toUrls = (...paths: string[]): string[] => paths.map((path) => `https://luv3.test${path}`);
 
@@ -47,9 +47,10 @@ describe("goBackInHistory", () => {
     vi.stubGlobal("history", { go });
   };
 
-  const createNavigation = (urls: string[], index: number) => ({
+  /** `otherDocumentCount`: 앞에서부터 다른 문서(주소로 바로 열기 전·새로 고침 전)의 기록 수 */
+  const createNavigation = (urls: string[], index: number, otherDocumentCount = 0) => ({
     currentEntry: { index },
-    entries: () => urls.map((url) => ({ url })),
+    entries: () => urls.map((url, entryIndex) => ({ url, sameDocument: entryIndex >= otherDocumentCount })),
   });
 
   beforeEach(() => {
@@ -84,6 +85,66 @@ describe("goBackInHistory", () => {
     expect(goBackInHistory()).toBe(true);
     expect(go).toHaveBeenCalledWith(-2);
     expect(isBackMotionPending()).toBe(true);
+  });
+
+  it("저장 중이 아니면 돌아갈 화면이 다른 문서여도 되돌아간다", () => {
+    stubBrowser(createNavigation(toUrls("/todos", "/todos/1/edit"), 1, 1));
+
+    expect(goBackInHistory()).toBe(true);
+    expect(go).toHaveBeenCalledWith(-1);
+  });
+
+  it("저장 중에 돌아갈 화면이 다른 문서면 되돌아가지 않고 false를 돌려준다", () => {
+    stubBrowser(createNavigation(toUrls("/todos", "/todos/1/edit"), 1, 1));
+    const release = holdDocument();
+
+    try {
+      expect(goBackInHistory()).toBe(false);
+      expect(go).not.toHaveBeenCalled();
+      expect(isBackMotionPending()).toBe(false);
+    } finally {
+      release();
+    }
+  });
+
+  it("저장 중이어도 돌아갈 화면이 같은 문서면 되돌아간다", () => {
+    stubBrowser(createNavigation(toUrls("/", "/todos", "/todos/1/edit"), 2, 1));
+    const release = holdDocument();
+
+    try {
+      expect(goBackInHistory()).toBe(true);
+      expect(go).toHaveBeenCalledWith(-1);
+    } finally {
+      release();
+    }
+  });
+
+  it("저장이 모두 끝나야 다시 다른 문서로 되돌아가고, 같은 저장을 두 번 풀어도 다른 저장은 붙든 채로 남는다", () => {
+    stubBrowser(createNavigation(toUrls("/todos", "/todos/1/edit"), 1, 1));
+    const releaseFirst = holdDocument();
+    const releaseSecond = holdDocument();
+
+    releaseFirst();
+    releaseFirst();
+    expect(goBackInHistory()).toBe(false);
+
+    releaseSecond();
+    expect(goBackInHistory()).toBe(true);
+    expect(go).toHaveBeenCalledWith(-1);
+  });
+
+  it("돌아갈 화면의 주소가 조건에 맞으면 되돌아간다", () => {
+    stubBrowser(createNavigation(toUrls("/calendar?date=2026-11-16", "/events/1/edit"), 1));
+
+    expect(goBackInHistory({ canReturnTo: (url) => url.searchParams.get("date") === "2026-11-16" })).toBe(true);
+    expect(go).toHaveBeenCalledWith(-1);
+  });
+
+  it("돌아갈 화면의 주소가 조건에 맞지 않으면 되돌아가지 않고 false를 돌려준다", () => {
+    stubBrowser(createNavigation(toUrls("/calendar?date=2026-11-16", "/events/1/edit"), 1));
+
+    expect(goBackInHistory({ canReturnTo: (url) => url.searchParams.get("date") === "2026-12-01" })).toBe(false);
+    expect(go).not.toHaveBeenCalled();
   });
 
   it("이동이 시작되기 전에 또 눌러도 한 번만 되돌아간다", () => {

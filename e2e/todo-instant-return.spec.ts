@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page, Route } from "@playwright/test";
 import { TODOS_PATH } from "@/lib/todos/list";
-import { returnToApp, getSubmitButton } from "./support/actions";
+import { isSameDocument, markDocument, returnToApp, getSubmitButton } from "./support/actions";
 import { readAnimations, recordAnimations } from "./support/motion";
 import { createDisposableTodo, deleteTodosByContent, getTodoContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
@@ -171,6 +171,59 @@ test("하고 싶은 것을 고쳐 저장하면 목록으로 바로 돌아가 고
     await expect.poll(() => getTodoContent(id)).toBe(fixedContent);
   } finally {
     await deleteTodo();
+  }
+});
+
+test.describe("앞 기록이 다른 문서인 고치기 화면에서 저장하면(#378)", () => {
+  const openCases = [
+    {
+      name: "목록을 연 뒤 고치기 주소를 바로 열었을 때",
+      open: async (page: Page, id: string, content: string) => {
+        await openScreen(page, TODOS_PATH, getListRow(page, content));
+        await openScreen(page, `/todos/${id}/edit`, getContentField(page));
+      },
+    },
+    {
+      name: "목록에서 들어간 고치기 화면을 새로 고쳤을 때",
+      open: async (page: Page, id: string, content: string) => {
+        await openScreen(page, TODOS_PATH, getListRow(page, content));
+        await getListRow(page, content).getByRole("link").tap();
+        await page.waitForURL(`**/todos/${id}/edit`);
+        await page.reload();
+        await getContentField(page).waitFor();
+        await page.waitForLoadState("networkidle");
+      },
+    },
+  ];
+
+  for (const { name, open } of openCases) {
+    test(`${name} 문서를 다시 불러오지 않고 목록으로 옮겨 저장을 끝까지 이어 간다`, async ({ page }, testInfo) => {
+      // Arrange
+      const id = randomUUID();
+      const content = createTestName("E2E 주소로 연 고치기", testInfo);
+      const fixedContent = `${content} 고침`;
+      const deleteTodo = await createDisposableTodo({ id, content });
+      try {
+        await open(page, id, content);
+        await getContentField(page).fill(fixedContent);
+        await markDocument(page);
+        // 문서를 다시 불러오면 붙든 요청이 끊긴다. 끊긴 요청을 보내려다 나는 오류는 아래 확인이 대신 잡는다
+        const save = await holdSaveRequest(page, (route) => route.continue().catch(() => undefined));
+
+        // Act
+        await getSubmitButton(page).tap();
+        await save.requested;
+        await page.waitForURL(`**${TODOS_PATH}`);
+        save.release();
+
+        // Assert
+        expect(await isSameDocument(page)).toBe(true);
+        await expect(getCheckbox(page, fixedContent)).toBeEnabled();
+        await expect.poll(() => getTodoContent(id)).toBe(fixedContent);
+      } finally {
+        await deleteTodo();
+      }
+    });
   }
 });
 

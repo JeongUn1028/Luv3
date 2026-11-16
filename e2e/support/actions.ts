@@ -162,3 +162,20 @@ export const returnToFailedTodoForm = async (page: Page, formPath: string): Prom
   await notice.getByRole("link", { name: "돌아가기" }).tap();
   await page.waitForURL(`**${formPath}`);
 };
+
+/**
+ * 지금 문서에 표시를 남긴다. 문서를 통째로 다시 불러오면 사라지므로, `isSameDocument`가 `true`면 같은 문서 안에서 옮긴 것이다(#378).
+ *
+ * @example await markDocument(page); await save(); expect(await isSameDocument(page)).toBe(true)
+ */
+export const markDocument = (page: Page): Promise<void> =>
+  page.evaluate(() => {
+    Object.assign(window, { e2eSameDocument: true });
+  });
+
+/**
+ * `markDocument`로 남긴 표시가 그대로 있는지(문서를 다시 불러오지 않았는지).
+ *
+ * @example expect(await isSameDocument(page)).toBe(true)
+ */
+export const isSameDocument = (page: Page): Promise<boolean> => page.evaluate(() => "e2eSameDocument" in window);

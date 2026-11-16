@@ -3,7 +3,7 @@ import { LOGIN_PATH } from "@/lib/auth/paths";
 /** 이 파일이 쓰는 Navigation API 부분. TypeScript 기본 타입에 아직 없다 */
 interface NavigationHistory {
   readonly currentEntry: { readonly index: number } | null;
-  entries: () => ReadonlyArray<{ readonly url: string | null }>;
+  entries: () => ReadonlyArray<{ readonly url: string | null; readonly sameDocument: boolean }>;
 }
 
 declare global {
@@ -20,6 +20,8 @@ const DOUBLE_TAP_GUARD_MS = 400;
 
 let backRequestedAt: number | undefined;
 let lastBackAt: number | undefined;
+/** 이 문서에서 이어 가는 저장 수. 0보다 크면 다른 문서의 화면으로는 되돌아가지 않는다 */
+let documentHoldCount = 0;
 
 const isPending = (now: number): boolean => backRequestedAt !== undefined && now - backRequestedAt < BACK_MOTION_WINDOW_MS;
 
@@ -42,19 +44,48 @@ export const getBackSteps = (entryUrls: ReadonlyArray<string | null>, currentInd
 };
 
 /**
+ * 이 문서에서 이어 가는 저장이 끝날 때까지, 뒤로 가기가 다른 문서(주소로 바로 열기 전·새로 고침 전)의 화면으로 가지 않게 붙든다.
+ * 그런 화면으로 돌아가면 브라우저가 문서를 통째로 다시 불러와 진행 중이던 저장 요청이 끊긴다(#378). 그동안 뒤로 버튼은 정해진 주소로 옮긴다.
+ * iOS 가장자리 밀기와 브라우저 뒤로 가기는 막지 못한다. 돌려준 함수로 풀고, 여러 번 불러도 한 번만 푼다.
+ *
+ * @example const release = holdDocument(); await save(); release();
+ */
+export const holdDocument = (): (() => void) => {
+  documentHoldCount += 1;
+  let isReleased = false;
+  return () => {
+    if (isReleased) return;
+    isReleased = true;
+    documentHoldCount -= 1;
+  };
+};
+
+interface GoBackOptions {
+  /** 돌아갈 화면의 주소가 이 조건에 맞을 때만 돌아간다. 없으면 앱 안 어느 화면이든 돌아간다 */
+  canReturnTo?: (url: URL) => boolean;
+}
+
+/**
  * 앱 안에 돌아갈 화면이 있으면 브라우저 뒤로 가기로 돌아가고 `true`를 돌려준다. `false`면 호출한 쪽이 정해진 주소로 간다.
  * 기록을 읽을 수 있는 Navigation API가 없는 브라우저도 `false`라 정해진 주소로 간다.
+ * 저장 중(`holdDocument`)에는 같은 문서의 화면으로만 돌아간다.
  *
  * @example if (goBackInHistory()) event.preventDefault();
+ * @example if (!goBackInHistory({ canReturnTo: (url) => url.pathname === "/calendar" })) router.replace("/calendar");
  */
-export const goBackInHistory = (): boolean => {
+export const goBackInHistory = ({ canReturnTo }: GoBackOptions = {}): boolean => {
   const { navigation } = window;
   if (!navigation?.currentEntry) return false;
+  const entries = navigation.entries();
+  const currentIndex = navigation.currentEntry.index;
   const steps = getBackSteps(
-    navigation.entries().map((entry) => entry.url),
-    navigation.currentEntry.index,
+    entries.map((entry) => entry.url),
+    currentIndex,
   );
   if (steps === undefined) return false;
+  const target = entries[currentIndex - steps];
+  if (documentHoldCount > 0 && !target?.sameDocument) return false;
+  if (canReturnTo && !(target?.url && canReturnTo(new URL(target.url)))) return false;
 
   const now = Date.now();
   if (lastBackAt !== undefined && now - lastBackAt < DOUBLE_TAP_GUARD_MS) return true;

@@ -11,11 +11,12 @@ import {
   deleteEventsByTitle,
   deleteRecordWithFiles,
   deleteTodosByContent,
+  getRecordIdsByTitle,
   getTodoContent,
   getTodoIdsByContent,
 } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getGroupPhoto, getKstYesterday, getSubmitButton, getTab, pickPhoto } from "./support/actions";
+import { getGroupPhoto, getKstYesterday, getSubmitButton, getTab, isSameDocument, markDocument, pickPhoto } from "./support/actions";
 import { createTestName } from "./support/names";
 
 const CREATE_RECORD_URL = "**/rest/v1/rpc/create_date_record";
@@ -221,6 +222,36 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
 
       // Assert
       await expect(page.locator("#memo").locator("visible=true")).toHaveValue("고친 글");
+    } finally {
+      await deleteRecord();
+    }
+  });
+
+  test("주소로 바로 연 기록 고치기에서 저장하는 사이 뒤로 버튼을 눌러도 문서를 다시 불러오지 않고 저장을 끝까지 이어 간다(#378)", async ({ page }, testInfo) => {
+    // Arrange: 앞 기록(기록 목록)이 다른 문서라 뒤로 가면 문서를 다시 불러와 저장 요청이 끊긴다
+    const id = randomUUID();
+    const title = createTestName("E2E 주소로 연 기록 고치기", testInfo);
+    const fixedTitle = `${title} 고침`;
+    const deleteRecord = await createDisposableRecord({ id, title });
+    try {
+      await openScreen(page, RECORDS_PATH, page.locator("main").locator("visible=true").first());
+      await openScreen(page, `/dates/${id}/edit`, page.locator("#title").locator("visible=true"));
+      await page.locator("#title").locator("visible=true").fill(fixedTitle);
+      await markDocument(page);
+      // 문서를 다시 불러오면 붙든 요청이 끊긴다. 끊긴 요청을 보내려다 나는 오류는 아래 확인이 대신 잡는다
+      const save = await holdSaveRequest(page, UPDATE_RECORD_URL, (route) => route.continue().catch(() => undefined));
+      await getSubmitButton(page).tap();
+      await save.requested;
+
+      // Act: 앞 기록으로 돌아가지 않고 기록 상세 주소로 옮긴다
+      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
+      await page.waitForURL(`**/dates/${id}`);
+      save.release();
+
+      // Assert
+      expect(await isSameDocument(page)).toBe(true);
+      await expect(getNotice(page, "status", "기록을 저장했어요")).toBeVisible();
+      await expect.poll(() => getRecordIdsByTitle(fixedTitle)).toEqual([id]);
     } finally {
       await deleteRecord();
     }
