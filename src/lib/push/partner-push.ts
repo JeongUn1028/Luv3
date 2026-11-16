@@ -5,7 +5,7 @@
 
 import { toCalendarHref } from "@/lib/calendar/month";
 import { COMMENTS_HEADING_ID } from "@/lib/comments/comment";
-import { isRecordId, toRecordHref } from "@/lib/dates/detail";
+import { isRecordId, toRecordHref } from "@/lib/dates/record-href";
 import { isObject } from "@/lib/guards";
 import { TODOS_PATH } from "@/lib/todos/list";
 import type { PushMessage } from "./message";

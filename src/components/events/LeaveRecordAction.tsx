@@ -6,7 +6,7 @@ import { startTransition, useRef, useState, useTransition, type MouseEvent, type
 import { ViewRecordLink } from "@/components/events/ViewRecordLink";
 import { ModalActions, ModalMessage } from "@/components/ModalActions";
 import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
-import { formatRecordShortDate } from "@/lib/dates/detail";
+import { formatRecordShortDate } from "@/lib/dates/record-date-format";
 import { fetchLinkableRecords, linkRecordToEvent, toEventLinkMessage, type LinkableRecord } from "@/lib/dates/event-link";
 import { toEventRecordHref, type EventRecordLink } from "@/lib/events/record-link";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRecordDate, formatRecordMonthDay, formatRecordPeriod, findStartPhotoIndex, formatRecordShortDate, isRecordId, toRecordHref, toRecordPhotoHref, toDateRecordDetail, toEditableRecord, type DetailRow } from "./detail";
+import { findStartPhotoIndex, toDateRecordDetail, toEditableRecord, type DetailRow } from "./detail";
 
 const row: DetailRow = {
   id: "r1",
@@ -22,15 +22,6 @@ const row: DetailRow = {
     { id: "p1", group_id: "g1", path: "r1/p1.jpg", thumb_path: "r1/p1_thumb.jpg", sort_order: 0, place: "어니언 성수", place_lat: 37.5447, place_lng: 127.0582, place_name: "골목 끝 카페", taken_at: null },
   ],
 };
-
-describe("isRecordId", () => {
-  it("UUID 형식만 기록 id로 받는다", () => {
-    expect(isRecordId("5a87e560-6a6e-49be-8af3-db196468143c")).toBe(true);
-    expect(isRecordId("5A87E560-6A6E-49BE-8AF3-DB196468143C")).toBe(true);
-    expect(isRecordId("not-a-uuid")).toBe(false);
-    expect(isRecordId("5a87e560-6a6e-49be-8af3-db196468143c/../x")).toBe(false);
-  });
-});
 
 describe("toDateRecordDetail", () => {
   it("사진을 순서대로 정렬하고 원본·썸네일 서명 URL·모음 위치·장소 이름·모음 한마디와 작성자 닉네임을 붙이며, DB의 null은 undefined로 바꾼다", () => {
@@ -230,65 +221,6 @@ describe("toEditableRecord", () => {
 
   it("대표 사진이 비어 있으면 첫 사진을 대표로 둔다", () => {
     expect(toEditableRecord({ ...row, cover_photo_id: null }, []).coverPhotoId).toBe("p1");
-  });
-});
-
-describe("formatRecordDate", () => {
-  it("YYYY.MM.DD와 요일로 쓴다", () => {
-    expect(formatRecordDate("2026-11-02")).toBe("2026.11.02 월요일");
-    expect(formatRecordDate("2025-12-24")).toBe("2025.12.24 수요일");
-  });
-});
-
-describe("formatRecordPeriod", () => {
-  it("하루짜리는 날짜 표기 그대로다", () => {
-    expect(formatRecordPeriod({ date: "2026-11-02", endDate: undefined })).toBe("2026.11.02 월요일");
-  });
-
-  it("같은 달 기간은 끝 날짜에서 연도를 뺀다", () => {
-    expect(formatRecordPeriod({ date: "2026-11-01", endDate: "2026-11-03" })).toBe("2026.11.01 일요일 – 11.03 화요일");
-  });
-
-  it("달이 바뀌는 기간도 끝 날짜에서 연도를 뺀다", () => {
-    expect(formatRecordPeriod({ date: "2026-10-31", endDate: "2026-11-02" })).toBe("2026.10.31 토요일 – 11.02 월요일");
-  });
-
-  it("해가 바뀌는 기간은 끝 날짜에도 연도를 쓴다", () => {
-    expect(formatRecordPeriod({ date: "2026-12-31", endDate: "2027-01-02" })).toBe("2026.12.31 목요일 – 2027.01.02 토요일");
-  });
-});
-
-describe("formatRecordShortDate", () => {
-  it("하루짜리는 월.일과 요일을 쓴다", () => {
-    expect(formatRecordShortDate({ date: "2026-11-02", endDate: undefined })).toBe("11.02 월요일");
-  });
-
-  it("기간은 그리드와 같은 표기로 요일 없이 쓴다", () => {
-    expect(formatRecordShortDate({ date: "2026-11-01", endDate: "2026-11-03" })).toBe("11.01–11.03");
-  });
-
-  it("달이나 해가 바뀌어도 그리드와 같은 표기다", () => {
-    expect(formatRecordShortDate({ date: "2026-10-31", endDate: "2026-11-02" })).toBe("10.31–11.02");
-    expect(formatRecordShortDate({ date: "2026-12-31", endDate: "2027-01-02" })).toBe("12.31–01.02");
-  });
-});
-
-describe("formatRecordMonthDay", () => {
-  it("연도 없이 MM.DD와 요일로 쓴다", () => {
-    expect(formatRecordMonthDay("2026-11-02")).toBe("11.02 월요일");
-    expect(formatRecordMonthDay("2025-12-24")).toBe("12.24 수요일");
-  });
-});
-
-describe("toRecordHref", () => {
-  it("기록 id로 상세 주소를 만든다", () => {
-    expect(toRecordHref("r1")).toBe("/dates/r1");
-  });
-});
-
-describe("toRecordPhotoHref", () => {
-  it("기록 상세 주소에 처음 펼칠 사진을 붙인다", () => {
-    expect(toRecordPhotoHref({ recordId: "r1", photoId: "p2" })).toBe("/dates/r1?photo=p2");
   });
 });
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import { SignedPhoto } from "@/components/SignedPhoto";
-import { toRecordPhotoHref } from "@/lib/dates/detail";
+import { toRecordPhotoHref } from "@/lib/dates/record-href";
 import { fetchMapPhotos } from "@/lib/dates/fetch-map-photos";
 import { formatMapPhotoDate, MAP_PHOTO_PAGE_SIZE, toPhotosWithKnownThumbs, type MapPhoto } from "@/lib/dates/map-photos";
 import type { MapPhotoSpot } from "@/lib/dates/map-spots";

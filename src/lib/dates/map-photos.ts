@@ -1,7 +1,7 @@
 import { toKstDate } from "@/lib/anniversary";
 import { isObject } from "@/lib/guards";
 import type { SignedUrlWithExpiry } from "@/lib/photos/signed-urls";
-import { isRecordId } from "./detail";
+import { isRecordId } from "./record-href";
 
 /** 지도 사진 API 주소. 핀의 썸네일과 아래 칸 사진 줄이 함께 쓴다(#249) */
 export const MAP_PHOTOS_PATH = "/api/records/map-photos";

@@ -1,5 +1,5 @@
 import "server-only";
-import { isRecordId } from "@/lib/dates/detail";
+import { isRecordId } from "@/lib/dates/record-href";
 import { readAllRows } from "@/lib/supabase/read-all-rows";
 import { createClient } from "@/lib/supabase/server";
 import { toTodo, type Todo } from "./list";
