@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, type MouseEvent, type ReactElement, type ReactNode } from "react";
-import { ModalActions, ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
+import { ModalActions } from "@/components/ModalActions";
+import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import { goBackInHistory } from "@/lib/navigation/history-back";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 

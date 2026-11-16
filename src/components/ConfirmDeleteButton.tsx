@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useRef, useState, type ReactElement } from "react";
-import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
+import { ModalActions, ModalMessage } from "@/components/ModalActions";
+import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import { deletingStore } from "@/lib/deleting";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableDelete } from "@/lib/navigation/use-leavable-delete";

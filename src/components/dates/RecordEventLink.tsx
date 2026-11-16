@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useRef, useState, useTransition, type ReactElement } from "react";
-import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
+import { ModalActions, ModalMessage } from "@/components/ModalActions";
+import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import { formatEventTime } from "@/lib/calendar/month";
 import { formatRecordShortDate } from "@/lib/dates/detail";
 import { linkRecordToEvent, toEventLinkMessage, unlinkRecordFromEvent } from "@/lib/dates/event-link";
