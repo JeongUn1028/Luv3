@@ -1,7 +1,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useRef, useState } from "react";
 import { isScreenOutdatedAfterFailure, type SaveFailure } from "@/lib/save-outcome";
-import { goBackInHistory } from "./history-back";
+import { goBackInHistory, holdDocument } from "./history-back";
 import { refreshOutsideForm } from "./refresh-outside-form";
 import { refreshSignedInScreen } from "./refresh-signed-in";
 import { saveNoticeStore } from "./save-notices";
@@ -29,11 +29,14 @@ interface UseLeavableSaveParams<Draft> {
 
 interface BeginSaveParams {
   /**
-   * 주면 저장을 기다리지 않고 바로 이 화면으로 돌아간다(#345). 앱 안에 돌아갈 화면이 있으면 뒤로 버튼처럼 뒤로 가고, 없으면 이 주소로 옮긴다.
+   * 주면 저장을 기다리지 않고 바로 이 화면으로 돌아간다(#345). 이 문서 안에 돌아갈 화면이 있으면 뒤로 버튼처럼 뒤로 가고, 없으면 이 주소로 옮긴다.
+   * 주소로 바로 열었거나 새로 고친 폼은 앞 화면이 다른 문서라, 뒤로 가면 문서를 다시 불러와 저장이 끊기므로 이 주소로 옮긴다(#378).
    * 저장 결과는 저장 중에 떠났을 때와 같이 다루되, 이 화면을 보고 있으면 저장했다는 알림은 띄우지 않는다(이미 보여 준다).
    * 뒤로 가서 다른 화면(예: 홈)에 갔으면 그 화면은 저장 중인 내용을 모르므로 알린다
    */
   returnTo?: string;
+  /** 앞 화면의 주소가 이 조건에 맞을 때만 뒤로 간다. 없으면 이 문서 안 어느 화면이든 뒤로 간다(예: 홈 카드에서 연 폼은 홈으로) */
+  canGoBackTo?: (url: URL) => boolean;
 }
 
 interface FinishSavedParams {
@@ -57,6 +60,9 @@ export interface LeavableSave<Draft> {
   finishFailed: (params: FinishFailedParams<Draft>) => void;
 }
 
+/** 지금 보는 화면의 경로가 이 주소의 경로인지. 쿼리는 견주지 않는다(같은 목록·캘린더면 저장한 내용을 보여 준다) */
+const isCurrentPath = (href: string | undefined): boolean => href !== undefined && window.location.pathname === new URL(href, window.location.href).pathname;
+
 /**
  * 저장하는 사이 다른 화면으로 옮겨도 끌고 오지 않는 폼 저장 도우미(#104).
  * 폼이 숨겨지면(Activity) layout effect가 정리되므로, 주소를 비교하지 않고도 지금 이 폼을 보고 있는지 알 수 있다.
@@ -76,6 +82,8 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
   // 바로 돌아간 저장인지. 돌아가는 이동이 끝나기 전에 저장이 끝나도 폼을 보는 것으로 여겨 다시 옮기지 않게 한다
   const hasReturnedRef = useRef(false);
   const returnToRef = useRef<string>(undefined);
+  // 저장이 끝날 때까지 다른 문서로 되돌아가 저장이 끊기지 않게 붙든 것을 푼다(#378)
+  const releaseDocumentRef = useRef<() => void>(undefined);
 
   useLayoutEffect(() => {
     isVisibleRef.current = true;
@@ -89,16 +97,19 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
 
   return {
     failedSave,
-    beginSave: ({ returnTo } = {}) => {
+    beginSave: ({ returnTo, canGoBackTo } = {}) => {
       formHrefRef.current = `${window.location.pathname}${window.location.search}`;
       returnToRef.current = returnTo;
+      releaseDocumentRef.current?.();
+      releaseDocumentRef.current = holdDocument();
       // 인터넷이 끊겼으면 저장은 실패하고, 돌아간 뒤에는 폼을 다시 열 수 없다. 폼에 남아 그 자리에서 알린다
       hasReturnedRef.current = returnTo !== undefined && navigator.onLine;
       if (!hasReturnedRef.current || returnTo === undefined) return false;
-      if (!goBackInHistory()) startTransition(() => router.replace(returnTo, { transitionTypes: BACK_TRANSITION }));
+      if (!goBackInHistory({ canReturnTo: canGoBackTo })) startTransition(() => router.replace(returnTo, { transitionTypes: BACK_TRANSITION }));
       return true;
     },
     finishSaved: ({ href, reset }) => {
+      releaseDocumentRef.current?.();
       const hasReturned = hasReturnedRef.current;
       const isVisible = isVisibleRef.current && !hasReturned;
       startTransition(() => {
@@ -112,10 +123,12 @@ export const useLeavableSave = <Draft>({ formKey, subject, failedSaves }: UseLea
         }
         reset();
       });
-      const isOnReturnedScreen = hasReturned && window.location.pathname === returnToRef.current;
+      // 정해진 주소로 옮기는 이동이 끝나기 전에 저장이 끝나면 아직 폼 주소다. 곧 돌아갈 화면이 보여 주므로 알리지 않는다
+      const isOnReturnedScreen = hasReturned && (isCurrentPath(returnToRef.current) || isCurrentPath(formHrefRef.current));
       if (!isVisible && !isOnReturnedScreen) saveNoticeStore.add({ formKey, isFailure: false, title: `${subject} 저장했어요`, href });
     },
     finishFailed: ({ draft, message, ...failure }) => {
+      releaseDocumentRef.current?.();
       const { isGone = false } = failure;
       // 숨겨 둔 목록·상세가 예전 내용을 보여 주면 돌아갈 때 바로 새로 불러오게 한다.
       // 바로 돌아간 화면은 이미 보고 있어 돌아갈 일이 없으니 지금 새로 받는다(로그인이 풀렸으면 받지 않는다)
