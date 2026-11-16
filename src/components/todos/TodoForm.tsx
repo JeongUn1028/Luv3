@@ -81,10 +81,10 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
     // 저장을 기다리지 않고 목록으로 돌아가, 서버 목록이 따라잡을 때까지 목록이 이 내용을 먼저 보여 준다(#345)
     pendingTodoStore.add({ id: pendingId, content: savedContent, revision, previousRevisions: todoId ? expectedRevisions : [], isNew: !todoId });
     // 인터넷이 끊겨 폼에 남으면 목록에 먼저 보여 줄 일이 없다(저장은 실패한다)
-    if (!beginSave({ returnTo: TODOS_PATH })) pendingTodoStore.remove([pendingId]);
+    if (!beginSave({ returnTo: TODOS_PATH })) pendingTodoStore.discard(pendingId, revision);
     const failure = await saveTodo({ content: savedContent, todoId, newTodoId: saveId, expectedRevisions, revision });
     if (failure) {
-      pendingTodoStore.remove([pendingId]);
+      pendingTodoStore.discard(pendingId, revision);
       const failedDraft: TodoDraft = {
         content,
         // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다
@@ -102,7 +102,7 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
     // 새로 추가한 할 일만 알린다. 고치기는 알리지 않는다(#376). 응답만 끊겨 다시 저장한 경우도 저장된 것이라 알리고,
     // 이미 알렸으면 서버가 다시 보내지 않는다
     if (!todoId) requestPartnerPush({ kind: "todo", id: saveId });
-    pendingTodoStore.markSaved(pendingId);
+    pendingTodoStore.markSaved(pendingId, revision);
     finishSaved({
       href: TODOS_PATH,
       reset: () => {
