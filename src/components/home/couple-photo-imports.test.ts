@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
@@ -10,9 +10,10 @@ describe("홈 커플 사진 코드", () => {
   it("사진 줄이기 모듈을 바로 불러오지 않고 고른 뒤에 import()로 받는다", () => {
     // Arrange
     const source = read("./CouplePhoto.tsx");
+    const pieces = readdirSync(fileURLToPath(new URL("./couple-photo", import.meta.url))).map((name) => read(`./couple-photo/${name}`));
 
     // Assert
-    expect(source).not.toMatch(/^import [^;]*from "@\/lib\/photos\/resize";/m);
+    for (const piece of [source, ...pieces]) expect(piece).not.toMatch(/^import [^;]*from "@\/lib\/photos\/resize";/m);
     expect(source).toContain('import("@/lib/photos/resize")');
   });
 

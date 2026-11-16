@@ -1,12 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState, useTransition, type ChangeEvent, type ReactElement, type SyntheticEvent } from "react";
-import { PickedPhoto } from "@/components/home/PickedPhoto";
-import { CameraIcon, PlusIcon } from "@/components/icons";
-import { ModalActions, ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
-import { RememberedPhoto } from "@/components/RememberedPhoto";
-import { shouldHidePreview, toCouplePhotoView, type CouplePhotoPreview } from "@/lib/couple-photo/preview";
+import { useEffect, useRef, useState, useTransition, type ChangeEvent, type ReactElement } from "react";
+import { CouplePhotoAddButton, CouplePhotoCard } from "@/components/home/couple-photo/CouplePhotoFrames";
+import { CouplePhotoMenu } from "@/components/home/couple-photo/CouplePhotoMenu";
+import { useCouplePhotoPreview } from "@/components/home/couple-photo/use-couple-photo-preview";
+import type { ModalDialogHandle } from "@/components/ModalDialog";
+import { toCouplePhotoView } from "@/lib/couple-photo/preview";
 import { clearCouplePhoto, CouplePhotoError, replaceCouplePhoto } from "@/lib/couple-photo/save";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useLeavableDelete } from "@/lib/navigation/use-leavable-delete";
@@ -28,16 +28,6 @@ const toMessage = (error: unknown): string =>
   error instanceof PhotoError || error instanceof CouplePhotoError
     ? error.message
     : "사진을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
-
-const menuButtonClassName = "press-wide h-12 w-full rounded-[10px] border border-line text-[15px] hover:bg-background";
-
-/** 새 사진 위 카메라 버튼 자리의 진행 표시(#329 시안 A). 화면 읽기 프로그램에는 아래 aria-live 문구로 알린다 */
-const BusyBadge = ({ label }: { label: string }): ReactElement => (
-  <div aria-hidden="true" className="absolute right-2.5 bottom-2.5 flex h-8 items-center gap-[7px] rounded-full bg-background/70 pr-3 pl-2.5 text-[13px] text-ink">
-    <span className="size-3.5 animate-spin rounded-full border-2 border-accent/30 border-t-accent motion-reduce:animate-none" />
-    {label}
-  </div>
-);
 
 interface CouplePhotoProps {
   /** 커플 사진의 경로·서명 주소. 없으면 추가 칸을 보여 준다 */
@@ -66,11 +56,8 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
   const [message, setMessage] = useState<string>();
   useResetOnHide(() => setMessage(undefined));
   const { beginDelete, finishDeleted, finishDeleteFailed } = useLeavableDelete({ noticeKey: "delete:couple-photo", subject: "커플 사진을" });
-  const [isConfirmingClear, setIsConfirmingClear] = useState(false);
 
-  const [preview, setPreview] = useState<CouplePhotoPreview>();
-  // 저장 결과를 기다리는 동안 지금 미리 보여 주는 사진을 알아야 해서 함께 둔다(바꾸거나 치울 때 이전 주소를 놓아준다)
-  const previewRef = useRef<CouplePhotoPreview>(undefined);
+  const { preview, isCurrentPreview, showPreview, handlePreviewError, handleServerPhotoLoaded } = useCouplePhotoPreview(photo?.path);
   // 지우기를 누른 사진의 경로. 서버가 이 사진을 더 주지 않거나 지우기가 실패할 때까지 추가 칸을 보여 준다
   const [clearingPath, setClearingPath] = useState<string>();
 
@@ -87,14 +74,6 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
     shouldMoveFocusRef.current = false;
     target.focus();
   }, [hasCard, isBusy, busyTask]);
-
-  /** 미리 보여 줄 사진을 바꾼다. 더 쓰지 않는 사진 주소는 놓아준다 */
-  const showPreview = (next: CouplePhotoPreview | undefined) => {
-    const previousUrl = previewRef.current?.url;
-    if (previousUrl && previousUrl !== next?.url) URL.revokeObjectURL(previousUrl);
-    previewRef.current = next;
-    setPreview(next);
-  };
 
   const refreshAfter = (finishedTask: Task) => {
     setRefreshingTask(finishedTask);
@@ -121,7 +100,6 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
 
     const photoId = crypto.randomUUID();
     const replacedPath = photo?.path;
-    const isCurrentPreview = () => previewRef.current?.photoId === photoId;
     // 아이폰 Safari는 HEIC도 바로 그린다. 못 그리면 handlePreviewError가 줄인 사진을 기다리게 바꾼다
     showPreview({ photoId, url: URL.createObjectURL(file), replacedPath });
     shouldMoveFocusRef.current = true;
@@ -132,7 +110,7 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
       const { resizeCouplePhoto } = await import("@/lib/photos/resize");
       const { original, medium } = await resizeCouplePhoto(file);
       // 고른 원본(수십 MB일 수 있음)보다 가볍고, 브라우저가 못 그린 HEIC도 변환된 사진으로 그린다
-      if (isCurrentPreview()) showPreview({ photoId, url: URL.createObjectURL(medium), replacedPath });
+      if (isCurrentPreview(photoId)) showPreview({ photoId, url: URL.createObjectURL(medium), replacedPath });
       const supabase = createClient();
       await replaceCouplePhoto({
         storage: supabase.storage.from(ALBUM_BUCKET),
@@ -148,29 +126,17 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
       // 사용자에게는 다시 시도할 수 있다는 문구만 보여 주고, 원인은 개발자 도구에서 볼 수 있게 남긴다.
       // 화면을 새로 받지 않으므로 로그인이 끊겼을 때도 로그인 화면으로 넘어가지 않는다(#102)
       console.error(error);
-      if (isCurrentPreview()) showPreview(undefined);
+      if (isCurrentPreview(photoId)) showPreview(undefined);
       setMessage(toMessage(error));
     } finally {
       setTask(undefined);
     }
   };
 
-  const handlePreviewError = (event: SyntheticEvent<HTMLImageElement>) => {
-    const current = previewRef.current;
-    if (current?.url !== event.currentTarget.getAttribute("src")) return;
-    showPreview({ ...current, url: undefined });
-  };
-
-  const handleServerPhotoLoaded = () => {
-    if (shouldHidePreview(previewRef.current, photo?.path)) showPreview(undefined);
-  };
-
   const handleOpenMenu = () => {
     setMessage(undefined);
     modalRef.current?.open();
   };
-
-  const handleCloseMenu = () => modalRef.current?.close();
 
   const handleChangeClick = () => {
     // 창이 닫히기 전이면 고르기 칸이 창 뒤에 막혀 있다. 움직임을 기다리지 않고 닫은 뒤 바로 연다
@@ -219,53 +185,19 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
         onChange={handleFileChange}
         aria-label="커플 사진 고르기"
       />
-      {hasCard ? (
-        // w-full: 늘어난 높이로 비율을 다시 계산해 폭까지 넓어지지 않게 폭을 고정한다
-        <div className="relative aspect-[4/3] w-full shrink-0 grow overflow-hidden rounded-[16px] bg-surface">
-          {/* 고른 사진 아래에서 서버 사진을 받아 두어, 미리 보기를 치울 때 빈 칸이 깜빡이지 않게 한다 */}
-          {photo && (
-            <RememberedPhoto
-              photo={photo}
-              alt={view.kind === "preview" ? "" : "커플 사진"}
-              onLoaded={handleServerPhotoLoaded}
-              className="absolute inset-0 size-full object-cover"
-            />
-          )}
-          {view.kind === "preview" && (
-            <PickedPhoto url={view.url} alt="커플 사진" onError={handlePreviewError} className="absolute inset-0 size-full object-cover" />
-          )}
-          {busyTask === "upload" && <BusyBadge label={view.kind === "preview" ? "올리는 중" : "사진 준비 중"} />}
-          {!isBusy && (
-            <button
-              ref={changeButtonRef}
-              type="button"
-              onClick={handleOpenMenu}
-              aria-label="커플 사진 바꾸기"
-              aria-haspopup="dialog"
-              className="press-icon absolute right-2.5 bottom-2.5 flex size-10 items-center justify-center rounded-full bg-background/70 text-ink after:absolute after:-inset-0.5"
-            >
-              <CameraIcon className="size-5" />
-            </button>
-          )}
-        </div>
+      {view.kind === "empty" ? (
+        <CouplePhotoAddButton buttonRef={addButtonRef} isBusy={isBusy} isUploading={busyTask === "upload"} onClick={handlePick} />
       ) : (
-        // 지우는 동안에도 초점을 받을 수 있게 disabled 대신 aria-disabled로 막는다(handlePick이 무시한다)
-        <button
-          ref={addButtonRef}
-          type="button"
-          onClick={handlePick}
-          aria-disabled={isBusy}
-          className="press-card flex h-[120px] w-full items-center justify-center gap-1.5 rounded-[16px] border border-dashed border-ink-sub/50 text-[15px] text-ink-sub aria-disabled:opacity-60"
-        >
-          {busyTask === "upload" ? (
-            "사진 준비 중…"
-          ) : (
-            <>
-              <PlusIcon className="size-5" />
-              커플 사진 추가
-            </>
-          )}
-        </button>
+        <CouplePhotoCard
+          photo={photo}
+          view={view}
+          isUploading={busyTask === "upload"}
+          isBusy={isBusy}
+          menuButtonRef={changeButtonRef}
+          onServerPhotoLoaded={handleServerPhotoLoaded}
+          onPreviewError={handlePreviewError}
+          onOpenMenu={handleOpenMenu}
+        />
       )}
       {message && (
         <p role="alert" className="mt-2 text-center text-[13px] text-accent">
@@ -276,29 +208,7 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
         {busyTask ? BUSY_LABELS[busyTask] : ""}
       </p>
 
-      <ModalDialog
-        ref={modalRef}
-        title={isConfirmingClear ? "커플 사진을 지울까요?" : "커플 사진"}
-        description={isConfirmingClear ? "두 사람 모두의 홈에서 사라지고 되돌릴 수 없어요." : undefined}
-        onClose={() => setIsConfirmingClear(false)}
-      >
-        {isConfirmingClear ? (
-          // 누른 "사진 지우기" 버튼이 사라지므로 확인 단계의 첫 버튼으로 초점을 옮긴다
-          <ModalActions cancelLabel="취소" onCancel={handleCloseMenu} confirmLabel="지우기" onConfirm={handleClear} shouldFocusCancel />
-        ) : (
-          <div className="mt-4 flex flex-col gap-2">
-            <button type="button" onClick={handleChangeClick} className={`${menuButtonClassName} text-ink`}>
-              사진 바꾸기
-            </button>
-            <button type="button" onClick={() => setIsConfirmingClear(true)} className={`${menuButtonClassName} text-ink`}>
-              사진 지우기
-            </button>
-            <button type="button" onClick={handleCloseMenu} className={`${menuButtonClassName} text-ink-sub`}>
-              취소
-            </button>
-          </div>
-        )}
-      </ModalDialog>
+      <CouplePhotoMenu modalRef={modalRef} onChange={handleChangeClick} onClear={handleClear} />
     </section>
   );
 };

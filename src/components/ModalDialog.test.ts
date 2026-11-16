@@ -24,4 +24,9 @@ describe("공통 모달", () => {
     // 공통 모달이 빠뜨리면 숨겨진 화면의 창이 앱 전체를 막는다(#155). 그 경우는 e2e/modal-dialog.spec.ts의 뒤로 가기 테스트가 잡는다
     expect(findOutsideModalDialog(/\buseCloseDialogOnHide\(/)).toEqual([]);
   });
+
+  it("창 닫기 움직임은 공통 모달만 쓴다", () => {
+    // 다른 곳에서 닫으면 닫히는 동안 누름 막기·초점 빼기(data-closing, inert)가 창마다 달라진다
+    expect(findOutsideModalDialog(/from "@\/lib\/modal-close"/)).toEqual([]);
+  });
 });

@@ -2,7 +2,8 @@
 
 import { useEffect, useId, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { TextField } from "@/components/FormField";
-import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
+import { ModalActions, ModalMessage } from "@/components/ModalActions";
+import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import { SIGN_IN_UNAVAILABLE_MESSAGE } from "@/lib/auth/login-messages";
 import { isSessionLostError, SESSION_LOST_EVENT } from "@/lib/auth/session-lost";
 import { signInAgain } from "@/lib/auth/sign-in-again";
