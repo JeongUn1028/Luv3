@@ -4,7 +4,7 @@ import { useState, type ReactElement, type SubmitEvent } from "react";
 import { TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
-import { NICKNAME_DB_MAX_CHARS, NICKNAME_MAX_LENGTH, validateNickname } from "@/lib/auth/nickname";
+import { NICKNAME_DB_MAX_CHARS, NICKNAME_MAX_LENGTH, saveNickname, validateNickname } from "@/lib/auth/nickname";
 import { SETTINGS_PATH } from "@/lib/auth/paths";
 import { countGraphemes } from "@/lib/form";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
@@ -18,11 +18,8 @@ const SAVE_FAILED_MESSAGE = "저장하지 못했어요. 잠시 후 다시 시도
 const failedSaves = new Map<string, FailedSave<string>>();
 
 /** 자기 닉네임을 저장한다. 저장에 실패하면 false를 돌려준다 */
-const saveNickname = async (memberId: string, nickname: string): Promise<boolean> => {
-  // 권한이 없거나 행이 없으면 오류 없이 0행이 바뀌므로, 바뀐 행을 받아 확인한다
-  const { data, error } = await createClient().from("members").update({ nickname }).eq("id", memberId).select("id");
-  return !error && data.length > 0;
-};
+const saveOwnNickname = async (memberId: string, nickname: string): Promise<boolean> =>
+  saveNickname({ memberId, nickname, members: createClient().from("members") });
 
 interface NicknameFormProps {
   memberId: string;
@@ -56,7 +53,7 @@ export const NicknameForm = ({ memberId, initialNickname }: NicknameFormProps): 
     setNotice(undefined);
     setIsSaving(true);
     const savedNickname = nickname.trim();
-    const isSaved = await saveNickname(memberId, savedNickname);
+    const isSaved = await saveOwnNickname(memberId, savedNickname);
     if (!isSaved) {
       setNotice(SAVE_FAILED_MESSAGE);
       setIsSaving(false);

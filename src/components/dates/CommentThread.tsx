@@ -7,6 +7,7 @@ import { CommentForm } from "@/components/dates/CommentForm";
 import { ModalActions, ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import { COMMENTS_HEADING_ID } from "@/lib/comments/comment";
 import { applyCommentAction, type ShownComment } from "@/lib/comments/thread";
+import { deleteRowById } from "@/lib/delete-row";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useLeavableDelete } from "@/lib/navigation/use-leavable-delete";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
@@ -72,10 +73,11 @@ export const CommentThread = ({ recordId, comments, memberNickname }: CommentThr
     startTransition(async () => {
       applyOptimisticAction({ type: "remove", id: commentId });
       // 다른 기기에서 이미 지운 댓글이면 0행이 지워진다. 목록을 새로 받으면 사라지므로 실패로 보지 않는다
-      const { error } = await createClient().from("comments").delete().eq("id", commentId);
-      if (error) {
+      try {
+        await deleteRowById({ table: createClient().from("comments"), id: commentId, subject: "댓글을" });
+      } catch (error) {
         // 사용자에게는 다시 시도할 수 있다는 문구만 보여 주고, 원인은 개발자 도구에서 볼 수 있게 남긴다
-        console.error(new Error(`댓글을 지우지 못했습니다: ${error.message}`, { cause: error }));
+        console.error(error);
         // 지운 댓글은 저절로 다시 나타난다. 세션이 끊겼을 때 새로 받으면 로그인 화면으로 넘어가 다시 로그인 창이 소용없어진다(#102)
         if (finishDeleteFailed(true)) setDeleteNotice(DELETE_FAILED_MESSAGE);
         return;
