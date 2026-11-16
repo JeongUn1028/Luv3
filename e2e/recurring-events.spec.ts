@@ -370,8 +370,11 @@ test.describe("반복 일정 폼", () => {
       await page.locator("#event-title").fill(`${title} 옮김`);
       await page.getByRole("button", { name: "저장" }).click();
 
-      // Assert
-      await expect(page.getByRole("main").getByRole("alert")).toHaveText("이 날 일정은 이미 고쳤거나 지웠어요. 캘린더에서 다시 확인해 주세요.");
+      // Assert: 일정은 바로 캘린더로 돌아가므로(#345) 위쪽 알림이 알린다. 고칠 날이 없어 쓴 내용이 남아 있다고는 하지 않는다
+      await page.waitForURL(/\/calendar/);
+      const notice = page.getByRole("alert").filter({ hasText: "일정을 저장하지 못했어요" });
+      await expect(notice).toContainText("이 날 일정은 이미 고쳤거나 지웠어요. 캘린더에서 다시 확인해 주세요.");
+      await expect(notice).not.toContainText("그대로 있어요");
     } finally {
       await deleteEvent();
     }

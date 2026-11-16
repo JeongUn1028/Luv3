@@ -470,7 +470,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
     await getSubmitButton(page).tap();
     await save.requested;
     try {
-      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
+      // 저장을 기다리지 않고 캘린더로 돌아간다(#345)
       await page.waitForURL(`**${CALENDAR_PATH}*`);
       await getTab(page, TODOS_PATH).tap();
       await page.waitForURL(`**${TODOS_PATH}`);
@@ -496,7 +496,7 @@ test.describe("저장하는 사이 다른 화면으로 옮기면", () => {
       await getSubmitButton(page).tap();
       await save.requested;
 
-      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").tap();
+      // 저장을 기다리지 않고 캘린더로 돌아간다(#345)
       await page.waitForURL(`**${CALENDAR_PATH}*`);
       save.release();
       const notice = getNotice(page, "alert", "일정을 저장하지 못했어요");

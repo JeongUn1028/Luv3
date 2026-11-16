@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactElement } from "react";
+import { useLayoutEffect, useState, useSyncExternalStore, type MouseEvent, type ReactElement } from "react";
 import { AuthorTag, EventOwnerTag } from "@/components/AuthorTag";
 import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/icons";
+import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
 import { ANNIVERSARY_DATE, countDaysTogether, getAnniversaryLabel } from "@/lib/anniversary";
 import {
   describeDayEvents,
@@ -27,10 +28,12 @@ import {
 } from "@/lib/calendar/month";
 import { EventRecordAction } from "@/components/events/EventRecordAction";
 import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
+import { findSettledPendingEventIds, mergePendingEvents, pendingEventStore, type PendingEvent } from "@/lib/events/pending";
 import { getEventRecordLink, omitLinkedRecords } from "@/lib/events/record-link";
 import { formatEventPeriod, formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
 import type { HolidayNames } from "@/lib/holidays/holidays";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
+import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 
 interface CalendarViewProps {
   /** 보고 있는 달 YYYY-MM */
@@ -48,17 +51,32 @@ interface CalendarViewProps {
 // 달 이동은 주소(`/calendar?month=`)로 한다. 캘린더 탭은 일정·기록만 불러오므로 앨범 그리드를 다시 불러오지 않는다(#41)
 const monthHref = (month: string): string => toCalendarHref({ month });
 
+const NO_PENDING_EVENTS: readonly PendingEvent[] = [];
+
+// 저장 중인 일정은 아직 서버에 없을 수 있어 고치기 화면을 열지 않는다
+const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDefault();
+
 const navButtonClassName = "press-icon flex size-11 items-center justify-center text-ink-sub hover:text-ink";
 
 // 날짜 숫자 뒤에 손으로 그은 듯한 형광펜 띠. 숫자 원(size-7, 위 여백 pt-1.5)의 가운데 높이에 맞춘다
 const highlightBandClassName =
   "absolute top-2.5 left-1/2 h-5 w-10 -translate-x-1/2 -rotate-2 rounded-[2px_7px_3px_8px/5px_3px_6px_3px]";
 
-/** 공유 캘린더: 월 달력 + 고른 날의 데이트 기록·일정 */
+/**
+ * 공유 캘린더: 월 달력 + 고른 날의 데이트 기록·일정.
+ * 폼에서 저장 중인 하루짜리 일정(#345)은 서버 목록이 따라잡을 때까지 띠와 줄을 먼저 그리고, 줄은 흐리게 두어 누를 수 없게 한다.
+ */
 export const CalendarView = ({ month, today, requestedDate, events, records, holidayNames }: CalendarViewProps): ReactElement => {
   // 달이나 주소의 날이 바뀌면 부모가 key로 새로 그리므로, 처음 고른 날만 정하면 된다
   const [selectedDate, setSelectedDate] = useState(() => getDefaultSelectedDate(month, today, requestedDate));
-  const eventsByDate = groupByDate(events);
+  const pendingEvents = useSyncExternalStore(pendingEventStore.subscribe, pendingEventStore.getPending, () => NO_PENDING_EVENTS);
+  // 서버 목록이 따라잡은 일정은 보관함에서 뺀다. 이미 서버 값으로 그리고 있어 화면은 바뀌지 않는다
+  useLayoutEffect(() => {
+    pendingEventStore.remove(findSettledPendingEventIds(events, pendingEvents));
+  }, [events, pendingEvents]);
+  // 저장은 끝났는데 목록에 들어오지 않은 일정(그사이 상대가 지움)이 흐린 채 남지 않게 한다
+  useResetOnHide(() => pendingEventStore.removeSaved());
+  const eventsByDate = groupByDate(mergePendingEvents(events, pendingEvents));
   // 일정에 이어진 기록은 일정 줄의 "기록 보기"로 열므로 기록 줄·점에서 뺀다(#228)
   const recordsByDate = new Map(
     Array.from(groupByDate(records), ([date, dayRecords]) => [date, omitLinkedRecords(dayRecords, eventsByDate.get(date) ?? [])]),
@@ -222,17 +240,23 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
               </li>
             ))}
             {selectedEvents.map((event) => {
-              const recordLink = getEventRecordLink(event, today);
+              const { isPending = false } = event;
+              const recordLink = isPending ? undefined : getEventRecordLink(event, today);
               return (
                 <li key={event.id} className="flex gap-2">
                   <Link
                     href={toEventEditHref(event)}
                     transitionTypes={FORWARD_TRANSITION}
+                    aria-disabled={isPending}
+                    onClick={isPending ? preventOpening : undefined}
                     className="press-card flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
                   >
                     <span className="w-11 shrink-0 text-[12px] text-ink-sub">{formatEventTime(event.startTime)}</span>
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-[15px] text-ink">{event.title}</span>
+                      <span className={`truncate text-[15px] ${isPending ? "text-ink-sub" : "text-ink"} ${SETTLE_TRANSITION_CLASS_NAME}`}>
+                        {event.title}
+                        {isPending && <span className="sr-only"> (저장 중)</span>}
+                      </span>
                       {(event.repeatRule || event.period || event.place) && (
                         <span className="truncate text-[12px] text-ink-sub">
                           {[event.repeatRule && formatRepeatRule(event.repeatRule), event.period && formatEventPeriod(event.period), event.place]

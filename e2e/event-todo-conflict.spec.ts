@@ -15,7 +15,7 @@ import {
   renameTodo,
 } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getSubmitButton, returnToFailedTodoForm } from "./support/actions";
+import { getSubmitButton, returnToFailedEventForm, returnToFailedTodoForm } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 고치기 화면을 연 사이 상대가 같은 일정·하고 싶은 것을 고친 경우를 모은 스펙(#161). 기록은 record-save-failure.spec.ts에 있다
@@ -62,8 +62,9 @@ test.describe("일정 고치기 화면을 연 사이 상대가 일정을 고치�
       await renameEvent(id, partnerTitle);
       await getEventTitleField(page).fill(`${title} 내 수정`);
 
-      // Act
+      // Act: 일정은 바로 캘린더로 돌아가 실패를 위쪽 알림으로 알린다(#345)
       await getSubmitButton(page).tap();
+      await returnToFailedEventForm(page, `/events/${id}/edit`);
 
       // Assert: 저장하지 않고 쓰던 내용을 둔다. 일정 폼은 높이 여유가 없어(#57) 불러오기 버튼이 화면 안에 다 보이는지도 본다
       await expect(getFormAlert(page)).toContainText(EVENT_CONFLICT_MESSAGE);
@@ -80,7 +81,7 @@ test.describe("일정 고치기 화면을 연 사이 상대가 일정을 고치�
 
       // Assert
       await page.waitForURL(`**${CALENDAR_PATH}*`);
-      expect(await getEventIdsByTitle(`${title} 다시 고침`)).toEqual([id]);
+      await expect.poll(() => getEventIdsByTitle(`${title} 다시 고침`)).toEqual([id]);
     } finally {
       await deleteEvent();
     }
@@ -100,6 +101,7 @@ test.describe("일정 고치기 화면을 연 사이 상대가 일정을 고치�
 
       // Act
       await getSubmitButton(page).tap();
+      await returnToFailedEventForm(page, `/events/${id}/edit?date=2045-04-19`);
 
       // Assert
       await expect(getFormAlert(page)).toContainText(EVENT_CONFLICT_MESSAGE);
@@ -129,15 +131,16 @@ test.describe("일정을 고치다 응답만 끊기면", () => {
 
       // Assert
       await page.waitForURL(`**${CALENDAR_PATH}*`);
+      await expect.poll(() => getEventExceptionDates(id)).toEqual(["2045-05-17"]);
       expect(await getDetachedEventIds(id)).toHaveLength(1);
-      expect(await getEventExceptionDates(id)).toEqual(["2045-05-17"]);
     } finally {
       await deleteEvent();
     }
   });
 
-  test("이 날만 고칠 때 계속 끊겨 제목을 고쳐 다시 저장하면 고친 제목으로 그날 일정이 하나만 남는다", async ({ page }, testInfo) => {
-    // Arrange
+  test("이 날만 고칠 때 계속 끊겨도 그날 일정은 하나만 떼어 내고, 돌아가면 이미 고친 날이라고 알린다", async ({ page }, testInfo) => {
+    // Arrange: 서버는 그날을 떼어 냈지만 응답이 오지 않는다. 바로 캘린더로 돌아가므로(#345) 폼에서 다시 저장할 수는 없고,
+    // 돌아가기로 연 그날은 이미 반복에서 빠져 있다. 저장은 끝났으므로 잃는 내용은 없다
     const id = randomUUID();
     const title = createTestName("계속 끊긴 이 날만", testInfo);
     const deleteEvent = await createDisposableRepeatingEvent({ id, title, date: "2045-07-05", repeatRule: "weekly" });
@@ -146,19 +149,16 @@ test.describe("일정을 고치다 응답만 끊기면", () => {
       await openScreen(page, `/events/${id}/edit?date=2045-07-19`, getEventTitleField(page));
       await getEventTitleField(page).fill(`${title} 1`);
       await loseResponses(page, DETACH_URL);
-      await getSubmitButton(page).tap();
-      await expect(getFormAlert(page)).toContainText(RESPONSE_LOST_MESSAGE);
 
       // Act
-      await page.unroute(DETACH_URL);
-      await getEventTitleField(page).fill(`${title} 2`);
       await getSubmitButton(page).tap();
+      await returnToFailedEventForm(page, `/events/${id}/edit?date=2045-07-19`);
 
       // Assert
-      await page.waitForURL(`**${CALENDAR_PATH}*`);
+      await expect(page.getByRole("heading", { name: "이 날 일정은 이미 고쳤거나 지웠어요" }).locator("visible=true")).toBeVisible();
       const detachedIds = await getDetachedEventIds(id);
       expect(detachedIds).toHaveLength(1);
-      expect(await getEventIdsByTitle(`${title} 2`)).toEqual(detachedIds);
+      expect(await getEventIdsByTitle(`${title} 1`)).toEqual(detachedIds);
     } finally {
       await deleteEvent();
     }
@@ -175,6 +175,7 @@ test.describe("일정을 고치다 응답만 끊기면", () => {
       await getEventTitleField(page).fill(`${title} 1`);
       await loseResponses(page, EVENTS_URL);
       await getSubmitButton(page).tap();
+      await returnToFailedEventForm(page, `/events/${id}/edit`);
       await expect(getFormAlert(page)).toContainText(RESPONSE_LOST_MESSAGE);
       expect(await getEventIdsByTitle(`${title} 1`)).toEqual([id]);
 
@@ -185,7 +186,7 @@ test.describe("일정을 고치다 응답만 끊기면", () => {
 
       // Assert
       await page.waitForURL(`**${CALENDAR_PATH}*`);
-      expect(await getEventIdsByTitle(`${title} 2`)).toEqual([id]);
+      await expect.poll(() => getEventIdsByTitle(`${title} 2`)).toEqual([id]);
     } finally {
       await deleteEvent();
     }
