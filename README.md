@@ -102,7 +102,8 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
    - Secure password change는 로그인한 지 24시간이 넘은 세션에 메일 확인 코드를 요구하는 설정이다. 이 앱은 메일을 보내지 않고, 바꾸기 직전에 다시 로그인해 새 세션을 쓰므로 켜도 보호가 늘지 않는다.
    - 로컬 CLI(2.122)의 `config.toml`에는 현재 비밀번호 요구 칸이 없어 로컬에서는 꺼져 있다. 그래서 앱은 설정과 상관없이 바꾸기 전에 현재 비밀번호로 로그인해 확인한다(`src/components/settings/PasswordForm.tsx`).
 5. Authentication > Users > Add user > Create new user에서 두 계정을 이메일·비밀번호(12자 이상)로 만들고("Auto Confirm User" 체크), SQL Editor에서 `members`에 추가(위 SQL)
-6. Vercel 환경 변수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `CRON_SECRET`(무작위 32자 이상, `.env.example`의 명령으로 만든다)
+6. Project Settings > Data API > Max rows는 1000(기본값)보다 낮추지 않는다. 긴 목록을 1000행씩 나눠 읽으며 덜 찬 쪽을 끝으로 보므로(`src/lib/supabase/read-all-rows.ts`, #344), 낮추면 목록이 안내 없이 잘린다
+7. Vercel 환경 변수: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `CRON_SECRET`(무작위 32자 이상, `.env.example`의 명령으로 만든다)
    - `NEXT_PUBLIC_SUPABASE_URL`과 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`는 빌드할 때 값이 들어가므로 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
    - `CRON_SECRET`은 `vercel.json`의 Cron이 하루 한 번(`0 3 * * *`, Hobby 플랜이라 UTC 3시대의 어느 때, 한국 시간 낮 12시대) `/api/keepalive`를 부를 때 쓴다. 무료 플랜이 7일 동안 요청이 없어 일시정지되지 않게 한다. 값을 넣거나 바꾼 뒤에는 재배포해야 적용된다.
    - `SUPABASE_SECRET_KEY`는 월 1회 주인 없는 사진 정리(`/api/photo-cleanup`)에만 쓰는 비밀 키다. 없으면 정리만 실패하고 앱은 그대로 동작한다. 아래 "주인 없는 사진 정리"를 따른다.

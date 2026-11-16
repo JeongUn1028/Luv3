@@ -1,3 +1,8 @@
+/**
+ * 한 번에 읽을 행 수. Supabase가 한 번에 돌려주는 최대 행 수(`max_rows`, 로컬·운영 모두 1000)와 같다.
+ * 상한이 이보다 작지 않아야 요청보다 적게 온 쪽을 서버가 자른 것이 아니라 정말 끝이라고 믿을 수 있다(#344).
+ * 그래서 상한을 1000 아래로 낮추지 않는다(README "운영 Supabase 설정")
+ */
 const DEFAULT_PAGE_SIZE = 1000;
 
 interface ReadAllRowsParams<Row extends { id: string }> {
@@ -15,8 +20,10 @@ interface ReadAllRowsParams<Row extends { id: string }> {
 }
 
 /**
- * id 순으로 빈 쪽이 올 때까지 읽어 합친다. Supabase는 한 번에 돌려주는 행 수에 상한(기본 1000, 설정으로 더 작게)이 있어,
- * 한 번에 읽으면 그보다 많은 목록이 안내 없이 잘린다(#160). 몇 번째부터가 아니라 마지막 id 다음부터 읽어,
+ * id 순으로 요청보다 적게 찬 쪽이 올 때까지 읽어 합친다. Supabase는 한 번에 돌려주는 행 수에 상한(1000)이 있어,
+ * 한 번에 읽으면 그보다 많은 목록이 안내 없이 잘린다(#160). 쪽 크기가 상한보다 크지 않아 덜 찬 쪽이 끝이고,
+ * 빈 쪽을 하나 더 묻지 않는다(#344). 서버 상한을 쪽 크기보다 작게 바꾸면 잘린 쪽을 끝으로 보므로 함께 고친다.
+ * 몇 번째부터가 아니라 마지막 id 다음부터 읽어,
  * 읽는 사이 앞쪽 행이 지워져도 건너뛰는 행이 없다. 화면에 필요한 순서는 다 읽은 뒤 따로 정렬한다.
  *
  * @throws {Error} 한 쪽이라도 읽지 못했을 때 `toError`가 만든 에러
@@ -40,9 +47,10 @@ export const readAllRows = async <Row extends { id: string }>({
   for (;;) {
     const { data, error } = await fetchPage(afterId, pageSize);
     if (error || !data) throw toError(error ?? new Error("응답에 행 목록이 없습니다"));
-    if (data.length === 0) return rows;
-
     rows.push(...data);
-    afterId = data[data.length - 1].id;
+    const last = data.at(-1);
+    // 덜 찬 쪽(빈 쪽 포함)이 끝이다
+    if (!last || data.length < pageSize) return rows;
+    afterId = last.id;
   }
 };

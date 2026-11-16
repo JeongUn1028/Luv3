@@ -35,6 +35,26 @@ export const getTodos = async (): Promise<Todo[]> => {
 };
 
 /**
+ * 하지 않은 하고 싶은 것을 정한 순서(`groupTodos`의 open과 같은 순서)대로 맨 위 `limit`개만 읽는다(홈 미리보기, #344).
+ * 완료한 항목까지 전부 받지 않고 부분 인덱스(`todos_open_sort_order_idx`)로 앞 몇 개만 읽는다.
+ *
+ * @throws {TodoLoadError} 조회가 실패했을 때
+ * @example const todos = await getOpenTodoPreview(3)
+ */
+export const getOpenTodoPreview = async (limit: number): Promise<Todo[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("todos")
+    .select(TODO_COLUMNS)
+    .is("completed_at", null)
+    .order("sort_order")
+    .order("id")
+    .limit(limit);
+  if (error) throw new TodoLoadError({ cause: error });
+  return data.map(toTodo);
+};
+
+/**
  * 하고 싶은 것 하나를 읽는다(수정 화면). 판 번호로 화면을 연 뒤 상대가 내용을 고쳤는지 알아본다(#161).
  *
  * @returns 없는 항목이거나 id 형식이 틀리면 undefined

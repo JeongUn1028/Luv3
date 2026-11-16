@@ -30,14 +30,27 @@ describe("GET /api/places/region", () => {
     vi.mocked(loadAdmdongBoundaries).mockReset();
   });
 
-  it("멤버가 아니면 경계를 읽지 않고 멤버 확인의 이동을 그대로 따른다", async () => {
+  it("멤버가 아니면 동네 이름을 돌려주지 않고 멤버 확인의 이동을 그대로 따른다", async () => {
     // Arrange
     const redirect = new Error("NEXT_REDIRECT");
     vi.mocked(getCurrentMember).mockRejectedValue(redirect);
+    vi.mocked(loadAdmdongBoundaries).mockResolvedValue(BOUNDARIES);
 
     // Act & Assert
     await expect(GET(requestWith({ lat: "37.5444", lng: "127.0396" }))).rejects.toBe(redirect);
-    expect(loadAdmdongBoundaries).not.toHaveBeenCalled();
+  });
+
+  it("멤버 확인을 기다리지 않고 경계 읽기를 함께 시작한다(#344)", async () => {
+    // Arrange
+    vi.mocked(getCurrentMember).mockReturnValue(new Promise(() => undefined));
+    vi.mocked(loadAdmdongBoundaries).mockResolvedValue(BOUNDARIES);
+
+    // Act
+    void GET(requestWith({ lat: "37.5444", lng: "127.0396" }));
+    await Promise.resolve();
+
+    // Assert
+    expect(loadAdmdongBoundaries).toHaveBeenCalledTimes(1);
   });
 
   it("좌표가 든 행정동 이름을 돌려주고 응답을 저장해 두지 않게 한다", async () => {

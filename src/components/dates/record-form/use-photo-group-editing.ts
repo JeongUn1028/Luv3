@@ -18,7 +18,7 @@ import { toPickNotice } from "@/lib/dates/photo-pick-notice";
 import { clearError, FIX_FIELDS_NOTICE } from "@/lib/form";
 import { readPhotoInfo } from "@/lib/photos/photo-info";
 import type { PreviewUrls } from "@/lib/photos/preview-urls";
-import { isAcceptedPhoto } from "@/lib/photos/resize";
+import { isAcceptedPhoto } from "@/lib/photos/accepted";
 import type { PhotoGroupActions, PickedPhoto } from "../PhotoGroupCard";
 
 type RecordDraft = DateRecordDraft<PickedPhoto>;

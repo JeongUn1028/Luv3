@@ -2,7 +2,7 @@
 
 import { useRef, useState, type ReactElement } from "react";
 import { MAX_GROUP_PHOTOS } from "@/lib/dates/photo-group-draft";
-import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/resize";
+import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/accepted";
 
 interface PhotoThumbProps {
   src: string | undefined;

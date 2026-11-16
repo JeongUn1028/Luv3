@@ -1,4 +1,5 @@
 import imageCompression, { type Options } from "browser-image-compression";
+import { HEIC_EXTENSION, isAcceptedPhoto, isHeic } from "./accepted";
 import { toImageCompressionLibUrl } from "./compression-lib";
 import { PhotoError } from "./errors";
 import { BUCKET_FILE_SIZE_LIMIT, MEDIUM_MAX_EDGE, ORIGINAL_MAX_EDGE, THUMB_MAX_EDGE, UPLOAD_CONTENT_TYPE } from "./limits";
@@ -33,16 +34,6 @@ const MEDIUM_OPTIONS = {
   initialQuality: 0.85,
 } as const satisfies Options;
 
-const HEIC_TYPES = new Set(["image/heic", "image/heif", "image/heic-sequence", "image/heif-sequence"]);
-const HEIC_EXTENSION = /\.(heic|heif)$/i;
-
-// SVG는 크기 정보가 없을 수 있고 GIF는 첫 장면만 남아, 사진으로 받는 형식만 허용한다
-const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const PHOTO_EXTENSION = /\.(jpe?g|png|webp)$/i;
-
-// 일부 파일 선택기는 MIME 타입을 비우거나 일반 바이너리로 넘겨, 그때는 확장자로 판단한다
-const hasUnknownType = (file: File): boolean => file.type === "" || file.type === "application/octet-stream";
-
 export interface ResizedPhoto {
   /** 긴 변 2000px JPEG(상세 화면용) */
   original: Blob;
@@ -56,27 +47,6 @@ export interface ResizedCouplePhoto {
   /** 긴 변 1100px JPEG(홈 커플 사진 카드용) */
   medium: Blob;
 }
-
-/**
- * HEIC·HEIF 사진인지 확인한다. MIME 타입이 비었거나 일반 바이너리면 확장자로 본다.
- *
- * @example isHeic(new File([], "IMG_0001.HEIC")) // true
- */
-export const isHeic = (file: File): boolean =>
-  HEIC_TYPES.has(file.type) || (hasUnknownType(file) && HEIC_EXTENSION.test(file.name));
-
-const isSupportedPhoto = (file: File): boolean =>
-  PHOTO_TYPES.has(file.type) || (hasUnknownType(file) && PHOTO_EXTENSION.test(file.name));
-
-/** 사진 고르기 `<input type="file">`의 `accept`. `isAcceptedPhoto`가 받는 형식과 같다 */
-export const PHOTO_INPUT_ACCEPT = "image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif";
-
-/**
- * 올릴 수 있는 사진인지 확인한다(JPEG·PNG·WebP·HEIC). 사진을 고를 때 걸러 저장 단계에서 실패하지 않게 한다.
- *
- * @example isAcceptedPhoto(new File([], "a.gif", { type: "image/gif" })) // false
- */
-export const isAcceptedPhoto = (file: File): boolean => isHeic(file) || isSupportedPhoto(file);
 
 // heic2any는 libheif를 품고 있어 크고(약 2.7MB), 불러올 때 window가 필요하다. HEIC를 고른 경우에만 불러온다.
 const convertHeicToJpeg = async (file: File): Promise<File> => {

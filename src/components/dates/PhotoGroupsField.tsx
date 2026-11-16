@@ -7,7 +7,7 @@ import type { DraftErrors, DraftPhotoGroup, PhotoLocation } from "@/lib/dates/fo
 import { findNearbyGroupLocation, toOtherGroupLocations, type OtherGroupLocation } from "@/lib/dates/group-location";
 import { toGroupName } from "@/lib/dates/group-name";
 import { MAX_GROUPS, MAX_RECORD_PHOTOS, getDraftPhotos } from "@/lib/dates/photo-group-draft";
-import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/resize";
+import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/accepted";
 import { GroupLocationDialog, type GroupLocationDialogHandle } from "./GroupLocationDialog";
 import { PhotoGroupCard, type PhotoGroupActions, type PickedPhoto } from "./PhotoGroupCard";
 
