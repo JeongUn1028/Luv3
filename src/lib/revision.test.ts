@@ -1,47 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { saveRowAtRevision, toFailedSaveFields, type RevisionedTable } from "./revision";
+import { createFakeRevisionedTable } from "@/test-utils/revisioned-table";
+import { saveRowAtRevision, toFailedSaveFields } from "./revision";
 
-interface Calls {
-  insert: unknown[];
-  update: { values: unknown; id: string; revisions: string[] }[];
-  read: string[];
-}
-
-interface FakeTableParams {
-  insertError?: { message: string; code?: string };
-  updatedRows?: { id: string }[];
-  isRowThere?: boolean;
-}
-
-/** 부른 값을 기록하고 정해 둔 결과를 돌려주는 가짜 표 */
-const createFakeTable = ({ insertError, updatedRows = [{ id: "row" }], isRowThere = true }: FakeTableParams = {}) => {
-  const calls: Calls = { insert: [], update: [], read: [] };
-  const table: RevisionedTable<{ content: string }> = {
-    insert: async (row) => {
-      calls.insert.push(row);
-      return { error: insertError ?? null };
-    },
-    update: (values) => ({
-      eq: (_column, id) => ({
-        in: (_revisionColumn, revisions) => ({
-          select: async () => {
-            calls.update.push({ values, id, revisions: [...revisions] });
-            return { data: updatedRows, error: null };
-          },
-        }),
-      }),
-    }),
-    select: () => ({
-      eq: (_column, id) => ({
-        maybeSingle: async () => {
-          calls.read.push(id);
-          return { data: isRowThere ? { id } : null, error: null };
-        },
-      }),
-    }),
-  };
-  return { table, calls };
-};
+const createFakeTable = createFakeRevisionedTable<{ content: string }>;
+/** 판 번호가 맞지 않거나 행이 없어 바뀐 행이 없는 고치기 결과 */
+const NO_UPDATED_ROWS = [{ data: [], error: null }];
 
 describe("toFailedSaveFields", () => {
   const MAY_HAVE_SAVED = { hasConflict: false, mayHaveSaved: true };
@@ -88,7 +51,7 @@ describe("saveRowAtRevision", () => {
   });
 
   it("고칠 행이 바뀌지 않았는데 행이 남아 있으면 그사이 바뀐 것이라 conflict다", async () => {
-    const { table, calls } = createFakeTable({ updatedRows: [] });
+    const { table, calls } = createFakeTable({ updateResults: NO_UPDATED_ROWS });
 
     const outcome = await saveRowAtRevision({ table, rowId: "t1", newRowId: "n1", values: { content: "벚꽃" }, expectedRevisions: ["r1"], revision: "r2" });
 
@@ -97,7 +60,7 @@ describe("saveRowAtRevision", () => {
   });
 
   it("고칠 행이 바뀌지 않았고 행도 없으면 그사이 지워진 것이라 gone이다", async () => {
-    const { table } = createFakeTable({ updatedRows: [], isRowThere: false });
+    const { table } = createFakeTable({ updateResults: NO_UPDATED_ROWS, isRowThere: false });
 
     const outcome = await saveRowAtRevision({ table, rowId: "t1", newRowId: "n1", values: { content: "벚꽃" }, expectedRevisions: ["r1"], revision: "r2" });
 

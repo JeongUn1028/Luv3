@@ -75,3 +75,34 @@ export const getPasswordChangeErrorMessage = ({ status, code }: PasswordChangeFa
   if (status === 429) return TOO_MANY_REQUESTS_MESSAGE;
   return (code && Object.hasOwn(FAILURE_MESSAGES, code) && FAILURE_MESSAGES[code]) || PASSWORD_CHANGE_UNAVAILABLE_MESSAGE;
 };
+
+/**
+ * 비밀번호 바꾸기에 쓰는 인증 요청. Supabase의 `createClient().auth`가 이 모양이다. 테스트는 같은 모양의 가짜를 넘긴다.
+ *
+ * @example const auth: PasswordChangeAuth = createClient().auth;
+ */
+export interface PasswordChangeAuth {
+  signInWithPassword: (credentials: { email: string; password: string }) => PromiseLike<{ error: PasswordChangeFailure | null }>;
+  updateUser: (attributes: { password: string; current_password: string }) => PromiseLike<{ error: PasswordChangeFailure | null }>;
+}
+
+interface ChangePasswordParams {
+  auth: PasswordChangeAuth;
+  email: string;
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * 비밀번호를 바꾼다. 서버의 현재 비밀번호 검사(`current_password`)는 꺼져 있으면 틀린 값도 그대로 통과시키므로, 설정과 상관없이 로그인으로 먼저 확인한다.
+ * 방금 만든 세션으로 바꾸므로 secure_password_change를 켜도 확인 메일을 요구받지 않는다.
+ *
+ * @returns 실패하면 화면에 보여 줄 문구, 성공하면 undefined
+ * @example const message = await changePassword({ auth: createClient().auth, email, currentPassword, newPassword })
+ */
+export const changePassword = async ({ auth, email, currentPassword, newPassword }: ChangePasswordParams): Promise<string | undefined> => {
+  const { error: signInError } = await auth.signInWithPassword({ email, password: currentPassword });
+  if (signInError) return getPasswordChangeErrorMessage(signInError);
+  const { error } = await auth.updateUser({ password: newPassword, current_password: currentPassword });
+  return error ? getPasswordChangeErrorMessage(error) : undefined;
+};
