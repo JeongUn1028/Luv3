@@ -51,7 +51,7 @@ const toTime = (todo: Todo): number => (todo.completedAt === undefined ? 0 : Dat
 /**
  * 하지 않은 항목(정한 순서대로)과 완료한 항목(최근에 완료한 것부터)으로 나눈다. 화면에서는 완료한 항목을 아래에 그린다.
  *
- * @example const { open, done } = groupTodos(todos); open.slice(0, 3) // 홈에 보여 줄 맨 위 3개
+ * @example const { open, done } = groupTodos(todos)
  */
 export const groupTodos = <T extends Todo>(todos: T[]): { open: T[]; done: T[] } => ({
   open: todos.filter(isOpen).toSorted(compareBySortOrder),

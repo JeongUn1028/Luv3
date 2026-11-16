@@ -27,14 +27,27 @@ describe("GET /api/records/map-photos", () => {
     vi.mocked(getMapPhotos).mockReset();
   });
 
-  it("멤버가 아니면 읽지 않고 멤버 확인의 이동을 그대로 따른다", async () => {
+  it("멤버가 아니면 읽은 사진을 돌려주지 않고 멤버 확인의 이동을 그대로 따른다", async () => {
     // Arrange
     const redirect = new Error("NEXT_REDIRECT");
     vi.mocked(getCurrentMember).mockRejectedValue(redirect);
+    vi.mocked(getMapPhotos).mockResolvedValue([PHOTO]);
 
     // Act & Assert
     await expect(GET(requestWith(PHOTO_ID))).rejects.toBe(redirect);
-    expect(getMapPhotos).not.toHaveBeenCalled();
+  });
+
+  it("멤버 확인을 기다리지 않고 사진 읽기를 함께 시작한다(#344)", async () => {
+    // Arrange
+    vi.mocked(getCurrentMember).mockReturnValue(new Promise(() => undefined));
+    vi.mocked(getMapPhotos).mockResolvedValue([PHOTO]);
+
+    // Act
+    void GET(requestWith(PHOTO_ID));
+    await Promise.resolve();
+
+    // Assert
+    expect(getMapPhotos).toHaveBeenCalledWith([PHOTO_ID]);
   });
 
   it("고른 사진을 돌려주고 응답을 저장해 두지 않게 한다", async () => {

@@ -7,7 +7,7 @@ import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
 import { toKstDate } from "@/lib/anniversary";
-import { getCurrentMember } from "@/lib/auth/member";
+import { withCurrentMember } from "@/lib/auth/with-member";
 import { getGridRange, parseMonth } from "@/lib/calendar/month";
 import { EventLoadError, getCalendarMonth } from "@/lib/events/queries";
 import { getHolidayNamesInRange } from "@/lib/holidays/server";
@@ -16,17 +16,15 @@ import { catchLoadError } from "@/lib/load";
 export const metadata: Metadata = { title: "캘린더 · Luv3" };
 
 const CalendarContent = async ({ searchParams }: Pick<PageProps<"/calendar">, "searchParams">) => {
-  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  await getCurrentMember();
   const { month: monthParam, date: dateParam } = await searchParams;
   const today = toKstDate(new Date());
   const month = parseMonth(monthParam, today);
   // 일정을 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다.
   // 공휴일은 못 받아도 비어 있을 뿐 화면을 막지 않는다
-  const [result, holidayNames] = await Promise.all([
-    catchLoadError(() => getCalendarMonth(month), EventLoadError),
-    getHolidayNamesInRange(getGridRange(month)),
-  ]);
+  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다. 확인과 조회는 함께 시작한다(#344)
+  const [, [result, holidayNames]] = await withCurrentMember(() =>
+    Promise.all([catchLoadError(() => getCalendarMonth(month), EventLoadError), getHolidayNamesInRange(getGridRange(month))]),
+  );
 
   if (result instanceof EventLoadError) return <LoadErrorMessage message={result.message} />;
   // 달이나 주소의 날이 바뀌면 고른 날을 다시 정하도록 key로 새로 그린다

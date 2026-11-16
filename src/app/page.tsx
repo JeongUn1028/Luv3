@@ -1,3 +1,4 @@
+import { connection } from "next/server";
 import { CouplePhoto } from "@/components/home/CouplePhoto";
 import { DdayHeader } from "@/components/home/DdayHeader";
 import { CouplePhotoSkeleton, DdaySkeleton, LatestRecordSkeleton, TodoPreviewSkeleton, UpcomingEventSkeleton } from "@/components/home/HomeSkeletons";
@@ -12,20 +13,21 @@ import { TabScreen } from "@/components/tabs/TabScreen";
 import { ANNIVERSARY_DATE, countDaysTogether, toKstDate, toKstNow } from "@/lib/anniversary";
 import { SETTINGS_PATH } from "@/lib/auth/paths";
 import { getCurrentMember } from "@/lib/auth/member";
+import { withCurrentMember } from "@/lib/auth/with-member";
 import { CALENDAR_PATH, toCalendarHref } from "@/lib/calendar/month";
 import { CouplePhotoLoadError, getCouplePhoto } from "@/lib/couple-photo/queries";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { AlbumLoadError, getLatestRecord } from "@/lib/dates/queries";
 import { EventLoadError, getUpcomingEvents } from "@/lib/events/queries";
 import { catchLoadError } from "@/lib/load";
-import { groupTodos } from "@/lib/todos/list";
-import { getTodos, TodoLoadError } from "@/lib/todos/queries";
+import { getOpenTodoPreview, TodoLoadError } from "@/lib/todos/queries";
 
 /** 홈에 보여 줄 하고 싶은 것 개수(맨 위부터) */
 const TODO_PREVIEW_COUNT = 3;
 
 // 칸마다 세션을 읽고 따로 불러와서, 한 칸이 느리거나 실패해도 나머지 칸은 먼저 보인다.
-// 각 칸에서 getCurrentMember를 부르는 이유: 허용목록 밖 계정이 먼저 그려진 칸을 누르지 않게 로그아웃 처리 경로로 보낸다
+// 각 칸에서 회원을 확인하는 이유: 허용목록 밖 계정이 먼저 그려진 칸을 누르지 않게 로그아웃 처리 경로로 보낸다.
+// 확인과 조회는 함께 시작한다(#344)
 
 const HomeDday = async () => {
   await getCurrentMember();
@@ -35,8 +37,7 @@ const HomeDday = async () => {
 };
 
 const HomeCouplePhoto = async () => {
-  await getCurrentMember();
-  const photo = await catchLoadError(getCouplePhoto, CouplePhotoLoadError);
+  const [, photo] = await withCurrentMember(() => catchLoadError(getCouplePhoto, CouplePhotoLoadError));
 
   if (photo instanceof CouplePhotoLoadError) {
     return (
@@ -49,8 +50,7 @@ const HomeCouplePhoto = async () => {
 };
 
 const HomeLatestRecord = async () => {
-  await getCurrentMember();
-  const record = await catchLoadError(getLatestRecord, AlbumLoadError);
+  const [, record] = await withCurrentMember(() => catchLoadError(getLatestRecord, AlbumLoadError));
 
   if (record instanceof AlbumLoadError) {
     return (
@@ -70,9 +70,10 @@ const HomeLatestRecord = async () => {
 };
 
 const HomeUpcomingEvents = async () => {
-  await getCurrentMember();
+  // 회원 확인을 기다리지 않으므로, 지금 시각을 읽기 전에 요청 때 그리는 칸임을 알린다(cacheComponents)
+  await connection();
   const now = toKstNow(new Date());
-  const events = await catchLoadError(() => getUpcomingEvents(now), EventLoadError);
+  const [, events] = await withCurrentMember(() => catchLoadError(() => getUpcomingEvents(now), EventLoadError));
 
   if (events instanceof EventLoadError) {
     return (
@@ -99,11 +100,10 @@ const HomeUpcomingEvents = async () => {
 };
 
 const HomeTodos = async () => {
-  await getCurrentMember();
-  const todos = await catchLoadError(getTodos, TodoLoadError);
+  const [, todos] = await withCurrentMember(() => catchLoadError(() => getOpenTodoPreview(TODO_PREVIEW_COUNT), TodoLoadError));
 
   if (todos instanceof TodoLoadError) return <TodoPreview todos={[]} errorMessage={todos.message} />;
-  return <TodoPreview todos={groupTodos(todos).open.slice(0, TODO_PREVIEW_COUNT)} />;
+  return <TodoPreview todos={todos} />;
 };
 
 const HomePage = () => (

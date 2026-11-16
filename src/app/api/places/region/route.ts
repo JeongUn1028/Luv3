@@ -1,4 +1,4 @@
-import { getCurrentMember } from "@/lib/auth/member";
+import { withCurrentMember } from "@/lib/auth/with-member";
 import { findAdmdongName } from "@/lib/places/admdong";
 import { loadAdmdongBoundaries } from "@/lib/places/admdong-server";
 import { NO_STORE_HEADERS, toErrorResponse } from "@/lib/api-response";
@@ -17,16 +17,14 @@ const toCoordinate = (text: string | null, limit: number): number | undefined =>
  * 경계 파일을 휴대폰에 보내지 않으려고 서버에서 계산하고, 멤버만 받는다(아니면 로그인 화면으로 보낸다). 경계 밖(해외·바다)이면 `{ name: null }`.
  */
 export const GET = async (request: Request): Promise<Response> => {
-  await getCurrentMember();
-
   const params = new URL(request.url).searchParams;
   const lat = toCoordinate(params.get("lat"), 90);
   const lng = toCoordinate(params.get("lng"), 180);
-  if (lat === undefined || lng === undefined) {
-    return toErrorResponse("INVALID_LOCATION", "좌표가 잘못됐어요.", 400);
-  }
-
+  const location = lat === undefined || lng === undefined ? undefined : { lat, lng };
+  // 멤버 확인과 경계 읽기를 함께 시작한다(#344). 좌표가 잘못됐어도 멤버가 아니면 400보다 멤버 확인의 이동이 먼저다.
   // 경계 파일을 읽지 못하면 빌드가 잘못된 것이라 전역 오류 처리로 넘긴다. 화면은 실패하면 "찍은 곳"으로 둔다
-  const name = findAdmdongName(await loadAdmdongBoundaries(), { lat, lng });
+  const [, boundaries] = await withCurrentMember(async () => (location ? loadAdmdongBoundaries() : undefined));
+  if (!boundaries || !location) return toErrorResponse("INVALID_LOCATION", "좌표가 잘못됐어요.", 400);
+  const name = findAdmdongName(boundaries, location);
   return Response.json({ name: name ?? null }, { headers: NO_STORE_HEADERS });
 };

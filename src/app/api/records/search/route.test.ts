@@ -25,14 +25,36 @@ describe("GET /api/records/search", () => {
     vi.mocked(searchRecords).mockReset();
   });
 
-  it("멤버가 아니면 찾지 않고 멤버 확인의 이동을 그대로 따른다", async () => {
+  it("멤버가 아니면 찾은 결과를 돌려주지 않고 멤버 확인의 이동을 그대로 따른다", async () => {
+    // Arrange
+    const redirect = new Error("NEXT_REDIRECT");
+    vi.mocked(getCurrentMember).mockRejectedValue(redirect);
+    vi.mocked(searchRecords).mockResolvedValue(PAGE);
+
+    // Act & Assert
+    await expect(GET(requestWith("q=성수"))).rejects.toBe(redirect);
+  });
+
+  it("멤버 확인을 기다리지 않고 찾기를 함께 시작한다(#344)", async () => {
+    // Arrange
+    vi.mocked(getCurrentMember).mockReturnValue(new Promise(() => undefined));
+    vi.mocked(searchRecords).mockResolvedValue(PAGE);
+
+    // Act
+    void GET(requestWith("q=성수"));
+    await Promise.resolve();
+
+    // Assert
+    expect(searchRecords).toHaveBeenCalledTimes(1);
+  });
+
+  it("조건이 잘못돼도 멤버가 아니면 400 대신 멤버 확인의 이동을 따른다", async () => {
     // Arrange
     const redirect = new Error("NEXT_REDIRECT");
     vi.mocked(getCurrentMember).mockRejectedValue(redirect);
 
     // Act & Assert
-    await expect(GET(requestWith("q=성수"))).rejects.toBe(redirect);
-    expect(searchRecords).not.toHaveBeenCalled();
+    await expect(GET(requestWith("beforeDate=2026-11-02"))).rejects.toBe(redirect);
   });
 
   it("찾은 묶음을 돌려주고 응답을 저장해 두지 않게 한다", async () => {

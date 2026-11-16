@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
 import { isWritingNow, refreshOutsideForm } from "./refresh-outside-form";
 import { markAllScreensLoaded, markAllScreensStale, markScreenLoaded } from "./screen-freshness";
+import { isSignedInHere } from "./signed-in";
 
 /**
  * 사용자가 누르지 않았는데 지금 화면을 새로 받을 때 쓴다(앱 복귀, 사진 실패 — #163).
@@ -19,8 +20,7 @@ export const refreshSignedInScreen = async (refresh: () => void): Promise<boolea
     return false;
   }
   const { href } = window.location;
-  const { data } = await createClient().auth.getUser();
-  if (!data.user || window.location.href !== href) return false;
+  if (!(await isSignedInHere(createClient().auth)) || window.location.href !== href) return false;
   return refreshOutsideForm(() => {
     // router.refresh()는 숨겨 둔 화면까지 비워 돌아갈 때 Next가 새로 받으므로, 표시가 없으면 같은 요청과 사진을 두 번 받는다
     markAllScreensLoaded();

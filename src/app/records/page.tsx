@@ -8,7 +8,7 @@ import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
-import { getCurrentMember } from "@/lib/auth/member";
+import { withCurrentMember } from "@/lib/auth/with-member";
 import { RECORDS_MAP_PATH } from "@/lib/dates/map";
 import { AlbumLoadError, getAlbumFirstPage, getTagSuggestions } from "@/lib/dates/queries";
 import { catchLoadError } from "@/lib/load";
@@ -16,10 +16,11 @@ import { catchLoadError } from "@/lib/load";
 export const metadata: Metadata = { title: "기록 · Luv3" };
 
 const RecordsContent = async () => {
-  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  await getCurrentMember();
+  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다. 확인과 조회는 함께 시작한다(#344)
   // 그리드를 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다. 태그 줄은 못 읽으면 비워 둔다
-  const [firstPage, tags] = await Promise.all([catchLoadError(getAlbumFirstPage, AlbumLoadError), getTagSuggestions()]);
+  const [, [firstPage, tags]] = await withCurrentMember(() =>
+    Promise.all([catchLoadError(getAlbumFirstPage, AlbumLoadError), getTagSuggestions()]),
+  );
 
   if (firstPage instanceof AlbumLoadError) {
     return (

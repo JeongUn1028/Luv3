@@ -14,7 +14,7 @@ import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import type { RememberablePhoto } from "@/lib/photos/remembered-url";
-import { isAcceptedPhoto, PHOTO_INPUT_ACCEPT, resizeCouplePhoto } from "@/lib/photos/resize";
+import { isAcceptedPhoto, PHOTO_INPUT_ACCEPT } from "@/lib/photos/accepted";
 import { createClient } from "@/lib/supabase/client";
 
 type Task = "upload" | "clear";
@@ -128,6 +128,8 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
     setTask("upload");
     setMessage(undefined);
     try {
+      // 줄이기 라이브러리는 사진을 고른 뒤에 받아 홈 첫 화면 코드를 줄인다(#344). 받지 못하면 아래에서 다시 시도 문구를 보여 준다
+      const { resizeCouplePhoto } = await import("@/lib/photos/resize");
       const { original, medium } = await resizeCouplePhoto(file);
       // 고른 원본(수십 MB일 수 있음)보다 가볍고, 브라우저가 못 그린 HEIC도 변환된 사진으로 그린다
       if (isCurrentPreview()) showPreview({ photoId, url: URL.createObjectURL(medium), replacedPath });

@@ -4,7 +4,7 @@ import { FORWARD_TRANSITION, TAB_TRANSITION } from "@/lib/navigation/transition"
 import { TODOS_PATH, type Todo } from "@/lib/todos/list";
 
 interface TodoPreviewProps {
-  /** 하지 않은 항목 맨 위 몇 개(`groupTodos(todos).open.slice(0, 3)`) */
+  /** 하지 않은 항목 맨 위 몇 개(`getOpenTodoPreview(3)`) */
   todos: Todo[];
   /** 불러오기 실패 문구. 있으면 `todos` 대신 보여 준다 */
   errorMessage?: string;
@@ -14,7 +14,7 @@ interface TodoPreviewProps {
  * 홈의 하고 싶은 것 한 줄 카드. 항목을 점과 함께 가로로 잇고, 줄이 넘치면 끝을 "…"로 줄인다.
  * 링크가 카드 전체를 덮어 어디를 눌러도 Todo 탭(비었으면 추가 화면)으로 간다.
  *
- * @example <TodoPreview todos={groupTodos(todos).open.slice(0, 3)} />
+ * @example <TodoPreview todos={await getOpenTodoPreview(3)} />
  */
 export const TodoPreview = ({ todos, errorMessage }: TodoPreviewProps): ReactElement => {
   const titleId = useId();

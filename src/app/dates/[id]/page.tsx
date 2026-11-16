@@ -16,7 +16,8 @@ import { RecordRoute } from "@/components/dates/route/RecordRoute";
 import { RecordTagLink } from "@/components/dates/RecordTagLink";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { toKstDate } from "@/lib/anniversary";
-import { getCurrentMember } from "@/lib/auth/member";
+import { withCurrentMember } from "@/lib/auth/with-member";
+import { toRecordComment } from "@/lib/comments/comment";
 import { CommentLoadError, getRecordComments } from "@/lib/comments/queries";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { findStartPhotoIndex, formatRecordPeriod, RECORD_PHOTO_PARAM } from "@/lib/dates/detail";
@@ -41,17 +42,19 @@ const LinkEventSuggestion = async ({ recordId, date, endDate }: { recordId: stri
 };
 
 const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id]">, "params" | "searchParams">) => {
-  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  const member = await getCurrentMember();
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const photoParam = query[RECORD_PHOTO_PARAM];
   // 같은 이름이 여러 번 오면 첫 값을 쓴다
   const startPhotoId = Array.isArray(photoParam) ? photoParam[0] : photoParam;
+  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다. 확인과 조회는 함께 시작한다(#344)
   // 댓글은 기록을 기다리지 않고 함께 읽는다. 댓글을 못 읽어도 기록은 보여 준다
-  const [record, comments] = await Promise.all([
-    catchLoadError(() => getDateRecordDetail(id, startPhotoId), DateRecordLoadError),
-    catchLoadError(() => getRecordComments({ recordId: id, memberId: member.id }), CommentLoadError),
-  ]);
+  const [member, [record, commentRows]] = await withCurrentMember(() =>
+    Promise.all([
+      catchLoadError(() => getDateRecordDetail(id, startPhotoId), DateRecordLoadError),
+      catchLoadError(() => getRecordComments(id), CommentLoadError),
+    ]),
+  );
+  const comments = commentRows instanceof CommentLoadError ? commentRows : commentRows.map((row) => toRecordComment(row, member.id));
 
   if (record instanceof DateRecordLoadError) {
     return (
