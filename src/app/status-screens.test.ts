@@ -13,6 +13,7 @@ const LOAD_ERROR_SCREEN = "components/LoadErrorScreen.tsx";
 const LOAD_ERROR_MESSAGE = "components/LoadErrorMessage.tsx";
 const STATUS_SCREEN = "components/StatusScreen.tsx";
 const USE_RETRY = "lib/navigation/use-retry.ts";
+const USE_OFFLINE_BLOCK = "lib/use-offline-block.ts";
 
 describe("오류 화면", () => {
   it("다시 시도 버튼이 화면을 다시 불러온다", () => {
@@ -28,7 +29,7 @@ describe("오류 화면", () => {
     const source = readSource(RETRY_BUTTON);
 
     // disabled는 누른 순간 초점을 빼앗으므로 aria-disabled로 막고 누름도 무시한다
-    expect(source).toContain("const isDisabled = isPending || isOffline;");
+    expect(source).toContain("const isDisabled = isPending || isBlocked;");
     expect(source).toContain("aria-disabled={isDisabled}");
     expect(source).toContain("if (!isDisabled) onRetry();");
     expect(source).not.toMatch(/\sdisabled=\{/);
@@ -39,10 +40,10 @@ describe("오류 화면", () => {
     // 끊긴 채로 누르면 연결될 때까지 기다리며, 그동안 돌아가는 링크를 눌러도 제자리에 있다가 연결되면 한꺼번에 옮겨 간다(#139)
     const source = readSource(RETRY_BUTTON);
 
-    expect(source).toContain("const isOffline = useOffline();");
     // 다시 시도하는 중에 끊기면 그 시도가 연결을 기다리므로 다시 누르라는 안내는 보여 주지 않는다
-    expect(source).toContain("const shouldShowOfflineHint = isOffline && !isPending;");
-    expect(source).toMatch(/\{shouldShowOfflineHint && \(\s*<p id=\{hintId\}[^>]*>\s*연결되면 다시 시도할 수 있어요/);
+    expect(source).toContain("const { isBlocked, hintId } = useOfflineBlock(isPending);");
+    expect(readSource(USE_OFFLINE_BLOCK)).toContain("return { isBlocked: isOffline && !isBusy, hintId };");
+    expect(source).toMatch(/<OfflineHint id=\{hintId\} isShown=\{isBlocked\}>\s*연결되면 다시 시도할 수 있어요/);
   });
 
   it("다시 시도가 또 실패하면 바뀐 문구를 화면 읽기 프로그램에 다시 알린다", () => {
