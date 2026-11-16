@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clearError, countChars, countGraphemes, FIX_FIELDS_NOTICE, isIsoDate, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
+import { clearError, clearFieldError, countChars, countGraphemes, FIX_FIELDS_NOTICE, isIsoDate, isResolvedFieldNotice, isSameFormValue, toPeriodEndDate } from "@/lib/form";
 
 describe("countChars", () => {
   it("DB(char_length)처럼 이모지 하나를 한 글자로 센다", () => {
@@ -44,6 +44,27 @@ describe("clearError", () => {
   it("지울 에러가 없으면 같은 객체를 돌려준다(불필요한 다시 그리기 방지)", () => {
     const errors: Partial<Record<"title" | "memo", string>> = { title: "제목을 적어 주세요." };
     expect(clearError(errors, "memo")).toBe(errors);
+  });
+});
+
+describe("clearFieldError", () => {
+  it("시작 날짜를 고치면 끝 날짜 에러도 함께 지운다(시작 날짜에 따라 달라진다)", () => {
+    const errors = { date: "날짜를 골라 주세요.", endDate: "끝 날짜는 시작 날짜보다 뒤여야 해요.", title: "제목을 적어 주세요." };
+
+    expect(clearFieldError(errors, "date")).toEqual({ title: "제목을 적어 주세요." });
+  });
+
+  it("다른 칸을 고치면 그 칸의 에러만 지운다", () => {
+    const errors = { endDate: "끝 날짜를 골라 주세요.", title: "제목을 적어 주세요." };
+
+    expect(clearFieldError(errors, "title")).toEqual({ endDate: "끝 날짜를 골라 주세요." });
+  });
+});
+
+describe("toPeriodEndDate", () => {
+  it("기간을 켜면 아직 고르지 않은 빈 끝 날짜, 끄면 하루짜리다", () => {
+    expect(toPeriodEndDate(true)).toBe("");
+    expect(toPeriodEndDate(false)).toBeUndefined();
   });
 });
 

@@ -2,11 +2,14 @@
 
 import { useState, type ReactElement, type SubmitEvent } from "react";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
+import { FormFooter } from "@/components/FormFooter";
 import { TextField } from "@/components/FormField";
 import { DELETING_KEYS } from "@/lib/deleting";
 import { PageShell } from "@/components/PageShell";
 import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
+import { showInvalidFields } from "@/lib/focus-invalid-field";
+import { clearError, isResolvedFieldNotice } from "@/lib/form";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
@@ -31,6 +34,9 @@ interface TodoDraft {
 
 const failedSaves = new Map<string, FailedSave<TodoDraft>>();
 
+/** 칸 이름 → 화면에 보여 줄 에러 문구 */
+type TodoFormErrors = Partial<Record<"content", string>>;
+
 interface TodoFormProps {
   /** 처음 채울 내용. 새 항목이면 빈 문자열 */
   initialContent: string;
@@ -50,8 +56,10 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
   const [hasConflict, setHasConflict] = useState(failedSave?.draft.hasConflict ?? false);
   // 쓴 내용이 있는지 견줄 처음 내용. 상대가 고쳐 화면을 새로 받아도 폼은 처음 내용 그대로라 이 값과 견준다
   const [baseContent, setBaseContent] = useState(initialContent);
-  const [error, setError] = useState<string>();
+  const [errors, setErrors] = useState<TodoFormErrors>({});
   const [notice, setNotice] = useState(failedSave?.message);
+  // 칸 오류를 고치면 저장을 다시 누르기 전이라도 안내를 지운다. 효과로 지우면 한 번 더 그려지므로 그리는 중에 맞춘다
+  if (isResolvedFieldNotice(notice, errors)) setNotice(undefined);
   const [isSaving, setIsSaving] = useState(false);
   // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알리므로 묻지 않는다(#104)
   const shouldConfirmLeave = content !== baseContent && !isSaving;
@@ -60,9 +68,8 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
     event.preventDefault();
     if (isSaving) return;
 
-    const nextError = validateTodoContent(content);
-    setError(nextError);
-    if (nextError) return;
+    const contentError = validateTodoContent(content);
+    if (showInvalidFields({ form: event.currentTarget, errors: contentError ? { content: contentError } : {}, setErrors, setNotice })) return;
 
     setNotice(undefined);
     setIsSaving(true);
@@ -148,25 +155,16 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
           maxLength={TODO_CONTENT_MAX_LENGTH * 2}
           enterKeyHint="done"
           disabled={isSaving}
-          error={error}
+          error={errors.content}
           onChange={(value) => {
             setContent(value);
-            setError(undefined);
+            setErrors((current) => clearError(current, "content"));
           }}
         />
 
-        <div className="flex flex-col">
-          {notice && (
-            <p role="alert" className="mb-3 text-[13px] text-accent">
-              {notice}
-            </p>
-          )}
-          {hasConflict ? (
-            <ReloadLatestButton />
-          ) : (
-            <SaveButton isDisabled={isSaving}>{isSaving ? "저장 중…" : "저장"}</SaveButton>
-          )}
-        </div>
+        <FormFooter notice={notice}>
+          {hasConflict ? <ReloadLatestButton /> : <SaveButton isDisabled={isSaving}>{isSaving ? "저장 중…" : "저장"}</SaveButton>}
+        </FormFooter>
       </form>
     </PageShell>
   );

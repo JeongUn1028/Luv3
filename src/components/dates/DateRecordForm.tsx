@@ -21,8 +21,8 @@ import {
   type RecordPrefill,
 } from "@/lib/dates/form";
 import { getDraftPhotos } from "@/lib/dates/photo-group-draft";
-import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
-import { clearError, countChars, FIX_FIELDS_NOTICE, isResolvedFieldNotice } from "@/lib/form";
+import { showInvalidFields } from "@/lib/focus-invalid-field";
+import { clearError, clearFieldError, countChars, isResolvedFieldNotice, toPeriodEndDate } from "@/lib/form";
 import { subscribeToAppReturn } from "@/lib/navigation/app-return";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
@@ -160,15 +160,11 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
 
   const updateField = (field: "date" | "endDate" | "title" | "memo", value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
-    setErrors((current) => {
-      const cleared = clearError(current, field);
-      // 끝 날짜 에러는 시작 날짜에 따라 달라지므로, 시작 날짜를 고치면 함께 지우고 저장할 때 다시 확인한다
-      return field === "date" ? clearError(cleared, "endDate") : cleared;
-    });
+    setErrors((current) => clearFieldError(current, field));
   };
 
   const handlePeriodChange = (isChecked: boolean) => {
-    setDraft((current) => ({ ...current, endDate: isChecked ? "" : undefined }));
+    setDraft((current) => ({ ...current, endDate: toPeriodEndDate(isChecked) }));
     setErrors((current) => clearError(current, "endDate"));
   };
 
@@ -200,16 +196,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
     if (!tagError) setTagInput("");
 
     const nextErrors: DraftErrors = { ...validateDraft(nextDraft, today), ...(tagError && { tags: tagError }) };
-    if (Object.keys(nextErrors).length > 0) {
-      // 오류 칸이 그려져야 찾을 수 있어 바로 그린다
-      flushSync(() => {
-        setErrors(nextErrors);
-        setNotice(FIX_FIELDS_NOTICE);
-      });
-      focusFirstInvalidField(form);
-      return;
-    }
-    setErrors(nextErrors);
+    if (showInvalidFields({ form, errors: nextErrors, setErrors, setNotice })) return;
 
     const recordId = record?.id ?? nextDraft.uncertainSaveRecordId ?? crypto.randomUUID();
     await recordSave.save({ draft: nextDraft, recordId, reset: () => resetForm(record ? toEditDraft(record) : createEmptyDraft()) });

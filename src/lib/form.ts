@@ -1,4 +1,4 @@
-// 기록·일정 폼이 함께 쓰는 입력값 도우미
+// 폼이 함께 쓰는 입력값 도우미
 
 import { isObject, splitIsoDate } from "@/lib/guards";
 
@@ -41,6 +41,24 @@ export const clearError = <Errors extends Partial<Record<string, string>>>(error
   delete next[key];
   return next;
 };
+
+/**
+ * 고친 칸의 에러를 지운다. 끝 날짜 에러는 시작 날짜에 따라 달라지므로, 시작 날짜(`date`)를 고치면 함께 지우고 저장할 때 다시 확인한다.
+ * 기록·일정 폼이 함께 쓴다.
+ *
+ * @example setErrors((current) => clearFieldError(current, "date")) // date·endDate 에러를 지운다
+ */
+export const clearFieldError = <Errors extends Partial<Record<string, string>> & { date?: string; endDate?: string }>(errors: Errors, field: keyof Errors): Errors => {
+  const cleared = clearError(errors, field);
+  return field === "date" ? clearError(cleared, "endDate") : cleared;
+};
+
+/**
+ * 기간 칸을 켜고 끌 때의 끝 날짜. 켜면 아직 고르지 않은 빈 값, 끄면 하루 기록·일정(`undefined`)이다.
+ *
+ * @example setDraft((current) => ({ ...current, endDate: toPeriodEndDate(isChecked) }))
+ */
+export const toPeriodEndDate = (isChecked: boolean): string | undefined => (isChecked ? "" : undefined);
 
 /** 저장할 때 칸에 오류가 있으면 폼 아래에 보이는 안내 */
 export const FIX_FIELDS_NOTICE = "입력한 내용을 확인해 주세요.";

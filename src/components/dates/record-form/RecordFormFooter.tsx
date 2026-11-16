@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
+import { FormFooter } from "@/components/FormFooter";
 import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { toRecordFormEnding } from "@/lib/dates/record-form-outcome";
 import type { SaveProgress } from "@/lib/dates/save";
@@ -39,12 +40,7 @@ export const RecordFormFooter = ({
   const ending = toRecordFormEnding({ isRecordGone, linkedRecordId, hasConflict });
 
   return (
-    <div className="flex flex-col">
-      {notice && (
-        <p role="alert" className="mb-3 text-[13px] text-accent">
-          {notice}
-        </p>
-      )}
+    <FormFooter notice={notice}>
       {ending.kind === "go-to-records" && (
         // 다시 저장해도 실패하고 사진만 또 올리게 되므로 저장 버튼 대신 나가는 길을 준다
         <button type="button" onClick={onGoToRecords} className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background">
@@ -66,6 +62,6 @@ export const RecordFormFooter = ({
       <p aria-live="polite" className="sr-only">
         {progress ? toSaveProgressLabel(progress) : ""}
       </p>
-    </div>
+    </FormFooter>
   );
 };
