@@ -1,41 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useLayoutEffect, useState, useSyncExternalStore, type MouseEvent, type ReactElement } from "react";
-import { AuthorTag, EventOwnerTag } from "@/components/AuthorTag";
-import { ChevronLeftIcon, ChevronRightIcon, PlusIcon } from "@/components/icons";
-import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
-import { ANNIVERSARY_DATE, countDaysTogether, getAnniversaryLabel } from "@/lib/anniversary";
-import {
-  describeDayEvents,
-  getDayHighlight,
-  getDayNumberClassName,
-  getDayTone,
-  getHighlightClassNames,
-  getWeekdayClassName,
-  LEGEND_EVENT_KINDS,
-  SELECTED_DAY_CELL_CLASS_NAME,
-} from "@/lib/calendar/highlight";
-import {
-  buildMonthGrid,
-  formatDayHeading,
-  formatEventTime,
-  formatMonthTitle,
-  getDefaultSelectedDate,
-  groupByDate,
-  shiftMonth,
-  toCalendarHref,
-  WEEKDAYS,
-} from "@/lib/calendar/month";
-import { EventRecordAction } from "@/components/events/EventRecordAction";
+import { useLayoutEffect, useState, useSyncExternalStore, type ReactElement } from "react";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+import { getHighlightClassNames, LEGEND_EVENT_KINDS } from "@/lib/calendar/highlight";
+import { formatMonthTitle, getDefaultSelectedDate, groupByDate, shiftMonth, toCalendarHref } from "@/lib/calendar/month";
 import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
 import { DELETING_KEYS, isDeletingEvent, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { findSettledPendingEventIds, mergePendingEvents, pendingEventStore, type PendingEvent } from "@/lib/events/pending";
-import { getEventRecordLink, omitLinkedRecords } from "@/lib/events/record-link";
-import { formatEventPeriod, formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
+import { omitLinkedRecords } from "@/lib/events/record-link";
 import type { HolidayNames } from "@/lib/holidays/holidays";
-import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
+import { MonthGrid } from "./MonthGrid";
+import { SelectedDayList } from "./SelectedDayList";
 
 interface CalendarViewProps {
   /** 보고 있는 달 YYYY-MM */
@@ -55,14 +32,7 @@ const monthHref = (month: string): string => toCalendarHref({ month });
 
 const NO_PENDING_EVENTS: readonly PendingEvent[] = [];
 
-// 저장 중인 일정은 아직 서버에 없을 수 있어 고치기 화면을 열지 않는다
-const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDefault();
-
 const navButtonClassName = "press-icon flex size-11 items-center justify-center text-ink-sub hover:text-ink";
-
-// 날짜 숫자 뒤에 손으로 그은 듯한 형광펜 띠. 숫자 원(size-7, 위 여백 pt-1.5)의 가운데 높이에 맞춘다
-const highlightBandClassName =
-  "absolute top-2.5 left-1/2 h-5 w-10 -translate-x-1/2 -rotate-2 rounded-[2px_7px_3px_8px/5px_3px_6px_3px]";
 
 /**
  * 공유 캘린더: 월 달력 + 고른 날의 데이트 기록·일정.
@@ -85,11 +55,6 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
   const recordsByDate = new Map(
     Array.from(groupByDate(omitDeleting(records, deletingKeys, DELETING_KEYS.record)), ([date, dayRecords]) => [date, omitLinkedRecords(dayRecords, eventsByDate.get(date) ?? [])]),
   );
-  const selectedEvents = eventsByDate.get(selectedDate) ?? [];
-  const selectedRecords = recordsByDate.get(selectedDate) ?? [];
-  const selectedAnniversary = getAnniversaryLabel(ANNIVERSARY_DATE, selectedDate);
-  const selectedHoliday = holidayNames[selectedDate];
-  const isEmptyDay = !selectedAnniversary && !selectedHoliday && selectedRecords.length === 0 && selectedEvents.length === 0;
 
   return (
     <div className="flex flex-col px-4 pb-6">
@@ -112,66 +77,15 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
         </div>
       </div>
 
-      <table className="mt-2 w-full table-fixed border-collapse">
-        <thead>
-          <tr>
-            {WEEKDAYS.map((weekday, index) => (
-              <th key={weekday} scope="col" className={`h-8 text-[12px] font-normal ${getWeekdayClassName(index)}`}>
-                {weekday}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {buildMonthGrid(month).map((week) => (
-            <tr key={week[0]?.date}>
-              {week.map(({ date, day, isCurrentMonth }) => {
-                const dayEvents = eventsByDate.get(date) ?? [];
-                const recordCount = recordsByDate.get(date)?.length ?? 0;
-                const isSelected = date === selectedDate;
-                const isToday = date === today;
-                const anniversary = getAnniversaryLabel(ANNIVERSARY_DATE, date);
-                const holidayName = holidayNames[date];
-                const highlight = getDayHighlight(dayEvents);
-                const highlightClassNames = highlight && getHighlightClassNames({ highlight, isCurrentMonth });
-                const summary = [...describeDayEvents(dayEvents), recordCount > 0 && `기록 ${recordCount}개`].filter(Boolean);
-                return (
-                  <td key={date} className="p-0.5">
-                    <button
-                      type="button"
-                      aria-pressed={isSelected}
-                      aria-label={[formatDayHeading(date), isToday && "오늘", anniversary, holidayName, ...summary].filter(Boolean).join(", ")}
-                      onClick={() => setSelectedDate(date)}
-                      className={`relative flex h-12 w-full flex-col items-center justify-start gap-1 rounded-[10px] pt-1.5 text-[14px] ${
-                        isSelected ? SELECTED_DAY_CELL_CLASS_NAME : ""
-                      } ${isCurrentMonth ? "text-ink" : "text-ink-placeholder"}`}
-                    >
-                      {highlightClassNames && (
-                        <span aria-hidden="true" className={`${highlightBandClassName} ${highlightClassNames.band}`} />
-                      )}
-                      <span
-                        className={`relative flex size-7 items-center justify-center rounded-full ${getDayNumberClassName({
-                          isToday,
-                          isAnniversary: Boolean(anniversary),
-                          isSelected,
-                          highlightClassNames,
-                          isCurrentMonth,
-                          tone: getDayTone(date, holidayName),
-                        })}`}
-                      >
-                        {day}
-                      </span>
-                      <span aria-hidden="true" className="flex h-1.5 gap-1">
-                        {recordCount > 0 && <span className="size-1.5 rounded-full bg-ink-sub" />}
-                      </span>
-                    </button>
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <MonthGrid
+        month={month}
+        today={today}
+        selectedDate={selectedDate}
+        eventsByDate={eventsByDate}
+        recordsByDate={recordsByDate}
+        holidayNames={holidayNames}
+        onSelectDate={setSelectedDate}
+      />
       <p className="mt-2 flex flex-wrap justify-end gap-x-3 gap-y-1 text-[11px] text-ink-sub">
         <span className="flex items-center gap-1">
           <span aria-hidden="true" className="size-2 rounded-full ring-1 ring-highlight" />
@@ -192,100 +106,13 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
         ))}
       </p>
 
-      <section aria-labelledby="selected-day" className="mt-4 flex flex-col">
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col">
-            <h3 id="selected-day" className="font-display text-[15px] text-ink">
-              {formatDayHeading(selectedDate)}
-            </h3>
-            {selectedDate >= ANNIVERSARY_DATE && (
-              <p className="text-[12px] text-ink-sub">함께한 지 {countDaysTogether(ANNIVERSARY_DATE, selectedDate)}일째</p>
-            )}
-          </div>
-          <Link
-            href={`/events/new?date=${selectedDate}`}
-            transitionTypes={FORWARD_TRANSITION}
-            // 머리글의 + (오늘 일정 추가)와 구별되게 고른 날을 이름에 넣는다
-            aria-label={`${formatDayHeading(selectedDate)} 일정 추가`}
-            className="press-icon -mr-2 flex h-11 items-center gap-1 px-2 text-[14px] text-ink-sub hover:text-ink"
-          >
-            <PlusIcon className="size-4" />
-            일정 추가
-          </Link>
-        </div>
-        {isEmptyDay ? (
-          <p className="py-6 text-center text-[13px] text-ink-sub">이날은 아직 비어 있어요</p>
-        ) : (
-          <ul className="mt-2 flex flex-col gap-2">
-            {selectedAnniversary && (
-              <li className="flex min-h-[51px] items-center gap-3 rounded-[10px] border border-line px-4 py-2">
-                <span className="w-11 shrink-0 text-[12px] text-highlight">기념일</span>
-                <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{selectedAnniversary}</span>
-              </li>
-            )}
-            {/* 빨간 날짜가 왜 빨간지 색만으로는 알 수 없어 이름을 적는다(#200) */}
-            {selectedHoliday && (
-              <li className="flex min-h-[51px] items-center gap-3 rounded-[10px] border border-line px-4 py-2">
-                <span className="w-11 shrink-0 text-[12px] text-holiday">공휴일</span>
-                <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{selectedHoliday}</span>
-              </li>
-            )}
-            {selectedRecords.map((record) => (
-              <li key={record.id}>
-                <Link
-                  href={`/dates/${record.id}`}
-                  transitionTypes={FORWARD_TRANSITION}
-                  className="press-card flex min-h-[51px] items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
-                >
-                  <span className="w-11 shrink-0 text-[12px] text-label">기록</span>
-                  <span className="min-w-0 flex-1 truncate text-[15px] text-ink">{record.title}</span>
-                  {record.authorNickname && <AuthorTag nickname={record.authorNickname} />}
-                </Link>
-              </li>
-            ))}
-            {selectedEvents.map((event) => {
-              const { isPending = false } = event;
-              const recordLink = isPending ? undefined : getEventRecordLink(event, today);
-              return (
-                <li key={event.id} className="flex gap-2">
-                  <Link
-                    href={toEventEditHref(event)}
-                    transitionTypes={FORWARD_TRANSITION}
-                    aria-disabled={isPending}
-                    onClick={isPending ? preventOpening : undefined}
-                    className="press-card flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
-                  >
-                    <span className="w-11 shrink-0 text-[12px] text-ink-sub">{formatEventTime(event.startTime)}</span>
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <span className={`truncate text-[15px] ${isPending ? "text-ink-sub" : "text-ink"} ${SETTLE_TRANSITION_CLASS_NAME}`}>
-                        {event.title}
-                        {isPending && <span className="sr-only"> (저장 중)</span>}
-                      </span>
-                      {(event.repeatRule || event.period || event.place) && (
-                        <span className="truncate text-[12px] text-ink-sub">
-                          {[event.repeatRule && formatRepeatRule(event.repeatRule), event.period && formatEventPeriod(event.period), event.place]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </span>
-                      )}
-                    </span>
-                    <EventOwnerTag isTogether={event.isTogether} authorNickname={event.authorNickname} />
-                  </Link>
-                  {/* 지난 함께 일정(오늘 포함)은 데이트 기록으로 이어 쓸 수 있고, 이미 남긴 일정은 그 기록을 연다(#227) */}
-                  {recordLink && (
-                    <EventRecordAction
-                      eventId={event.id}
-                      link={recordLink}
-                      eventTitle={event.title}
-                      className="press-icon flex shrink-0 items-center rounded-[10px] border border-line px-3 text-[12px] text-ink-sub hover:text-ink"
-                    />
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
+      <SelectedDayList
+        selectedDate={selectedDate}
+        today={today}
+        holidayNames={holidayNames}
+        records={recordsByDate.get(selectedDate) ?? []}
+        events={eventsByDate.get(selectedDate) ?? []}
+      />
     </div>
   );
 };
