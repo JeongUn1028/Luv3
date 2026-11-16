@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, type ReactElement, type SubmitEvent } from "react";
+import { FormFooter } from "@/components/FormFooter";
 import { TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { NICKNAME_DB_MAX_CHARS, NICKNAME_MAX_LENGTH, saveNickname, validateNickname } from "@/lib/auth/nickname";
 import { SETTINGS_PATH } from "@/lib/auth/paths";
-import { countGraphemes } from "@/lib/form";
+import { showInvalidFields } from "@/lib/focus-invalid-field";
+import { clearError, countGraphemes } from "@/lib/form";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { createClient } from "@/lib/supabase/client";
@@ -35,7 +37,7 @@ interface NicknameFormProps {
 export const NicknameForm = ({ memberId, initialNickname }: NicknameFormProps): ReactElement => {
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey: FORM_KEY, subject: "닉네임을", failedSaves });
   const [nickname, setNickname] = useState(failedSave?.draft ?? initialNickname);
-  const [error, setError] = useState<string>();
+  const [errors, setErrors] = useState<Partial<Record<"nickname", string>>>({});
   const [notice, setNotice] = useState(failedSave?.message);
   // 적은 값은 남기고 지난 실패 안내만 지운다. 떠난 뒤에 끝난 저장의 실패는 돌아오면 보여야 하므로 숨겨질 때만 지운다(#261)
   useResetOnHide(() => setNotice(undefined));
@@ -45,9 +47,8 @@ export const NicknameForm = ({ memberId, initialNickname }: NicknameFormProps): 
     event.preventDefault();
     if (isSaving) return;
 
-    const nextError = validateNickname(nickname);
-    setError(nextError);
-    if (nextError) return;
+    const nicknameError = validateNickname(nickname);
+    if (showInvalidFields({ form: event.currentTarget, errors: nicknameError ? { nickname: nicknameError } : {}, setErrors, setNotice })) return;
 
     beginSave();
     setNotice(undefined);
@@ -88,22 +89,17 @@ export const NicknameForm = ({ memberId, initialNickname }: NicknameFormProps): 
           autoComplete="nickname"
           enterKeyHint="done"
           disabled={isSaving}
-          error={error}
+          error={errors.nickname}
           onChange={(value) => {
             setNickname(value);
-            setError(undefined);
+            setErrors((current) => clearError(current, "nickname"));
             setNotice(undefined);
           }}
         />
 
-        <div className="flex flex-col">
-          {notice && (
-            <p role="alert" className="mb-3 text-[13px] text-accent">
-              {notice}
-            </p>
-          )}
+        <FormFooter notice={notice}>
           <SaveButton isDisabled={isSaving}>{isSaving ? "저장 중…" : "저장"}</SaveButton>
-        </div>
+        </FormFooter>
       </form>
     </PageShell>
   );

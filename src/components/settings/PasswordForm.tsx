@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
+import { FormFooter } from "@/components/FormFooter";
 import { TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { SaveButton } from "@/components/SaveButton";
@@ -15,6 +16,7 @@ import {
   type PasswordChangeErrors,
 } from "@/lib/auth/password-change";
 import { SETTINGS_PASSWORD_PATH, SETTINGS_PATH } from "@/lib/auth/paths";
+import { showInvalidFields } from "@/lib/focus-invalid-field";
 import { clearError } from "@/lib/form";
 import { saveNoticeStore } from "@/lib/navigation/save-notices";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
@@ -99,8 +101,7 @@ export const PasswordForm = ({ email }: PasswordFormProps): ReactElement => {
     if (isPending) return;
 
     const nextErrors = validatePasswordChange({ currentPassword, newPassword, confirmPassword });
-    setErrors(nextErrors);
-    if (Object.keys(nextErrors).length > 0) return;
+    if (showInvalidFields({ form: event.currentTarget, errors: nextErrors, setErrors, setNotice: setMessage })) return;
 
     setIsPending(true);
     setMessage(undefined);
@@ -165,16 +166,11 @@ export const PasswordForm = ({ email }: PasswordFormProps): ReactElement => {
             clearMessages("confirmPassword");
           }}
         />
-        <div className="flex flex-col">
-          {message && (
-            <p role="alert" className="mb-3 text-[13px] text-accent">
-              {message}
-            </p>
-          )}
+        <FormFooter notice={message}>
           <SaveButton isDisabled={isPending} offlineHint="연결되면 바꿀 수 있어요">
             {isPending ? "바꾸는 중…" : "비밀번호 바꾸기"}
           </SaveButton>
-        </div>
+        </FormFooter>
       </form>
     </PageShell>
   );

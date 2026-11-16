@@ -81,6 +81,60 @@ test.describe("저장할 때 입력 오류가 있으면", () => {
     // Assert
     await expect(getFormAlert(page)).toBeHidden();
   });
+
+  test("하고 싶은 것 폼도 오류 칸으로 초점을 옮기고 폼 안내를 보여 주며, 고치면 안내를 지운다", async ({ page }) => {
+    // Arrange
+    const contentField = page.locator("#todo-content").locator("visible=true");
+    await openScreen(page, "/todos/new", contentField);
+
+    // Act: 아무것도 적지 않고 저장한다
+    await getSubmitButton(page).tap();
+
+    // Assert: 다른 폼과 같이 칸 오류, 폼 안내, 초점이 함께 보인다(#388)
+    await expect(contentField).toBeFocused();
+    await expect(contentField).toHaveAccessibleDescription("하고 싶은 것을 적어 주세요.");
+    await expect(getFormAlert(page)).toHaveText(FIX_FIELDS_NOTICE);
+
+    // Act
+    await contentField.fill("오류를 고친 항목");
+
+    // Assert
+    await expect(getFormAlert(page)).toBeHidden();
+  });
+
+  test("닉네임 폼도 오류 칸으로 초점을 옮기고 폼 안내를 보여 주며, 고치면 안내를 지운다", async ({ page }) => {
+    // Arrange
+    const nicknameField = page.locator("#nickname").locator("visible=true");
+    await openScreen(page, "/settings/nickname", nicknameField);
+    await nicknameField.fill("");
+
+    // Act
+    await getSubmitButton(page).tap();
+
+    // Assert
+    await expect(nicknameField).toBeFocused();
+    await expect(getFormAlert(page)).toHaveText(FIX_FIELDS_NOTICE);
+
+    // Act
+    await nicknameField.fill(E2E_MEMBER.nickname);
+
+    // Assert
+    await expect(getFormAlert(page)).toBeHidden();
+  });
+
+  test("비밀번호 폼도 첫 오류 칸으로 초점을 옮기고 폼 안내를 보여 준다", async ({ page }) => {
+    // Arrange
+    const currentField = page.getByLabel("현재 비밀번호");
+    await openScreen(page, "/settings/password", currentField);
+    await page.getByLabel("새 비밀번호", { exact: true }).fill("short-pass");
+
+    // Act: 현재 비밀번호는 비우고, 새 비밀번호는 짧게 적어 저장한다
+    await getSubmitButton(page).tap();
+
+    // Assert: 화면 순서로 첫 오류 칸인 현재 비밀번호로 간다
+    await expect(currentField).toBeFocused();
+    await expect(getFormAlert(page)).toHaveText(FIX_FIELDS_NOTICE);
+  });
 });
 
 test.describe("지난 실패 문구는 다른 화면에 다녀오면 지운다", () => {

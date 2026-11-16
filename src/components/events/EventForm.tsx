@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, type ReactElement, type SubmitEvent } from "react";
-import { flushSync } from "react-dom";
 import { AuthorTag } from "@/components/AuthorTag";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { EventRecordAction } from "@/components/events/EventRecordAction";
+import { FormFooter } from "@/components/FormFooter";
 import { DateField, FIELD_LABEL_CLASS_NAME, TextAreaField, TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { ReloadLatestButton } from "@/components/ReloadLatestButton";
@@ -32,8 +32,8 @@ import type { EventRecordLink } from "@/lib/events/record-link";
 import { canShowEventBeforeSave, pendingEventStore, toPendingCalendarEvent } from "@/lib/events/pending";
 import { formatEventPeriod, formatRepeatRule, REPEAT_RULES } from "@/lib/events/recurrence";
 import { deleteEvent, saveEvent } from "@/lib/events/save";
-import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
-import { clearError, FIX_FIELDS_NOTICE, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
+import { showInvalidFields } from "@/lib/focus-invalid-field";
+import { clearError, clearFieldError, isResolvedFieldNotice, isSameFormValue, toPeriodEndDate } from "@/lib/form";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
@@ -137,15 +137,11 @@ export const EventForm = ({
 
   const updateField = (field: TextField, value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
-    setErrors((current) => {
-      const cleared = clearError(current, field);
-      // 끝 날짜 에러는 시작 날짜에 따라 달라지므로, 시작 날짜를 고치면 함께 지우고 저장할 때 다시 확인한다
-      return field === "date" ? clearError(cleared, "endDate") : cleared;
-    });
+    setErrors((current) => clearFieldError(current, field));
   };
 
   const handlePeriodChange = (isChecked: boolean) => {
-    setDraft((current) => ({ ...current, endDate: isChecked ? "" : undefined }));
+    setDraft((current) => ({ ...current, endDate: toPeriodEndDate(isChecked) }));
     setErrors((current) => clearError(current, "endDate"));
   };
 
@@ -160,19 +156,7 @@ export const EventForm = ({
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSaving) return;
-    const form = event.currentTarget;
-
-    const nextErrors = validateEventDraft(draft);
-    if (Object.keys(nextErrors).length > 0) {
-      // 오류 칸이 그려져야 찾을 수 있어 바로 그린다
-      flushSync(() => {
-        setErrors(nextErrors);
-        setNotice(FIX_FIELDS_NOTICE);
-      });
-      focusFirstInvalidField(form);
-      return;
-    }
-    setErrors(nextErrors);
+    if (showInvalidFields({ form: event.currentTarget, errors: validateEventDraft(draft), setErrors, setNotice })) return;
 
     setNotice(undefined);
     setIsSaving(true);
@@ -475,18 +459,9 @@ export const EventForm = ({
           className="grow"
         />
 
-        <div className="flex flex-col">
-          {notice && (
-            <p role="alert" className="mb-3 text-[13px] text-accent">
-              {notice}
-            </p>
-          )}
-          {draft.hasConflict ? (
-            <ReloadLatestButton />
-          ) : (
-            <SaveButton isDisabled={isSaving}>{isSaving ? "저장 중…" : "저장"}</SaveButton>
-          )}
-        </div>
+        <FormFooter notice={notice}>
+          {draft.hasConflict ? <ReloadLatestButton /> : <SaveButton isDisabled={isSaving}>{isSaving ? "저장 중…" : "저장"}</SaveButton>}
+        </FormFooter>
       </form>
     </PageShell>
   );
