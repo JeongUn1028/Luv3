@@ -25,3 +25,25 @@ export const validateNickname = (nickname: string): string | undefined => {
   if (countChars(trimmed) > NICKNAME_DB_MAX_CHARS) return "이모지가 많아 저장할 수 없어요. 조금 줄여 주세요.";
   return undefined;
 };
+
+/** 닉네임을 고칠 수 있는 표. Supabase의 `createClient().from("members")`가 이 모양이다 */
+export interface NicknameTable {
+  update: (values: { nickname: string }) => { eq: (column: "id", value: string) => { select: (columns: "id") => PromiseLike<{ data: unknown[] | null; error: unknown }> } };
+}
+
+interface SaveNicknameParams {
+  memberId: string;
+  nickname: string;
+  members: NicknameTable;
+}
+
+/**
+ * 자기 닉네임을 저장한다. 권한이 없거나 행이 없으면 오류 없이 0행이 바뀌므로, 바뀐 행을 받아 확인한다.
+ *
+ * @returns 저장했으면 true
+ * @example const isSaved = await saveNickname({ memberId, nickname, members: supabase.from("members") })
+ */
+export const saveNickname = async ({ memberId, nickname, members }: SaveNicknameParams): Promise<boolean> => {
+  const { data, error } = await members.update({ nickname }).eq("id", memberId).select("id");
+  return !error && data !== null && data.length > 0;
+};

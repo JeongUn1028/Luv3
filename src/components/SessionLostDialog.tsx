@@ -3,21 +3,16 @@
 import { useEffect, useId, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { TextField } from "@/components/FormField";
 import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
-import { getSignInErrorMessage, NOT_MEMBER_MESSAGE, SIGN_IN_UNAVAILABLE_MESSAGE } from "@/lib/auth/login-messages";
+import { SIGN_IN_UNAVAILABLE_MESSAGE } from "@/lib/auth/login-messages";
 import { isSessionLostError, SESSION_LOST_EVENT } from "@/lib/auth/session-lost";
+import { signInAgain } from "@/lib/auth/sign-in-again";
 import { createClient } from "@/lib/supabase/client";
 
 /** 로그인에 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
-const signInAgain = async (email: string, password: string): Promise<string | undefined> => {
+// async: 클라이언트를 만들다 던져도 거절된 약속이 되어 부르는 쪽의 catch가 받는다
+const signInHere = async (email: string, password: string): Promise<string | undefined> => {
   const supabase = createClient();
-  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-  if (error) return getSignInErrorMessage(error);
-
-  // 이 창은 화면을 옮기지 않아 서버의 허용목록 확인(getCurrentMember)을 거치지 않으므로 여기서 확인한다
-  const { data: member, error: memberError } = await supabase.from("members").select("id").eq("id", data.user.id).maybeSingle();
-  if (member) return undefined;
-  await supabase.auth.signOut({ scope: "local" });
-  return memberError ? SIGN_IN_UNAVAILABLE_MESSAGE : NOT_MEMBER_MESSAGE;
+  return signInAgain({ email, password, auth: supabase.auth, members: supabase.from("members") });
 };
 
 interface SessionLostFormProps {
@@ -38,7 +33,7 @@ const SessionLostForm = ({ isPending, onPendingChange, onClose }: SessionLostFor
     if (isPending) return;
     onPendingChange(true);
     setMessage(undefined);
-    const failure = await signInAgain(email, password).catch(() => SIGN_IN_UNAVAILABLE_MESSAGE);
+    const failure = await signInHere(email, password).catch(() => SIGN_IN_UNAVAILABLE_MESSAGE);
     onPendingChange(false);
     // router.refresh()를 부르지 않는다. 고치기 화면은 다시 그릴 때마다 폼을 새로 만들어 적어 둔 내용이 사라진다
     if (!failure) {

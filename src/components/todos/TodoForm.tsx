@@ -10,6 +10,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
+import { deleteRowById } from "@/lib/delete-row";
 import { createClient } from "@/lib/supabase/client";
 import { TODO_CONTENT_MAX_LENGTH, validateTodoContent } from "@/lib/todos/form";
 import { TODOS_PATH } from "@/lib/todos/list";
@@ -109,8 +110,7 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
 
   const handleDelete = async () => {
     if (!todoId) return;
-    const { error: deleteError } = await createClient().from("todos").delete().eq("id", todoId);
-    if (deleteError) throw new Error(`하고 싶은 것을 지우지 못했습니다: ${deleteError.message}`, { cause: deleteError });
+    await deleteRowById({ table: createClient().from("todos"), id: todoId, subject: "하고 싶은 것을" });
   };
 
   return (

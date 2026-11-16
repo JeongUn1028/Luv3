@@ -10,11 +10,9 @@ import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { createClient } from "@/lib/supabase/client";
+import { saveTodoAction, TODO_ACTION_FAILED_MESSAGE } from "@/lib/todos/actions";
 import { applyTodoAction, groupTodos, TODOS_PATH, type Todo, type TodoAction } from "@/lib/todos/list";
 import { findSettledPendingIds, mergePendingTodos, pendingTodoStore, type PendingTodo, type ShownTodo } from "@/lib/todos/pending";
-
-const SAVE_FAILED_MESSAGE = "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
-const ALREADY_DELETED_MESSAGE = "이미 지워진 항목이에요. 목록을 새로 불러왔어요.";
 
 /** 항목의 완료 체크 id. 다른 목록으로 옮겨 그린 뒤 초점을 돌려줄 때 찾는다 */
 const toCheckboxId = (todoId: string): string => `todo-${todoId}-done`;
@@ -31,22 +29,9 @@ interface TodoListProps {
 }
 
 /** 동작을 DB에 저장한다. 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
-const saveTodoAction = async (action: TodoAction): Promise<string | undefined> => {
+const saveAction = async (action: TodoAction): Promise<string | undefined> => {
   const supabase = createClient();
-  if (action.type === "move") {
-    const { error } = await supabase.rpc("move_todo", { p_id: action.id, p_offset: action.offset });
-    // 상대가 지웠거나 완료한 항목(P0002)이면 새로 불러온 목록으로 맞춘다
-    if (error) return error.code === "P0002" ? ALREADY_DELETED_MESSAGE : SAVE_FAILED_MESSAGE;
-    return undefined;
-  }
-  // 상대가 지운 항목은 오류 없이 0행이 바뀌므로, 바뀐 행을 받아 확인한다
-  const { data, error } = await supabase
-    .from("todos")
-    .update({ completed_at: action.completedAt ?? null })
-    .eq("id", action.id)
-    .select("id");
-  if (error) return SAVE_FAILED_MESSAGE;
-  return data.length === 0 ? ALREADY_DELETED_MESSAGE : undefined;
+  return saveTodoAction({ action, todos: supabase.from("todos"), moveTodo: (args) => supabase.rpc("move_todo", args) });
 };
 
 /**
@@ -94,14 +79,14 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
     setNotice(undefined);
     startTransition(async () => {
       addOptimisticAction(action);
-      const failure = await saveTodoAction(action);
+      const failure = await saveAction(action);
       if (failure) {
         setNotice(failure);
         // 옮기지 못했으면 "옮겼어요" 안내가 남지 않게 지운다(실패 문구는 alert로 따로 읽힌다)
         setAnnouncement("");
       }
       // 저장에 실패하면 먼저 바꾼 화면은 저절로 되돌아간다. 세션이 끊겼을 때 다시 불러오면 로그인 화면으로 넘어가 다시 로그인 창이 소용없어진다(#102)
-      if (failure === SAVE_FAILED_MESSAGE) return;
+      if (failure === TODO_ACTION_FAILED_MESSAGE) return;
       // await 뒤의 갱신은 다시 transition으로 감싸야 새 목록이 올 때까지 먼저 바꾼 화면이 유지된다.
       // 저장하는 동안 누른 폼 링크는 이 transition과 묶여 기다리므로, 폼으로 옮기는 중이면 다시 불러오지 않는다(#164)
       refreshOutsideForm(() => startTransition(() => router.refresh()));

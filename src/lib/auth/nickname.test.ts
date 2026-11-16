@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { NICKNAME_DB_MAX_CHARS, NICKNAME_MAX_LENGTH, validateNickname } from "./nickname";
+import { NICKNAME_DB_MAX_CHARS, NICKNAME_MAX_LENGTH, saveNickname, validateNickname, type NicknameTable } from "./nickname";
 
 describe("validateNickname", () => {
   it.each(["가", "정운", "가나다라마바", "Luv3 💕"])("1~6자 닉네임 %s는 받아들인다", (nickname) => {
@@ -62,5 +62,49 @@ describe("DB 제약", () => {
     const migration = readFileSync("supabase/migrations/20261102000000_init_album.sql", "utf8");
 
     expect(migration).toContain(`check (char_length(nickname) between 1 and ${NICKNAME_DB_MAX_CHARS})`);
+  });
+});
+
+describe("saveNickname", () => {
+  const MEMBER_ID = "10000000-0000-4000-8000-000000000001";
+
+  /** 고친 값을 기록하고 정해 둔 결과를 돌려주는 가짜 회원 표 */
+  const createFakeMembers = (result: { data: unknown[] | null; error: unknown }) => {
+    const updates: { values: unknown; id: string; columns: string }[] = [];
+    const members: NicknameTable = {
+      update: (values) => ({
+        eq: (_column, id) => ({
+          select: async (columns) => {
+            updates.push({ values, id, columns });
+            return result;
+          },
+        }),
+      }),
+    };
+    return { members, updates };
+  };
+
+  it("자기 행의 닉네임을 고치고 바뀐 행을 받아, 바뀐 행이 있으면 저장된 것이다", async () => {
+    // Arrange
+    const { members, updates } = createFakeMembers({ data: [{ id: MEMBER_ID }], error: null });
+
+    // Act
+    const isSaved = await saveNickname({ memberId: MEMBER_ID, nickname: "진아", members });
+
+    // Assert
+    expect(isSaved).toBe(true);
+    expect(updates).toEqual([{ values: { nickname: "진아" }, id: MEMBER_ID, columns: "id" }]);
+  });
+
+  it("권한이 없거나 행이 없으면 오류 없이 0행이 바뀌므로 실패로 본다", async () => {
+    const { members } = createFakeMembers({ data: [], error: null });
+
+    expect(await saveNickname({ memberId: MEMBER_ID, nickname: "진아", members })).toBe(false);
+  });
+
+  it("요청이 실패하면 실패로 본다", async () => {
+    const { members } = createFakeMembers({ data: null, error: { message: "network" } });
+
+    expect(await saveNickname({ memberId: MEMBER_ID, nickname: "진아", members })).toBe(false);
   });
 });
