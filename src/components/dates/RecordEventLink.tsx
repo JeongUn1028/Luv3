@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition, type ReactElement } from "react";
+import { startTransition, useRef, useState, useTransition, type ReactElement } from "react";
 import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
 import { formatEventTime } from "@/lib/calendar/month";
 import { formatRecordShortDate } from "@/lib/dates/detail";
 import { linkRecordToEvent, toEventLinkMessage, unlinkRecordFromEvent } from "@/lib/dates/event-link";
 import type { LinkableEvent } from "@/lib/events/record-link";
-import { formatEventPeriod } from "@/lib/events/recurrence";
+import { formatEventPeriod, toEventEditHref } from "@/lib/events/recurrence";
+import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 const describeEventDay = ({ eventDate, period, startTime }: LinkableEvent): string =>
@@ -17,15 +18,16 @@ const describeEventDay = ({ eventDate, period, startTime }: LinkableEvent): stri
     .join(" · ");
 
 /**
- * 연결을 바꾸고 기록 화면을 새로 받는다. 새 화면이 올 때까지 `isPending`이라 그동안 창을 닫거나 다시 누르지 못한다.
- * 창은 닫지 않는다: 새 화면에서는 이 줄이 다른 줄로 바뀌며 창도 함께 사라지고, 먼저 닫으면 예전 버튼을 다시 누를 수 있다.
+ * 연결을 바꾼다. 바꾸는 동안 `isPending`이라 창을 닫거나 다시 누르지 못한다.
+ * 바꾸면 새 화면을 기다리지 않고 `onChanged`로 결과를 먼저 보여 주고(#346), 기록 화면은 뒤에서 새로 받는다.
+ * `onChanged`는 이 줄을 결과 모양으로 바꿔 예전 버튼을 다시 누를 수 없게 한다.
  */
 const useLinkChange = () => {
   const router = useRouter();
   const [message, setMessage] = useState<string>();
   const [isPending, startChange] = useTransition();
 
-  const runChange = (change: () => Promise<void>) => {
+  const runChange = (change: () => Promise<void>, onChanged: () => void) => {
     if (isPending) return;
     setMessage(undefined);
     startChange(async () => {
@@ -36,7 +38,8 @@ const useLinkChange = () => {
         setMessage(toEventLinkMessage(error));
         return;
       }
-      startChange(() => router.refresh());
+      onChanged();
+      refreshOutsideForm(() => startTransition(() => router.refresh()));
     });
   };
 
@@ -57,7 +60,12 @@ interface LinkEventButtonProps {
 export const LinkEventButton = ({ recordId, events }: LinkEventButtonProps): ReactElement => {
   const modalRef = useRef<ModalDialogHandle>(null);
   const [linkingKey, setLinkingKey] = useState<string>();
+  // 이은 일정. 새 화면이 오기 전에 이어진 일정 줄을 먼저 그린다
+  const [linkedEvent, setLinkedEvent] = useState<LinkedEventRowProps["event"]>();
   const { message, setMessage, isPending, runChange } = useLinkChange();
+
+  // 끊으면 다시 이 버튼으로 돌아온다. 새 화면이 와도 이 버튼은 그대로 남으므로(서버가 같은 자리에 그린다) 이은 상태를 여기서 푼다
+  if (linkedEvent) return <LinkedEventRow recordId={recordId} event={linkedEvent} onUnlinked={() => setLinkedEvent(undefined)} />;
 
   return (
     <>
@@ -90,7 +98,15 @@ export const LinkEventButton = ({ recordId, events }: LinkEventButtonProps): Rea
                   aria-label={`${event.title} 일정과 잇기`}
                   onClick={() => {
                     setLinkingKey(key);
-                    runChange(() => linkRecordToEvent({ recordId, eventId: event.eventId, eventDate: event.eventDate }));
+                    runChange(
+                      () => linkRecordToEvent({ recordId, eventId: event.eventId, eventDate: event.eventDate }),
+                      () => {
+                        modalRef.current?.close();
+                        // 서버가 그리는 이어진 일정 줄과 같은 주소다(toDateRecordDetail)
+                        const href = toEventEditHref({ id: event.eventId, date: event.eventDate, repeatRule: event.repeatRule, period: undefined });
+                        setLinkedEvent({ id: event.eventId, title: event.title, href });
+                      },
+                    );
                   }}
                   className="press-card flex min-h-[51px] w-full flex-col justify-center rounded-[10px] border border-line px-4 py-2 text-left disabled:opacity-50"
                 >
@@ -120,6 +136,8 @@ export const LinkEventButton = ({ recordId, events }: LinkEventButtonProps): Rea
 interface LinkedEventRowProps {
   recordId: string;
   event: { id: string; title: string; href: string };
+  /** 끊은 뒤 부른 쪽이 결과를 그린다. 없으면 이 줄을 뺀다 */
+  onUnlinked?: () => void;
 }
 
 /**
@@ -127,9 +145,13 @@ interface LinkedEventRowProps {
  *
  * @example <LinkedEventRow recordId={record.id} event={record.linkedEvent} />
  */
-export const LinkedEventRow = ({ recordId, event }: LinkedEventRowProps): ReactElement => {
+export const LinkedEventRow = ({ recordId, event, onUnlinked }: LinkedEventRowProps): ReactElement => {
   const modalRef = useRef<ModalDialogHandle>(null);
+  // 끊었으면 새 화면이 오기 전에 줄을 먼저 뺀다. 새 화면이 오면 이을 일정 버튼이 나온다
+  const [isUnlinked, setIsUnlinked] = useState(false);
   const { message, setMessage, isPending, runChange } = useLinkChange();
+
+  if (isUnlinked) return <></>;
 
   return (
     <div className="mt-4 flex min-h-[51px] items-center gap-3 rounded-[10px] border border-line px-4 py-1">
@@ -158,7 +180,16 @@ export const LinkedEventRow = ({ recordId, event }: LinkedEventRowProps): ReactE
           cancelLabel="취소"
           onCancel={() => modalRef.current?.close()}
           confirmLabel={isPending ? "끊는 중…" : "연결 끊기"}
-          onConfirm={() => runChange(() => unlinkRecordFromEvent({ recordId, eventId: event.id }))}
+          onConfirm={() =>
+            runChange(
+              () => unlinkRecordFromEvent({ recordId, eventId: event.id }),
+              () => {
+                modalRef.current?.close();
+                if (onUnlinked) onUnlinked();
+                else setIsUnlinked(true);
+              },
+            )
+          }
           isDisabled={isPending}
         />
       </ModalDialog>

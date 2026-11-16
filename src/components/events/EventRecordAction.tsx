@@ -1,8 +1,7 @@
-import Link from "next/link";
 import type { ReactElement } from "react";
 import { LeaveRecordAction } from "@/components/events/LeaveRecordAction";
-import { toEventRecordHref, type EventRecordLink } from "@/lib/events/record-link";
-import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
+import { ViewRecordLink } from "@/components/events/ViewRecordLink";
+import type { EventRecordLink } from "@/lib/events/record-link";
 
 interface EventRecordActionProps {
   eventId: string;
@@ -24,14 +23,5 @@ export const EventRecordAction = ({ eventId, link, eventTitle, className, onLink
   if (link.kind === "leave") {
     return <LeaveRecordAction eventId={eventId} link={link} eventTitle={eventTitle} className={className} onLinked={onLinked} />;
   }
-  return (
-    <Link
-      href={toEventRecordHref(eventId, link)}
-      transitionTypes={FORWARD_TRANSITION}
-      aria-label={eventTitle ? `${eventTitle} 기록 보기` : undefined}
-      className={className}
-    >
-      기록 보기
-    </Link>
-  );
+  return <ViewRecordLink eventId={eventId} recordId={link.recordId} eventTitle={eventTitle} className={className} />;
 };

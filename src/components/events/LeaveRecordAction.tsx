@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useTransition, type MouseEvent, type ReactElement } from "react";
+import { startTransition, useRef, useState, useTransition, type MouseEvent, type ReactElement } from "react";
+import { ViewRecordLink } from "@/components/events/ViewRecordLink";
 import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
 import { formatRecordShortDate } from "@/lib/dates/detail";
 import { fetchLinkableRecords, linkRecordToEvent, toEventLinkMessage, type LinkableRecord } from "@/lib/dates/event-link";
 import { toEventRecordHref, type EventRecordLink } from "@/lib/events/record-link";
+import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 const LOAD_FAILED_MESSAGE = "이미 쓴 기록을 불러오지 못했어요. 새 기록은 쓸 수 있어요.";
@@ -37,8 +39,10 @@ export const LeaveRecordAction = ({ eventId, link, eventTitle, className, onLink
   const [message, setMessage] = useState<string>();
   const [isLoading, setIsLoading] = useState(false);
   const [linkingId, setLinkingId] = useState<string>();
-  // 잇기부터 새 화면이 올 때까지 이어진다. 그동안 창을 닫거나 다시 고르지 못하게 한다
+  // 잇는 동안 창을 닫거나 다시 고르지 못하게 한다
   const [isLinking, startLinking] = useTransition();
+  // 이은 기록. 새 화면이 오기 전에 버튼을 "기록 보기"로 먼저 바꾼다(#346)
+  const [linkedRecordId, setLinkedRecordId] = useState<string>();
   const href = toEventRecordHref(eventId, link);
 
   const goToNewRecord = () => router.push(href, { transitionTypes: FORWARD_TRANSITION });
@@ -77,11 +81,20 @@ export const LeaveRecordAction = ({ eventId, link, eventTitle, className, onLink
         setLinkingId(undefined);
         return;
       }
-      // 창은 닫지 않는다. 새 화면이 오면 이 버튼이 "기록 보기"로 바뀌며 창도 함께 사라진다.
-      // 먼저 닫으면 새 화면이 오기 전까지 예전 "기록 남기기"를 다시 누를 수 있다
-      startLinking(() => (onLinked ? onLinked(recordId) : router.refresh()));
+      // 새 화면을 기다리지 않고 창을 닫고 버튼을 "기록 보기"로 바꿔, 예전 "기록 남기기"를 다시 누를 수 없게 한다
+      modalRef.current?.close();
+      if (onLinked) {
+        onLinked(recordId);
+        return;
+      }
+      setLinkedRecordId(recordId);
+      refreshOutsideForm(() => startTransition(() => router.refresh()));
     });
   };
+
+  if (linkedRecordId) {
+    return <ViewRecordLink eventId={eventId} recordId={linkedRecordId} eventTitle={eventTitle} className={className} />;
+  }
 
   return (
     <>

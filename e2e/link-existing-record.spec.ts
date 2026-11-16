@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page, TestInfo } from "@playwright/test";
+import { isScreenRequest } from "./support/actions";
 import { MODAL_OPEN_GUARD_WAIT_MS } from "./support/constants";
 import { createDisposableEvent, createDisposableRecord } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
@@ -17,6 +18,33 @@ const getViewLink = (page: Page, title: string): Locator =>
 const getRecordRow = (page: Page, title: string): Locator =>
   page.getByRole("link", { name: new RegExp(`^기록 ${title}( |$)`) }).locator("visible=true");
 const getDialog = (page: Page): Locator => page.getByRole("dialog").locator("visible=true");
+
+/**
+ * 화면을 새로 받는 요청을 붙든다. 잇기·끊기가 새 화면을 기다리지 않고 결과를 먼저 보여 주는지 본다(#346).
+ * 돌려준 함수로 풀고, 그 뒤 새 화면 응답이 올 때까지 기다린다. 실패해도 남은 요청이 멈추지 않게 finally에서 한 번 더 부른다
+ */
+const holdScreenRefresh = async (page: Page, pathname: string): Promise<() => Promise<void>> => {
+  let open = (): void => undefined;
+  const released = new Promise<void>((resolve) => {
+    open = resolve;
+  });
+  let isReleased = false;
+  const release = async (): Promise<void> => {
+    if (isReleased) return;
+    isReleased = true;
+    const refreshed = page.waitForResponse((response) => isScreenRequest(response.request(), pathname));
+    open();
+    await refreshed;
+  };
+  await page.route(
+    (url) => url.pathname === pathname,
+    async (route) => {
+      if (route.request().method() === "GET" && isScreenRequest(route.request(), pathname)) await released;
+      await route.fallback();
+    },
+  );
+  return release;
+};
 
 // 고르면 바로 잇는 창은 두 번 누르기를 막으려고 열린 직후 잠깐 누름을 받지 않으므로 그 시간을 기다린다
 const openChooser = async (page: Page, trigger: Locator): Promise<void> => {
@@ -86,7 +114,7 @@ test.describe("이미 쓴 기록을 일정에 잇기", () => {
     }
   });
 
-  test("잇는 동안에는 창 바깥을 눌러도 닫히지 않고, 화면이 바뀐 뒤에 닫힌다", async ({ page }, testInfo) => {
+  test("잇는 동안에는 창 바깥을 눌러도 닫히지 않고, 이으면 새 화면을 기다리지 않고 닫히며 기록 보기가 된다", async ({ page }, testInfo) => {
     // Arrange: 느린 연결에서 잇기 응답이 늦게 오는 경우다
     const date = `${getMonth(testInfo)}-25`;
     const recordId = randomUUID();
@@ -95,6 +123,7 @@ test.describe("이미 쓴 기록을 일정에 잇기", () => {
     const deleteEvent = await createDisposableEvent({ id: randomUUID(), title, date });
     const deleteRecord = await createDisposableRecord({ id: recordId, title: recordTitle, date });
     let releaseLink = (): void => undefined;
+    let releaseRefresh = async (): Promise<void> => undefined;
     const linkHeld = new Promise<void>((resolve) => {
       releaseLink = resolve;
     });
@@ -113,11 +142,21 @@ test.describe("이미 쓴 기록을 일정에 잇기", () => {
 
       // Assert
       await expect(getDialog(page)).toContainText("잇는 중…");
+
+      // Act: 이은 뒤 새 화면은 붙들어 둔다
+      releaseRefresh = await holdScreenRefresh(page, "/calendar");
       releaseLink();
-      await expect(getViewLink(page, title)).toHaveAttribute("href", `/dates/${recordId}`);
+
+      // Assert: 새 화면이 오기 전에 창이 닫히고 버튼이 기록 보기가 된다
       await expect(getDialog(page)).toHaveCount(0);
+      await expect(getViewLink(page, title)).toHaveAttribute("href", `/dates/${recordId}`);
+      await expect(getLeaveLink(page, title)).toHaveCount(0);
+      await releaseRefresh();
+      // 새 화면이 오면 이어진 기록 줄은 일정 줄에 합쳐진다
+      await expect(getRecordRow(page, recordTitle)).toHaveCount(0);
     } finally {
       releaseLink();
+      await releaseRefresh();
       await deleteRecord();
       await deleteEvent();
     }
@@ -140,6 +179,54 @@ test.describe("이미 쓴 기록을 일정에 잇기", () => {
       await page.waitForURL("**/dates/new?**");
       await expect(page.locator("#title").locator("visible=true")).toHaveValue(title);
     } finally {
+      await deleteRecord();
+      await deleteEvent();
+    }
+  });
+
+  test("기록 상세에서 잇기·끊기는 새 화면을 기다리지 않고 창을 닫고 결과를 먼저 보여 준다", async ({ page }, testInfo) => {
+    // Arrange
+    const date = `${getMonth(testInfo)}-21`;
+    const eventId = randomUUID();
+    const recordId = randomUUID();
+    const title = createTestName("E2E 바로 잇기 일정", testInfo);
+    const recordTitle = createTestName("E2E 바로 잇기 기록", testInfo);
+    const deleteEvent = await createDisposableEvent({ id: eventId, title, date });
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: recordTitle, date });
+    const linkButton = page.getByRole("button", { name: "일정과 잇기", exact: true }).locator("visible=true");
+    const unlinkButton = page.getByRole("button", { name: "연결 끊기", exact: true }).locator("visible=true");
+    const eventLink = page.locator("main").getByRole("link", { name: title, exact: true }).locator("visible=true");
+    let releaseRefresh = async (): Promise<void> => undefined;
+
+    try {
+      await openScreen(page, `/dates/${recordId}`, linkButton);
+      releaseRefresh = await holdScreenRefresh(page, `/dates/${recordId}`);
+
+      // Act: 잇기
+      await openChooser(page, linkButton);
+      await getDialog(page).getByRole("button", { name: `${title} 일정과 잇기` }).click();
+
+      // Assert: 새 화면이 오기 전에 이어진 일정 줄이 나온다
+      await expect(getDialog(page)).toHaveCount(0);
+      await expect(eventLink).toHaveAttribute("href", `/events/${eventId}/edit`);
+      await expect(unlinkButton).toBeVisible();
+      await expect(linkButton).toHaveCount(0);
+
+      // Act: 끊기
+      await unlinkButton.click();
+      await getDialog(page).getByRole("button", { name: "연결 끊기" }).click();
+
+      // Assert: 새 화면이 오기 전에 줄이 사라지고 잇기 버튼이 돌아온다
+      await expect(getDialog(page)).toHaveCount(0);
+      await expect(eventLink).toHaveCount(0);
+      await expect(linkButton).toBeVisible();
+
+      // Assert: 새 화면이 온 뒤에도 서버가 그린 잇기 버튼이 있고 이어진 줄은 없다
+      await releaseRefresh();
+      await expect(linkButton).toBeVisible();
+      await expect(unlinkButton).toHaveCount(0);
+    } finally {
+      await releaseRefresh();
       await deleteRecord();
       await deleteEvent();
     }
