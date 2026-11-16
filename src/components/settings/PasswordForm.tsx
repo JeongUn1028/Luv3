@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
+import { SaveButton } from "@/components/SaveButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import {
   PASSWORD_CHANGE_UNAVAILABLE_MESSAGE,
@@ -170,13 +171,9 @@ export const PasswordForm = ({ email }: PasswordFormProps): ReactElement => {
               {message}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={isPending}
-            className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-          >
+          <SaveButton isDisabled={isPending} offlineHint="연결되면 바꿀 수 있어요">
             {isPending ? "바꾸는 중…" : "비밀번호 바꾸기"}
-          </button>
+          </SaveButton>
         </div>
       </form>
     </PageShell>

@@ -3,7 +3,8 @@ import type { Locator, Page, Route } from "@playwright/test";
 import { E2E_MEMBER, E2E_TODOS, PHOTO_RECORD, TOP_BLANK_SPACE } from "./support/constants";
 import { expect, getDocumentOverflow, getScrollArea, openScreen, test } from "./support/test";
 import { getSaveButton, getTab, pretendOffline, signInToHome } from "./support/actions";
-import { deleteTodosByContent } from "./support/seed";
+import { createTestName } from "./support/names";
+import { createDisposableRecord, deleteTodosByContent } from "./support/seed";
 
 const [TODO] = E2E_TODOS;
 
@@ -17,6 +18,10 @@ const getBox = async (locator: Locator): Promise<{ top: number; bottom: number; 
   if (!box) throw new Error("요소가 화면에 있어야 잴 수 있습니다");
   return { top: box.y, bottom: box.y + box.height, height: box.height };
 };
+
+/** 화면이 두 번 그려질 때까지 기다린다. 누름이 막히지 않았다면 그사이 상태가 바뀌고 요청이 나간다 */
+const waitForFrames = (page: Page): Promise<void> =>
+  page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
 
 const goOffline = async (page: Page): Promise<void> => {
   await page.context().setOffline(true);
@@ -217,6 +222,72 @@ test.describe("인터넷이 끊기면", () => {
     await context.setOffline(false);
     await expect(getOfflineNotice(page)).toBeHidden();
     expect(new URL(page.url()).pathname).toBe("/settings");
+  });
+});
+
+test.describe("끊긴 채로 보내는 버튼", () => {
+  test("비밀번호 바꾸기는 막아 보내지 않고, 다시 연결되면 누를 수 있다", async ({ page, context }) => {
+    await openScreen(page, "/settings/password", page.getByLabel("현재 비밀번호"));
+    await page.getByLabel("현재 비밀번호").fill("current-password-1");
+    await page.getByLabel("새 비밀번호", { exact: true }).fill("new-password-1234");
+    await page.getByLabel("새 비밀번호 확인").fill("new-password-1234");
+    let requestCount = 0;
+    await page.route("**/auth/v1/**", (route: Route) => {
+      requestCount += 1;
+      return route.fallback();
+    });
+    const button = page.getByRole("button", { name: "비밀번호 바꾸기" });
+    await goOffline(page);
+
+    // 보내 보면 끊긴 것을 알면서도 "바꾸지 못했어요"라고 하게 된다(#388)
+    await expect(button).toHaveAttribute("aria-disabled", "true");
+    await expect(button).toHaveAccessibleDescription("연결되면 바꿀 수 있어요");
+    await page.getByLabel("새 비밀번호 확인").press("Enter");
+    await button.dispatchEvent("click");
+    // 막지 못했으면 이 사이에 보내고 실패를 알린다. 그린 뒤까지 기다려야 "보내지 않았다"를 확인할 수 있다
+    await expect(button).toHaveText("비밀번호 바꾸기");
+    await waitForFrames(page);
+
+    expect(requestCount).toBe(0);
+    await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
+    await expect(page.getByLabel("현재 비밀번호")).toHaveValue("current-password-1");
+
+    await context.setOffline(false);
+    await expect(button).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  test("댓글 남기기는 막아 보내지 않고 쓴 글을 둔다", async ({ page, context }, testInfo) => {
+    const recordId = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 끊긴 댓글 기록", testInfo) });
+    try {
+      const input = page.locator("#comment-content").locator("visible=true");
+      await openScreen(page, `/dates/${recordId}`, input);
+      await input.fill("끊긴 동안 쓴 댓글");
+      let requestCount = 0;
+      await page.route("**/rest/v1/comments*", (route: Route) => {
+        requestCount += 1;
+        return route.fallback();
+      });
+      const button = page.getByRole("button", { name: "남기기" }).locator("visible=true");
+      await goOffline(page);
+
+      // 보내 보면 먼저 붙인 댓글을 빼고 "남기지 못했어요"라고 하게 된다(#388)
+      await expect(button).toHaveAttribute("aria-disabled", "true");
+      await expect(button).toHaveAccessibleDescription("연결되면 남길 수 있어요");
+      await button.dispatchEvent("click");
+      // 막지 못했으면 먼저 붙인 댓글을 그리고 보낸다. 그린 뒤까지 기다려야 "보내지 않았다"를 확인할 수 있다
+      await waitForFrames(page);
+
+      expect(requestCount).toBe(0);
+      await expect(page.locator("main").getByRole("alert")).toHaveCount(0);
+      await expect(page.getByRole("list", { name: "댓글 목록" }).locator("visible=true")).toBeHidden();
+      await expect(input).toHaveValue("끊긴 동안 쓴 댓글");
+
+      await context.setOffline(false);
+      await expect(button).not.toHaveAttribute("aria-disabled", "true");
+    } finally {
+      await deleteRecord();
+    }
   });
 });
 

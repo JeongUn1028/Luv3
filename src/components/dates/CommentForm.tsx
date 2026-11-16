@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { FieldError } from "@/components/FormField";
+import { OfflineHint } from "@/components/OfflineHint";
 import { COMMENT_MAX_LENGTH, validateComment } from "@/lib/comments/comment";
 import { createSendingComment, type CommentAction } from "@/lib/comments/thread";
 import { addComment } from "@/lib/comments/write";
@@ -11,6 +12,7 @@ import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { createClient } from "@/lib/supabase/client";
+import { useOfflineBlock } from "@/lib/use-offline-block";
 
 const SAVE_FAILED_MESSAGE = "댓글을 남기지 못했어요. 잠시 후 다시 시도해 주세요.";
 // 쓰는 사이 상대가 기록을 지우면 남길 수 없다
@@ -36,6 +38,7 @@ export const CommentForm = ({ recordId, memberNickname, isSending, onOptimisticA
   const [announcement, setAnnouncement] = useState("");
   // 실패한 댓글의 id와 내용. 저장은 됐는데 응답만 끊겼을 수 있어, 같은 내용을 다시 남기면 같은 id로 보내 두 번 생기지 않게 한다
   const failedRef = useRef<{ id: string; content: string }>(undefined);
+  const { isBlocked: isOfflineBlocked, hintId: offlineHintId } = useOfflineBlock(isSending);
   // 쓴 글은 남기고, 다른 화면에 다녀온 뒤에도 방금 실패한 것처럼 보이는 지난 안내만 지운다(#261)
   useResetOnHide(() => {
     setNotice(undefined);
@@ -119,11 +122,20 @@ export const CommentForm = ({ recordId, memberNickname, isSending, onOptimisticA
         <button
           type="submit"
           disabled={isSending}
-          className="press-wide h-11 rounded-[10px] bg-accent px-5 font-display text-[14px] text-background disabled:opacity-50"
+          aria-disabled={isOfflineBlocked || undefined}
+          aria-describedby={isOfflineBlocked ? offlineHintId : undefined}
+          // 끊긴 채 보내면 "남기지 못했어요"라고 하며 쓴 글을 되돌리게 되므로 미리 막는다(SaveButton과 같다)
+          onClick={(event) => {
+            if (isOfflineBlocked) event.preventDefault();
+          }}
+          className="press-wide h-11 rounded-[10px] bg-accent px-5 font-display text-[14px] text-background disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50"
         >
           남기기
         </button>
       </div>
+      <OfflineHint id={offlineHintId} isShown={isOfflineBlocked} className="mt-2" align="right">
+        연결되면 남길 수 있어요
+      </OfflineHint>
     </form>
   );
 };
