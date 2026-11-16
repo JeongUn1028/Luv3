@@ -150,6 +150,14 @@ export const getWeekdayClassName = (index: number): string => {
   return tone ? getDayToneClassName(tone, "plain") : "text-ink-sub";
 };
 
+/**
+ * 캘린더에서 고른 날 칸. 바탕(surface)만으로는 배경과 대비가 1.1:1이라 어디를 골랐는지 보이지 않아 회색 테두리를 더한다(#349).
+ * 테두리는 안쪽 그림자(ring-inset)라 칸 크기와 숫자 자리가 바뀌지 않는다.
+ *
+ * @example <button className={isSelected ? SELECTED_DAY_CELL_CLASS_NAME : ""}>
+ */
+export const SELECTED_DAY_CELL_CLASS_NAME = "bg-surface ring-1 ring-ink-sub ring-inset";
+
 interface DayNumberClassNameParams {
   isToday: boolean;
   isAnniversary: boolean;

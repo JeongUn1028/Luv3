@@ -14,6 +14,7 @@ import {
   getHighlightClassNames,
   getWeekdayClassName,
   LEGEND_EVENT_KINDS,
+  SELECTED_DAY_CELL_CLASS_NAME,
 } from "@/lib/calendar/highlight";
 import {
   buildMonthGrid,
@@ -142,7 +143,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
                       aria-label={[formatDayHeading(date), isToday && "오늘", anniversary, holidayName, ...summary].filter(Boolean).join(", ")}
                       onClick={() => setSelectedDate(date)}
                       className={`relative flex h-12 w-full flex-col items-center justify-start gap-1 rounded-[10px] pt-1.5 text-[14px] ${
-                        isSelected ? "bg-surface" : ""
+                        isSelected ? SELECTED_DAY_CELL_CLASS_NAME : ""
                       } ${isCurrentMonth ? "text-ink" : "text-ink-placeholder"}`}
                     >
                       {highlightClassNames && (

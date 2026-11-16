@@ -1,4 +1,6 @@
 import type { ReactElement } from "react";
+import { SaveButton } from "@/components/SaveButton";
+import { SAVE_BUTTON_CLASS_NAME } from "@/components/save-button-style";
 import { toSaveProgressLabel, toSaveProgressRatio } from "@/lib/dates/save-progress";
 import type { SaveProgress } from "@/lib/dates/save";
 
@@ -18,15 +20,7 @@ interface RecordSaveButtonProps {
  */
 export const RecordSaveButton = ({ isSaving, isReadingPhotoInfo, progress }: RecordSaveButtonProps): ReactElement => {
   if (!isSaving) {
-    return (
-      <button
-        type="submit"
-        disabled={isReadingPhotoInfo}
-        className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-      >
-        {isReadingPhotoInfo ? "사진 정보 읽는 중…" : "저장"}
-      </button>
-    );
+    return <SaveButton isDisabled={isReadingPhotoInfo}>{isReadingPhotoInfo ? "사진 정보 읽는 중…" : "저장"}</SaveButton>;
   }
 
   const ratio = progress ? toSaveProgressRatio(progress) : 0;
@@ -34,7 +28,7 @@ export const RecordSaveButton = ({ isSaving, isReadingPhotoInfo, progress }: Rec
     <button
       type="submit"
       disabled
-      className="relative h-[52px] w-full overflow-hidden rounded-[10px] bg-accent-dim font-display text-[15px] text-background"
+      className={`relative overflow-hidden ${SAVE_BUTTON_CLASS_NAME} bg-accent-dim`}
     >
       <span
         aria-hidden="true"

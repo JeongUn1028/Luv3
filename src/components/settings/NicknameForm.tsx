@@ -10,6 +10,7 @@ import { countGraphemes } from "@/lib/form";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { createClient } from "@/lib/supabase/client";
+import { SaveButton } from "@/components/SaveButton";
 
 const FORM_KEY = "nickname";
 const SAVE_FAILED_MESSAGE = "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
@@ -104,13 +105,7 @@ export const NicknameForm = ({ memberId, initialNickname }: NicknameFormProps): 
               {notice}
             </p>
           )}
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-          >
-            {isSaving ? "저장 중…" : "저장"}
-          </button>
+          <SaveButton isDisabled={isSaving}>{isSaving ? "저장 중…" : "저장"}</SaveButton>
         </div>
       </form>
     </PageShell>

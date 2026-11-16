@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import type { Locator, Page, Route } from "@playwright/test";
 import { E2E_MEMBER, E2E_TODOS, PHOTO_RECORD, TOP_BLANK_SPACE } from "./support/constants";
 import { expect, getDocumentOverflow, getScrollArea, openScreen, test } from "./support/test";
-import { getSaveButton, getTab, signInToHome } from "./support/actions";
+import { getSaveButton, getTab, pretendOffline, signInToHome } from "./support/actions";
+import { deleteTodosByContent } from "./support/seed";
 
 const [TODO] = E2E_TODOS;
 
@@ -99,22 +101,61 @@ test.describe("인터넷이 끊기면", () => {
     await expect(getOfflineNotice(page)).toBeHidden();
   });
 
-  test("끊겼다고 다시 로그인 창이 뜨지 않고 저장 실패 문구와 안내가 겹치지 않으며 쓴 내용이 남는다", async ({ page }) => {
-    const content = "E2E 끊긴 동안 쓴 항목";
+  test("저장 버튼이 끊김을 알아채기 전에 보낸 요청이 끊기면 다시 로그인 창 없이 저장 확인 문구를 보이고 쓴 내용이 남는다", async ({ page }) => {
+    // 끊긴 채로 연 화면처럼 브라우저는 끊긴 줄 알지만(navigator.onLine) 앱의 끊김 표시(useOffline)는 아직 바뀌지 않은 경우다.
+    // 폼에 남아(#345) 서버에 닿았는지 알 수 없으니 다시 저장해도 둘이 되지 않는다고 알린다(#161)
+    const content = `E2E 요청만 끊긴 항목 ${randomUUID().slice(0, 6)}`;
     await openScreen(page, "/todos/new", getSaveButton(page));
-    await page.getByRole("textbox").fill(content);
-    await goOffline(page);
+    const textbox = page.locator("main").getByRole("textbox").locator("visible=true");
+    await textbox.fill(content);
+    await page.route("**/rest/v1/todos*", (route: Route) => route.abort("internetdisconnected"));
+    await pretendOffline(page);
 
-    // 끊긴 채 저장하면 바로 목록으로 돌아가지 않고(#345) 폼에 남아 그 자리에서 알린다
     await getSaveButton(page).click();
 
-    // 요청이 서버에 닿았는지 앱은 알 수 없어, 다시 저장해도 둘이 되지 않는다고 알린다(#161)
     await expect(page.locator("main").getByRole("alert").locator("visible=true")).toContainText("저장됐는지 확인하지 못했어요");
     expect(new URL(page.url()).pathname).toBe("/todos/new");
     await expect(getSessionLostDialog(page)).toBeHidden();
-    await expect(page.locator("main").getByRole("textbox").locator("visible=true")).toHaveValue(content);
+    await expect(textbox).toHaveValue(content);
+  });
+
+  test("끊긴 채로는 저장 버튼을 막아 보내지 않고, 쓴 내용을 둔 채 다시 연결되면 저장한다", async ({ page, context }) => {
+    const content = `E2E 끊긴 동안 쓴 항목 ${randomUUID().slice(0, 6)}`;
+    await openScreen(page, "/todos/new", getSaveButton(page));
+    const textbox = page.locator("main").getByRole("textbox").locator("visible=true");
+    await textbox.fill(content);
+    let requestCount = 0;
+    await page.route("**/rest/v1/todos*", (route: Route) => {
+      requestCount += 1;
+      return route.fallback();
+    });
+    await goOffline(page);
+
+    // 보내 보고 "저장됐는지 확인하지 못했어요"라고 하면, 끊긴 것을 알면서도 저장됐을 수 있다고 말하게 된다(#349)
+    await expect(getSaveButton(page)).toHaveAttribute("aria-disabled", "true");
+    await expect(getSaveButton(page)).toHaveAccessibleDescription("연결되면 저장할 수 있어요");
+    await textbox.press("Enter");
+    await getSaveButton(page).dispatchEvent("click");
+
+    expect(requestCount).toBe(0);
+    await expect(page.locator("main").getByRole("alert").locator("visible=true")).toHaveCount(0);
+    expect(new URL(page.url()).pathname).toBe("/todos/new");
+    await expect(getSessionLostDialog(page)).toBeHidden();
+    await expect(textbox).toHaveValue(content);
     const notice = await getBox(getOfflineNotice(page));
     expect(notice.bottom).toBeLessThanOrEqual((await getBox(page.locator("main header").locator("visible=true"))).top);
+
+    await context.setOffline(false);
+    await expect(getSaveButton(page)).not.toHaveAttribute("aria-disabled", "true");
+    await getSaveButton(page).click();
+
+    try {
+      await page.waitForURL("**/todos");
+      await expect(page.getByText(content).locator("visible=true")).toBeVisible();
+      expect(requestCount).toBeGreaterThan(0);
+    } finally {
+      await deleteTodosByContent(content);
+    }
   });
 
   test("저장 중에 떠난 화면의 위쪽 알림은 안내 아래에 놓인다", async ({ page }) => {

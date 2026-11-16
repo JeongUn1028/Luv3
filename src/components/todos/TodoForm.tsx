@@ -15,6 +15,7 @@ import { TODO_CONTENT_MAX_LENGTH, validateTodoContent } from "@/lib/todos/form";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { pendingTodoStore } from "@/lib/todos/pending";
 import { saveTodo } from "@/lib/todos/save";
+import { SaveButton } from "@/components/SaveButton";
 
 /** 저장에 실패해 보관하는 폼 내용 */
 interface TodoDraft {
@@ -163,13 +164,7 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
           {hasConflict ? (
             <ReloadLatestButton />
           ) : (
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-            >
-              {isSaving ? "저장 중…" : "저장"}
-            </button>
+            <SaveButton isDisabled={isSaving}>{isSaving ? "저장 중…" : "저장"}</SaveButton>
           )}
         </div>
       </form>

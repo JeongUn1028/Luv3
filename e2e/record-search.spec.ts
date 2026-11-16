@@ -58,7 +58,7 @@ test.describe("기록 찾기", () => {
     }
   });
 
-  test("맞는 기록이 없으면 알려 주고, 글자를 지우면 다시 보인다", async ({ page }) => {
+  test("맞는 기록이 없으면 가운데에 알려 주고, 찾는 말 지우기를 누르면 다시 보인다", async ({ page }) => {
     // Arrange
     const id = randomUUID();
     const title = `E2E 찾기 없음 ${createWord()}`;
@@ -72,15 +72,95 @@ test.describe("기록 찾기", () => {
       await searchBox.fill(createWord());
 
       // Assert
-      await expect(page.getByRole("status").filter({ hasText: "찾는 기록이 없어요" })).toBeVisible();
+      await expect(page.getByRole("status").filter({ hasText: "찾는 기록이 없어요" })).toBeAttached();
+      await expect(page.locator("p[aria-hidden=true]", { hasText: "찾는 기록이 없어요" })).toBeInViewport();
       await expect(getRecordLink(page, title)).toHaveCount(0);
 
       // Act
-      await searchBox.fill("");
+      await page.getByRole("button", { name: "찾는 말 지우기" }).click();
 
       // Assert
+      await expect(searchBox).toHaveValue("");
+      await expect(searchBox).toBeFocused();
       await expect(getRecordLink(page, title)).toBeVisible();
     } finally {
+      await deleteRecord();
+    }
+  });
+
+  test("결과가 없을 때 글자를 더 쳐도 찾는 동안 빈 화면이 사라지지 않는다", async ({ page }) => {
+    // Arrange
+    const word = createWord();
+    let release = (): void => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const nextQuery = `${word}더`;
+    const isNextSearch = (url: URL) => url.pathname === "/api/records/search" && url.searchParams.get("q") === nextQuery.toLowerCase();
+    const emptyMessage = page.locator("p[aria-hidden=true]", { hasText: "찾는 기록이 없어요" });
+
+    try {
+      await openSearch(page);
+      const searchBox = page.getByRole("searchbox", { name: "기록 찾기" });
+      await searchBox.fill(word);
+      await expect(emptyMessage).toBeVisible();
+      await page.route(isNextSearch, async (route) => {
+        await released;
+        await route.continue();
+      });
+
+      // Act
+      await searchBox.fill(nextQuery);
+
+      // Assert
+      await expect(page.getByRole("status").filter({ hasText: "찾는 중" })).toBeAttached();
+      await expect(emptyMessage).toBeVisible();
+    } finally {
+      release();
+    }
+  });
+
+  test("새로 찾는 동안 앞 결과를 흐리게 두고, 결과가 오면 되돌린다", async ({ page }) => {
+    // Arrange
+    const id = randomUUID();
+    const word = createWord();
+    const title = `E2E 찾는 중 ${word}`;
+    const deleteRecord = await createDisposableRecord({ id, title });
+    let release = (): void => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const nextQuery = `${word} ${createWord()}`;
+    const isSecondSearch = (url: URL) => url.pathname === "/api/records/search" && url.searchParams.get("q") === nextQuery;
+
+    try {
+      await openSearch(page);
+      const searchBox = page.getByRole("searchbox", { name: "기록 찾기" });
+      await searchBox.fill(word);
+      await expect(page.getByRole("status").filter({ hasText: "기록 1개" })).toBeVisible();
+      // 찾는 중(aria-busy)에는 안쪽이 접근성 트리에서 빠져 역할로 찾지 못하므로 주소로 찾는다
+      const results = page.locator("[aria-busy]").filter({ has: page.locator(`a[href="/dates/${id}"]`) });
+      await expect(results).toHaveAttribute("aria-busy", "false");
+      await page.route(isSecondSearch, async (route) => {
+        await released;
+        await route.continue();
+      });
+
+      // Act
+      await searchBox.fill(nextQuery);
+
+      // Assert
+      await expect(results).toHaveAttribute("aria-busy", "true");
+      await expect.poll(() => results.evaluate((element) => Number(getComputedStyle(element).opacity))).toBeLessThan(1);
+
+      // Act
+      release();
+
+      // Assert
+      await expect(page.locator("p[aria-hidden=true]", { hasText: "찾는 기록이 없어요" })).toBeVisible();
+      await expect(getRecordLink(page, title)).toHaveCount(0);
+    } finally {
+      release();
       await deleteRecord();
     }
   });

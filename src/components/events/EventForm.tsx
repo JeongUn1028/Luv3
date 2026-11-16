@@ -37,6 +37,7 @@ import { clearError, FIX_FIELDS_NOTICE, isResolvedFieldNotice, isSameFormValue }
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
+import { SaveButton } from "@/components/SaveButton";
 
 const choiceClassName =
   "flex h-[51px] min-w-0 items-center justify-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-[15px] text-ink-sub has-checked:border-accent has-checked:text-ink has-focus-visible:outline-2 has-focus-visible:outline-accent has-disabled:opacity-50";
@@ -472,13 +473,7 @@ export const EventForm = ({
           {draft.hasConflict ? (
             <ReloadLatestButton />
           ) : (
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="press-wide h-[52px] w-full rounded-[10px] bg-accent font-display text-[15px] text-background disabled:opacity-50"
-            >
-              {isSaving ? "저장 중…" : "저장"}
-            </button>
+            <SaveButton isDisabled={isSaving}>{isSaving ? "저장 중…" : "저장"}</SaveButton>
           )}
         </div>
       </form>
