@@ -11,7 +11,7 @@ import {
   listTrashedPhotoIds,
 } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getSaveButton, getTab } from "./support/actions";
+import { getSaveButton, getTab, pretendOffline } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 창(ModalDialog)을 쓰는 화면의 동작을 모은 스펙(#196)
@@ -92,10 +92,11 @@ test.describe("삭제 확인 창", () => {
     }
   });
 
-  test("지우는 중에는 Esc를 눌러도 닫히지 않고, 지우지 못하면 창을 그대로 두고 다시 시도하게 한다", async ({ page }, testInfo) => {
-    // Arrange
+  test("인터넷이 끊겨 화면에 남으면 지우는 중에는 Esc를 눌러도 닫히지 않고, 지우지 못하면 창을 그대로 두고 다시 시도하게 한다", async ({ page }, testInfo) => {
+    // Arrange: 인터넷이 이어져 있으면 응답을 기다리지 않고 돌아간다(#346)
     const { id, deleteTodo } = await openDisposableTodo(page, createTestName("지우는 중 Esc", testInfo));
     const request = await holdTodoDelete(page, "abort");
+    await pretendOffline(page);
 
     try {
       // Act
@@ -129,7 +130,8 @@ test.describe("삭제 확인 창", () => {
 
       // Assert
       await expectTabsToWork(page);
-      expect(await getRecordIdsByTitle(title)).toEqual([]);
+      // 지우기를 기다리지 않고 돌아가므로(#346) 지워질 때까지 기다린다
+      await expect.poll(() => getRecordIdsByTitle(title)).toEqual([]);
       // 파일은 매달 정리 작업이 30일 뒤 지운다(#311)
       expect(await listRecordFiles(id)).toHaveLength(1);
       expect(await listTrashedPhotoIds(id)).toHaveLength(1);
@@ -209,12 +211,11 @@ test.describe("삭제 확인 창", () => {
       await openScreen(page, TODOS_PATH, page.getByRole("link", { name: content }));
       await page.getByRole("link", { name: content }).click();
       await page.waitForURL(`**/todos/${id}/edit`);
+      // 응답을 기다리지 않고 목록으로 돌아간다(#346)
       await confirmDelete(page);
-      await expect(page.getByRole("dialog").getByRole("button", { name: "지우는 중…" })).toBeDisabled();
+      await page.waitForURL(/\/todos$/);
 
       // Act
-      await page.goBack();
-      await page.waitForURL(/\/todos$/);
       await page.goForward();
       await page.waitForURL(`**/todos/${id}/edit`);
       await getDeleteButton(page).click();

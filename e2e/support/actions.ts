@@ -191,3 +191,27 @@ export const markDocument = (page: Page): Promise<void> =>
  * @example expect(await isSameDocument(page)).toBe(true)
  */
 export const isSameDocument = (page: Page): Promise<boolean> => page.evaluate(() => "e2eSameDocument" in window);
+
+/**
+ * 지우기 요청의 응답을 기다린다. 지우기를 확인하면 응답 전에 돌아가므로(#346), 바로 다른 주소를 열면 문서를 새로 불러와 요청이 끊긴다.
+ * 확인을 누르기 전에 불러 두고, 다른 주소를 열거나 DB를 보기 전에 기다린다. 반복 일정의 하루 지우기는 `event_exceptions`에 POST로 간다.
+ *
+ * @example const deleted = waitForDeleteResponse(page, "events"); await confirm(); await deleted;
+ */
+export const waitForDeleteResponse = async (page: Page, table: string): Promise<void> => {
+  await page.waitForResponse((response) => {
+    const method = response.request().method();
+    return new URL(response.url()).pathname === `/rest/v1/${table}` && (method === "DELETE" || method === "POST");
+  });
+};
+
+/**
+ * 인터넷이 끊긴 것처럼 `navigator.onLine`만 거짓으로 바꾼다. 요청은 그대로 나가 붙들 수 있다.
+ * 지우기·저장은 인터넷이 끊겼으면 돌아가지 않고 화면에 남아 그 자리에서 알린다.
+ *
+ * @example await pretendOffline(page)
+ */
+export const pretendOffline = (page: Page): Promise<void> =>
+  page.evaluate(() => {
+    Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false });
+  });

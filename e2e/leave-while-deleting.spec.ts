@@ -3,12 +3,13 @@ import type { Locator, Page, Route } from "@playwright/test";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { TODOS_PATH } from "@/lib/todos/list";
-import { createDisposableEvent, createDisposableRecord, createDisposableTodo } from "./support/seed";
+import { createDisposableEvent, createDisposableRecord, createDisposableTodo, getRecordIdsByTitle } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { getCouplePhoto, getTab } from "./support/actions";
 import { createTestName } from "./support/names";
 
-// 지우는 사이 아이폰 가장자리 밀기(뒤로 가기)로 화면을 벗어났을 때(#261).
+// 지우는 사이 화면을 벗어났을 때(#261). 기록·하고 싶은 것·일정은 확인하면 바로 목록으로 돌아가고(#346), 그 뒤 다른 화면으로 옮긴다.
+// 커플 사진은 아이폰 가장자리 밀기(뒤로 가기)로 벗어난다.
 // 성공·실패 모두 알리고, 지금 보는 화면을 목록으로 바꾸지 않는다
 
 /** 나란히 도는 다른 테스트의 달력·홈과 겹치지 않는 지난 날짜 */
@@ -67,10 +68,9 @@ test.describe("지우는 사이 화면을 벗어나면", () => {
       const request = await holdRecordDelete(page, (route) => route.continue());
       await confirmDelete(page);
       await request.requested;
-
-      // Act: 가장자리 밀기로 목록에 돌아간 뒤 다른 탭으로 옮긴다
-      await page.goBack();
       await page.waitForURL(`**${RECORDS_PATH}`);
+
+      // Act: 바로 돌아간 목록에서 다른 탭으로 옮긴다
       await getTab(page, TODOS_PATH).tap();
       await page.waitForURL(`**${TODOS_PATH}`);
       request.release();
@@ -97,10 +97,9 @@ test.describe("지우는 사이 화면을 벗어나면", () => {
       const request = await holdRecordDelete(page, failRequest);
       await confirmDelete(page);
       await request.requested;
+      await page.waitForURL(`**${RECORDS_PATH}`);
 
       // Act
-      await page.goBack();
-      await page.waitForURL(`**${RECORDS_PATH}`);
       request.release();
 
       // Assert: 알림이 저절로 사라지지 않는다
@@ -115,7 +114,7 @@ test.describe("지우는 사이 화면을 벗어나면", () => {
       await expect(notice).toHaveCount(0);
       await expect(page.getByRole("heading", { name: title }).locator("visible=true")).toBeVisible();
 
-      // Act: 다시 지운다. 그 자리에 있으니 평소처럼 목록으로 간다
+      // Act: 다시 지운다
       await page.unrouteAll({ behavior: "wait" });
       await getDeleteButton(page).tap();
       const dialog = page.getByRole("dialog", { name: "이 기록을 지울까요?" });
@@ -126,13 +125,14 @@ test.describe("지우는 사이 화면을 벗어나면", () => {
       // Assert
       await page.waitForURL(`**${RECORDS_PATH}`);
       await expect(page.locator("main").locator("visible=true").getByRole("link", { name: title })).toHaveCount(0);
+      await expect.poll(() => getRecordIdsByTitle(title)).toEqual([]);
       await expect(getNotice(page, "status", "기록을 지웠어요")).toHaveCount(0);
     } finally {
       await deleteRecord();
     }
   });
 
-  test("떠났다가 끝나기 전에 돌아와도 실패를 알린다(확인 창은 떠날 때 닫혔다)", async ({ page }, testInfo) => {
+  test("바로 돌아간 뒤 끝나기 전에 앞으로 가기로 다시 와도 실패를 알린다(확인 창은 돌아갈 때 닫혔다)", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();
     const title = createTestName("E2E 돌아와서 삭제 실패", testInfo);
@@ -143,8 +143,7 @@ test.describe("지우는 사이 화면을 벗어나면", () => {
       await confirmDelete(page);
       await request.requested;
 
-      // Act: 가장자리 밀기로 나갔다가 바로 돌아온다
-      await page.goBack();
+      // Act: 확인하면 바로 목록으로 돌아가고(#346), 앞으로 가기로 기록에 다시 온다
       await page.waitForURL(`**${RECORDS_PATH}`);
       await page.goForward();
       await page.waitForURL(`**/dates/${id}`);
@@ -175,8 +174,7 @@ test.describe("지우는 사이 화면을 벗어나면", () => {
       await confirmDelete(page);
       await request.requested;
 
-      // Act
-      await page.goBack();
+      // Act: 바로 돌아간 목록에서 다른 탭으로 옮긴다
       await page.waitForURL(`**${TODOS_PATH}`);
       await getTab(page, CALENDAR_PATH).tap();
       await page.waitForURL(`**${CALENDAR_PATH}*`);
@@ -208,14 +206,15 @@ test.describe("지우는 사이 화면을 벗어나면", () => {
       await confirmDelete(page);
       await request.requested;
 
-      // Act
-      await page.goBack();
       await page.waitForURL(`**${CALENDAR_PATH}*`);
+
+      // Act
       request.release();
 
-      // Assert
+      // Assert: 숨겼던 줄도 돌아온다
       const notice = getNotice(page, "alert", "일정을 지우지 못했어요");
       await expect(notice).toBeVisible();
+      await expect(row.locator("visible=true")).toBeVisible();
       expect(new URL(page.url()).pathname).toBe(CALENDAR_PATH);
       await notice.getByRole("link", { name: "돌아가기" }).tap();
       await page.waitForURL(`**/events/${id}/edit*`);

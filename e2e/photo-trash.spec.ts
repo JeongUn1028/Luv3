@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { SETTINGS_PATH, SETTINGS_TRASH_PATH } from "@/lib/auth/paths";
 import { RECORDS_PATH } from "@/lib/dates/album";
+import { waitForDeleteResponse } from "./support/actions";
 import { createDisposableRecord, deleteRecordWithFiles, moveRecordToTrash } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { createTestName } from "./support/names";
@@ -83,8 +84,10 @@ test.describe("휴지통", () => {
       await expect(dialog).toHaveAccessibleDescription("글과 두 사람이 남긴 댓글은 지워지고 되돌릴 수 없어요. 사진 1장은 설정 > 휴지통에 30일 동안 남아요.");
       // 문구가 두 줄이 되어도 낱말 중간("없어 / 요.")에서 끊지 않는다
       expect(await countWordLines(dialog.getByText(/^글과 두 사람이/), "없어요.")).toBe(1);
+      const deleted = waitForDeleteResponse(page, "dates");
       await dialog.getByRole("button", { name: "삭제", exact: true }).click();
       await page.waitForURL(`**${RECORDS_PATH}`);
+      await deleted;
       await page.goto(SETTINGS_PATH);
       await page.getByRole("link", { name: "휴지통" }).click();
       await page.waitForURL(`**${SETTINGS_TRASH_PATH}`);

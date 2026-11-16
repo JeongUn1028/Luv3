@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactElement } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
 import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
+import { DELETING_KEYS, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
@@ -60,7 +61,8 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
   const router = useRouter();
   const [optimisticTodos, addOptimisticAction] = useOptimistic(todos, applyTodoAction);
   const pendingTodos = useSyncExternalStore(pendingTodoStore.subscribe, pendingTodoStore.getPending, () => NO_PENDING_TODOS);
-  const shownTodos = mergePendingTodos(optimisticTodos, pendingTodos);
+  // 지우기를 확인하고 돌아온 항목은 응답을 기다리지 않고 숨긴다(#346)
+  const shownTodos = omitDeleting(mergePendingTodos(optimisticTodos, pendingTodos), useDeletingKeys(), DELETING_KEYS.todo);
   // 서버 목록이 따라잡은 항목은 보관함에서 뺀다. 이미 서버 값으로 그리고 있어 화면은 바뀌지 않는다
   useLayoutEffect(() => {
     pendingTodoStore.remove(findSettledPendingIds(todos, pendingTodos));

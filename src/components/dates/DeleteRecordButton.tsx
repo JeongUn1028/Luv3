@@ -1,12 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { startTransition, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { deleteDateRecord } from "@/lib/dates/delete";
+import { DELETING_KEYS } from "@/lib/deleting";
 import { TRASH_RETENTION_DAYS } from "@/lib/photos/trash";
-import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { createClient } from "@/lib/supabase/client";
 
 interface DeleteRecordButtonProps {
@@ -14,20 +13,11 @@ interface DeleteRecordButtonProps {
   photoCount: number;
 }
 
-/** 기록 삭제 버튼과 확인 창. 확인하면 기록을 지우고(사진은 휴지통에 남는다) 기록 탭으로 간다 */
+/** 기록 삭제 버튼과 확인 창. 확인하면 기다리지 않고 기록 탭으로 돌아가 기록을 지운다(사진은 휴지통에 남는다) */
 export const DeleteRecordButton = ({ recordId, photoCount }: DeleteRecordButtonProps): ReactElement => {
-  const router = useRouter();
-
   const handleConfirm = async () => {
     const supabase = createClient();
     await deleteDateRecord({ recordId, deleteRecord: (id) => supabase.from("dates").delete().eq("id", id) });
-  };
-
-  const goToList = () => {
-    startTransition(() => {
-      router.replace(RECORDS_PATH, { transitionTypes: BACK_TRANSITION });
-      router.refresh();
-    });
   };
 
   return (
@@ -37,7 +27,10 @@ export const DeleteRecordButton = ({ recordId, photoCount }: DeleteRecordButtonP
       subject="기록을"
       noticeKey={`delete:record:${recordId}`}
       onConfirm={handleConfirm}
-      onDeleted={goToList}
+      returnTo={RECORDS_PATH}
+      // 기록 목록에서 열었을 때만 뒤로 간다. 홈·캘린더·지도에서 열었으면 지금처럼 기록 목록으로 옮긴다
+      canGoBackTo={(url) => url.pathname === RECORDS_PATH}
+      deletingKey={DELETING_KEYS.record(recordId)}
       failureMessage="기록을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
     />
   );

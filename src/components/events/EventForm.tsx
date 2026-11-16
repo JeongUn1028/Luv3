@@ -1,7 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
+import { useState, type ReactElement, type SubmitEvent } from "react";
 import { flushSync } from "react-dom";
 import { AuthorTag } from "@/components/AuthorTag";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
@@ -13,6 +12,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { getEventKinds, getHighlightClassNames } from "@/lib/calendar/highlight";
 import { toKstDate } from "@/lib/anniversary";
 import { formatDayHeading, isCalendarMonthUrl, toCalendarHref } from "@/lib/calendar/month";
+import { DELETING_KEYS, deletingStore, toEventDayPrefix } from "@/lib/deleting";
 import { isRepeatRule } from "@/lib/events/calendar";
 import {
   EVENT_MEMO_MAX_LENGTH,
@@ -34,7 +34,6 @@ import { formatEventPeriod, formatRepeatRule, REPEAT_RULES } from "@/lib/events/
 import { deleteEvent, saveEvent } from "@/lib/events/save";
 import { focusFirstInvalidField } from "@/lib/focus-invalid-field";
 import { clearError, FIX_FIELDS_NOTICE, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
-import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
@@ -106,7 +105,6 @@ export const EventForm = ({
   isDetached = false,
   recordLink,
 }: EventFormProps): ReactElement => {
-  const router = useRouter();
   // 캘린더에서 고른 날마다 다른 폼이다. 다른 날의 실패한 내용이 채워지지 않게 날짜까지 구분한다
   const formKey = `event:${eventId ? `${eventId}:${occurrence?.date ?? ""}` : `new:${initialDraft.date}`}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "일정을", failedSaves });
@@ -157,13 +155,6 @@ export const EventForm = ({
     setErrors((current) => clearError(clearError(clearError(current, "date"), "repeatUntil"), "endDate"));
   };
 
-  const goToCalendar = (date: string) => {
-    startTransition(() => {
-      router.replace(toCalendarHref({ date }), { transitionTypes: BACK_TRANSITION });
-      router.refresh();
-    });
-  };
-
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isSaving) return;
@@ -183,6 +174,8 @@ export const EventForm = ({
 
     setNotice(undefined);
     setIsSaving(true);
+    // 반복을 바꾸면 하루씩 지웠던 날이 다시 생길 수 있다. 지운 지 오래라 캘린더도 이미 새로 받았으므로 숨김을 푼다(#346)
+    if (eventId) deletingStore.restoreStartingWith(toEventDayPrefix(eventId));
     const newEventId = draft.newEventId ?? crypto.randomUUID();
     // 시도마다 새 판 번호를 쓴다. 내용이 바뀌면 판 번호도 바뀌어야 열어 둔 상대의 화면이 알아챈다
     const revision = crypto.randomUUID();
@@ -267,7 +260,9 @@ export const EventForm = ({
                   subject="일정을"
                   noticeKey={`delete:${formKey}`}
                   onConfirm={handleDelete}
-                  onDeleted={() => goToCalendar(backDate)}
+                  returnTo={backHref}
+                  canGoBackTo={(url) => isCalendarMonthUrl(url, backDate.slice(0, 7), toKstDate(new Date()))}
+                  deletingKey={DELETING_KEYS.event(eventId, deleteOccurrenceDate)}
                   failureMessage="일정을 지우지 못했어요. 잠시 후 다시 시도해 주세요."
                 />
               </>
