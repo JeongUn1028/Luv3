@@ -14,7 +14,7 @@ interface PushTypeSwitchesProps {
 }
 
 /**
- * 설정 화면 알림 칸의 종류별 스위치(#364, 시안 4번 A). 새 기록·댓글·새 일정 알림을 따로 끄고 켠다.
+ * 설정 화면 알림 칸의 종류별 스위치(#364, 시안 4번 A). 새 기록·댓글·새 일정·할 일(#376) 알림을 따로 끄고 켠다.
  * 설정은 사람마다 하나라 이 기기뿐 아니라 그 사람의 모든 기기에 적용된다.
  *
  * @example <PushTypeSwitches initialSettings={settings} />

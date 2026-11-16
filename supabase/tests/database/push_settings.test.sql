@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(14);
+select plan(15);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@push-settings.test', 'authenticated', 'authenticated'),
@@ -37,22 +37,30 @@ select is_empty(
   $$select * from public.push_settings where member_id = '00000000-0000-0000-0000-00000000000b'$$,
   '상대의 알림 설정은 읽을 수 없다'
 );
-select throws_ok($$select public.set_push_notify('todo', false)$$, '22023', null, '알 수 없는 종류는 거절한다');
+select throws_ok($$select public.set_push_notify('photo', false)$$, '22023', null, '알 수 없는 종류는 거절한다');
 select throws_ok($$select public.set_push_notify('record', null)$$, '22004', null, '켬·끔이 비어 있으면 거절한다');
 
 select lives_ok($$select public.set_push_notify('event', false)$$, '회원은 자기 알림 종류를 끈다');
 select results_eq(
-  $$select notify_record, notify_comment, notify_event, badge_count from public.push_settings$$,
-  $$values (true, true, false, 0)$$,
+  $$select notify_record, notify_comment, notify_event, notify_todo, badge_count from public.push_settings$$,
+  $$values (true, true, false, true, 0)$$,
   '처음 끄면 그 종류만 꺼진 행이 생기고 나머지는 켠 채다'
 );
 
 select public.set_push_notify('event', true);
 select public.set_push_notify('comment', false);
 select results_eq(
-  $$select notify_record, notify_comment, notify_event from public.push_settings$$,
-  $$values (true, false, true)$$,
+  $$select notify_record, notify_comment, notify_event, notify_todo from public.push_settings$$,
+  $$values (true, false, true, true)$$,
   '다시 켜고 다른 종류를 끄면 각각 바뀐다'
+);
+
+-- 할 일 스위치(#376)
+select public.set_push_notify('todo', false);
+select results_eq(
+  $$select notify_record, notify_comment, notify_event, notify_todo from public.push_settings$$,
+  $$values (true, false, true, false)$$,
+  '할 일 알림도 따로 끈다'
 );
 
 select throws_ok(
@@ -68,8 +76,8 @@ select throws_ok(
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
 select public.set_push_notify('record', false);
 select results_eq(
-  $$select notify_record, notify_comment, notify_event, badge_count from public.push_settings$$,
-  $$values (false, true, true, 4)$$,
+  $$select notify_record, notify_comment, notify_event, notify_todo, badge_count from public.push_settings$$,
+  $$values (false, true, true, true, 4)$$,
   '스위치를 바꿔도 앱 아이콘 숫자는 그대로다'
 );
 

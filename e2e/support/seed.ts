@@ -567,10 +567,10 @@ export const getPushBadgeCount = async (memberId: string): Promise<number> => {
  */
 export const getPushNotifyRow = async (
   memberId: string,
-): Promise<{ notify_record: boolean; notify_comment: boolean; notify_event: boolean } | undefined> => {
+): Promise<{ notify_record: boolean; notify_comment: boolean; notify_event: boolean; notify_todo: boolean } | undefined> => {
   const { data, error } = await createAdminClient()
     .from("push_settings")
-    .select("notify_record, notify_comment, notify_event")
+    .select("notify_record, notify_comment, notify_event, notify_todo")
     .eq("member_id", memberId)
     .maybeSingle();
   assertNoError({ error }, "알림 종류 설정 조회");

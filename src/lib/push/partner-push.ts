@@ -7,13 +7,14 @@ import { toCalendarHref } from "@/lib/calendar/month";
 import { COMMENTS_HEADING_ID } from "@/lib/comments/comment";
 import { isRecordId, toRecordHref } from "@/lib/dates/detail";
 import { isObject } from "@/lib/guards";
+import { TODOS_PATH } from "@/lib/todos/list";
 import type { PushMessage } from "./message";
 import type { StoredPushSubscription } from "./send";
 
-/** 알림을 보내는 일: 새 기록, 댓글, 새 일정(#29 "정한 것" 2번) */
-export type PartnerPushKind = "record" | "comment" | "event";
+/** 알림을 보내는 일: 새 기록, 댓글, 새 일정(#29 "정한 것" 2번), 새 할 일(#376) */
+export type PartnerPushKind = "record" | "comment" | "event" | "todo";
 
-const PARTNER_PUSH_KINDS: readonly string[] = ["record", "comment", "event"] satisfies PartnerPushKind[];
+const PARTNER_PUSH_KINDS: readonly string[] = ["record", "comment", "event", "todo"] satisfies PartnerPushKind[];
 
 /** 저장한 휴대폰이 보내는 부탁. 알림 문구는 서버가 DB에서 다시 읽어 만들므로 종류와 글 id만 보낸다 */
 export interface PartnerPushBody {
@@ -30,7 +31,7 @@ const isPartnerPushKind = (value: unknown): value is PartnerPushKind => typeof v
  */
 export const parsePartnerPushBody = (value: unknown): PartnerPushBody | undefined => {
   if (!isObject(value) || !isPartnerPushKind(value.kind) || typeof value.id !== "string") return undefined;
-  // 기록·댓글·일정 id는 모두 uuid다(isRecordId가 uuid 모양을 본다)
+  // 기록·댓글·일정·할 일 id는 모두 uuid다(isRecordId가 uuid 모양을 본다)
   return isRecordId(value.id) ? { kind: value.kind, id: value.id } : undefined;
 };
 
@@ -125,4 +126,20 @@ export const toEventPushMessage = ({ nickname, date }: EventPushParams): PushMes
   title: `${nickname}님이 일정을 추가했어요`,
   body: "",
   url: toCalendarHref({ date }),
+});
+
+export interface TodoPushParams {
+  nickname: string;
+}
+
+/**
+ * 새 할 일(하고 싶은 것) 알림(#376). 누르면 할 일 화면을 연다. 항목 하나를 여는 화면이 없어 목록으로 간다.
+ *
+ * @example toTodoPushMessage({ nickname: "진아" })
+ * // { title: "진아님이 하고 싶은 것을 추가했어요", body: "", url: "/todos" }
+ */
+export const toTodoPushMessage = ({ nickname }: TodoPushParams): PushMessage => ({
+  title: `${nickname}님이 하고 싶은 것을 추가했어요`,
+  body: "",
+  url: TODOS_PATH,
 });

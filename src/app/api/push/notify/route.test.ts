@@ -15,6 +15,7 @@ const MEMBER_ID = "00000000-0000-0000-0000-00000000000a";
 const RECORD_ID = "10000000-0000-4000-8000-000000000001";
 const COMMENT_ID = "20000000-0000-4000-8000-000000000001";
 const EVENT_ID = "30000000-0000-4000-8000-000000000001";
+const TODO_ID = "40000000-0000-4000-8000-000000000001";
 const VAPID = { publicKey: "public", privateKey: "private" };
 
 const subscription = (name: string): StoredPushSubscription => ({ endpoint: `https://push.example/${name}`, p256dh: "key", auth: "auth" });
@@ -24,7 +25,7 @@ const requestWith = (body: unknown): Request =>
 
 interface FakeSupabaseOptions {
   /** 표마다 읽힐 행. 없으면 글이 없는 것이다 */
-  rows?: Partial<Record<"dates" | "comments" | "events", Record<string, unknown>>>;
+  rows?: Partial<Record<"dates" | "comments" | "events" | "todos", Record<string, unknown>>>;
   loadError?: { message: string };
   claim?: unknown;
   claimError?: { message: string };
@@ -35,7 +36,7 @@ interface FakeSupabaseOptions {
 const fakeSupabase = ({ rows = {}, loadError, claim, claimError, deleteError }: FakeSupabaseOptions) => {
   const calls = { reads: [] as { table: string; columns: string; id: string }[], rpcs: [] as { name: string; args: unknown }[] };
   const client = {
-    from: (table: "dates" | "comments" | "events") => ({
+    from: (table: "dates" | "comments" | "events" | "todos") => ({
       select: (columns: string) => ({
         eq: (column: string, id: string) => {
           expect(column).toBe("id");
@@ -99,7 +100,7 @@ describe("POST /api/push/notify", () => {
 
   it.each([
     ["본문이 없으면", undefined],
-    ["모르는 종류면", { kind: "todo", id: RECORD_ID }],
+    ["모르는 종류면", { kind: "photo", id: RECORD_ID }],
     ["id가 uuid가 아니면", { kind: "record", id: "abc" }],
   ])("%s 400을 돌려준다", async (_, body) => {
     // Act
@@ -166,6 +167,24 @@ describe("POST /api/push/notify", () => {
     expect(send).toHaveBeenCalledWith(
       subscription("phone"),
       JSON.stringify({ title: "진아님이 일정을 추가했어요", body: "", url: "/calendar?month=2026-11&date=2026-11-20", badge: 1 }),
+    );
+  });
+
+  it("새 할 일이면 할 일 화면으로 가는 알림을 보낸다", async () => {
+    // Arrange
+    const calls = fakeSupabase({ rows: { todos: { id: TODO_ID } }, claim: ready({ badge: 2, subscriptions: [subscription("phone")] }) });
+    const send = vi.fn<SendToSubscription>(() => Promise.resolve());
+    useSender(send);
+
+    // Act
+    await POST(requestWith({ kind: "todo", id: TODO_ID }));
+
+    // Assert
+    expect(calls.rpcs).toEqual([{ name: "claim_partner_push", args: { p_kind: "todo", p_target_id: TODO_ID } }]);
+    expect(calls.reads).toEqual([{ table: "todos", columns: "id", id: TODO_ID }]);
+    expect(send).toHaveBeenCalledWith(
+      subscription("phone"),
+      JSON.stringify({ title: "진아님이 하고 싶은 것을 추가했어요", body: "", url: "/todos", badge: 2 }),
     );
   });
 

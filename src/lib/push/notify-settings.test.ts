@@ -7,27 +7,27 @@ describe("toPushNotifySettings", () => {
     const settings = toPushNotifySettings(undefined);
 
     // Assert
-    expect(settings).toEqual({ record: true, comment: true, event: true });
+    expect(settings).toEqual({ record: true, comment: true, event: true, todo: true });
   });
 
   it("설정 행이 있으면 종류마다 그 값을 따른다", () => {
     // Arrange
-    const row = { notify_record: true, notify_comment: false, notify_event: false };
+    const row = { notify_record: true, notify_comment: false, notify_event: false, notify_todo: false };
 
     // Act
     const settings = toPushNotifySettings(row);
 
     // Assert
-    expect(settings).toEqual({ record: true, comment: false, event: false });
+    expect(settings).toEqual({ record: true, comment: false, event: false, todo: false });
   });
 });
 
 describe("PUSH_NOTIFY_SWITCHES", () => {
-  it("시안 4번 A 순서로 새 기록·댓글·새 일정 스위치를 둔다", () => {
+  it("시안 4번 A 순서로 새 기록·댓글·새 일정 스위치를 두고, 그 다음에 할 일 스위치를 둔다", () => {
     // Act
     const switches = PUSH_NOTIFY_SWITCHES.map(({ kind, label }) => `${kind}:${label}`);
 
     // Assert
-    expect(switches).toEqual(["record:새 기록", "comment:댓글", "event:새 일정"]);
+    expect(switches).toEqual(["record:새 기록", "comment:댓글", "event:새 일정", "todo:할 일"]);
   });
 });

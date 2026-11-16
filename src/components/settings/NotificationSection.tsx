@@ -7,8 +7,8 @@ import { usePushNotifications } from "./use-push-notifications";
 
 /** 켜기 전 상태마다 칸 아래에 적는 설명. 켠 뒤에는 설명 칸 대신 종류별 스위치를 보여 준다 */
 const STATUS_DESCRIPTION: Record<Exclude<PushStatus, "on">, string> = {
-  checking: "켜 두면 상대가 남긴 기록·댓글·일정을 이 기기로 알려 드려요.",
-  off: "켜 두면 상대가 남긴 기록·댓글·일정을 이 기기로 알려 드려요.",
+  checking: "켜 두면 상대가 남긴 기록·댓글·일정·할 일을 이 기기로 알려 드려요.",
+  off: "켜 두면 상대가 남긴 기록·댓글·일정·할 일을 이 기기로 알려 드려요.",
   denied: "알림을 허용하지 않은 기기예요. 아이폰 설정 → 알림 → Luv3에서 알림 허용을 켠 뒤 다시 열어 주세요.",
   "needs-install": "홈 화면에 추가한 Luv3에서만 켤 수 있어요. Safari에서 공유 → 홈 화면에 추가를 누른 뒤 거기서 켜 주세요.",
   unsupported: "이 브라우저에서는 알림을 받을 수 없어요.",

@@ -17,7 +17,7 @@ export class PushSettingsLoadError extends Error {
  */
 export const getPushNotifySettings = async (): Promise<PushNotifySettings> => {
   const supabase = await createClient();
-  const { data, error } = await supabase.from("push_settings").select("notify_record, notify_comment, notify_event").maybeSingle();
+  const { data, error } = await supabase.from("push_settings").select("notify_record, notify_comment, notify_event, notify_todo").maybeSingle();
   if (error) throw new PushSettingsLoadError({ cause: error });
   return toPushNotifySettings(data ?? undefined);
 };

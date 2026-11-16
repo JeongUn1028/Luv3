@@ -5,6 +5,7 @@ import {
   toCommentPushMessage,
   toEventPushMessage,
   toRecordPushMessage,
+  toTodoPushMessage,
 } from "./partner-push";
 
 const ID = "10000000-0000-4000-8000-000000000001";
@@ -13,10 +14,11 @@ const SUBSCRIPTION = { endpoint: "https://push.example/b", p256dh: "key", auth: 
 describe("parsePartnerPushBody", () => {
   it("종류와 uuid id가 있으면 부탁으로 읽는다", () => {
     expect(parsePartnerPushBody({ kind: "comment", id: ID })).toEqual({ kind: "comment", id: ID });
+    expect(parsePartnerPushBody({ kind: "todo", id: ID })).toEqual({ kind: "todo", id: ID });
   });
 
   it("모르는 종류, uuid가 아닌 id, 객체가 아닌 값이면 undefined를 돌려준다", () => {
-    expect(parsePartnerPushBody({ kind: "todo", id: ID })).toBeUndefined();
+    expect(parsePartnerPushBody({ kind: "photo", id: ID })).toBeUndefined();
     expect(parsePartnerPushBody({ kind: "record", id: "1; drop table" })).toBeUndefined();
     expect(parsePartnerPushBody({ kind: "record" })).toBeUndefined();
     expect(parsePartnerPushBody(undefined)).toBeUndefined();
@@ -69,6 +71,14 @@ describe("알림 문구", () => {
       title: "진아님이 일정을 추가했어요",
       body: "",
       url: "/calendar?month=2026-11&date=2026-11-20",
+    });
+  });
+
+  it("할 일 알림은 추가한 사람만 알리고 할 일 화면을 연다", () => {
+    expect(toTodoPushMessage({ nickname: "진아" })).toEqual({
+      title: "진아님이 하고 싶은 것을 추가했어요",
+      body: "",
+      url: "/todos",
     });
   });
 });

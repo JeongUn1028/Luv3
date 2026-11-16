@@ -213,14 +213,14 @@ isOneToOne: false
                   ]
                 },"push_settings": {
                   Row: {
-                    "badge_count": number,"member_id": string,"notify_comment": boolean,"notify_event": boolean,"notify_record": boolean
+                    "badge_count": number,"member_id": string,"notify_comment": boolean,"notify_event": boolean,"notify_record": boolean,"notify_todo": boolean
                   }
                   ComputedFields: never
                   Insert: {
-                    "badge_count"?: number,"member_id": string,"notify_comment"?: boolean,"notify_event"?: boolean,"notify_record"?: boolean
+                    "badge_count"?: number,"member_id": string,"notify_comment"?: boolean,"notify_event"?: boolean,"notify_record"?: boolean,"notify_todo"?: boolean
                   }
                   Update: {
-                    "badge_count"?: number,"member_id"?: string,"notify_comment"?: boolean,"notify_event"?: boolean,"notify_record"?: boolean
+                    "badge_count"?: number,"member_id"?: string,"notify_comment"?: boolean,"notify_event"?: boolean,"notify_record"?: boolean,"notify_todo"?: boolean
                   }
                   Relationships: [
                     {

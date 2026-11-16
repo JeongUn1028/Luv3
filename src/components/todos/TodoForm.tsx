@@ -9,6 +9,7 @@ import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
+import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
 import { createClient } from "@/lib/supabase/client";
 import { TODO_CONTENT_MAX_LENGTH, validateTodoContent } from "@/lib/todos/form";
@@ -98,6 +99,9 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
       finishFailed({ draft: failedDraft, ...failure });
       return;
     }
+    // 새로 추가한 할 일만 알린다. 고치기는 알리지 않는다(#376). 응답만 끊겨 다시 저장한 경우도 저장된 것이라 알리고,
+    // 이미 알렸으면 서버가 다시 보내지 않는다
+    if (!todoId) requestPartnerPush({ kind: "todo", id: saveId });
     pendingTodoStore.markSaved(pendingId);
     finishSaved({
       href: TODOS_PATH,
