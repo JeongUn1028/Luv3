@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { isRecordId } from "@/lib/dates/detail";
+import { isRecordId } from "@/lib/dates/record-href";
 import { ALBUM_BUCKET } from "./limits";
 import { getSignedUrls } from "./signed-urls";
 import { toTrashPhotoDetail, toTrashSections, type TrashPhotoDetail, type TrashSection } from "./trash-view";

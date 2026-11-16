@@ -1,7 +1,7 @@
 import "server-only";
 import type { KstNow } from "@/lib/anniversary";
 import { getGridRange } from "@/lib/calendar/month";
-import { isRecordId } from "@/lib/dates/detail";
+import { isRecordId } from "@/lib/dates/record-href";
 import { readAllRows } from "@/lib/supabase/read-all-rows";
 import { createClient } from "@/lib/supabase/server";
 import { toCalendarRecord, type CalendarEvent, type CalendarRecord } from "./calendar";

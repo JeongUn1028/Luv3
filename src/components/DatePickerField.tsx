@@ -8,7 +8,7 @@ import { toKstDate } from "@/lib/anniversary";
 import { clampMonth, getFocusDate, getInitialMonth, getKeyboardDayOffset, isSelectableDate } from "@/lib/calendar/date-picker";
 import { getDayTextClassName, getDayTone, getWeekdayClassName } from "@/lib/calendar/highlight";
 import { addDays, buildMonthGrid, formatDayHeading, formatMonthTitle, shiftMonth, WEEKDAYS } from "@/lib/calendar/month";
-import { formatRecordDate } from "@/lib/dates/detail";
+import { formatRecordDate } from "@/lib/dates/record-date-format";
 import { isIsoDate } from "@/lib/form";
 import { loadHolidayNames } from "@/lib/holidays/client";
 import type { HolidayNames } from "@/lib/holidays/holidays";

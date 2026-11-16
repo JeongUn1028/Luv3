@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
-import { toRecordHref, toRecordPhotoHref } from "@/lib/dates/detail";
+import { toRecordHref, toRecordPhotoHref } from "@/lib/dates/record-href";
 import { expectImageLoaded } from "./support/actions";
 import { createUniqueLocation, fakeMapSdk } from "./support/fake-kakao-map";
 import { addRecordPhoto, createDisposableRecord, getRecordPhotoDetails, setRecordSearchFields } from "./support/seed";

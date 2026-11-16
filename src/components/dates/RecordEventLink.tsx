@@ -6,7 +6,7 @@ import { startTransition, useRef, useState, useTransition, type ReactElement } f
 import { ModalActions, ModalMessage } from "@/components/ModalActions";
 import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import { formatEventTime } from "@/lib/calendar/month";
-import { formatRecordShortDate } from "@/lib/dates/detail";
+import { formatRecordShortDate } from "@/lib/dates/record-date-format";
 import { linkRecordToEvent, toEventLinkMessage, unlinkRecordFromEvent } from "@/lib/dates/event-link";
 import type { LinkableEvent } from "@/lib/events/record-link";
 import { formatEventPeriod, toEventEditHref } from "@/lib/events/recurrence";

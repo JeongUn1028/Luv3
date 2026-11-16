@@ -3,7 +3,6 @@ import type { AuthorRow } from "@/lib/author";
 import type { SignedUrl } from "@/lib/photos/signed-urls";
 import { isRepeatRule } from "@/lib/events/calendar";
 import { toEventEditHref } from "@/lib/events/recurrence";
-import { formatPeriodMonthDay, toMonthDay, type RecordPeriod } from "./album";
 import { comparePhotoOrder, groupPhotosInOrder } from "./photo-groups";
 import { buildGroupRoute, type PhotoRoute } from "./route";
 
@@ -27,24 +26,6 @@ export interface DetailGroup {
   /** 모음 한마디(#309). 그 모음 사진을 보는 동안 사진 아래에 보여 준다 */
   caption: string | undefined;
 }
-
-/** 기록 상세에서 처음 펼칠 사진을 고르는 주소 이름(`/dates/<id>?photo=<사진 id>`) */
-export const RECORD_PHOTO_PARAM = "photo";
-
-/**
- * 기록 상세 주소.
- *
- * @example toRecordHref("r1") // "/dates/r1"
- */
-export const toRecordHref = (recordId: string): string => `/dates/${recordId}`;
-
-/**
- * 그 사진부터 펼치는 기록 상세 주소. 지도의 사진 줄에서 고른 사진으로 갈 때 쓴다.
- *
- * @example toRecordPhotoHref({ recordId: "r1", photoId: "p2" }) // "/dates/r1?photo=p2"
- */
-export const toRecordPhotoHref = ({ recordId, photoId }: { recordId: string; photoId: string }): string =>
-  `${toRecordHref(recordId)}?${new URLSearchParams({ [RECORD_PHOTO_PARAM]: photoId }).toString()}`;
 
 /**
  * 주소에 지정한 사진의 순서. 지정하지 않았거나 그사이 지워진 사진이면 첫 사진(0)부터 보여 준다.
@@ -165,16 +146,6 @@ export const findStartPhotoRow = (photos: DetailRow["photos"], photoId: string |
   return sorted.find(({ id }) => id === photoId) ?? sorted[0];
 };
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * 주소의 기록 id가 UUID 형식인지 확인한다. 형식이 틀리면 DB에 묻지 않고 바로 "없는 기록"으로 처리한다
- * (uuid 컬럼에 다른 문자열을 넘기면 DB가 22P02 에러를 낸다).
- *
- * @example isRecordId("5a87e560-6a6e-49be-8af3-db196468143c") // true
- */
-export const isRecordId = (id: string): boolean => UUID_PATTERN.test(id);
-
 /**
  * 조회한 행에 원본 서명 URL과 처음 펼칠 사진의 썸네일 서명 URL을 붙여 상세 화면 값으로 바꾼다. DB의 null은 화면 경계에서 undefined로 바꾼다.
  *
@@ -254,40 +225,3 @@ export const toEditableRecord = (row: DetailRow, signedThumbs: SignedUrl[]): Edi
     groups: toEditableGroups({ photos, urlByPath, captionByGroupId: toCaptionByGroupId(row.groups) }),
   };
 };
-
-const WEEKDAY_FORMAT = new Intl.DateTimeFormat("ko-KR", { weekday: "long", timeZone: "UTC" });
-
-const toWeekday = (isoDate: string): string => WEEKDAY_FORMAT.format(new Date(`${isoDate}T00:00:00Z`));
-
-/**
- * 상세 화면 날짜 표기: "2026.11.02 월요일". 날짜만 있는 값이라 시간대 영향을 받지 않게 UTC로 요일을 구한다.
- *
- * @example formatRecordDate("2026-11-02") // "2026.11.02 월요일"
- */
-export const formatRecordDate = (isoDate: string): string => `${isoDate.replaceAll("-", ".")} ${toWeekday(isoDate)}`;
-
-/**
- * 좁은 칸에 쓰는 기록 날짜: 연도 없이 MM.DD와 요일.
- *
- * @example formatRecordMonthDay("2026-11-02") // "11.02 월요일"
- */
-export const formatRecordMonthDay = (isoDate: string): string => `${toMonthDay(isoDate)} ${toWeekday(isoDate)}`;
-
-/**
- * 상세 화면 날짜 표기. 기간이면 끝 날짜를 덧붙이고, 해가 같으면 끝 날짜의 연도는 뺀다.
- *
- * @example formatRecordPeriod({ date: "2026-10-31", endDate: "2026-11-02" }) // "2026.10.31 토요일 – 11.02 월요일"
- */
-export const formatRecordPeriod = ({ date, endDate }: RecordPeriod): string => {
-  if (!endDate) return formatRecordDate(date);
-  const isSameYear = date.slice(0, 4) === endDate.slice(0, 4);
-  return `${formatRecordDate(date)} – ${isSameYear ? formatRecordMonthDay(endDate) : formatRecordDate(endDate)}`;
-};
-
-/**
- * 좁은 칸(홈 최근 데이트)에 쓰는 기록 날짜. 하루짜리는 요일까지, 기간은 그리드와 같은 표기로 쓴다.
- *
- * @example formatRecordShortDate({ date: "2026-11-01", endDate: "2026-11-03" }) // "11.01–11.03"
- */
-export const formatRecordShortDate = ({ date, endDate }: RecordPeriod): string =>
-  endDate ? formatPeriodMonthDay({ date, endDate }) : formatRecordMonthDay(date);

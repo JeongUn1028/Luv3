@@ -1,7 +1,7 @@
 import { countChars, isIsoDate } from "@/lib/form";
 import { isObject } from "@/lib/guards";
 import type { AlbumTile } from "./album";
-import { isRecordId } from "./detail";
+import { isRecordId } from "./record-href";
 
 /** 기록 찾기 API 주소. 화면과 API 경로가 함께 쓴다 */
 export const RECORD_SEARCH_PATH = "/api/records/search";

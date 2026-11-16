@@ -2,7 +2,7 @@ import Link from "next/link";
 import { useId, type ReactElement } from "react";
 import { RememberedPhoto } from "@/components/RememberedPhoto";
 import type { LatestRecord } from "@/lib/dates/album";
-import { formatRecordShortDate } from "@/lib/dates/detail";
+import { formatRecordShortDate } from "@/lib/dates/record-date-format";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 interface LatestRecordCardProps {

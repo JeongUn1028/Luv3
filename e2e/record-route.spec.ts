@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
-import { toRecordHref } from "@/lib/dates/detail";
+import { toRecordHref } from "@/lib/dates/record-href";
 import { createUniqueLocation, fakeMapSdk, type FakeWindow } from "./support/fake-kakao-map";
 import { addRecordPhoto, createDisposableRecord, deleteFirstPhotoGroup } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";

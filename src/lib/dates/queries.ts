@@ -6,7 +6,8 @@ import { getHomePhotoSignedUrls, getSignedUrls } from "@/lib/photos/signed-urls"
 import { toLatestRecord, toTagSuggestions, type LatestRecord } from "./album";
 import type { AlbumFirstPage } from "./album-pages";
 import { PHOTO_GROUP_LOCATION_COLUMNS, toPhotoWithGroupLocation } from "./photo-groups";
-import { findStartPhotoRow, isRecordId, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
+import { findStartPhotoRow, toDateRecordDetail, toEditableRecord, type DateRecordDetail, type DetailRow, type EditableRecord } from "./detail";
+import { isRecordId } from "./record-href";
 import { ALL_RECORDS_FIRST_PAGE, loadRecordPage } from "./search-queries";
 
 /** 앨범 그리드를 불러오지 못했을 때 */

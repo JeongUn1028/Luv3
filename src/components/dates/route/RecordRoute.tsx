@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactElement } from "react";
-import { formatRecordMonthDay } from "@/lib/dates/detail";
+import { formatRecordMonthDay } from "@/lib/dates/record-date-format";
 import type { PhotoRoute } from "@/lib/dates/route";
 import { SINGLE_PIN_LEVEL } from "@/components/dates/map/map-drawing";
 import { MapLoadStatus } from "@/components/dates/map/MapLoadStatus";
