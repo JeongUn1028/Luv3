@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import type { ReactElement } from "react";
 import { SignedPhoto } from "@/components/SignedPhoto";
+import { DELETING_KEYS, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { formatPeriodMonthDay, groupByMonth, type AlbumTile } from "@/lib/dates/album";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
@@ -9,7 +12,9 @@ interface AlbumGridProps {
 }
 
 /** 달마다 묶은 2열 대표 사진 그리드(home.svg). 칸을 누르면 기록 상세로 간다 */
-export const AlbumGrid = ({ tiles }: AlbumGridProps): ReactElement => {
+export const AlbumGrid = ({ tiles: allTiles }: AlbumGridProps): ReactElement => {
+  // 지우기를 확인하고 돌아온 기록은 응답을 기다리지 않고 숨긴다(#346)
+  const tiles = omitDeleting(allTiles, useDeletingKeys(), DELETING_KEYS.record);
   if (tiles.length === 0) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center">

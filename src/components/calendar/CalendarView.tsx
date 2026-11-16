@@ -28,6 +28,7 @@ import {
 } from "@/lib/calendar/month";
 import { EventRecordAction } from "@/components/events/EventRecordAction";
 import type { CalendarEvent, CalendarRecord } from "@/lib/events/calendar";
+import { DELETING_KEYS, isDeletingEvent, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { findSettledPendingEventIds, mergePendingEvents, pendingEventStore, type PendingEvent } from "@/lib/events/pending";
 import { getEventRecordLink, omitLinkedRecords } from "@/lib/events/record-link";
 import { formatEventPeriod, formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
@@ -76,10 +77,12 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
   }, [events, pendingEvents]);
   // 저장은 끝났는데 목록에 들어오지 않은 일정(그사이 상대가 지움)이 흐린 채 남지 않게 한다
   useResetOnHide(() => pendingEventStore.removeSaved());
-  const eventsByDate = groupByDate(mergePendingEvents(events, pendingEvents));
+  // 지우기를 확인하고 돌아온 일정·기록은 응답을 기다리지 않고 숨긴다(#346)
+  const deletingKeys = useDeletingKeys();
+  const eventsByDate = groupByDate(mergePendingEvents(events, pendingEvents).filter((event) => !isDeletingEvent(deletingKeys, event)));
   // 일정에 이어진 기록은 일정 줄의 "기록 보기"로 열므로 기록 줄·점에서 뺀다(#228)
   const recordsByDate = new Map(
-    Array.from(groupByDate(records), ([date, dayRecords]) => [date, omitLinkedRecords(dayRecords, eventsByDate.get(date) ?? [])]),
+    Array.from(groupByDate(omitDeleting(records, deletingKeys, DELETING_KEYS.record)), ([date, dayRecords]) => [date, omitLinkedRecords(dayRecords, eventsByDate.get(date) ?? [])]),
   );
   const selectedEvents = eventsByDate.get(selectedDate) ?? [];
   const selectedRecords = recordsByDate.get(selectedDate) ?? [];

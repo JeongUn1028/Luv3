@@ -38,11 +38,12 @@ describe("화면 전환", () => {
     expect(missing).toEqual([]);
   });
 
+  // 할 일·일정 저장과 지우기는 도우미가 옮긴다(#345, #346)
   it.each([
     ["components/dates/DateRecordForm.tsx"],
-    ["components/dates/DeleteRecordButton.tsx"],
-    ["components/events/EventForm.tsx"],
-    ["components/todos/TodoForm.tsx"],
+    ["components/ConfirmDeleteButton.tsx"],
+    ["lib/navigation/use-leavable-save.ts"],
+    ["lib/navigation/use-leavable-delete.ts"],
   ])("%s는 저장·삭제 뒤 뒤로 가는 방향으로 움직인다", (at) => {
     expect(readSource(at)).toMatch(/router\.replace\([^;]*transitionTypes: BACK_TRANSITION/);
   });

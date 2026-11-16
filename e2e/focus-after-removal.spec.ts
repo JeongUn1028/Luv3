@@ -3,7 +3,7 @@ import type { Locator, Page, Route } from "@playwright/test";
 import { MAX_TAGS } from "@/lib/dates/form";
 import { createDisposableRecord, createDisposableTodo, setRecordTags } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getGroupPhoto, pickPhoto } from "./support/actions";
+import { getGroupPhoto, pickPhoto, pretendOffline } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 누른 버튼이 사라지거나 비활성이 되어도 키보드·화면 읽기 프로그램 사용자가 자리를 잃지 않게 한다(#260)
@@ -192,8 +192,8 @@ test.describe("하고 싶은 것 목록", () => {
 });
 
 test.describe("지우기 확인 창", () => {
-  test("지우는 중에는 Esc를 연달아 눌러도 닫히지 않고, 실패하면 삭제 버튼에 초점이 남는다", async ({ page }, testInfo) => {
-    // Arrange: 지우기 요청을 붙잡아 두었다가 실패시킨다
+  test("인터넷이 끊겨 화면에 남으면 지우는 중에는 Esc를 연달아 눌러도 닫히지 않고, 실패하면 삭제 버튼에 초점이 남는다", async ({ page }, testInfo) => {
+    // Arrange: 지우기 요청을 붙잡아 두었다가 실패시킨다. 인터넷이 이어져 있으면 응답을 기다리지 않고 돌아간다(#346)
     const id = randomUUID();
     const deleteTodo = await createDisposableTodo({ id, content: createTestName("초점 지우기", testInfo) });
     let failDelete: () => void = () => undefined;
@@ -209,6 +209,7 @@ test.describe("지우기 확인 창", () => {
         });
       });
       await openScreen(page, `/todos/${id}/edit`, page.locator("#todo-content").locator("visible=true"));
+      await pretendOffline(page);
       await getVisibleButton(page, "삭제").click();
       const dialog = page.getByRole("dialog", { name: "이 항목을 지울까요?" });
       await expect(dialog).toBeVisible();

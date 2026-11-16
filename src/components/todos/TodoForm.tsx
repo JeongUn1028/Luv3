@@ -1,13 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { startTransition, useState, type ReactElement, type SubmitEvent } from "react";
+import { useState, type ReactElement, type SubmitEvent } from "react";
 import { ConfirmDeleteButton } from "@/components/ConfirmDeleteButton";
 import { TextField } from "@/components/FormField";
+import { DELETING_KEYS } from "@/lib/deleting";
 import { PageShell } from "@/components/PageShell";
 import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
-import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
@@ -41,7 +40,6 @@ interface TodoFormProps {
 
 /** 하고 싶은 것 추가·고치기 폼. 고칠 때는 머리글에서 지울 수도 있다 */
 export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormProps): ReactElement => {
-  const router = useRouter();
   const formKey = `todo:${todoId ?? "new"}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "하고 싶은 것을", failedSaves });
   const [content, setContent] = useState(failedSave?.draft.content ?? initialContent);
@@ -55,13 +53,6 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
   const [isSaving, setIsSaving] = useState(false);
   // 저장하는 동안은 나가도 저장을 이어 가고 결과를 알리므로 묻지 않는다(#104)
   const shouldConfirmLeave = content !== baseContent && !isSaving;
-
-  const goToList = () => {
-    startTransition(() => {
-      router.replace(TODOS_PATH, { transitionTypes: BACK_TRANSITION });
-      router.refresh();
-    });
-  };
 
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -137,7 +128,9 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
                 subject="하고 싶은 것을"
                 noticeKey={`delete:${formKey}`}
                 onConfirm={handleDelete}
-                onDeleted={goToList}
+                returnTo={TODOS_PATH}
+                canGoBackTo={(url) => url.pathname === TODOS_PATH}
+                deletingKey={DELETING_KEYS.todo(todoId)}
                 failureMessage="지우지 못했어요. 잠시 후 다시 시도해 주세요."
               />
             )

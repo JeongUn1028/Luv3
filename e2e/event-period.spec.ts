@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { toKstDate } from "../src/lib/anniversary";
 import { pickDate } from "./support/date-picker";
+import { waitForDeleteResponse } from "./support/actions";
 import { createDisposablePeriodEvent, deleteEventsByTitle } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { createTestName } from "./support/names";
@@ -57,8 +58,10 @@ test.describe("기간 일정", () => {
       await getRow(page, title).click();
       await page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true").click();
       await expect(page.getByRole("dialog").getByRole("heading", { name: "기간 일정을 지울까요?" })).toBeVisible();
+      const deleted = waitForDeleteResponse(page, "events");
       await page.getByRole("dialog").getByRole("button", { name: "삭제", exact: true }).click();
       await page.waitForURL(/\/calendar/);
+      await deleted;
 
       // Assert
       await openScreen(page, "/calendar?month=2036-04&date=2036-04-30", page.getByText("4월 30일 수요일"));

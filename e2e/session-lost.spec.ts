@@ -160,14 +160,19 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
     }
   });
 
-  test("삭제 확인 창에서 지울 때 그 위에 창이 나온다", async ({ page }, testInfo) => {
+  test("지우기를 확인할 때 로그인이 풀렸으면 돌아간 화면에 다시 로그인 창이 나온다", async ({ page }, testInfo) => {
     // Arrange: 지우기가 성공하면 공유 시드 일정이 사라져 다른 테스트가 흔들리므로 이 테스트만 쓰는 일정을 지운다.
     // 오늘 일정을 세는 홈·캘린더 테스트에 끼지 않게 지난 날에 둔다
+    // 지우기를 확인하면 응답을 기다리지 않고 돌아가므로(#346), 서버를 거치지 않고 뒤로 가기로 돌아갈 캘린더에서 연다
     const id = randomUUID();
-    const deleteEvent = await createDisposableEvent({ id, title: createTestName("E2E 세션 지우기", testInfo), date: "2015-03-10" });
+    const title = createTestName("E2E 세션 지우기", testInfo);
+    const deleteEvent = await createDisposableEvent({ id, title, date: "2015-03-10" });
 
     try {
-      await openScreen(page, `/events/${id}/edit`, page.locator("#event-memo"));
+      const row = page.getByRole("link", { name: new RegExp(`^(?!.*기록 남기기).*${title}`) });
+      await openScreen(page, "/calendar?month=2015-03&date=2015-03-10", row);
+      await row.tap();
+      await page.locator("#event-memo").locator("visible=true").waitFor();
       await dropSession(page);
 
       // Act

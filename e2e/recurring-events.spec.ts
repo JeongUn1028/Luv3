@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { toKstDate } from "../src/lib/anniversary";
+import { waitForDeleteResponse } from "./support/actions";
 import { pickDate } from "./support/date-picker";
 import { createDisposableRepeatingEvent, deleteEventById, deleteEventsByTitle, skipEventDate, stopEventRepeat } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
@@ -275,8 +276,10 @@ test.describe("반복 일정 폼", () => {
       await openScreen(page, `/events/${id}/edit?date=2040-03-14`, page.locator("#event-title"));
       await page.getByRole("button", { name: "삭제" }).click();
       await expect(page.getByRole("dialog")).toContainText("3월 14일 수요일 하루만");
+      const deleted = waitForDeleteResponse(page, "event_exceptions");
       await page.getByRole("dialog").getByRole("button", { name: "삭제" }).click();
       await page.waitForURL(/\/calendar/);
+      await deleted;
 
       // Assert
       await expect(page.getByRole("heading", { name: "3월 14일 수요일" })).toBeVisible();
@@ -305,8 +308,10 @@ test.describe("반복 일정 폼", () => {
       await page.getByText("전체", { exact: true }).click();
       await page.getByRole("button", { name: "삭제" }).click();
       await expect(page.getByRole("dialog")).toContainText("따로 고친 날도 함께");
+      const deleted = waitForDeleteResponse(page, "events");
       await page.getByRole("dialog").getByRole("button", { name: "삭제" }).click();
       await page.waitForURL(/\/calendar/);
+      await deleted;
 
       // Assert
       await expect(getRow(page, title)).toHaveCount(0);
@@ -345,8 +350,10 @@ test.describe("반복 일정 폼", () => {
       await page.locator("#event-title").locator("visible=true").waitFor();
       await page.getByText("전체", { exact: true }).locator("visible=true").click();
       await page.getByRole("button", { name: "삭제" }).locator("visible=true").click();
+      const deleted = waitForDeleteResponse(page, "events");
       await page.getByRole("dialog").getByRole("button", { name: "삭제" }).click();
       await page.waitForURL(/\/calendar/);
+      await deleted;
 
       // Assert: 따로 고친 일정은 남는다
       await openScreen(page, "/calendar?month=2048-03&date=2048-03-18", getRow(page, movedTitle));
@@ -391,10 +398,14 @@ test.describe("반복 일정 폼", () => {
 
       // Act
       await page.getByRole("button", { name: "삭제" }).click();
+      const deleted = waitForDeleteResponse(page, "event_exceptions");
       await page.getByRole("dialog").getByRole("button", { name: "삭제" }).click();
 
-      // Assert
+      // Assert: 지우기를 기다리지 않고 캘린더로 돌아가고(#346), 끝나도 지우지 못했다고 하지 않는다
       await page.waitForURL(/\/calendar/);
+      await deleted;
+      await page.waitForTimeout(1_000);
+      await expect(page.getByRole("alert").filter({ hasText: "일정을 지우지 못했어요" })).toHaveCount(0);
     } finally {
       await deleteEvent();
     }
@@ -413,8 +424,9 @@ test.describe("반복 일정 폼", () => {
       await page.getByRole("button", { name: "삭제" }).click();
       await page.getByRole("dialog").getByRole("button", { name: "삭제" }).click();
 
-      // Assert
-      await expect(page.getByRole("dialog").getByRole("alert")).toHaveText("일정을 지우지 못했어요. 잠시 후 다시 시도해 주세요.");
+      // Assert: 지우기를 기다리지 않고 캘린더로 돌아가므로(#346) 캘린더 위쪽 알림이 알린다
+      await page.waitForURL(/\/calendar/);
+      await expect(page.getByRole("alert").filter({ hasText: "일정을 지우지 못했어요" })).toBeVisible();
     } finally {
       await deleteEvent();
     }

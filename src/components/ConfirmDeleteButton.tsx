@@ -1,7 +1,10 @@
 "use client";
 
-import { useRef, useState, type ReactElement } from "react";
+import { useRouter } from "next/navigation";
+import { startTransition, useRef, useState, type ReactElement } from "react";
 import { ModalActions, ModalDialog, ModalMessage, type ModalDialogHandle } from "@/components/ModalDialog";
+import { deletingStore } from "@/lib/deleting";
+import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableDelete } from "@/lib/navigation/use-leavable-delete";
 
 interface ConfirmDeleteButtonProps {
@@ -10,8 +13,15 @@ interface ConfirmDeleteButtonProps {
   description: string;
   /** 지우기만 한다. 실패하면 던진다 */
   onConfirm: () => Promise<void>;
-  /** 지운 뒤 할 일(목록으로 옮기기 등). 지우는 사이 화면을 떠났으면 부르지 않고 알림으로 알린다(#261) */
-  onDeleted: () => void;
+  /**
+   * 지우기를 확인하면 응답을 기다리지 않고 돌아갈 목록·캘린더 주소(#346). 앞 화면이 `canGoBackTo`에 맞으면 뒤로 가고, 아니면 이 주소로 옮긴다.
+   * 인터넷이 끊겨 화면에 남았다가 지우기가 끝나면 이 주소로 옮긴다
+   */
+  returnTo: string;
+  /** 앞 화면의 주소가 이 조건에 맞을 때만 뒤로 간다. 예: 같은 목록 */
+  canGoBackTo: (url: URL) => boolean;
+  /** 돌아간 화면이 지우는 동안 숨길 항목의 key(`DELETING_KEYS`). 지우지 못하면 다시 보여 준다 */
+  deletingKey: string;
   /** 화면을 떠난 뒤 끝났을 때 알림에 쓰는 이름. 받침에 맞는 조사까지 적는다. 예: "기록을" */
   subject: string;
   /** 무엇을 지우는지 구분하는 알림 key. 예: `delete:record:${recordId}` */
@@ -28,13 +38,16 @@ export const ConfirmDeleteButton = ({
   title,
   description,
   onConfirm,
-  onDeleted,
+  returnTo,
+  canGoBackTo,
+  deletingKey,
   subject,
   noticeKey,
   failureMessage,
   accessibleName,
   className = "press-icon h-11 px-3 text-[14px] text-ink-sub hover:text-ink",
 }: ConfirmDeleteButtonProps): ReactElement => {
+  const router = useRouter();
   const modalRef = useRef<ModalDialogHandle>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [message, setMessage] = useState<string>();
@@ -47,14 +60,21 @@ export const ConfirmDeleteButton = ({
 
   const handleConfirm = async () => {
     if (isDeleting) return;
+    // 돌아간 뒤 폼에 다시 와도(앞으로 가기) "지우는 중"이라 같은 요청을 또 보내지 않는다
     setIsDeleting(true);
     setMessage(undefined);
-    beginDelete();
+    // 돌아간 목록이 처음 그릴 때부터 숨기도록 돌아가기 전에 넣는다
+    deletingStore.hide(deletingKey);
+    const hasReturned = beginDelete({ returnTo, canGoBackTo });
+    // 인터넷이 끊겨 화면에 남으면 지우기는 실패하고, 숨긴 항목을 볼 일도 없다
+    if (hasReturned) modalRef.current?.close();
+    else deletingStore.restore(deletingKey);
     try {
       await onConfirm();
     } catch (error) {
       // 사용자에게는 다시 시도할 수 있다는 문구만 보여 주고, 원인은 개발자 도구에서 볼 수 있게 남긴다
       console.error(error);
+      deletingStore.restore(deletingKey);
       // 떠나면 창이 닫히므로(useCloseDialogOnHide), 떠났다가 돌아왔어도 창이 닫혀 있으면 알림이 알린다
       if (finishDeleteFailed(modalRef.current?.isOpen() ?? false)) setMessage(failureMessage);
       setIsDeleting(false);
@@ -65,7 +85,11 @@ export const ConfirmDeleteButton = ({
       setIsDeleting(false);
       return;
     }
-    onDeleted();
+    // 목록으로 옮기는 동안은 "지우는 중"으로 두어 지운 항목을 또 지우지 않게 한다
+    startTransition(() => {
+      router.replace(returnTo, { transitionTypes: BACK_TRANSITION });
+      router.refresh();
+    });
   };
 
   return (
