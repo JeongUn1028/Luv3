@@ -7,6 +7,7 @@ import {
   toCommentPushMessage,
   toEventPushMessage,
   toRecordPushMessage,
+  toTodoPushMessage,
   type PartnerPushBody,
   type PartnerPushRefusal,
 } from "@/lib/push/partner-push";
@@ -51,13 +52,18 @@ const loadMessage = async (supabase: ServerClient, { kind, id }: PartnerPushBody
     if (error) throw new Error(`알릴 댓글을 읽지 못했습니다: ${error.message}`, { cause: error });
     return data ? toCommentPushMessage({ nickname, recordId: data.date_id }) : undefined;
   }
+  if (kind === "todo") {
+    const { data, error } = await supabase.from("todos").select("id").eq("id", id).maybeSingle();
+    if (error) throw new Error(`알릴 할 일을 읽지 못했습니다: ${error.message}`, { cause: error });
+    return data ? toTodoPushMessage({ nickname }) : undefined;
+  }
   const { data, error } = await supabase.from("events").select("date").eq("id", id).maybeSingle();
   if (error) throw new Error(`알릴 일정을 읽지 못했습니다: ${error.message}`, { cause: error });
   return data ? toEventPushMessage({ nickname, date: data.date }) : undefined;
 };
 
 /**
- * 상대 활동 알림(#364). 기록·댓글·일정을 저장한 휴대폰이 부탁하면, DB(`claim_partner_push`)가 부탁이 맞는지 확인하고
+ * 상대 활동 알림(#364). 기록·댓글·일정·할 일을 저장한 휴대폰이 부탁하면, DB(`claim_partner_push`)가 부탁이 맞는지 확인하고
  * 받을 사람(나를 뺀 회원 중 그 종류를 켜 둔 사람)의 기기 구독과 올린 앱 아이콘 숫자를 돌려준다. 그 기기들에 알림을 보낸다.
  * 허용목록 멤버만 받는다(아니면 로그인 화면으로 보낸다).
  */

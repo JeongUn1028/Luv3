@@ -136,7 +136,7 @@ test.describe("설정 알림 칸", () => {
     await getSection(page).getByRole("button", { name: "알림 켜기" }).click();
     const eventSwitch = getSection(page).getByRole("switch", { name: "새 일정" });
     await expect(getSection(page).getByText("이 기기에서 받는 중")).toBeVisible();
-    for (const name of ["새 기록", "댓글", "새 일정"]) {
+    for (const name of ["새 기록", "댓글", "새 일정", "할 일"]) {
       await expect(getSection(page).getByRole("switch", { name })).toBeChecked();
     }
 
@@ -145,7 +145,7 @@ test.describe("설정 알림 칸", () => {
 
     // Assert
     await expect(eventSwitch).not.toBeChecked();
-    await expect.poll(() => getPushNotifyRow(memberId)).toEqual({ notify_record: true, notify_comment: true, notify_event: false });
+    await expect.poll(() => getPushNotifyRow(memberId)).toEqual({ notify_record: true, notify_comment: true, notify_event: false, notify_todo: true });
 
     // Act: 다시 열기. 가짜 구독은 문서마다 새로 만들어져, 다른 기기에서 켠 것처럼 다시 켠다
     await page.reload();

@@ -10,6 +10,7 @@ export interface PushNotifyRow {
   notify_record: boolean;
   notify_comment: boolean;
   notify_event: boolean;
+  notify_todo: boolean;
 }
 
 /** 설정 화면에 그리는 스위치와 순서 */
@@ -17,6 +18,7 @@ export const PUSH_NOTIFY_SWITCHES: readonly { kind: PartnerPushKind; label: stri
   { kind: "record", label: "새 기록" },
   { kind: "comment", label: "댓글" },
   { kind: "event", label: "새 일정" },
+  { kind: "todo", label: "할 일" },
 ];
 
 /**
@@ -25,4 +27,6 @@ export const PUSH_NOTIFY_SWITCHES: readonly { kind: PartnerPushKind; label: stri
  * @example const settings = toPushNotifySettings(data ?? undefined);
  */
 export const toPushNotifySettings = (row: PushNotifyRow | undefined): PushNotifySettings =>
-  row ? { record: row.notify_record, comment: row.notify_comment, event: row.notify_event } : { record: true, comment: true, event: true };
+  row
+    ? { record: row.notify_record, comment: row.notify_comment, event: row.notify_event, todo: row.notify_todo }
+    : { record: true, comment: true, event: true, todo: true };

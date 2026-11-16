@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(23);
+select plan(29);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@partner-push.test', 'authenticated', 'authenticated'),
@@ -35,6 +35,12 @@ insert into public.events (id, date, title, author_id, repeat_rule) values
 insert into public.events (id, date, title, author_id, repeat_parent_id) values
   ('30000000-0000-0000-0000-000000000002', '2026-11-27', '이 날만 고친 운동', '00000000-0000-0000-0000-00000000000a', '30000000-0000-0000-0000-000000000001');
 
+-- 할 일(#376)
+insert into public.todos (id, content, author_id, created_at) values
+  ('40000000-0000-0000-0000-000000000001', '벚꽃 보기', '00000000-0000-0000-0000-00000000000a', now()),
+  ('40000000-0000-0000-0000-000000000002', '오래된 할 일', '00000000-0000-0000-0000-00000000000a', now() - interval '11 minutes'),
+  ('40000000-0000-0000-0000-000000000003', 'B의 할 일', '00000000-0000-0000-0000-00000000000b', now());
+
 -- 비로그인(anon)
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
@@ -62,7 +68,7 @@ select throws_ok(
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
 
 select throws_ok(
-  $$select public.claim_partner_push('todo', '10000000-0000-0000-0000-000000000001')$$,
+  $$select public.claim_partner_push('photo', '10000000-0000-0000-0000-000000000001')$$,
   '22023', null, '알 수 없는 종류는 거절한다'
 );
 select is(
@@ -102,6 +108,28 @@ select is(
   '2', '보낼 때마다 상대 숫자가 1씩 오른다'
 );
 
+-- 할 일도 같은 순서로 확인한다(#376)
+select is(
+  public.claim_partner_push('todo', '40000000-0000-0000-0000-0000000000ee') ->> 'status',
+  'not-found', '없는 할 일이면 보내지 않는다'
+);
+select is(
+  public.claim_partner_push('todo', '40000000-0000-0000-0000-000000000003') ->> 'status',
+  'not-author', '남이 추가한 할 일이면 보내지 않는다'
+);
+select is(
+  public.claim_partner_push('todo', '40000000-0000-0000-0000-000000000002') ->> 'status',
+  'too-old', '추가한 지 10분이 지난 할 일이면 보내지 않는다'
+);
+select is(
+  public.claim_partner_push('todo', '40000000-0000-0000-0000-000000000001') #>> '{recipients,0,badge}',
+  '3', '방금 추가한 할 일이면 알림을 켠 상대에게 보내고 숫자를 올린다'
+);
+select is(
+  public.claim_partner_push('todo', '40000000-0000-0000-0000-000000000001') ->> 'status',
+  'already-sent', '같은 할 일로 다시 부탁하면 보내지 않는다'
+);
+
 select is_empty(
   $$select * from public.push_settings where member_id = '00000000-0000-0000-0000-00000000000b'$$,
   '상대의 알림 설정과 숫자는 읽을 수 없다'
@@ -112,9 +140,10 @@ select throws_ok(
 );
 select throws_ok($$select * from public.push_sent$$, '42501', null, '보낸 기록 표를 직접 읽을 수 없다');
 
--- b가 설정 화면 스위치로 새 일정 알림을 꺼 둔다
+-- b가 설정 화면 스위치로 새 일정·할 일 알림을 꺼 둔다
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
 select public.set_push_notify('event', false);
+select public.set_push_notify('todo', false);
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
 
 select is(
@@ -124,19 +153,31 @@ select is(
 );
 
 reset role;
+insert into public.todos (id, content, author_id) values
+  ('40000000-0000-0000-0000-000000000004', '꺼 둔 뒤 추가한 할 일', '00000000-0000-0000-0000-00000000000a');
+set local role authenticated;
+select is(
+  public.claim_partner_push('todo', '40000000-0000-0000-0000-000000000004'),
+  jsonb_build_object('status', 'ready', 'recipients', '[]'::jsonb),
+  '상대가 할 일 알림을 꺼 두었으면 받을 사람이 없다'
+);
+
+reset role;
 select results_eq(
   $$select member_id, badge_count from public.push_settings where member_id in (
     '00000000-0000-0000-0000-00000000000a', '00000000-0000-0000-0000-00000000000b', '00000000-0000-0000-0000-00000000000c'
   )$$,
-  $$values ('00000000-0000-0000-0000-00000000000b'::uuid, 2)$$,
+  $$values ('00000000-0000-0000-0000-00000000000b'::uuid, 3)$$,
   '꺼 둔 종류는 숫자를 올리지 않고, 알림을 켠 기기가 없는 회원은 설정 행도 생기지 않는다'
 );
 select results_eq(
-  $$select kind, target_id from public.push_sent order by kind$$,
+  $$select kind, target_id from public.push_sent order by kind, target_id$$,
   $$values
     ('comment', '20000000-0000-0000-0000-000000000001'::uuid),
     ('event', '30000000-0000-0000-0000-000000000001'::uuid),
-    ('record', '10000000-0000-0000-0000-000000000001'::uuid)$$,
+    ('record', '10000000-0000-0000-0000-000000000001'::uuid),
+    ('todo', '40000000-0000-0000-0000-000000000001'::uuid),
+    ('todo', '40000000-0000-0000-0000-000000000004'::uuid)$$,
   '받을 사람이 없어도 보낸 것으로 적어 다시 부탁해도 보내지 않는다'
 );
 

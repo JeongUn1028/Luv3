@@ -11,8 +11,10 @@ import {
   createDisposableEvent,
   createDisposableMember,
   createDisposableRecord,
+  createDisposableTodo,
   deleteEventsByTitle,
   deleteRecordWithFiles,
+  deleteTodosByContent,
   getPushBadgeCount,
   setPushBadgeCount,
 } from "./support/seed";
@@ -131,6 +133,47 @@ test.describe("상대 활동 알림 부탁", () => {
     } finally {
       await deleteEdited();
       await deleteEventsByTitle(title);
+    }
+  });
+
+  // 할 일은 새로 추가할 때만 알린다. 완료·고치기·순서 바꾸기·지우기는 알리지 않는다(#376)
+  test("할 일을 새로 추가하면 알림을 부탁하고, 할 일을 고치면 부탁하지 않는다", async ({ page }, testInfo) => {
+    // Arrange
+    const pushRequests = await recordPushRequests(page);
+    const content = createTestName("E2E 알림 할 일", testInfo);
+    const editedId = randomUUID();
+    const deleteEdited = await createDisposableTodo({ id: editedId, content: `${content} 고칠` });
+    let newTodoId = "";
+    page.on("request", (request) => {
+      if (request.method() === "POST" && request.url().includes("/rest/v1/todos")) ({ id: newTodoId } = request.postDataJSON() as { id: string });
+    });
+
+    try {
+      // Act: 새 할 일. 저장을 기다리지 않고 목록으로 돌아가므로(#345) 저장이 끝난 뒤 부탁이 나가는지 본다
+      await openScreen(page, `${TODOS_PATH}/new`, page.locator("#todo-content").locator("visible=true"));
+      await page.locator("#todo-content").locator("visible=true").fill(content);
+      await getSubmitButton(page).tap();
+      await page.waitForURL(`**${TODOS_PATH}`);
+
+      // Assert
+      await expect.poll(() => pushRequests).toEqual([{ kind: "todo", id: newTodoId }]);
+
+      // Act: 있던 할 일 고치기. 저장하면 앞 화면(목록)으로 뒤로 가므로, 목록에서 눌러 같은 문서 안에서 연다.
+      // 주소로 바로 열면 뒤로 가기가 앞 문서를 다시 불러와 저장 요청이 끊긴다
+      await page.getByRole("link", { name: `${content} 고칠` }).locator("visible=true").tap();
+      await page.waitForURL(`**${TODOS_PATH}/${editedId}/edit`);
+      await page.locator("#todo-content").locator("visible=true").fill(`${content} 고침`);
+      const editSaved = page.waitForResponse((response) => response.request().method() === "PATCH" && response.url().includes("/rest/v1/todos"));
+      await getSubmitButton(page).tap();
+      await page.waitForURL(`**${TODOS_PATH}`);
+      await editSaved;
+
+      // Assert: 저장이 끝나 목록의 항목을 다시 누를 수 있게 된 뒤에도 고친 할 일은 부탁하지 않는다
+      await expect(page.getByRole("checkbox", { name: `${content} 고침 완료` }).locator("visible=true")).toBeEnabled();
+      expect(pushRequests).toHaveLength(1);
+    } finally {
+      await deleteEdited();
+      await deleteTodosByContent(content);
     }
   });
 });
