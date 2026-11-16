@@ -12,6 +12,7 @@ import {
   getHighlightClassNames,
   getWeekdayClassName,
   LEGEND_EVENT_KINDS,
+  SELECTED_DAY_CELL_CLASS_NAME,
   type DayHighlight,
   type DayTone,
 } from "./highlight";
@@ -217,6 +218,17 @@ describe("형광펜 위 글자 대비", () => {
     for (const background of ["background", "surface"]) {
       const shown = blendColors({ foreground: color, background: readToken(background), alpha });
       expect(getContrastRatio(shown, readToken(background))).toBeGreaterThanOrEqual(getContrastRatio(readToken("ink-placeholder"), readToken(background)));
+    }
+  });
+
+  // 고른 칸이 바탕만 살짝 밝으면(1.1:1) 어디를 골랐는지 보이지 않는다(#349). 테두리가 칸 밖(background)과 안(surface) 모두에 대해 3:1을 넘어야 한다
+  it("고른 날 칸의 테두리는 바탕과 칸 안쪽 모두에 대해 대비 3:1 이상이다", () => {
+    const ringToken = SELECTED_DAY_CELL_CLASS_NAME.split(" ")
+      .map((className) => /^ring-([a-z-]+)$/.exec(className)?.[1])
+      .find((token) => token !== undefined && token !== "inset");
+    if (!ringToken) throw new Error(`고른 날 테두리 색을 읽지 못했습니다: ${SELECTED_DAY_CELL_CLASS_NAME}`);
+    for (const background of ["background", "surface"]) {
+      expect(getContrastRatio(readToken(ringToken), readToken(background))).toBeGreaterThanOrEqual(3);
     }
   });
 

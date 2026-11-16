@@ -31,6 +31,9 @@ const toResultLabel = (status: RecordSearchStatus, total: number | undefined): s
   return total > 0 ? `기록 ${total}개` : "찾는 기록이 없어요";
 };
 
+// 새 조건으로 찾는 동안에는 앞 조건의 결과를 흐리게 두어, 아직 지금 조건의 결과가 아님을 알린다(#349)
+const getSearchingClassName = (isSearching: boolean): string => `motion-safe:transition-opacity ${isSearching ? "opacity-40" : ""}`;
+
 /**
  * 검색 칸 + 태그 줄 + 찾은 기록. 태그만 보려는 경우가 많아 칸에 초점을 주지 않아, 키보드가 결과를 가리지 않게 한다.
  * 받침을 쓰는 중에도 글자가 끊기지 않게 검색어는 주소가 아닌 이 화면의 상태로 둔다. 찾기를 닫으면 함께 사라진다.
@@ -74,6 +77,13 @@ export const RecordSearch = ({ grid, refreshKey, tags, tag }: RecordSearchProps)
   // 태그 줄을 못 읽었거나 아직 세지 않은 태그로 들어와도 고른 태그와 "전체"는 보여 줘야 풀 수 있다
   const shownTags = tag === undefined || tags.some((name) => name.toLowerCase() === tag.toLowerCase()) ? tags : [tag, ...tags];
   const tagRowRef = useRef<HTMLUListElement>(null);
+  const searchBoxRef = useRef<HTMLInputElement>(null);
+  const isSearching = search.status === "loading";
+  // 마지막으로 다 찾은 결과 수. 결과가 없던 채로 글자를 더 치면 찾는 동안 빈 화면이 사라졌다 나타나 깜빡이므로, 그동안 빈 화면을 둔다
+  const [lastFoundTotal, setLastFoundTotal] = useState<number | undefined>(undefined);
+  const foundTotal = search.status === "done" ? search.total : isSearching ? lastFoundTotal : undefined;
+  if (foundTotal !== lastFoundTotal) setLastFoundTotal(foundTotal);
+  const isEmptyResult = isFiltering && search.items.length === 0 && foundTotal === 0;
 
   // 상세의 태그로 들어오면 고른 태그가 줄 끝에 숨어 있을 수 있다. 스크롤 위치가 되살아나는 때에도 돌므로 세로로는 움직이지 않는다
   useEffect(() => {
@@ -92,6 +102,13 @@ export const RecordSearch = ({ grid, refreshKey, tags, tag }: RecordSearchProps)
     replaceRecordsAddress(toRecordSearchHref(nextTag));
   };
 
+  // 누른 버튼이 사라지므로 초점을 검색 칸으로 옮겨, 다른 말로 바로 다시 찾을 수 있게 한다
+  const clearQuery = () => {
+    setQuery("");
+    setSearchedQuery("");
+    searchBoxRef.current?.focus();
+  };
+
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     // 멈추면 찾으므로 검색 키는 기다리지 않고 바로 찾고 키보드를 닫는다. 받침을 쓰는 중에 누른 키는 글자를 끝내는 키다
     if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
@@ -102,6 +119,7 @@ export const RecordSearch = ({ grid, refreshKey, tags, tag }: RecordSearchProps)
   return (
     <>
       <input
+        ref={searchBoxRef}
         type="search"
         value={query}
         aria-label="기록 찾기"
@@ -142,8 +160,8 @@ export const RecordSearch = ({ grid, refreshKey, tags, tag }: RecordSearchProps)
           })}
         </ul>
       )}
-      {/* 알림 영역은 처음부터 있어야 첫 결과도 읽힌다. 비어 있을 때는 자리만 차지하지 않는다 */}
-      <p role="status" className="mt-1 text-[12px] text-ink-sub empty:mt-0">
+      {/* 알림 영역은 처음부터 있어야 첫 결과도 읽힌다. 비어 있을 때는 자리만 차지하지 않는다. 결과가 없으면 아래 빈 화면이 보여 주므로 읽기만 한다 */}
+      <p role="status" className={isEmptyResult ? "sr-only" : "mt-1 text-[12px] text-ink-sub empty:mt-0"}>
         {isFiltering ? toResultLabel(search.status, search.total) : ""}
       </p>
       {search.status === "failed" ? (
@@ -157,7 +175,27 @@ export const RecordSearch = ({ grid, refreshKey, tags, tag }: RecordSearchProps)
         </div>
       ) : (
         <>
-          {(shownTiles.length > 0 || grid.items.length === 0) && <AlbumGrid tiles={shownTiles} />}
+          {isEmptyResult ? (
+            // 12px 상태 줄만으로는 결과가 없다는 것을 놓쳐, 가운데에 크게 알리고 바로 풀 수 있게 한다(#349)
+            <div aria-busy={isSearching} className={`flex flex-1 flex-col items-center justify-center gap-2 py-12 text-center ${getSearchingClassName(isSearching)}`}>
+              {/* 같은 말을 위 알림 영역이 읽으므로 두 번 읽히지 않게 한다 */}
+              <p aria-hidden="true" className="text-[15px] text-ink">
+                찾는 기록이 없어요
+              </p>
+              <p className="text-[13px] text-ink-sub">{query.trim() === "" ? "다른 태그를 골라 보세요" : "다른 말로 찾아보세요"}</p>
+              {query.trim() !== "" && (
+                <button type="button" onClick={clearQuery} className="press-icon mt-2 h-11 rounded-[10px] border border-line px-4 text-[14px] text-ink-sub hover:text-ink">
+                  찾는 말 지우기
+                </button>
+              )}
+            </div>
+          ) : (
+            (shownTiles.length > 0 || grid.items.length === 0) && (
+              <div aria-busy={isSearching} className={`flex flex-1 flex-col ${getSearchingClassName(isSearching)}`}>
+                <AlbumGrid tiles={shownTiles} />
+              </div>
+            )
+          )}
           {isIdle && <LoadMoreTrigger hasMore={grid.hasMore} isLoading={grid.isLoadingMore} isFailed={grid.isMoreFailed} onLoad={grid.loadMore} />}
           {search.status === "done" && (
             <LoadMoreTrigger hasMore={search.hasMore} isLoading={search.isLoadingMore} isFailed={search.isMoreFailed} onLoad={search.loadMore} />
