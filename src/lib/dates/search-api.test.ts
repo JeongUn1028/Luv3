@@ -3,7 +3,7 @@ import { parseRecordSearchPage, parseRecordSearchParams, RecordSearchError, toRe
 
 const CURSOR: RecordCursor = { date: "2026-11-02", createdAt: "2026-11-02T03:04:05.123456+00:00", id: "5a87e560-6a6e-49be-8af3-db196468143c" };
 
-const TILE = { id: "a", date: "2026-11-02", title: "산책", tags: ["카페"], thumbUrl: "https://example.test/a" };
+const TILE = { id: "a", date: "2026-11-02", title: "산책", tags: ["카페"], thumb: { path: "a/p_thumb.jpg", url: "https://example.test/a", expiresAt: 1000 } };
 
 describe("toSearchWords", () => {
   it("띄어 쓴 낱말로 나누고 소문자로 바꾸며, 태그처럼 쓴 앞의 #은 뺀다", () => {
@@ -88,6 +88,7 @@ describe("parseRecordSearchPage", () => {
 
   it("모양이 다르면 찾기 실패로 본다", () => {
     expect(() => parseRecordSearchPage({ items: [{ ...TILE, tags: [1] }], total: 1, loadedAt: 1 })).toThrow(RecordSearchError);
+    expect(() => parseRecordSearchPage({ items: [{ ...TILE, thumb: { url: "https://example.test/a" } }], total: 1, loadedAt: 1 })).toThrow(RecordSearchError);
     expect(() => parseRecordSearchPage({ items: [], total: "0", loadedAt: 1 })).toThrow(RecordSearchError);
     expect(() => parseRecordSearchPage({ items: [], total: 0, next: { date: "2026-11-02" }, loadedAt: 1 })).toThrow(RecordSearchError);
     expect(() => parseRecordSearchPage({ items: [], total: 0 })).toThrow(RecordSearchError);

@@ -40,7 +40,7 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
   const [requestedPhotoIds, setRequestedPhotoIds] = useState<ReadonlySet<string>>(() => new Set());
   const { markFirstPhotoShown } = useFirstPhotoGate();
   // 받을 주소가 없는 사진은 기다릴 것이 없다
-  const isSelectedShown = current === undefined || current.url === undefined || shownPhotoIds.has(current.id);
+  const isSelectedShown = current === undefined || current.original === undefined || shownPhotoIds.has(current.id);
   const loads = photos.map((_, index) => toSlidePhotoLoad({ index, selectedIndex, isSelectedShown }));
   const newlyRequestedIds = photos.filter(({ id }, index) => loads[index] !== "later" && !requestedPhotoIds.has(id)).map(({ id }) => id);
   // 받을 차례가 된 사진을 이번 그리기에서 바로 기억한다(이전 그리기의 값으로 다음 값을 정하는 React의 그리기 중 갱신)
@@ -91,9 +91,9 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
               >
                 <DetailPhotoFrame
                   // 받을 차례가 아닌 사진은 주소를 넘기지 않아 받지 않는다(브라우저의 lazy는 옆 칸도 미리 받아 첫 사진과 회선을 나눠 쓴다)
-                  url={load !== "later" || requestedPhotoIds.has(photo.id) ? photo.url : undefined}
+                  photo={load !== "later" || requestedPhotoIds.has(photo.id) ? photo.original : undefined}
                   // 썸네일은 처음 펼칠 사진에만 온다. 넘겨 보는 사진은 미리 받아 두므로 썸네일을 거치지 않는다
-                  placeholderUrl={index === startIndex ? photo.thumbUrl : undefined}
+                  placeholder={index === startIndex ? photo.thumb : undefined}
                   alt={`${title} 사진 ${index + 1}`}
                   fetchPriority={load === "now" ? "high" : "low"}
                   onShown={() => handlePhotoShown(photo.id)}

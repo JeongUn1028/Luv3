@@ -80,22 +80,30 @@ test("사진을 받지 못하면 회색 칸으로 남는다", async ({ page }) =
   await expect(getDetailPhoto(page)).toHaveCSS("opacity", "0");
 });
 
-test("화면이 연결되기 전에 받은 사진도 연결된 뒤 칸 배경이 없어진다", async ({ page }) => {
-  // Arrange: 앱 스크립트를 사진을 다 받을 때까지 붙잡아, 사진의 load 알림이 화면 연결보다 먼저 지나가게 한다
-  // 사진 요청이 없거나 주소가 바뀌어 못 찾으면, 스크립트를 놓아주고 아래 확인에서 바로 실패하게 한다(시간 초과로만 끝나지 않게)
-  const photoLoaded = page
-    .waitForEvent("requestfinished", { predicate: (request) => isRecordPhotoRequest(new URL(request.url())), timeout: 10_000 })
-    .catch(() => undefined);
+test("화면이 연결되기 전에는 사진을 받지 않고, 연결된 뒤 받아 칸 배경이 없어진다", async ({ page }) => {
+  // Arrange: 앱 스크립트를 붙잡아 화면 연결을 미룬다. 기억한 주소를 읽기 전에 서버 주소로 받기 시작하면 같은 사진을 두 번 받는다(#354)
+  let release = (): void => undefined;
+  const released = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const photoRequests: string[] = [];
+  page.on("request", (request) => {
+    if (isRecordPhotoRequest(new URL(request.url()))) photoRequests.push(request.url());
+  });
   await page.route(
     (url) => url.pathname.startsWith("/_next/static/") && url.pathname.endsWith(".js"),
     async (route) => {
-      await photoLoaded;
+      await released;
       await route.continue();
     },
   );
-
-  // Act: 스크립트를 기다리면 load가 오지 않으므로 응답이 오기 시작하면 넘어간다
+  // 스크립트를 기다리면 load가 오지 않으므로 응답이 오기 시작하면 넘어간다
   await page.goto(DETAIL_PATH, { waitUntil: "commit" });
+  await page.getByRole("heading", { name: PHOTO_RECORD.title }).waitFor();
+  expect(photoRequests).toEqual([]);
+
+  // Act
+  release();
 
   // Assert
   await expectImageLoaded(getDetailPhoto(page));

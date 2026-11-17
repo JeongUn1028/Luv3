@@ -1,5 +1,6 @@
 import { countChars, isIsoDate } from "@/lib/form";
 import { isObject } from "@/lib/guards";
+import { isRememberablePhoto } from "@/lib/photos/remembered-url";
 import type { AlbumTile } from "./album";
 import { isRecordId } from "./record-href";
 
@@ -126,7 +127,7 @@ const isAlbumTile = (value: unknown): value is AlbumTile =>
   typeof value.title === "string" &&
   Array.isArray(value.tags) &&
   value.tags.every((tag) => typeof tag === "string") &&
-  isOptionalString(value.thumbUrl);
+  (value.thumb === undefined || isRememberablePhoto(value.thumb));
 
 /**
  * 우리 API(`RECORD_SEARCH_PATH`)의 응답을 읽는다. JSON은 undefined 칸을 빼고 보내므로 빠진 칸은 undefined로 읽는다.

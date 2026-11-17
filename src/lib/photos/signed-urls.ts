@@ -23,6 +23,14 @@ export interface SignedUrlWithExpiry extends SignedUrl {
 /** 보관 함수의 결과. 서명 요청 자체가 실패하면 `error`가 있다 */
 export type CachedSignedUrlsResult = { data: SignedUrlWithExpiry[]; error: null } | { data: null; error: Error };
 
+/**
+ * 서명 결과를 경로로 찾는 표로 바꾼다.
+ *
+ * @example toSignedByPath(signed).get("r1/p1.jpg") // { path, signedUrl, expiresAt }
+ */
+export const toSignedByPath = (signed: SignedUrlWithExpiry[]): Map<string, SignedUrlWithExpiry> =>
+  new Map(signed.flatMap((entry) => (entry.path ? [[entry.path, entry] as const] : [])));
+
 /** 요청한 경로 순서대로 서명 주소를 돌려준다. 다시 쓸 수 있는 주소는 서명하지 않는다 */
 export type GetSignedUrls = (bucket: SigningBucket, paths: string[]) => Promise<CachedSignedUrlsResult>;
 

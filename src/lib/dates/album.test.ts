@@ -6,7 +6,7 @@ const tile = (overrides: Partial<AlbumTile>): AlbumTile => ({
   date: "2026-11-02",
   endDate: undefined,
   title: "기록",
-  thumbUrl: undefined,
+  thumb: undefined,
   tags: [],
   ...overrides,
 });
@@ -59,26 +59,26 @@ describe("toAlbumTiles", () => {
     cover: null,
   };
 
-  it("대표 사진 썸네일 경로에 서명 URL을 붙이고, 빈 끝 날짜는 undefined로 바꾼다", () => {
+  it("대표 사진 썸네일에 경로·서명 URL·만료 시각을 붙이고, 빈 끝 날짜는 undefined로 바꾼다", () => {
     const tiles = toAlbumTiles(
       [
         { ...row, id: "a", date: "2026-11-02", end_date: "2026-11-03", title: "산책", cover: { thumb_path: "a/p_thumb.jpg" } },
         { ...row, id: "b", date: "2026-11-01", title: "카페" },
       ],
-      [{ path: "a/p_thumb.jpg", signedUrl: "https://example.test/a" }],
+      [{ path: "a/p_thumb.jpg", signedUrl: "https://example.test/a", expiresAt: 1000 }],
     );
     expect(tiles).toEqual([
-      { id: "a", date: "2026-11-02", endDate: "2026-11-03", title: "산책", thumbUrl: "https://example.test/a", tags: [] },
-      { id: "b", date: "2026-11-01", endDate: undefined, title: "카페", thumbUrl: undefined, tags: [] },
+      { id: "a", date: "2026-11-02", endDate: "2026-11-03", title: "산책", thumb: { path: "a/p_thumb.jpg", url: "https://example.test/a", expiresAt: 1000 }, tags: [] },
+      { id: "b", date: "2026-11-01", endDate: undefined, title: "카페", thumb: undefined, tags: [] },
     ]);
   });
 
   it("서명 URL을 받지 못한 사진은 썸네일 없이 둔다", () => {
     const [first] = toAlbumTiles(
       [{ ...row, cover: { thumb_path: "a/p_thumb.jpg" } }],
-      [{ path: "a/p_thumb.jpg", signedUrl: null }],
+      [{ path: "a/p_thumb.jpg", signedUrl: null, expiresAt: undefined }],
     );
-    expect(first?.thumbUrl).toBeUndefined();
+    expect(first?.thumb).toBeUndefined();
   });
 });
 
