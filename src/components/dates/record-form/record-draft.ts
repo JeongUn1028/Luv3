@@ -1,5 +1,5 @@
 import { toKstDate } from "@/lib/anniversary";
-import type { EditableRecord } from "@/lib/dates/detail";
+import type { EditableRecord } from "@/lib/dates/editable-record";
 import type { DateRecordDraft, RecordPrefill } from "@/lib/dates/form";
 import type { PickedPhoto } from "../PhotoGroupCard";
 

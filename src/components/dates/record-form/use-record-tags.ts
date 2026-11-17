@@ -2,7 +2,8 @@
 
 import { useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
 import { flushSync } from "react-dom";
-import { addTag, type DraftErrors } from "@/lib/dates/form";
+import type { DraftErrors } from "@/lib/dates/form";
+import { addTag } from "@/lib/dates/tags";
 import { clearError } from "@/lib/form";
 import type { RecordDraft } from "./record-draft";
 
