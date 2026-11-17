@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { CalendarSkeleton } from "@/components/calendar/CalendarSkeleton";
 import { CalendarView } from "@/components/calendar/CalendarView";
 import { PlusIcon } from "@/components/icons";
@@ -17,6 +18,8 @@ export const metadata: Metadata = { title: "캘린더 · Luv3" };
 
 const CalendarContent = async ({ searchParams }: Pick<PageProps<"/calendar">, "searchParams">) => {
   const { month: monthParam, date: dateParam } = await searchParams;
+  // 회원 확인을 기다리지 않으므로, 오늘을 읽기 전에 요청 때 그리는 칸임을 알린다(cacheComponents, #385)
+  await connection();
   const today = toKstDate(new Date());
   const month = parseMonth(monthParam, today);
   // 일정을 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다.
