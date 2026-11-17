@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import type { ReactElement, ReactNode } from "react";
+import { ChevronRightIcon } from "@/components/icons";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -7,7 +9,8 @@ import { ReleaseHistory } from "@/components/settings/ReleaseHistory";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
 import { getReleases } from "@/lib/app-info/releases-server";
 import { APP_VERSION } from "@/lib/app-info/version";
-import { SETTINGS_PATH } from "@/lib/auth/paths";
+import { SETTINGS_ABOUT_LICENSES_PATH, SETTINGS_PATH } from "@/lib/auth/paths";
+import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { ADMDONG_SOURCE } from "@/lib/places/admdong";
 
 export const metadata: Metadata = { title: "앱 정보 · Luv3" };
@@ -89,6 +92,17 @@ const AboutPage = (): ReactElement => (
 
     <Section id="about-fonts" title="글꼴">
       <InfoItem title={FONT_NAMES} detail="SIL Open Font License 1.1" />
+    </Section>
+
+    <Section id="about-open-source" title="오픈소스">
+      <Link
+        href={SETTINGS_ABOUT_LICENSES_PATH}
+        transitionTypes={FORWARD_TRANSITION}
+        className="press-wide flex h-[51px] items-center justify-between rounded-[10px] bg-surface pr-3 pl-4 text-[15px] text-ink"
+      >
+        오픈소스 라이선스
+        <ChevronRightIcon className="size-[18px] text-ink-sub" />
+      </Link>
     </Section>
 
     <Section id="about-credit" title="만든 사람">

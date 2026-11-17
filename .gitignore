@@ -32,3 +32,6 @@ e2e/.auth/
 Thumbs.db
 *.log
 .vercel
+
+# 빌드 때 node_modules에서 만드는 오픈소스 라이선스 목록(#436, scripts/licenses/build.mts)
+src/lib/app-info/licenses.generated.json

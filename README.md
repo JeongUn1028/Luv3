@@ -352,9 +352,18 @@ node "<리포>/node_modules/supabase/dist/supabase.js" storage cp -r album ss://
 사진 좌표(EXIF GPS)에 붙이는 동네 이름(행정동 "구 + 동")은 서버 경로 `/api/places/region`이 리포에 둔 행정동 경계(`data/admdong-boundaries.json`)로 계산한다(#249). 카카오 로컬 API 결과는 저장할 수 없어(약관) 쓰지 않는다. 경계 밖(해외·바다)이면 이름 없이(`{ "name": null }`) 답하고, 기록 폼은 그 사진 위치를 "찍은 곳"으로 둔다.
 
 - 원본: [vuski/admdongkor](https://github.com/vuski/admdongkor) `ver20261001/HangJeongDong_ver20261001.geojson`(약 35MB)
-- 만드는 법: `pnpm admdong:build <내려받은 GeoJSON> <판 이름>`. 고리마다 약 10m보다 작은 굴곡을 버리고 좌표를 약 1m 정수로 적어 약 3MB로 줄인다(`scripts/admdong/build.mts`). 새 판이 나오면 다시 만들고 아래 출처와 설정 화면의 판 이름을 고친다
+- 만드는 법: `pnpm admdong:build <내려받은 GeoJSON> <판 이름>`. 고리마다 약 10m보다 작은 굴곡을 버리고 좌표를 약 1m 정수로 적어 약 3MB로 줄인다(`scripts/admdong/build.mts`). 새 판이 나오면 다시 만들고 아래 출처와 앱 정보 화면의 판 이름(`src/lib/places/admdong.ts`의 `ADMDONG_SOURCE`)을 고친다
 - 줄인 경계로 찾은 동은 경계 ±200m 안 표본 2만 개에서 원본과 99.5% 안팎 같았다(나머지는 옆 동, 여러 번 재서 99.4~99.6%). 경계 바로 밖 약 50m까지는 가장 가까운 동으로 본다
 
-출처 표기(앱 설정 화면에도 둔다):
+출처 표기(앱의 설정 > 앱 정보 화면에도 둔다):
 
 > 본 데이터는 통계청 통계지리정보서비스(SGIS, https://sgis.kostat.go.kr)에서 공공누리 제1유형으로 개방한 행정동 경계를 가공한 것이며(가공: vuski/admdongkor, https://github.com/vuski/admdongkor), CC BY 4.0으로 배포됩니다.
+
+## 오픈소스 라이선스
+
+앱의 설정 > 앱 정보 > 오픈소스 라이선스(`/settings/about/licenses`)는 앱에 들어가는 꾸러미(`package.json`의 `dependencies`)마다 이름·버전·라이선스·저작권 문구를 보여 주고, 누르면 라이선스 전문을 펼친다(#436).
+
+- 목록은 손으로 관리하지 않는다. `pnpm licenses:build`(`scripts/licenses/build.mts`)가 `node_modules`에 설치된 꾸러미의 `package.json`과 라이선스 파일을 읽어 `src/lib/app-info/licenses.generated.json`을 만들고, 이 파일은 커밋하지 않는다(`.gitignore`)
+- `pnpm build`·`pnpm dev`·`pnpm type-check`가 매번 먼저 실행하므로 의존성을 더하거나 올리면 다음 빌드에 저절로 반영된다. 따로 실행할 일은 거의 없다
+- 저작권 줄은 라이선스 파일의 `Copyright`·`(c)`·`©`로 시작하는 줄이다. 라이선스 파일이 없는 꾸러미는 저작권 줄 대신 `package.json`의 만든 사람(`author`) 이름을 보여 준다
+- `package.json`에 라이선스가 적혀 있지 않은 꾸러미를 더하면 빌드가 멈춘다. 그 꾸러미의 라이선스를 직접 확인한 뒤 넣을지 정한다
