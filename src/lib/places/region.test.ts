@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fetchPlaceRegionName, PlaceRegionError } from "./region";
+import { createPlaceRegionNameReader, fetchPlaceRegionName, PlaceRegionError } from "./region";
 
 const SEONGSU = { lat: 37.5444, lng: 127.0396 };
 
@@ -64,5 +64,76 @@ describe("fetchPlaceRegionName", () => {
 
     // Act & Assert
     await expect(fetchPlaceRegionName({ location: SEONGSU, fetcher })).rejects.toMatchObject({ cause });
+  });
+});
+
+describe("createPlaceRegionNameReader", () => {
+  it("받은 이름은 기억해, 같은 곳이나 10m 안쪽 가까운 곳은 다시 묻지 않는다(#353)", async () => {
+    // Arrange
+    const fetchName = vi.fn().mockResolvedValue("성동구 성수1가1동");
+    const readName = createPlaceRegionNameReader(fetchName);
+
+    // Act
+    const names = [await readName(SEONGSU), await readName(SEONGSU), await readName({ lat: 37.54442, lng: 127.03958 })];
+
+    // Assert
+    expect(names).toEqual(["성동구 성수1가1동", "성동구 성수1가1동", "성동구 성수1가1동"]);
+    expect(fetchName).toHaveBeenCalledOnce();
+  });
+
+  it("경계 밖이라 이름이 없다는 답도 기억하고, 먼 곳은 따로 묻는다", async () => {
+    // Arrange
+    const fetchName = vi.fn().mockResolvedValueOnce(undefined).mockResolvedValueOnce("강남구 역삼1동");
+    const readName = createPlaceRegionNameReader(fetchName);
+
+    // Act
+    const names = [await readName({ lat: 33, lng: 140 }), await readName({ lat: 33, lng: 140 }), await readName({ lat: 37.5, lng: 127.036 })];
+
+    // Assert
+    expect(names).toEqual([undefined, undefined, "강남구 역삼1동"]);
+    expect(fetchName).toHaveBeenCalledTimes(2);
+  });
+
+  it("묻는 중인 곳을 또 물으면 같은 요청을 기다린다", async () => {
+    // Arrange
+    const fetchName = vi.fn().mockResolvedValue("성동구 성수1가1동");
+    const readName = createPlaceRegionNameReader(fetchName);
+
+    // Act
+    const names = await Promise.all([readName(SEONGSU), readName(SEONGSU)]);
+
+    // Assert
+    expect(names).toEqual(["성동구 성수1가1동", "성동구 성수1가1동"]);
+    expect(fetchName).toHaveBeenCalledOnce();
+  });
+
+  it("실패는 기억하지 않아 다음에 다시 묻는다", async () => {
+    // Arrange
+    const fetchName = vi.fn().mockRejectedValueOnce(new PlaceRegionError({ status: 500 })).mockResolvedValueOnce("성동구 성수1가1동");
+    const readName = createPlaceRegionNameReader(fetchName);
+
+    // Act
+    const first = readName(SEONGSU);
+    await expect(first).rejects.toBeInstanceOf(PlaceRegionError);
+    const second = await readName(SEONGSU);
+
+    // Assert
+    expect(second).toBe("성동구 성수1가1동");
+    expect(fetchName).toHaveBeenCalledTimes(2);
+  });
+
+  it("기억하는 곳이 너무 많아지면 가장 먼저 기억한 곳부터 잊는다", async () => {
+    // Arrange
+    const fetchName = vi.fn().mockResolvedValue("어딘가");
+    const readName = createPlaceRegionNameReader(fetchName, { maxSize: 2 });
+
+    // Act
+    await readName({ lat: 37.1, lng: 127.1 });
+    await readName({ lat: 37.2, lng: 127.2 });
+    await readName({ lat: 37.3, lng: 127.3 });
+    await readName({ lat: 37.1, lng: 127.1 });
+
+    // Assert
+    expect(fetchName).toHaveBeenCalledTimes(4);
   });
 });

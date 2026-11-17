@@ -353,6 +353,30 @@ test.describe("사진 정보로 위치·찍은 시각 채우기", () => {
     }
   });
 
+  test("GPS 사진을 여러 장 골라도 모음 위치가 될 첫 사진의 동네 이름만 묻는다(#353)", async ({ page }) => {
+    // Arrange
+    const region = await holdPlaceRegion(page, { json: { name: SEONGSU_NAME } });
+    region.release();
+    await openScreen(page, "/dates/new", page.locator("#memo"));
+    const fixture = readFileSync(PHOTO_FIXTURE_PATH);
+    const toPhoto = (index: number) => ({
+      name: `exif-${index}.jpg`,
+      mimeType: "image/jpeg",
+      buffer: Buffer.from(withJpegExif({ lat: SEONGSU.lat + index * 0.01, lng: SEONGSU.lng, dateTimeOriginal: `2026:11:10 1${index}:00:00`, offsetTimeOriginal: "+09:00" }, fixture)),
+    });
+
+    // Act: 새 모음으로 세 장, 그 모음에 두 장을 더 고른다
+    await page.getByLabel("사진 고르기", { exact: true }).setInputFiles([0, 1, 2].map(toPhoto));
+    await expect(getGroupLocation(page, 1)).toHaveText(`모음 1 위치: ${SEONGSU_SHOWN_NAME}`);
+    await page.getByLabel("모음 1에 더할 사진 고르기").setInputFiles([3, 4].map(toPhoto));
+    await expect(page.getByRole("button", { name: /^모음 \d+의 \d+번째 사진/ }).locator("visible=true")).toHaveCount(5);
+    await expect(getSaveButton(page)).toBeEnabled();
+
+    // Assert
+    expect(region.requests).toHaveLength(1);
+    expect(Number(region.requests[0]?.lat)).toBeCloseTo(SEONGSU.lat, 5);
+  });
+
   test("동네 이름을 받지 못하면 좌표를 '찍은 곳'으로 지키고, 같은 모음에 더한 GPS 없는 사진은 이름을 묻지 않고 그 모음 위치로 저장한다", async ({ page }, testInfo) => {
     // Arrange
     const title = createTestName("E2E 사진 정보 실패", testInfo);

@@ -8,7 +8,7 @@ import { useKakaoMap } from "@/components/dates/map/use-kakao-map";
 import type { PhotoLocation } from "@/lib/dates/form";
 import { isSameMapSpot, type OtherGroupLocation } from "@/lib/dates/group-location";
 import type { PlaceLocation } from "@/lib/places/location";
-import { fetchPlaceRegionName, UNKNOWN_PHOTO_PLACE } from "@/lib/places/region";
+import { readPlaceRegionName, UNKNOWN_PHOTO_PLACE } from "@/lib/places/region";
 import { formatRegionName } from "@/lib/places/region-name";
 import { toGroupName } from "@/lib/dates/group-name";
 
@@ -52,8 +52,11 @@ export const GroupLocationPicker = ({ appKey, initialLocation, otherLocations, o
     const lookup = (lookupRef.current += 1);
     if (isSameMapSpot(named, location)) return;
     // 이름을 받지 못해도(경계 밖, 실패) 좌표는 쓸 수 있어 사진 정보와 같이 "찍은 곳"으로 둔다(#249)
-    void fetchPlaceRegionName({ location })
-      .catch(() => undefined)
+    void readPlaceRegionName(location)
+      .catch((error: unknown) => {
+        console.error("지도 가운데 동네 이름 받기 실패", error);
+        return undefined;
+      })
       .then((name) => {
         if (lookup === lookupRef.current) setNamed({ place: name ?? UNKNOWN_PHOTO_PLACE, ...location });
       });
