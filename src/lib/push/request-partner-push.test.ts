@@ -7,7 +7,7 @@ describe("requestPartnerPush", () => {
     vi.unstubAllEnvs();
   });
 
-  // 아이폰 Safari에서 keepalive 요청은 나가지 않았다(#374). 시험 알림처럼 보통 요청으로 보낸다
+  // 아이폰 Safari에서 keepalive 요청은 나가지 않았다(#374). 보통 요청으로 보낸다
   it("알림 열쇠가 있으면 keepalive 없는 보통 요청으로 글 종류와 id를 보낸다", () => {
     // Arrange
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "public-key");
