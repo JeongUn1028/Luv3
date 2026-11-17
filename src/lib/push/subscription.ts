@@ -79,6 +79,16 @@ export const isSameServerKey = (current: ArrayBuffer | null, expected: Uint8Arra
 };
 
 /**
+ * 이 기기에 지금 공개 키로 만든 구독이 있는지 본다. 설정 화면의 확인·켜기와 로그인 뒤 주인 맞추기(#409)가 같은 기준을 쓴다.
+ *
+ * @example if (isUsableSubscription(subscription, toApplicationServerKey(publicKey))) await savePushSubscriptionRow(subscription)
+ */
+export const isUsableSubscription = (
+  subscription: { options: { applicationServerKey: ArrayBuffer | null } } | null | undefined,
+  serverKey: Uint8Array,
+): boolean => subscription !== null && subscription !== undefined && isSameServerKey(subscription.options.applicationServerKey, serverKey);
+
+/**
  * 브라우저 구독(`PushSubscription.toJSON()`)에서 저장할 칸을 꺼낸다. 키가 빠져 있으면 보낼 수 없어 멈춘다.
  *
  * @example const { endpoint, p256dh, auth } = toStoredSubscription(subscription.toJSON());

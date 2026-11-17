@@ -12,6 +12,7 @@ vi.mock("@/lib/push/web-push-sender", () => ({ createWebPushSender: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
 
 const MEMBER_ID = "00000000-0000-0000-0000-00000000000a";
+const RELEASE_TOKEN = "50000000-0000-4000-8000-000000000001";
 const RECORD_ID = "10000000-0000-4000-8000-000000000001";
 const COMMENT_ID = "20000000-0000-4000-8000-000000000001";
 const EVENT_ID = "30000000-0000-4000-8000-000000000001";
@@ -30,10 +31,11 @@ interface FakeSupabaseOptions {
   claim?: unknown;
   claimError?: { message: string };
   deleteError?: { message: string };
+  releaseError?: { message: string };
 }
 
 /** 이 경로가 부르는 조회(from…select…eq…maybeSingle)와 함수 호출(rpc)만 흉내 내고, 받은 값을 기록한다 */
-const fakeSupabase = ({ rows = {}, loadError, claim, claimError, deleteError }: FakeSupabaseOptions) => {
+const fakeSupabase = ({ rows = {}, loadError, claim, claimError, deleteError, releaseError }: FakeSupabaseOptions) => {
   const calls = { reads: [] as { table: string; columns: string; id: string }[], rpcs: [] as { name: string; args: unknown }[] };
   const client = {
     from: (table: "dates" | "comments" | "events" | "todos") => ({
@@ -48,6 +50,7 @@ const fakeSupabase = ({ rows = {}, loadError, claim, claimError, deleteError }: 
     rpc: (name: string, args: unknown) => {
       calls.rpcs.push({ name, args });
       if (name === "claim_partner_push") return Promise.resolve(claimError ? { data: null, error: claimError } : { data: claim, error: null });
+      if (name === "release_partner_push") return Promise.resolve({ data: null, error: releaseError ?? null });
       return Promise.resolve({ data: null, error: deleteError ?? null });
     },
   };
@@ -56,7 +59,9 @@ const fakeSupabase = ({ rows = {}, loadError, claim, claimError, deleteError }: 
 };
 
 const RECORD_ROW = { id: RECORD_ID };
-const ready = (...recipients: { badge: number; subscriptions: StoredPushSubscription[] }[]) => ({ status: "ready", recipients });
+const ready = (...recipients: { badge: number; subscriptions: StoredPushSubscription[] }[]) => ({ status: "ready", release_token: RELEASE_TOKEN, recipients });
+
+const RELEASE_CALL = { name: "release_partner_push", args: { p_kind: "record", p_target_id: RECORD_ID, p_release_token: RELEASE_TOKEN } };
 
 const useSender = (send: SendToSubscription) => {
   vi.mocked(createWebPushSender).mockReturnValue(send);
@@ -188,9 +193,9 @@ describe("POST /api/push/notify", () => {
     );
   });
 
-  it("확인을 통과한 뒤 읽을 때 글이 지워졌으면 보내지 않고 404를 돌려준다", async () => {
+  it("확인을 통과한 뒤 읽을 때 글이 지워졌으면 보내지 않고 올린 숫자를 되돌린 뒤 404를 돌려준다", async () => {
     // Arrange
-    fakeSupabase({ claim: ready({ badge: 1, subscriptions: [subscription("phone")] }) });
+    const calls = fakeSupabase({ claim: ready({ badge: 1, subscriptions: [subscription("phone")] }) });
     const send = vi.fn<SendToSubscription>(() => Promise.resolve());
     useSender(send);
 
@@ -201,18 +206,65 @@ describe("POST /api/push/notify", () => {
     expect(response.status).toBe(404);
     await expect(response.json()).resolves.toMatchObject({ code: "PUSH_TARGET_NOT_FOUND" });
     expect(send).not.toHaveBeenCalled();
+    expect(calls.rpcs).toContainEqual(RELEASE_CALL);
   });
 
-  it("글을 읽지 못하면 502를 돌려준다", async () => {
+  it("글을 읽지 못하면 보낸 기록과 숫자를 되돌리고 502를 돌려준다", async () => {
     // Arrange
-    fakeSupabase({ loadError: { message: "timeout" }, claim: ready({ badge: 1, subscriptions: [subscription("phone")] }) });
+    const calls = fakeSupabase({ loadError: { message: "timeout" }, claim: ready({ badge: 1, subscriptions: [subscription("phone")] }) });
+
+    // Act
+    const response = await POST(requestWith({ kind: "record", id: RECORD_ID }));
+
+    // Assert: 일시 오류라 다시 부탁하면 다시 보낼 수 있어야 한다(#409)
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({ code: "PUSH_TARGET_LOAD_FAILED" });
+    expect(calls.rpcs).toContainEqual(RELEASE_CALL);
+  });
+
+  it("한 기기에도 보내지 못한 일시 오류면 보낸 기록과 숫자를 되돌린다", async () => {
+    // Arrange
+    const calls = fakeSupabase({ rows: { dates: RECORD_ROW }, claim: ready({ badge: 1, subscriptions: [subscription("phone"), subscription("tablet")] }) });
+    useSender(({ endpoint }) => Promise.reject(pushError(endpoint.endsWith("phone") ? 500 : 410)));
 
     // Act
     const response = await POST(requestWith({ kind: "record", id: RECORD_ID }));
 
     // Assert
-    expect(response.status).toBe(502);
-    await expect(response.json()).resolves.toMatchObject({ code: "PUSH_TARGET_LOAD_FAILED" });
+    await expect(response.json()).resolves.toEqual({ sentCount: 0 });
+    expect(calls.rpcs).toContainEqual(RELEASE_CALL);
+  });
+
+  it.each([
+    ["한 기기에라도 보냈으면", [undefined, 500]],
+    ["모든 기기가 사라진 구독이면(다시 보내도 받을 기기가 없다)", [410, 404]],
+  ])("%s 되돌리지 않는다", async (_, statuses) => {
+    // Arrange
+    const calls = fakeSupabase({ rows: { dates: RECORD_ROW }, claim: ready({ badge: 1, subscriptions: [subscription("phone"), subscription("tablet")] }) });
+    useSender(({ endpoint }) => {
+      const status = statuses[endpoint.endsWith("phone") ? 0 : 1];
+      return status ? Promise.reject(pushError(status)) : Promise.resolve();
+    });
+
+    // Act
+    await POST(requestWith({ kind: "record", id: RECORD_ID }));
+
+    // Assert
+    expect(calls.rpcs.map(({ name }) => name)).not.toContain("release_partner_push");
+  });
+
+  it("되돌리지 못해도 결과는 그대로 돌려주고 원인을 로그에 남긴다", async () => {
+    // Arrange
+    fakeSupabase({ rows: { dates: RECORD_ROW }, claim: ready({ badge: 1, subscriptions: [subscription("phone")] }), releaseError: { message: "timeout" } });
+    useSender(() => Promise.reject(pushError(500)));
+
+    // Act
+    const response = await POST(requestWith({ kind: "record", id: RECORD_ID }));
+
+    // Assert
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ sentCount: 0 });
+    expect(console.error).toHaveBeenCalledWith("상대 알림: 보내지 못한 알림을 되돌리지 못했습니다", "timeout");
   });
 
   it.each([

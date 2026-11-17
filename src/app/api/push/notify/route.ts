@@ -34,6 +34,15 @@ const toRefusalResponse = (refusal: PartnerPushRefusal): Response => {
   return toErrorResponse(code, message, status);
 };
 
+/**
+ * 보내지 못한 알림을 되돌린다(#409). claim이 보내기 전에 남긴 보낸 기록을 지우고 올린 숫자를 내려, 다시 부탁하면 다시 보낼 수 있게 한다.
+ * 되돌리지 못해도 응답은 바꾸지 않는다(부탁한 휴대폰은 결과를 보지 않는다)
+ */
+const releaseClaim = async (supabase: ServerClient, { kind, id }: PartnerPushBody, releaseToken: string): Promise<void> => {
+  const { error } = await supabase.rpc("release_partner_push", { p_kind: kind, p_target_id: id, p_release_token: releaseToken });
+  if (error) console.error("상대 알림: 보내지 못한 알림을 되돌리지 못했습니다", error.message);
+};
+
 /** 글을 읽지 못했을 때 loadMessage 대신 돌려받는 표시. 글이 없는 경우(`undefined`)와 가른다 */
 const LOAD_FAILED: unique symbol = Symbol("load-failed");
 
@@ -90,9 +99,15 @@ export const POST = async (request: Request): Promise<Response> => {
     console.error("상대 알림:", loadError instanceof Error ? loadError.message : String(loadError));
     return LOAD_FAILED;
   });
-  if (message === LOAD_FAILED) return toErrorResponse("PUSH_TARGET_LOAD_FAILED", FAILED_MESSAGE, 502);
-  // 확인과 읽기 사이에 지워졌으면 보내지 않는다
-  if (!message) return toRefusalResponse("not-found");
+  if (message === LOAD_FAILED) {
+    await releaseClaim(supabase, body, claim.releaseToken);
+    return toErrorResponse("PUSH_TARGET_LOAD_FAILED", FAILED_MESSAGE, 502);
+  }
+  // 확인과 읽기 사이에 지워졌으면 보내지 않는다. 올린 숫자는 내린다
+  if (!message) {
+    await releaseClaim(supabase, body, claim.releaseToken);
+    return toRefusalResponse("not-found");
+  }
 
   const send = createWebPushSender(vapid);
   const results = await Promise.all(
@@ -102,6 +117,9 @@ export const POST = async (request: Request): Promise<Response> => {
   const sentCount = results.reduce((sum, result) => sum + result.sentCount, 0);
   const failureReasons = results.flatMap((result) => result.failureReasons);
   const failedCount = failureReasons.length;
+
+  // 한 기기에도 보내지 못했고 장애·열쇠 문제 같은 실패가 있으면 되돌린다. 사라진 구독뿐이면 다시 보내도 받을 기기가 없다
+  if (sentCount === 0 && failedCount > 0) await releaseClaim(supabase, body, claim.releaseToken);
 
   if (expiredEndpoints.length > 0) {
     // 상대 기기의 구독이라 RLS로는 지울 수 없어 함수로 지운다. 지우지 못해도 다음에 보낼 때 다시 지운다

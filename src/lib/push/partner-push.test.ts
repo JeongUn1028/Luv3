@@ -28,10 +28,10 @@ describe("parsePartnerPushBody", () => {
 describe("parsePartnerPushClaim", () => {
   it("보낼 준비가 됐으면 받는 사람마다 숫자와 구독을 읽는다", () => {
     // Arrange
-    const value = { status: "ready", recipients: [{ badge: 3, subscriptions: [SUBSCRIPTION] }] };
+    const value = { status: "ready", release_token: "token-1", recipients: [{ badge: 3, subscriptions: [SUBSCRIPTION] }] };
 
     // Act & Assert
-    expect(parsePartnerPushClaim(value)).toEqual({ status: "ready", recipients: [{ badge: 3, subscriptions: [SUBSCRIPTION] }] });
+    expect(parsePartnerPushClaim(value)).toEqual({ status: "ready", releaseToken: "token-1", recipients: [{ badge: 3, subscriptions: [SUBSCRIPTION] }] });
   });
 
   it("보내지 않는 이유를 그대로 읽는다", () => {
@@ -42,7 +42,8 @@ describe("parsePartnerPushClaim", () => {
   it("모르는 상태나 모양이 다른 받는 사람이 있으면 undefined를 돌려준다", () => {
     expect(parsePartnerPushClaim({ status: "unknown" })).toBeUndefined();
     expect(parsePartnerPushClaim({ status: "ready" })).toBeUndefined();
-    expect(parsePartnerPushClaim({ status: "ready", recipients: [{ badge: "3", subscriptions: [] }] })).toBeUndefined();
+    expect(parsePartnerPushClaim({ status: "ready", release_token: "token-1", recipients: [{ badge: "3", subscriptions: [] }] })).toBeUndefined();
+    expect(parsePartnerPushClaim({ status: "ready", recipients: [] })).toBeUndefined();
     expect(parsePartnerPushClaim({ status: "ready", recipients: [{ badge: 1, subscriptions: [{ endpoint: "x" }] }] })).toBeUndefined();
     expect(parsePartnerPushClaim(null)).toBeUndefined();
   });
