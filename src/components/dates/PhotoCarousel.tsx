@@ -1,14 +1,15 @@
 "use client";
 
 import useEmblaCarousel from "embla-carousel-react";
-import { useEffect, useState, type ReactElement } from "react";
-import { ChevronLeftIcon, ChevronRightIcon, MapPinIcon } from "@/components/icons";
+import { useEffect, useRef, useState, type ReactElement } from "react";
+import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 import { DetailPhotoFrame } from "@/components/dates/DetailPhotoFrame";
+import { PhotoPlace } from "@/components/dates/PhotoPlace";
+import { PhotoViewer, type PhotoViewerHandle } from "@/components/dates/PhotoViewer";
 import { useFirstPhotoGate } from "@/components/dates/FirstPhotoGate";
 import type { DetailGroup, DetailPhoto } from "@/lib/dates/detail";
 import { toSlidePhotoLoad } from "@/lib/dates/detail-photo-loading";
 import { useResetOnLinkReopen } from "@/lib/navigation/use-reset-on-link-reopen";
-import { toShortRegionName } from "@/lib/places/region-name";
 
 interface PhotoCarouselProps {
   photos: DetailPhoto[];
@@ -39,6 +40,8 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
   // 받기 시작한 사진. 다 받기 전에 멀리 넘겨도 주소를 빼지 않아, 받던 것을 끊고 나중에 처음부터 다시 받지 않는다
   const [requestedPhotoIds, setRequestedPhotoIds] = useState<ReadonlySet<string>>(() => new Set());
   const { markFirstPhotoShown } = useFirstPhotoGate();
+  const viewerRef = useRef<PhotoViewerHandle>(null);
+  const openButtonsRef = useRef<Map<number, HTMLButtonElement>>(new Map());
   // 받을 주소가 없는 사진은 기다릴 것이 없다
   const isSelectedShown = current === undefined || current.original === undefined || shownPhotoIds.has(current.id);
   const loads = photos.map((_, index) => toSlidePhotoLoad({ index, selectedIndex, isSelectedShown }));
@@ -70,90 +73,95 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
     };
   }, [emblaApi]);
 
+  // 크게 보기에서 넘겨 본 사진으로 상세도 옮기고, 초점도 그 사진에 둔다. 창이 되돌린 초점은 처음 누른 사진이라 화면 밖 칸으로 줄이 밀린다
+  const handleViewerClose = (index: number) => {
+    emblaApi?.scrollTo(index, true);
+    openButtonsRef.current.get(index)?.focus({ preventScroll: true });
+  };
+
   // 한마디는 모음마다 하나라 같은 모음 사진을 넘기는 동안 그대로이고, 다른 모음으로 넘어가면 바뀐다(#309)
   const currentCaption = groups.find(({ id }) => id === current?.groupId)?.caption;
 
   return (
-    <section aria-roledescription="carousel" aria-label="사진" className="flex flex-col">
-      {/* 넘기는 영역은 화면 폭 그대로 두어 화면 끝에서 시작한 손짓도 넘긴다 */}
-      <div ref={viewportRef} className="overflow-hidden">
-        <div className="flex touch-pan-y">
-          {photos.map((photo, index) => {
-            const load = loads[index];
-            return (
-              <div
-                key={photo.id}
-                role="group"
-                aria-roledescription="slide"
-                aria-label={`${index + 1} / ${total}`}
-                // 양옆 16px 여백과 16px 모서리는 홈 커플 사진과 같다(#321). 사진 왼쪽 끝이 아래 글자와 줄이 맞고, 넘기는 동안 사진 사이가 32px 벌어진다
-                className="min-w-0 shrink-0 grow-0 basis-full px-4"
-              >
-                <DetailPhotoFrame
-                  // 받을 차례가 아닌 사진은 주소를 넘기지 않아 받지 않는다(브라우저의 lazy는 옆 칸도 미리 받아 첫 사진과 회선을 나눠 쓴다)
-                  photo={load !== "later" || requestedPhotoIds.has(photo.id) ? photo.original : undefined}
-                  // 썸네일은 처음 펼칠 사진에만 온다. 넘겨 보는 사진은 미리 받아 두므로 썸네일을 거치지 않는다
-                  placeholder={index === startIndex ? photo.thumb : undefined}
-                  alt={`${title} 사진 ${index + 1}`}
-                  fetchPriority={load === "now" ? "high" : "low"}
-                  onShown={() => handlePhotoShown(photo.id)}
-                />
-              </div>
-            );
-          })}
+    <>
+      <section aria-roledescription="carousel" aria-label="사진" className="flex flex-col">
+        {/* 넘기는 영역은 화면 폭 그대로 두어 화면 끝에서 시작한 손짓도 넘긴다 */}
+        <div ref={viewportRef} className="overflow-hidden">
+          <div className="flex touch-pan-y">
+            {photos.map((photo, index) => {
+              const load = loads[index];
+              return (
+                <div
+                  key={photo.id}
+                  role="group"
+                  aria-roledescription="slide"
+                  aria-label={`${index + 1} / ${total}`}
+                  // 양옆 16px 여백과 16px 모서리는 홈 커플 사진과 같다(#321). 사진 왼쪽 끝이 아래 글자와 줄이 맞고, 넘기는 동안 사진 사이가 32px 벌어진다
+                  className="relative min-w-0 shrink-0 grow-0 basis-full px-4"
+                >
+                  <DetailPhotoFrame
+                    // 받을 차례가 아닌 사진은 주소를 넘기지 않아 받지 않는다(브라우저의 lazy는 옆 칸도 미리 받아 첫 사진과 회선을 나눠 쓴다)
+                    photo={load !== "later" || requestedPhotoIds.has(photo.id) ? photo.original : undefined}
+                    // 썸네일은 처음 펼칠 사진에만 온다. 넘겨 보는 사진은 미리 받아 두므로 썸네일을 거치지 않는다
+                    placeholder={index === startIndex ? photo.thumb : undefined}
+                    alt={`${title} 사진 ${index + 1}`}
+                    fetchPriority={load === "now" ? "high" : "low"}
+                    onShown={() => handlePhotoShown(photo.id)}
+                  />
+                  {/* 사진을 누르면 크게 본다(#350). 사진 요소를 버튼 안에 넣으면 사진으로 읽히지 않아 사진 위에 겹쳐 둔다. 밀어 넘긴 끝의 누름은 Embla가 막는다. 서명하지 못한 사진도 열어, 닫을 때 초점을 둘 버튼이 늘 있다 */}
+                  <button
+                    type="button"
+                    ref={(button) => {
+                      if (button) openButtonsRef.current.set(index, button);
+                      else openButtonsRef.current.delete(index);
+                    }}
+                    aria-label={`${title} 사진 ${index + 1} 크게 보기`}
+                    onClick={() => viewerRef.current?.open(index)}
+                    className="absolute inset-y-0 right-4 left-4 rounded-[16px]"
+                  />
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
 
-      <div className="flex min-h-11 items-start gap-2 px-4 pt-2">
-        {/* 넘길 때 그 사진이 속한 모음의 장소를 읽어 준다(#249). 직접 붙인 장소 이름은 분홍으로, 다듬은 동 이름은 회색으로 둔다(#317) */}
-        <div aria-live="polite" className="flex min-w-0 flex-1 flex-col gap-0.5 pt-2.5">
-          {current && (
-            <p className="flex flex-wrap items-center gap-x-1 text-[13px] text-ink-sub">
-              <MapPinIcon className="size-3.5 shrink-0 text-accent" />
-              <span className="sr-only">찍은 곳: </span>
-              {/* 사이의 빈칸은 줄 배치(flex)에서는 보이지 않고, 화면 읽기 프로그램이 두 이름을 붙여 읽지 않게 한다 */}
-              {current.placeName && (
-                <>
-                  <span className="min-w-0 text-[14px] break-words text-accent">{current.placeName}</span>{" "}
-                </>
-              )}
-              <span className="min-w-0 break-words">
-                {current.placeName && <span aria-hidden="true">· </span>}
-                {toShortRegionName(current.place)}
+        <div className="flex min-h-11 items-start gap-2 px-4 pt-2">
+          {/* 넘길 때 그 사진이 속한 모음의 장소를 읽어 준다(#249). 직접 붙인 장소 이름은 분홍으로, 다듬은 동 이름은 회색으로 둔다(#317) */}
+          <div aria-live="polite" className="flex min-w-0 flex-1 flex-col gap-0.5 pt-2.5">
+            {current && <PhotoPlace place={current.place} placeName={current.placeName} />}
+          </div>
+          {total > 1 && (
+            <div className="-mr-3 flex shrink-0 items-center">
+              <button
+                type="button"
+                aria-label="이전 사진"
+                disabled={selectedIndex === 0}
+                onClick={() => emblaApi?.scrollPrev()}
+                className={navButtonClassName}
+              >
+                <ChevronLeftIcon className="size-5" />
+              </button>
+              <span className="font-display text-[13px] tracking-[2px] text-ink-sub">
+                {selectedIndex + 1} / {total}
               </span>
-            </p>
+              <button
+                type="button"
+                aria-label="다음 사진"
+                disabled={selectedIndex === total - 1}
+                onClick={() => emblaApi?.scrollNext()}
+                className={navButtonClassName}
+              >
+                <ChevronRightIcon className="size-5" />
+              </button>
+            </div>
           )}
         </div>
-        {total > 1 && (
-          <div className="-mr-3 flex shrink-0 items-center">
-            <button
-              type="button"
-              aria-label="이전 사진"
-              disabled={selectedIndex === 0}
-              onClick={() => emblaApi?.scrollPrev()}
-              className={navButtonClassName}
-            >
-              <ChevronLeftIcon className="size-5" />
-            </button>
-            <span className="font-display text-[13px] tracking-[2px] text-ink-sub">
-              {selectedIndex + 1} / {total}
-            </span>
-            <button
-              type="button"
-              aria-label="다음 사진"
-              disabled={selectedIndex === total - 1}
-              onClick={() => emblaApi?.scrollNext()}
-              className={navButtonClassName}
-            >
-              <ChevronRightIcon className="size-5" />
-            </button>
-          </div>
-        )}
-      </div>
-      {/* 한마디가 없는 모음은 자리를 비운다. 다른 모음으로 넘어가 바뀔 때만 읽어 준다 */}
-      <p aria-live="polite" className="px-4">
-        {currentCaption && <span className="mt-2 block text-[14px] leading-[1.5] break-words whitespace-pre-line text-ink">{currentCaption}</span>}
-      </p>
-    </section>
+        {/* 한마디가 없는 모음은 자리를 비운다. 다른 모음으로 넘어가 바뀔 때만 읽어 준다 */}
+        <p aria-live="polite" className="px-4">
+          {currentCaption && <span className="mt-2 block text-[14px] leading-[1.5] break-words whitespace-pre-line text-ink">{currentCaption}</span>}
+        </p>
+      </section>
+      <PhotoViewer ref={viewerRef} photos={photos} groups={groups} title={title} onClose={handleViewerClose} />
+    </>
   );
 };
