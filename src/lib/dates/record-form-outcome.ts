@@ -11,22 +11,26 @@ interface ToFailedRecordFieldsParams {
   draft: FailedRecordDraft;
   /** 방금 저장을 시도한 기록 id */
   recordId: string;
+  /** 그 일정의 그날에 이미 남긴 기록이 있어 거절됐으면 그 기록 id */
+  alreadyLinkedRecordId?: string;
 }
 
 /** 저장에 실패한 기록 폼이 다음 시도를 위해 기억할 칸 */
-type FailedRecordFields = Pick<DateRecordDraft, "hasConflict" | "expectedRevisions" | "uncertainSaveRecordId" | "mayHaveLeftoverPhotos">;
+type FailedRecordFields = Pick<DateRecordDraft, "hasConflict" | "expectedRevisions" | "uncertainSaveRecordId" | "mayHaveLeftoverPhotos" | "alreadyLinkedRecordId">;
 
 /**
  * 저장에 실패한 기록 폼이 기억할 칸. 일정·할 일과 같은 판 번호·충돌(`toFailedSaveFields`)에 더해,
  * 저장됐을 수 있으면 다시 저장할 때 같은 기록 id를 써서 기록이 둘이 되지 않게 한다.
  * 실패 뒤 지우지 못한 사진 파일이 남았을 수 있어, 다시 저장할 때 이미 있는 파일을 앞선 시도의 것으로 받게 한다(#408).
+ * 이미 남긴 기록 때문에 거절됐으면 그 기록 id를 기억하고, 다른 이유로 실패하면 지운다.
  *
  * @example setDraft((current) => ({ ...current, ...toFailedRecordFields({ failure, draft: nextDraft, recordId }) }))
  */
-export const toFailedRecordFields = ({ failure, draft, recordId }: ToFailedRecordFieldsParams): FailedRecordFields => ({
+export const toFailedRecordFields = ({ failure, draft, recordId, alreadyLinkedRecordId }: ToFailedRecordFieldsParams): FailedRecordFields => ({
   ...toFailedSaveFields({ failure, expectedRevisions: draft.expectedRevisions, revision: draft.nextRevision }),
   uncertainSaveRecordId: failure.mayHaveSaved ? recordId : draft.uncertainSaveRecordId,
   mayHaveLeftoverPhotos: true,
+  alreadyLinkedRecordId,
 });
 
 /** 기록 폼 맨 아래에 둘 것: 기록 목록으로 가기, 이미 남긴 기록 보기(그 기록 id), 최신 내용 불러오기, 저장 */

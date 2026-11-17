@@ -40,8 +40,6 @@ interface RecordSave {
   progress: SaveProgress | undefined;
   /** 고치는 사이 기록이 지워져 저장할 곳이 없는지 */
   isRecordGone: boolean;
-  /** 일정에서 남기려는데 그 일정의 그날에 이미 남긴 기록이 있으면 그 기록 id(#227) */
-  linkedRecordId: string | undefined;
   save: (params: SaveRecordParams) => Promise<void>;
   /** 폼을 처음부터 다시 쓸 때 이 훅의 상태를 되돌린다. 지워졌다는 표시만은 되돌려도 저장할 곳이 없어 그대로 둔다(나누기 전과 같다) */
   resetSaveState: () => void;
@@ -56,7 +54,6 @@ interface RecordSave {
 export const useRecordSave = ({ record, setDraft, setNotice, previews, leavableSave }: UseRecordSaveParams): RecordSave => {
   const { beginSave, finishSaved, finishFailed } = leavableSave;
   const [isRecordGone, setIsRecordGone] = useState(false);
-  const [linkedRecordId, setLinkedRecordId] = useState<string>();
   const [progress, setProgress] = useState<SaveProgress>();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -103,10 +100,11 @@ export const useRecordSave = ({ record, setDraft, setNotice, previews, leavableS
       finishSaved({ href: savedHref, reset });
     } catch (error) {
       const failure = toDateRecordSaveFailure(error);
-      const failedFields = toFailedRecordFields({ failure, draft, recordId });
+      // 이미 남긴 기록은 실패 내용과 함께 보관해야 폼이 사라진 뒤 돌아와도 안내한다(#410)
+      const alreadyLinkedRecordId = error instanceof DateRecordAlreadyLinkedError ? error.recordId : undefined;
+      const failedFields = toFailedRecordFields({ failure, draft, recordId, alreadyLinkedRecordId });
       setDraft((current) => ({ ...current, ...failedFields }));
       setIsRecordGone(failure.isGone);
-      setLinkedRecordId(error instanceof DateRecordAlreadyLinkedError ? error.recordId : undefined);
       setNotice(failure.message);
       setIsSaving(false);
       setProgress(undefined);
@@ -115,10 +113,9 @@ export const useRecordSave = ({ record, setDraft, setNotice, previews, leavableS
   };
 
   const resetSaveState = () => {
-    setLinkedRecordId(undefined);
     setProgress(undefined);
     setIsSaving(false);
   };
 
-  return { isSaving, progress, isRecordGone, linkedRecordId, save, resetSaveState };
+  return { isSaving, progress, isRecordGone, save, resetSaveState };
 };
