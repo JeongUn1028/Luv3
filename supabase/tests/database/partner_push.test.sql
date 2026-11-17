@@ -89,7 +89,8 @@ select is(
 );
 
 select is(
-  public.claim_partner_push('record', '10000000-0000-0000-0000-000000000001'),
+  -- 되돌리기 표(#409)는 매번 다른 값이라 빼고 비교한다
+  public.claim_partner_push('record', '10000000-0000-0000-0000-000000000001') - 'release_token',
   jsonb_build_object('status', 'ready', 'recipients', jsonb_build_array(jsonb_build_object(
     'badge', 1,
     'subscriptions', jsonb_build_array(
@@ -147,7 +148,7 @@ select public.set_push_notify('todo', false);
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
 
 select is(
-  public.claim_partner_push('event', '30000000-0000-0000-0000-000000000001'),
+  public.claim_partner_push('event', '30000000-0000-0000-0000-000000000001') - 'release_token',
   jsonb_build_object('status', 'ready', 'recipients', '[]'::jsonb),
   '상대가 그 종류를 꺼 두었으면 받을 사람이 없다'
 );
@@ -157,7 +158,7 @@ insert into public.todos (id, content, author_id) values
   ('40000000-0000-0000-0000-000000000004', '꺼 둔 뒤 추가한 할 일', '00000000-0000-0000-0000-00000000000a');
 set local role authenticated;
 select is(
-  public.claim_partner_push('todo', '40000000-0000-0000-0000-000000000004'),
+  public.claim_partner_push('todo', '40000000-0000-0000-0000-000000000004') - 'release_token',
   jsonb_build_object('status', 'ready', 'recipients', '[]'::jsonb),
   '상대가 할 일 알림을 꺼 두었으면 받을 사람이 없다'
 );

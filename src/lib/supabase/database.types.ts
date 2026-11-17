@@ -199,14 +199,14 @@ isOneToOne: false
                   ]
                 },"push_sent": {
                   Row: {
-                    "kind": string,"sent_at": string,"target_id": string
+                    "kind": string,"recipient_ids": (string)[],"release_token": string,"sent_at": string,"target_id": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "kind": string,"sent_at"?: string,"target_id": string
+                    "kind": string,"recipient_ids"?: (string)[],"release_token"?: string,"sent_at"?: string,"target_id": string
                   }
                   Update: {
-                    "kind"?: string,"sent_at"?: string,"target_id"?: string
+                    "kind"?: string,"recipient_ids"?: (string)[],"release_token"?: string,"sent_at"?: string,"target_id"?: string
                   }
                   Relationships: [
                     
@@ -331,6 +331,9 @@ isOneToOne: false
                            },
 "move_todo":
 { Args: { "p_id": string,"p_offset": number }; Returns: undefined
+                           },
+"release_partner_push":
+{ Args: { "p_kind": string,"p_release_token": string,"p_target_id": string }; Returns: undefined
                            },
 "save_push_subscription":
 { Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string }; Returns: undefined

@@ -46,7 +46,10 @@ export type PartnerPushRefusal = "not-found" | "not-author" | "not-new" | "too-o
 
 const REFUSALS: readonly string[] = ["not-found", "not-author", "not-new", "too-old", "already-sent"] satisfies PartnerPushRefusal[];
 
-export type PartnerPushClaim = { status: "ready"; recipients: PartnerPushRecipient[] } | { status: PartnerPushRefusal };
+/**
+ * 확인 결과. `releaseToken`은 보내지 못했을 때 되돌리는 데 쓰는 한 번짜리 값이다(#409). 경로만 알고 응답에 담지 않는다
+ */
+export type PartnerPushClaim = { status: "ready"; releaseToken: string; recipients: PartnerPushRecipient[] } | { status: PartnerPushRefusal };
 
 const isRefusal = (value: string): value is PartnerPushRefusal => REFUSALS.includes(value);
 
@@ -69,9 +72,9 @@ const toRecipient = (value: unknown): PartnerPushRecipient | undefined => {
 export const parsePartnerPushClaim = (value: unknown): PartnerPushClaim | undefined => {
   if (!isObject(value) || typeof value.status !== "string") return undefined;
   if (value.status !== "ready") return isRefusal(value.status) ? { status: value.status } : undefined;
-  if (!Array.isArray(value.recipients)) return undefined;
+  if (typeof value.release_token !== "string" || !Array.isArray(value.recipients)) return undefined;
   const recipients = value.recipients.map(toRecipient);
-  return recipients.every((recipient) => recipient !== undefined) ? { status: "ready", recipients } : undefined;
+  return recipients.every((recipient) => recipient !== undefined) ? { status: "ready", releaseToken: value.release_token, recipients } : undefined;
 };
 
 export interface RecordPushParams {
