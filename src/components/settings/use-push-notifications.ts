@@ -1,7 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { deletePushSubscriptionRow } from "@/lib/push/device-subscription";
-import { PUSH_TEST_PATH } from "@/lib/push/message";
 import {
   isIosDevice,
   isSameServerKey,
@@ -12,16 +11,13 @@ import {
   type PushStatus,
   type PushSupport,
 } from "@/lib/push/subscription";
-import { TEST_PUSH_FAILED_MESSAGE, toTestPushOutcome, type TestPushBody } from "@/lib/push/test-push";
 import { createClient } from "@/lib/supabase/client";
 
 const SERVICE_WORKER_PATH = "/sw.js";
-/** 신호가 약해 시험 알림 요청이 끝나지 않을 때 실패로 알리기까지 기다리는 시간(ms) */
-const TEST_TIMEOUT = 10_000;
 /** 서비스 워커가 켜지기를 기다리는 시간(ms). 설치가 멈추면 "켜는 중"에서 영영 벗어나지 못한다 */
 const READY_TIMEOUT = 10_000;
 
-export type PushAction = "enable" | "disable" | "test";
+export type PushAction = "enable" | "disable";
 
 export interface PushNotice {
   tone: "info" | "error";
@@ -34,7 +30,6 @@ export interface PushNotificationsState {
   notice: PushNotice | undefined;
   enable: () => Promise<void>;
   disable: () => Promise<void>;
-  sendTest: () => Promise<void>;
 }
 
 // 지원 여부는 기기마다 정해져 바뀌지 않아 구독할 것이 없다. 서버 렌더링에는 브라우저 API가 없어 "확인 중"으로 그린다
@@ -66,9 +61,9 @@ const waitForServiceWorker = (): Promise<ServiceWorkerRegistration> => {
 };
 
 /**
- * 설정 화면 알림 칸(#363)의 상태와 동작. 이 기기의 알림 허락·구독을 확인하고, 켜기·끄기·시험 알림을 맡는다.
+ * 설정 화면 알림 칸(#363)의 상태와 동작. 이 기기의 알림 허락·구독을 확인하고, 켜기·끄기를 맡는다.
  *
- * @example const { status, pending, notice, enable, disable, sendTest } = usePushNotifications(publicKey);
+ * @example const { status, pending, notice, enable, disable } = usePushNotifications(publicKey);
  */
 export const usePushNotifications = (publicKey: string): PushNotificationsState => {
   const support = useSyncExternalStore(subscribeNothing, readPushSupport, readServerPushSupport);
@@ -156,45 +151,5 @@ export const usePushNotifications = (publicKey: string): PushNotificationsState 
     }
   };
 
-  const sendTest = async () => {
-    if (pending) return;
-    setPending("test");
-    setNotice(undefined);
-    try {
-      // "이 기기"에서 받는지 보는 것이라, 이 기기의 구독에만 보내 달라고 한다
-      const registration = await navigator.serviceWorker.getRegistration();
-      const subscription = await registration?.pushManager.getSubscription();
-      if (!subscription) {
-        setCheckedStatus("off");
-        setNotice({ tone: "error", text: "이 기기에서 알림을 먼저 켜 주세요." });
-        return;
-      }
-      const body: TestPushBody = { endpoint: subscription.endpoint };
-      const response = await fetch(PUSH_TEST_PATH, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: AbortSignal.timeout(TEST_TIMEOUT),
-      });
-      const outcome = toTestPushOutcome({
-        ok: response.ok,
-        redirected: response.redirected,
-        body: response.ok ? undefined : await response.json().catch(() => undefined),
-      });
-      if (outcome.kind === "sent") {
-        setNotice({ tone: "info", text: "시험 알림을 보냈어요. 잠시 뒤 도착해요." });
-        return;
-      }
-      // 서버에 이 기기의 구독이 없으면 켜기 버튼을 다시 보여 준다(켜면 이 기기의 구독을 다시 저장한다)
-      if (outcome.kind === "not-subscribed") setCheckedStatus("off");
-      setNotice({ tone: "error", text: outcome.message });
-    } catch (error) {
-      console.error(new Error("시험 알림을 부르지 못했습니다.", { cause: error }));
-      setNotice({ tone: "error", text: TEST_PUSH_FAILED_MESSAGE });
-    } finally {
-      setPending(undefined);
-    }
-  };
-
-  return { status, pending, notice, enable, disable, sendTest };
+  return { status, pending, notice, enable, disable };
 };
