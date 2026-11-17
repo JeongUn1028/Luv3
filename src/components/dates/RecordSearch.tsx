@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type ReactElement } from "react";
 import { AlbumGrid } from "@/components/dates/AlbumGrid";
-import { FILLED_TAG_CHIP_CLASS_NAME, OUTLINED_TAG_CHIP_CLASS_NAME } from "@/components/dates/tagChip";
+import { RecordTagRow } from "@/components/dates/RecordTagRow";
 import { FIELD_BOX_CLASS_NAME } from "@/components/FormField";
 import { LoadMoreTrigger } from "@/components/LoadMoreTrigger";
 import { RetryButton } from "@/components/RetryButton";
@@ -76,7 +76,6 @@ export const RecordSearch = ({ grid, refreshKey, tags, tag }: RecordSearchProps)
   const shownTiles = isIdle ? grid.items : search.items;
   // 태그 줄을 못 읽었거나 아직 세지 않은 태그로 들어와도 고른 태그와 "전체"는 보여 줘야 풀 수 있다
   const shownTags = tag === undefined || tags.some((name) => name.toLowerCase() === tag.toLowerCase()) ? tags : [tag, ...tags];
-  const tagRowRef = useRef<HTMLUListElement>(null);
   const searchBoxRef = useRef<HTMLInputElement>(null);
   const isSearching = search.status === "loading";
   // 마지막으로 다 찾은 결과 수. 결과가 없던 채로 글자를 더 치면 찾는 동안 빈 화면이 사라졌다 나타나 깜빡이므로, 그동안 빈 화면을 둔다
@@ -84,18 +83,6 @@ export const RecordSearch = ({ grid, refreshKey, tags, tag }: RecordSearchProps)
   const foundTotal = search.status === "done" ? search.total : isSearching ? lastFoundTotal : undefined;
   if (foundTotal !== lastFoundTotal) setLastFoundTotal(foundTotal);
   const isEmptyResult = isFiltering && search.items.length === 0 && foundTotal === 0;
-
-  // 상세의 태그로 들어오면 고른 태그가 줄 끝에 숨어 있을 수 있다. 스크롤 위치가 되살아나는 때에도 돌므로 세로로는 움직이지 않는다
-  useEffect(() => {
-    const row = tagRowRef.current;
-    const selected = row?.querySelector('[aria-pressed="true"]');
-    if (!row || !selected) return;
-    const rowBox = row.getBoundingClientRect();
-    const selectedBox = selected.getBoundingClientRect();
-    const rowPadding = 16;
-    if (selectedBox.right > rowBox.right) row.scrollLeft += selectedBox.right - rowBox.right + rowPadding;
-    else if (selectedBox.left < rowBox.left) row.scrollLeft -= rowBox.left - selectedBox.left + rowPadding;
-  }, [tag]);
 
   const selectTag = (nextTag?: string) => {
     setPressedTag(nextTag);
@@ -130,36 +117,7 @@ export const RecordSearch = ({ grid, refreshKey, tags, tag }: RecordSearchProps)
         onKeyDown={handleKeyDown}
         className={`mt-1 w-full shrink-0 appearance-none px-4 ${FIELD_BOX_CLASS_NAME}`}
       />
-      {shownTags.length > 0 && (
-        // 옆으로 밀리는 줄은 위아래가 잘리므로, 넓힌 누름 영역만큼 안쪽을 비운다
-        <ul ref={tagRowRef} aria-label="태그로 모아 보기" className="-mx-4 mt-1 flex shrink-0 gap-1.5 overflow-x-auto px-4 py-[9px] [scrollbar-width:none]">
-          <li className="shrink-0">
-            <button
-              type="button"
-              aria-pressed={tag === undefined}
-              onClick={() => selectTag()}
-              className={tag === undefined ? FILLED_TAG_CHIP_CLASS_NAME : OUTLINED_TAG_CHIP_CLASS_NAME}
-            >
-              전체
-            </button>
-          </li>
-          {shownTags.map((name) => {
-            const isSelected = name.toLowerCase() === tag?.toLowerCase();
-            return (
-              <li key={name} className="shrink-0">
-                <button
-                  type="button"
-                  aria-pressed={isSelected}
-                  onClick={() => selectTag(isSelected ? undefined : name)}
-                  className={isSelected ? FILLED_TAG_CHIP_CLASS_NAME : OUTLINED_TAG_CHIP_CLASS_NAME}
-                >
-                  {name}
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {shownTags.length > 0 && <RecordTagRow tags={shownTags} tag={tag} onSelect={selectTag} />}
       {/* 알림 영역은 처음부터 있어야 첫 결과도 읽힌다. 비어 있을 때는 자리만 차지하지 않는다. 결과가 없으면 아래 빈 화면이 보여 주므로 읽기만 한다 */}
       <p role="status" className={isEmptyResult ? "sr-only" : "mt-1 text-[12px] text-ink-sub empty:mt-0"}>
         {isFiltering ? toResultLabel(search.status, search.total) : ""}
