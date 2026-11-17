@@ -5,7 +5,7 @@ import { LoadErrorScreen } from "@/components/LoadErrorScreen";
 import { StatusLink, StatusScreen } from "@/components/StatusScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { toKstDate } from "@/lib/anniversary";
-import { getCurrentMember } from "@/lib/auth/member";
+import { withCurrentMember } from "@/lib/auth/with-member";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { isRepeatRule, toOwnerLabel } from "@/lib/events/calendar";
 import { findViewedPeriodDate } from "@/lib/events/edit-scope";
@@ -18,12 +18,11 @@ import { catchLoadError } from "@/lib/load";
 export const metadata: Metadata = { title: "일정 고치기 · Luv3" };
 
 const EditEventForm = async ({ params, searchParams }: Pick<PageProps<"/events/[id]/edit">, "params" | "searchParams">) => {
-  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  await getCurrentMember();
   const { id } = await params;
   const { date } = await searchParams;
 
-  const event = await catchLoadError(() => getEvent(id), EventLoadError);
+  // 허용목록 확인과 함께 시작하고, 허용목록 밖 계정은 로그아웃 처리 경로로 보낸다
+  const [, event] = await withCurrentMember(() => catchLoadError(() => getEvent(id), EventLoadError));
 
   if (event instanceof EventLoadError) {
     return <LoadErrorScreen title="일정을 불러오지 못했어요" backHref={CALENDAR_PATH} backLabel="캘린더로" />;

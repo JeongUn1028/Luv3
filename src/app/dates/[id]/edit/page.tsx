@@ -4,7 +4,7 @@ import { DateRecordForm } from "@/components/dates/DateRecordForm";
 import { FormSkeleton } from "@/components/FormSkeleton";
 import { LoadErrorScreen } from "@/components/LoadErrorScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
-import { getCurrentMember } from "@/lib/auth/member";
+import { withCurrentMember } from "@/lib/auth/with-member";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { DateRecordLoadError, getEditableRecord, getTagSuggestions } from "@/lib/dates/queries";
 import { catchLoadError } from "@/lib/load";
@@ -12,13 +12,11 @@ import { catchLoadError } from "@/lib/load";
 export const metadata: Metadata = { title: "기록 고치기 · Luv3" };
 
 const EditForm = async ({ params }: { params: Promise<{ id: string }> }) => {
-  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  await getCurrentMember();
   const { id } = await params;
-  const [record, tagSuggestions] = await Promise.all([
-    catchLoadError(() => getEditableRecord(id), DateRecordLoadError),
-    getTagSuggestions(),
-  ]);
+  // 허용목록 확인과 함께 시작하고, 허용목록 밖 계정은 로그아웃 처리 경로로 보낸다
+  const [, [record, tagSuggestions]] = await withCurrentMember(() =>
+    Promise.all([catchLoadError(() => getEditableRecord(id), DateRecordLoadError), getTagSuggestions()]),
+  );
 
   if (record instanceof DateRecordLoadError) {
     return <LoadErrorScreen title="기록을 불러오지 못했어요" backHref={RECORDS_PATH} backLabel="기록 목록으로" />;

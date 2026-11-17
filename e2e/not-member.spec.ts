@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { LOGIN_PATH, SIGN_OUT_PATH } from "@/lib/auth/paths";
 import { NOT_MEMBER_MESSAGE } from "@/lib/auth/login-messages";
-import { BASE_URL } from "./support/constants";
-import { signIn } from "./support/actions";
+import { BASE_URL, E2E_EVENTS, E2E_TODOS, PHOTO_RECORD } from "./support/constants";
+import { signIn, submitSignIn } from "./support/actions";
 import { createNonMemberAccount } from "./support/seed";
 import { expect, test } from "./support/test";
 
@@ -37,6 +37,44 @@ test.describe("허용목록 밖 계정", () => {
       await deleteAccount();
     }
   });
+});
+
+// 조회가 있는 화면은 허용목록 확인과 조회를 함께 시작한다(#411). 조회가 먼저 끝나도 화면을 그리지 않고 확인의 이동을 따라야 한다
+const PAGES_WITH_LOAD = [
+  "/dates/new",
+  `/dates/${PHOTO_RECORD.id}/edit`,
+  `/events/${E2E_EVENTS[0].id}/edit`,
+  `/todos/${E2E_TODOS[0].id}/edit`,
+  "/settings/trash",
+  // 휴지통 사진은 어떤 id든 회원 확인이 먼저다. 테스트 이름에 들어가므로 실행마다 같은 값을 쓴다(작업자마다 이름이 같아야 한다)
+  "/settings/trash/e2e00000-0000-4000-8000-0000000000ff",
+  "/records/map",
+] as const;
+
+test.describe("허용목록 밖 계정이 조회가 있는 화면을 바로 열면", () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  for (const path of PAGES_WITH_LOAD) {
+    test(`${path}: 로그아웃시키고 허용된 계정이 아니라고 알린다`, async ({ page }) => {
+      // Arrange
+      const email = `e2e-outsider-${randomUUID()}@example.com`;
+      const password = randomUUID();
+      const deleteAccount = await createNonMemberAccount(email, password);
+
+      try {
+        // Act: 로그인 뒤 그 화면으로 돌아가게 한다
+        await page.goto(`${LOGIN_PATH}?next=${encodeURIComponent(path)}`, { waitUntil: "networkidle" });
+        await submitSignIn(page, email, password);
+
+        // Assert
+        await page.waitForURL(`**${LOGIN_PATH}?error=not_member`);
+        await expect(page.locator("main").getByRole("alert")).toHaveText(NOT_MEMBER_MESSAGE);
+        expect(await getAuthCookies(page)).toEqual([]);
+      } finally {
+        await deleteAccount();
+      }
+    });
+  }
 });
 
 // 다른 사이트의 링크로 로그아웃 경로가 열려도 허용된 사람은 로그아웃되지 않는다

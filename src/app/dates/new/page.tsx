@@ -4,7 +4,7 @@ import { FormSkeleton } from "@/components/FormSkeleton";
 import { LoadErrorScreen } from "@/components/LoadErrorScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { toKstDate } from "@/lib/anniversary";
-import { getCurrentMember } from "@/lib/auth/member";
+import { withCurrentMember } from "@/lib/auth/with-member";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { getTagSuggestions } from "@/lib/dates/queries";
@@ -14,19 +14,20 @@ import { catchLoadError } from "@/lib/load";
 export const metadata: Metadata = { title: "기록 남기기 · Luv3" };
 
 const MemberOnlyForm = async ({ searchParams }: Pick<PageProps<"/dates/new">, "searchParams">) => {
-  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  await getCurrentMember();
   const params = await searchParams;
   const today = toKstDate(new Date());
   const { event: eventId, eventDate } = params;
   // 캘린더의 지난 일정에서 넘어오면 일정을 읽어 날짜·제목·메모를 채우고 그 일정과 잇는다(#227).
   // 없는 일정이거나 그날로 남길 수 없으면 연결 없이 빈 폼으로 쓴다
-  const [prefill, tagSuggestions] = await Promise.all([
-    typeof eventId === "string" && typeof eventDate === "string"
-      ? catchLoadError(() => getEventRecordPrefill({ eventId, eventDate }, today), EventLoadError)
-      : undefined,
-    getTagSuggestions(),
-  ]);
+  // 허용목록 확인과 함께 시작하고, 허용목록 밖 계정은 로그아웃 처리 경로로 보낸다
+  const [, [prefill, tagSuggestions]] = await withCurrentMember(() =>
+    Promise.all([
+      typeof eventId === "string" && typeof eventDate === "string"
+        ? catchLoadError(() => getEventRecordPrefill({ eventId, eventDate }, today), EventLoadError)
+        : undefined,
+      getTagSuggestions(),
+    ]),
+  );
   if (prefill instanceof EventLoadError) {
     return <LoadErrorScreen title="일정을 불러오지 못했어요" backHref={CALENDAR_PATH} backLabel="캘린더로" />;
   }
