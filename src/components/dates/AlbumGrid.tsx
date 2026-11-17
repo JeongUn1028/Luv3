@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import type { ReactElement } from "react";
-import { SignedPhoto } from "@/components/SignedPhoto";
+import { RememberedPhoto } from "@/components/RememberedPhoto";
 import { DELETING_KEYS, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { formatPeriodMonthDay, groupByMonth, type AlbumTile } from "@/lib/dates/album";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
@@ -41,12 +41,12 @@ export const AlbumGrid = ({ tiles: allTiles }: AlbumGridProps): ReactElement => 
                   className="press-card relative block aspect-[4/5] rounded-[8px] bg-surface"
                 >
                   {/* 누르는 동안 넓히는 영역이 잘리지 않게 링크에 overflow-hidden을 쓰지 않고, 홈 최근 데이트 칸처럼 사진과 그림자에 직접 모서리를 준다 */}
-                  {tile.thumbUrl && (
-                    <SignedPhoto src={tile.thumbUrl} alt={tile.title} loading="lazy" className="absolute inset-0 size-full rounded-[8px] object-cover" />
+                  {tile.thumb && (
+                    <RememberedPhoto photo={tile.thumb} alt={tile.title} loading="lazy" className="absolute inset-0 size-full rounded-[8px] object-cover" />
                   )}
                   {/* 밝은 사진 위에서도 글자가 읽히도록 아래쪽만 어둡게 깐다 */}
                   <span className="absolute inset-x-0 bottom-0 truncate rounded-b-[8px] bg-gradient-to-t from-background/80 to-transparent px-2.5 pt-6 pb-2.5 text-[12px] text-ink">
-                    {!tile.thumbUrl && <span className="sr-only">{tile.title}, </span>}
+                    {!tile.thumb && <span className="sr-only">{tile.title}, </span>}
                     {formatPeriodMonthDay(tile)}
                   </span>
                 </Link>

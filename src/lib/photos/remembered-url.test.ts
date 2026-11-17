@@ -1,13 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { readSource } from "@/test-utils/source";
 import { SIGNED_URL_MIN_REMAINING } from "./limits";
-import { forgetPhotoUrl, parseRememberedUrls, pickPhotoUrl, rememberPhotoUrl, toRememberablePhoto, type RememberablePhoto } from "./remembered-url";
+import { forgetPhotoUrl, isRememberablePhoto, parseRememberedUrls, pickPhotoUrl, rememberPhotoUrl, toRememberablePhoto, type RememberablePhoto } from "./remembered-url";
 
 const NOW = new Date("2026-11-09T12:00:00+09:00").getTime();
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MIN_REMAINING_MS = SIGNED_URL_MIN_REMAINING * 1000;
 const PHOTO: RememberablePhoto = { path: "couple/a_medium.jpg", url: "https://storage.test/a?token=new", expiresAt: NOW + 7 * DAY_MS };
 const REMEMBERED_URL = "https://storage.test/a?token=old";
+
+describe("isRememberablePhoto", () => {
+  it("경로·주소·만료 시각이 모두 맞는 모양이면 참이고, 하나라도 빠지거나 다르면 거짓이다", () => {
+    expect(isRememberablePhoto(PHOTO)).toBe(true);
+    expect([
+      isRememberablePhoto({ url: PHOTO.url, expiresAt: PHOTO.expiresAt }),
+      isRememberablePhoto({ ...PHOTO, expiresAt: "내일" }),
+      isRememberablePhoto({ ...PHOTO, url: undefined }),
+      isRememberablePhoto(undefined),
+    ]).toEqual([false, false, false, false]);
+  });
+});
 
 describe("pickPhotoUrl", () => {
   it("같은 경로의 기억한 주소가 아직 쓸 수 있으면, 서버가 다른 주소를 줘도 기억한 주소를 쓴다", () => {

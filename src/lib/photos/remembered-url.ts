@@ -5,7 +5,7 @@ import type { SignedUrlWithExpiry } from "./signed-urls";
 /** 휴대폰이 기억한 사진 주소를 저장하는 `localStorage` 키 */
 export const REMEMBERED_PHOTO_URLS_KEY = "luv3:remembered-photo-urls";
 
-/** 휴대폰이 경로로 기억해 다시 쓸 수 있는 사진 주소(홈 사진) */
+/** 휴대폰이 경로로 기억해 다시 쓸 수 있는 사진 주소(홈 사진 #219, 기록 그리드·상세 #354) */
 export interface RememberablePhoto {
   /** album 버킷 안의 경로. 사진을 바꾸면 경로가 달라진다 */
   path: string;
@@ -29,6 +29,13 @@ const isUsable = ({ expiresAt }: RememberedUrl, now: number): boolean => expires
 
 const isRememberedUrl = (value: unknown): value is RememberedUrl =>
   typeof value === "object" && value !== null && typeof Reflect.get(value, "url") === "string" && typeof Reflect.get(value, "expiresAt") === "number";
+
+/**
+ * 응답 등 밖에서 받은 값이 기억할 수 있는 사진 주소 모양인지 본다.
+ *
+ * @example isRememberablePhoto({ path: "r1/p1_thumb.jpg", url: "https://...", expiresAt: 1 }) // true
+ */
+export const isRememberablePhoto = (value: unknown): value is RememberablePhoto => isRememberedUrl(value) && typeof Reflect.get(value, "path") === "string";
 
 /**
  * 저장해 둔 글자를 기억한 주소로 읽는다. 없거나 깨졌거나 모양이 다른 항목은 버린다.

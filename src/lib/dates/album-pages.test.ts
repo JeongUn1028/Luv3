@@ -4,18 +4,19 @@ import type { AlbumTile } from "./album";
 import { appendAlbumPage, appendNewItems, createAlbumPages, syncAlbumFirstPage, toAlbumItems, toMsUntilPhotoUrlsStale, type AlbumFirstPage } from "./album-pages";
 import type { RecordCursor } from "./search-api";
 
+const LOADED_AT = Date.UTC(2026, 10, 10, 12);
+
 const tile = (id: string, thumbUrl?: string): AlbumTile => ({
   id,
   date: "2026-11-02",
   endDate: undefined,
   title: id,
   tags: [],
-  thumbUrl,
+  thumb: thumbUrl === undefined ? undefined : { path: `${id}/p_thumb.jpg`, url: thumbUrl, expiresAt: LOADED_AT },
 });
 
 const cursor = (id: string): RecordCursor => ({ date: "2026-11-02", createdAt: "2026-11-02T03:04:05.123456+00:00", id });
 
-const LOADED_AT = Date.UTC(2026, 10, 10, 12);
 const MINUTE_MS = 60_000;
 
 const firstPage = (overrides: Partial<AlbumFirstPage> = {}): AlbumFirstPage => ({
@@ -72,7 +73,7 @@ describe("syncAlbumFirstPage", () => {
     const synced = syncAlbumFirstPage(withMore(), refreshed);
 
     // Assert
-    expect(toAlbumItems(synced).map(({ id, thumbUrl }) => [id, thumbUrl])).toEqual([
+    expect(toAlbumItems(synced).map(({ id, thumb }) => [id, thumb?.url])).toEqual([
       ["a", "새 주소"],
       ["b", undefined],
       ["c", undefined],

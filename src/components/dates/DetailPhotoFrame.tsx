@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, type ReactElement } from "react";
-import { SignedPhoto } from "@/components/SignedPhoto";
+import { RememberedPhoto } from "@/components/RememberedPhoto";
+import type { RememberablePhoto } from "@/lib/photos/remembered-url";
 
 interface DetailPhotoFrameProps {
-  /** 서명 주소. 서명하지 못했거나 아직 받을 차례가 아니면 없다 */
-  url: string | undefined;
-  /** 원본을 받는 동안 먼저 보여 줄 썸네일 주소(#313). 없으면 받는 동안 회색 칸이다 */
-  placeholderUrl?: string;
+  /** 원본 사진. 서명하지 못했거나 아직 받을 차례가 아니면 없다 */
+  photo: RememberablePhoto | undefined;
+  /** 원본을 받는 동안 먼저 보여 줄 썸네일(#313). 없으면 받는 동안 회색 칸이다 */
+  placeholder?: RememberablePhoto;
   alt: string;
   /** 지금 보는 사진은 high, 미리 받는 사진은 low로 둬 지금 사진이 먼저 오게 한다(#313) */
   fetchPriority: "high" | "low";
@@ -17,13 +18,14 @@ interface DetailPhotoFrameProps {
 
 /** 다 받은 사진. 칸(4:5)보다 넓은 사진은 폭을, 좁은 사진은 높이를 칸에 맞춘다 */
 interface LoadedPhoto {
-  url: string;
+  /** 받은 파일의 경로. 주소는 기억한 것과 서버가 준 것이 바뀔 수 있어 같은 파일인지는 경로로 본다 */
+  path: string;
   isWiderThanFrame: boolean;
 }
 
 const FRAME_RATIO = 4 / 5;
 
-const toLoadedPhoto = (url: string, image: HTMLImageElement): LoadedPhoto => ({ url, isWiderThanFrame: image.naturalWidth / image.naturalHeight > FRAME_RATIO });
+const toLoadedPhoto = (path: string, image: HTMLImageElement): LoadedPhoto => ({ path, isWiderThanFrame: image.naturalWidth / image.naturalHeight > FRAME_RATIO });
 
 // 다 받으면 한쪽 길이만 칸에 맞추고 다른 쪽은 사진 비율대로 둬, 칸보다 작은 사진도 칸에 맞게 키운다. 사방 0 + 바깥 여백 auto로 가운데 둔다.
 // 받기 전에는 크기를 몰라 칸을 채운 채 숨겨, 깨진 사진 표시도 보이지 않는다.
@@ -37,32 +39,33 @@ const toPhotoClassName = (loaded: LoadedPhoto | undefined): string =>
  * 사진을 받는 동안과 받지 못했을 때는 불러오는 동안의 뼈대(`RecordDetailSkeleton`)와 같은 회색 칸을 둔다.
  * 썸네일 주소를 주면 원본을 받는 동안 썸네일을 같은 자리에 먼저 보여 주고, 원본을 받으면 바꾼다(#313).
  *
- * @example <DetailPhotoFrame url={photo.url} placeholderUrl={photo.thumbUrl} alt="성수 데이트 사진 1" fetchPriority="high" />
+ * 주소는 휴대폰이 경로로 기억한 것을 다시 써(#354), 서버가 새 주소를 줘도 받은 사진을 다시 받거나 회색 칸으로 돌아가지 않는다.
+ *
+ * @example <DetailPhotoFrame photo={photo.original} placeholder={photo.thumb} alt="성수 데이트 사진 1" fetchPriority="high" />
  */
-export const DetailPhotoFrame = ({ url, placeholderUrl, alt, fetchPriority, onShown }: DetailPhotoFrameProps): ReactElement => {
+export const DetailPhotoFrame = ({ photo, placeholder, alt, fetchPriority, onShown }: DetailPhotoFrameProps): ReactElement => {
   const [loaded, setLoaded] = useState<LoadedPhoto>();
   const [preview, setPreview] = useState<LoadedPhoto>();
-  // 주소가 바뀌면(새로 서명) 그 주소를 다 받을 때까지 다시 회색 칸으로 둔다
-  const shown = url !== undefined && loaded?.url === url ? loaded : undefined;
-  // 원본과 같은 파일이면 같은 주소라 따로 그리지 않는다
-  const previewUrl = shown || placeholderUrl === url ? undefined : placeholderUrl;
-  const shownPreview = previewUrl !== undefined && preview?.url === previewUrl ? preview : undefined;
+  const shown = photo !== undefined && loaded?.path === photo.path ? loaded : undefined;
+  // 원본과 같은 파일이면 따로 그리지 않는다
+  const previewPhoto = shown || placeholder?.path === photo?.path ? undefined : placeholder;
+  const shownPreview = previewPhoto !== undefined && preview?.path === previewPhoto.path ? preview : undefined;
 
   const handleLoaded = (image: HTMLImageElement) => {
-    if (url === undefined) return;
-    setLoaded(toLoadedPhoto(url, image));
+    if (photo === undefined) return;
+    setLoaded(toLoadedPhoto(photo.path, image));
     onShown?.();
   };
 
   const handlePreviewLoaded = (image: HTMLImageElement) => {
-    if (previewUrl !== undefined) setPreview(toLoadedPhoto(previewUrl, image));
+    if (previewPhoto !== undefined) setPreview(toLoadedPhoto(previewPhoto.path, image));
   };
 
   return (
     <div className={`relative aspect-[4/5] rounded-[16px] ${shown || shownPreview ? "" : "bg-surface"}`}>
-      {previewUrl && (
-        <SignedPhoto
-          src={previewUrl}
+      {previewPhoto && (
+        <RememberedPhoto
+          photo={previewPhoto}
           alt=""
           // 목록 칸에서 받아 휴대폰에 남아 있으면 우선순위와 상관없이 바로 보인다. 새로 받아야 하면 원본보다 뒤로 둬 원본을 늦추지 않는다
           fetchPriority="low"
@@ -73,9 +76,9 @@ export const DetailPhotoFrame = ({ url, placeholderUrl, alt, fetchPriority, onSh
           className={toPhotoClassName(shownPreview)}
         />
       )}
-      {url && (
-        <SignedPhoto
-          src={url}
+      {photo && (
+        <RememberedPhoto
+          photo={photo}
           alt={alt}
           // 받을 차례는 부르는 쪽(`PhotoCarousel`)이 주소를 넘기는 때로 정하므로 브라우저가 미루지 않게 한다
           loading="eager"

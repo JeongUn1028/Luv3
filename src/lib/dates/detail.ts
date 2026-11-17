@@ -1,5 +1,6 @@
 import type { AuthorRow } from "@/lib/author";
-import type { SignedUrl } from "@/lib/photos/signed-urls";
+import { toRememberablePhoto, type RememberablePhoto } from "@/lib/photos/remembered-url";
+import { toSignedByPath, type SignedUrl, type SignedUrlWithExpiry } from "@/lib/photos/signed-urls";
 import { isRepeatRule } from "@/lib/events/calendar";
 import { toEventEditHref } from "@/lib/events/recurrence";
 import { comparePhotoOrder, groupPhotosInOrder } from "./photo-groups";
@@ -9,10 +10,10 @@ export interface DetailPhoto {
   id: string;
   /** 사진이 속한 모음. 지금 보는 모음의 한마디를 찾을 때 쓴다(#309) */
   groupId: string;
-  /** 원본(긴 변 2000px) 서명 URL. 받지 못했으면 빈 칸으로 그린다 */
-  url: string | undefined;
-  /** 썸네일(긴 변 600px) 서명 URL. 처음 펼칠 사진에만 있고, 원본을 받는 동안 먼저 보여 준다(#313) */
-  thumbUrl: string | undefined;
+  /** 원본(긴 변 2000px). 휴대폰이 경로로 주소를 기억해 다시 쓴다(#354). 받지 못했으면 빈 칸으로 그린다 */
+  original: RememberablePhoto | undefined;
+  /** 썸네일(긴 변 600px). 처음 펼칠 사진에만 있고, 원본을 받는 동안 먼저 보여 준다(#313) */
+  thumb: RememberablePhoto | undefined;
   /** 사진이 속한 모음의 행정동 이름(#249, #297). 화면은 다듬어(성수동) 보여 준다 */
   place: string;
   /** 사진이 속한 모음에 사용자가 붙인 장소 이름(#317). 없으면 undefined */
@@ -131,13 +132,14 @@ export const findStartPhotoRow = (photos: DetailRow["photos"], photoId: string |
 };
 
 /**
- * 조회한 행에 원본 서명 URL과 처음 펼칠 사진의 썸네일 서명 URL을 붙여 상세 화면 값으로 바꾼다. DB의 null은 화면 경계에서 undefined로 바꾼다.
+ * 조회한 행에 원본과 처음 펼칠 사진의 썸네일의 경로·서명 URL·만료 시각을 붙여 상세 화면 값으로 바꾼다. DB의 null은 화면 경계에서 undefined로 바꾼다.
  *
  * @param startPhotoId 주소로 고른 처음 펼칠 사진(`?photo=`). 없으면 첫 사진이다
  * @example toDateRecordDetail(row, signedUrls, startPhotoId)
  */
-export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[], startPhotoId?: string): DateRecordDetail => {
-  const urlByPath = toUrlByPath(signedPhotos);
+export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrlWithExpiry[], startPhotoId?: string): DateRecordDetail => {
+  const signedByPath = toSignedByPath(signedPhotos);
+  const toPhoto = (path: string) => toRememberablePhoto(signedByPath.get(path));
   const photos = sortPhotos(row.photos);
   const startId = findStartPhotoRow(photos, startPhotoId)?.id;
   const linkedEvent =
@@ -161,8 +163,8 @@ export const toDateRecordDetail = (row: DetailRow, signedPhotos: SignedUrl[], st
     photos: photos.map(({ id, group_id: groupId, path, thumb_path: thumbPath, place, place_name: placeName }) => ({
       id,
       groupId,
-      url: urlByPath.get(path),
-      thumbUrl: id === startId ? urlByPath.get(thumbPath) : undefined,
+      original: toPhoto(path),
+      thumb: id === startId ? toPhoto(thumbPath) : undefined,
       place,
       placeName: placeName ?? undefined,
     })),

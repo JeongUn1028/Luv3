@@ -1,5 +1,5 @@
 import { toRememberablePhoto, type RememberablePhoto } from "@/lib/photos/remembered-url";
-import type { SignedUrl, SignedUrlWithExpiry } from "@/lib/photos/signed-urls";
+import { toSignedByPath, type SignedUrlWithExpiry } from "@/lib/photos/signed-urls";
 
 /** 기록 탭(앨범 그리드) 주소 */
 export const RECORDS_PATH = "/records";
@@ -17,8 +17,8 @@ interface RecordTileBase {
 
 /** 앨범 그리드 칸 하나 = 기록 하나(대표 사진 썸네일) */
 export interface AlbumTile extends RecordTileBase {
-  /** 대표 사진 썸네일의 서명 URL. 받지 못했으면 빈 칸으로 그린다 */
-  thumbUrl: string | undefined;
+  /** 대표 사진 썸네일. 휴대폰이 경로로 주소를 기억해 다시 쓴다(#354). 받지 못했으면 빈 칸으로 그린다 */
+  thumb: RememberablePhoto | undefined;
 }
 
 /** 홈의 최근 데이트 칸 */
@@ -56,15 +56,13 @@ const toRecordTileBase = (row: Omit<AlbumRow, "cover">): RecordTileBase => ({
 });
 
 /**
- * 조회한 기록 행에 썸네일 서명 URL을 붙여 그리드 칸으로 바꾼다. DB의 null은 화면 경계에서 undefined로 바꾼다.
+ * 조회한 기록 행에 썸네일의 경로·서명 URL·만료 시각을 붙여 그리드 칸으로 바꾼다. DB의 null은 화면 경계에서 undefined로 바꾼다.
  *
- * @example toAlbumTiles(rows, signedUrls) // [{ id, date, title, tags, thumbUrl }]
+ * @example toAlbumTiles(rows, signedThumbs) // [{ id, date, title, tags, thumb: { path, url, expiresAt } }]
  */
-export const toAlbumTiles = (rows: AlbumRow[], signedThumbs: SignedUrl[]): AlbumTile[] => {
-  const urlByPath = new Map(
-    signedThumbs.flatMap(({ path, signedUrl }) => (path && signedUrl ? [[path, signedUrl] as const] : [])),
-  );
-  return rows.map(({ cover, ...row }) => ({ ...toRecordTileBase(row), thumbUrl: cover ? urlByPath.get(cover.thumb_path) : undefined }));
+export const toAlbumTiles = (rows: AlbumRow[], signedThumbs: SignedUrlWithExpiry[]): AlbumTile[] => {
+  const signedByPath = toSignedByPath(signedThumbs);
+  return rows.map(({ cover, ...row }) => ({ ...toRecordTileBase(row), thumb: cover ? toRememberablePhoto(signedByPath.get(cover.thumb_path)) : undefined }));
 };
 
 /**

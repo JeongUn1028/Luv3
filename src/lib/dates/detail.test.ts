@@ -7,9 +7,9 @@ const row = RECORD_DETAIL_ROW;
 describe("toDateRecordDetail", () => {
   it("사진을 순서대로 정렬하고 원본·썸네일 서명 URL·모음 위치·장소 이름·모음 한마디와 작성자 닉네임을 붙이며, DB의 null은 undefined로 바꾼다", () => {
     const detail = toDateRecordDetail(row, [
-      { path: "r1/p1.jpg", signedUrl: "https://example.test/p1" },
-      { path: "r1/p2.jpg", signedUrl: "https://example.test/p2" },
-      { path: "r1/p1_thumb.jpg", signedUrl: "https://example.test/t1" },
+      { path: "r1/p1.jpg", signedUrl: "https://example.test/p1", expiresAt: 1000 },
+      { path: "r1/p2.jpg", signedUrl: "https://example.test/p2", expiresAt: 1000 },
+      { path: "r1/p1_thumb.jpg", signedUrl: "https://example.test/t1", expiresAt: 1000 },
     ]);
     expect(detail).toEqual({
       id: "r1",
@@ -20,8 +20,22 @@ describe("toDateRecordDetail", () => {
       tags: ["카페", "여행"],
       authorNickname: "진아",
       photos: [
-        { id: "p1", groupId: "g1", url: "https://example.test/p1", thumbUrl: "https://example.test/t1", place: "어니언 성수", placeName: "골목 끝 카페" },
-        { id: "p2", groupId: "g2", url: "https://example.test/p2", thumbUrl: undefined, place: "성수 서울숲", placeName: undefined },
+        {
+          id: "p1",
+          groupId: "g1",
+          original: { path: "r1/p1.jpg", url: "https://example.test/p1", expiresAt: 1000 },
+          thumb: { path: "r1/p1_thumb.jpg", url: "https://example.test/t1", expiresAt: 1000 },
+          place: "어니언 성수",
+          placeName: "골목 끝 카페",
+        },
+        {
+          id: "p2",
+          groupId: "g2",
+          original: { path: "r1/p2.jpg", url: "https://example.test/p2", expiresAt: 1000 },
+          thumb: undefined,
+          place: "성수 서울숲",
+          placeName: undefined,
+        },
       ],
       groups: [
         { id: "g1", caption: "카페" },
@@ -110,8 +124,8 @@ describe("toDateRecordDetail", () => {
   it("썸네일 서명 URL은 주소로 고른 처음 펼칠 사진에만 붙이고, 고른 사진이 없으면 사진 순서의 첫 사진에 붙인다", () => {
     // Arrange
     const signed = [
-      { path: "r1/p1_thumb.jpg", signedUrl: "https://example.test/t1" },
-      { path: "r1/p2_thumb.jpg", signedUrl: "https://example.test/t2" },
+      { path: "r1/p1_thumb.jpg", signedUrl: "https://example.test/t1", expiresAt: 1000 },
+      { path: "r1/p2_thumb.jpg", signedUrl: "https://example.test/t2", expiresAt: 1000 },
     ];
 
     // Act
@@ -119,13 +133,13 @@ describe("toDateRecordDetail", () => {
     const missing = toDateRecordDetail(row, signed, "없는 사진");
 
     // Assert
-    expect(picked.photos.map(({ thumbUrl }) => thumbUrl)).toEqual([undefined, "https://example.test/t2"]);
-    expect(missing.photos.map(({ thumbUrl }) => thumbUrl)).toEqual(["https://example.test/t1", undefined]);
+    expect(picked.photos.map(({ thumb }) => thumb?.url)).toEqual([undefined, "https://example.test/t2"]);
+    expect(missing.photos.map(({ thumb }) => thumb?.url)).toEqual(["https://example.test/t1", undefined]);
   });
 
   it("서명 URL을 받지 못한 사진은 URL 없이 둔다", () => {
-    const detail = toDateRecordDetail(row, [{ path: "r1/p1.jpg", signedUrl: null }]);
-    expect(detail.photos.map(({ url }) => url)).toEqual([undefined, undefined]);
+    const detail = toDateRecordDetail(row, [{ path: "r1/p1.jpg", signedUrl: null, expiresAt: undefined }]);
+    expect(detail.photos.map(({ original }) => original)).toEqual([undefined, undefined]);
   });
 });
 

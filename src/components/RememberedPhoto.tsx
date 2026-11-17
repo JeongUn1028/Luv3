@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore, type ReactElement } from "react";
+import { useState, useSyncExternalStore, type ReactElement } from "react";
 import { SignedPhoto, type SignedPhotoProps } from "@/components/SignedPhoto";
 import {
   forgetPhotoUrl,
@@ -78,29 +78,33 @@ export const forgetAllPhotoUrls = (): void => {
 // 서버가 처음 보내는 화면에 주소가 있으면 기억한 주소로 바꾸기 전에 받기 시작해 두 번 받으므로, 화면이 연결된 뒤에 정한다
 const getServerSnapshot = (): undefined => undefined;
 
-interface RememberedPhotoProps extends Omit<SignedPhotoProps, "src" | "onLoad" | "onLoadFailed"> {
+interface RememberedPhotoProps extends Omit<SignedPhotoProps, "src" | "onLoad"> {
   photo: RememberablePhoto;
 }
 
 /**
- * 휴대폰이 기억한 주소로 그리는 홈 사진(#219). 서버는 새로 뜰 때마다 새 주소를 줘, 주소가 바뀌면 휴대폰이 저장해 둔 사진을 쓰지 않고 다시 받는다.
+ * 휴대폰이 기억한 주소로 그리는 사진(홈 #219, 기록 그리드·상세 #354). 서버는 새로 뜰 때마다 새 주소를 줘, 주소가 바뀌면 휴대폰이 저장해 둔 사진을 쓰지 않고 다시 받는다.
  * 같은 경로의 기억한 주소가 아직 쓸 수 있으면 그 주소로 그리고, 받은 주소를 경로로 기억한다. 사진을 바꾸면 경로가 달라져 새 사진을 바로 그린다.
- * 기억한 주소로 받지 못하면 잊고 서버가 준 주소로 다시 받는다. 그것도 실패하면 `SignedPhoto`가 화면을 새로 받는다.
+ * 기억한 주소로 받지 못하면 잊고 서버가 준 주소로 다시 받는다. 서버 주소도 받지 못하면 `onLoadFailed`를 부르고, 그것이 true를 돌려주지 않으면 `SignedPhoto`가 화면을 새로 받는다.
  *
  * @example <RememberedPhoto photo={record.thumb} alt="" className="size-full object-cover" />
  */
-export const RememberedPhoto = ({ photo, ...props }: RememberedPhotoProps): ReactElement | null => {
-  const src = useSyncExternalStore(subscribe, () => pickPhotoUrl(photo, readRemembered(), Date.now()), getServerSnapshot);
+export const RememberedPhoto = ({ photo, onLoadFailed, ...props }: RememberedPhotoProps): ReactElement | null => {
+  const pickedSrc = useSyncExternalStore(subscribe, () => pickPhotoUrl(photo, readRemembered(), Date.now()), getServerSnapshot);
+  // 다 받은 사진은 그 주소로 계속 둔다. 기억한 주소가 다시 쓰는 기준 시간 아래로 내려가도, 이미 보이는 사진을 새 주소로 다시 받지 않는다
+  const [loaded, setLoaded] = useState<{ path: string; src: string }>();
+  const src = loaded?.path === photo.path ? loaded.src : pickedSrc;
   if (src === undefined) return null;
 
   const isServerUrl = src === photo.url;
 
   const handleLoad = () => {
+    setLoaded({ path: photo.path, src });
     if (isServerUrl) updateRemembered((remembered) => rememberPhotoUrl(remembered, photo, Date.now()));
   };
 
   const handleLoadFailed = (): boolean => {
-    if (isServerUrl) return false;
+    if (isServerUrl) return onLoadFailed?.() ?? false;
     updateRemembered((remembered) => forgetPhotoUrl(remembered, photo.path));
     return true;
   };
