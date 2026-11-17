@@ -48,6 +48,11 @@ export interface DraftPhotoGroup<Photo extends DraftPhoto = DraftPhoto> {
 export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
   /** 앞선 저장이 실패로 끝났지만 저장됐을 수 있을 때의 기록 id. 실패 내용과 함께 보관해 다시 저장해도 기록이 둘이 되지 않게 한다 */
   uncertainSaveRecordId?: string;
+  /**
+   * 앞선 저장이 실패해 이 폼이 올린 사진 파일이 남았을 수 있는지. 실패 뒤 지우는 요청도 끊기면 파일이 남고, 고치기는 기록·사진 id가 그대로라
+   * 다시 저장할 때 같은 경로에 올린다. 그때 이미 있는 파일은 앞선 시도가 올린 같은 파일로 본다(#408)
+   */
+  mayHaveLeftoverPhotos?: boolean;
   /** 저장을 허용할 판 번호: 불러온 때의 판과, 저장됐을 수 있는 내 앞선 시도의 판. 새 기록이면 없다 */
   expectedRevisions?: string[];
   /** 이번 저장으로 바뀔 판 번호. 저장을 시도할 때마다 새로 정한다 */

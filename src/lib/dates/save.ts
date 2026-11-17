@@ -79,7 +79,7 @@ export const saveDateRecord = async ({
     return { id, file };
   });
 
-  const uploaded = await uploadNewPhotos({ recordId, photoFiles, storage, resize, mayAlreadyExist: mayAlreadyBeSaved, onProgress });
+  const uploaded = await uploadNewPhotos({ recordId, photoFiles, storage, resize, mayAlreadyExist: mayAlreadyBeSaved, mayHaveLeftovers: draft.mayHaveLeftoverPhotos === true, onProgress });
 
   onProgress?.({ step: "saving", done: photoFiles.length, total: photoFiles.length });
   const { error, mayHaveApplied } = await callWithRetry(() => createRecord(args));
@@ -137,7 +137,7 @@ export const updateDateRecord = async ({
     return file ? [{ id, file }] : [];
   });
 
-  const uploaded = await uploadNewPhotos({ recordId, photoFiles, storage, resize, mayAlreadyExist: mayAlreadyBeSaved, onProgress });
+  const uploaded = await uploadNewPhotos({ recordId, photoFiles, storage, resize, mayAlreadyExist: mayAlreadyBeSaved, mayHaveLeftovers: draft.mayHaveLeftoverPhotos === true, onProgress });
 
   onProgress?.({ step: "saving", done: photoFiles.length, total: photoFiles.length });
   const { error, mayHaveApplied } = await callWithRetry(() => updateRecord(args));
@@ -164,6 +164,7 @@ const toSaveError = (error: RecordRpcError, mayHaveSaved: boolean): SaveDateReco
 interface UploadNewPhotosParams extends Pick<SaveDateRecordParams, "storage" | "resize" | "onProgress"> {
   recordId: string;
   mayAlreadyExist: boolean;
+  mayHaveLeftovers: boolean;
   photoFiles: { id: string; file: File }[];
 }
 
@@ -174,6 +175,7 @@ const uploadNewPhotos = async ({
   storage,
   resize,
   mayAlreadyExist,
+  mayHaveLeftovers,
   onProgress,
 }: UploadNewPhotosParams): Promise<UploadedPhoto[]> => {
   const total = photoFiles.length;
@@ -186,6 +188,7 @@ const uploadNewPhotos = async ({
     photos: photoFiles.map(({ id, file }) => ({ photoId: id, file })),
     resize,
     mayAlreadyExist,
+    mayHaveLeftovers,
     onProgress: (done) => onProgress?.({ step: "uploading", done, total }),
   });
 };

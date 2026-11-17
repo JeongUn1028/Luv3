@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { PhotoError } from "@/lib/photos/errors";
 import type { PhotoStorage } from "@/lib/photos/upload-file";
 import type { DateRecordDraft } from "./form";
+import { toFailedRecordFields } from "./record-form-outcome";
 import { saveDateRecord, updateDateRecord, type SaveProgress } from "./save";
 import { DateRecordAlreadyLinkedError, DateRecordConflictError, DateRecordGoneError, SaveDateRecordError } from "./save-errors";
 
@@ -399,5 +400,43 @@ describe("updateDateRecord", () => {
     await expect(
       updateDateRecord({ recordId: RECORD_ID, draft: editedDraft, files: newFiles, storage, resize, updateRecord }),
     ).resolves.toBeUndefined();
+  });
+
+  it("새 사진을 올리다 끊기고 정리도 실패해 파일이 남아도, 다시 저장하면 남은 파일을 이미 올린 것으로 보고 고친다(#408)", async () => {
+    // Arrange: 새 사진 C·D 중 C는 올라갔고 D에서 끊겼으며, 올린 파일을 지우는 요청도 끊겼다
+    const PHOTO_D = "20000000-0000-4000-8000-00000000000d";
+    const twoNewDraft: DateRecordDraft = { ...editedDraft, groups: [group([{ id: PHOTO_C }, { id: PHOTO_D }, { id: PHOTO_A }])] };
+    const twoNewFiles = new Map([...newFiles, [PHOTO_D, new File(["d"], "d.jpg", { type: "image/jpeg" })]]);
+    const stored = new Set<string>();
+    let isOnline = false;
+    const storage: PhotoStorage = {
+      upload: vi.fn(async (path: string) => {
+        if (stored.has(path)) return { error: { message: "The resource already exists", statusCode: "409", status: 400 } };
+        if (!isOnline && path.includes(PHOTO_D)) throw new TypeError("Failed to fetch");
+        stored.add(path);
+        return { error: null };
+      }),
+      remove: vi.fn(async (paths: string[]) => {
+        if (!isOnline) throw new TypeError("Failed to fetch");
+        paths.forEach((path) => stored.delete(path));
+        return { error: null };
+      }),
+    };
+    const updateRecord = vi.fn(async () => ({ data: [], error: null }));
+    const save = (attempt: DateRecordDraft) => updateDateRecord({ recordId: RECORD_ID, draft: attempt, files: twoNewFiles, storage, resize, updateRecord });
+    await expect(save(twoNewDraft)).rejects.toBeInstanceOf(PhotoError);
+    expect(stored.has(`${RECORD_ID}/${PHOTO_C}.jpg`)).toBe(true);
+    // 폼은 실패하면 다음 시도에 쓸 칸을 기억한다. 사진 실패는 저장됐을 수 있는 실패가 아니라 uncertainSaveRecordId는 없다
+    const failedFields = toFailedRecordFields({ failure: { hasConflict: false, mayHaveSaved: false }, draft: twoNewDraft, recordId: RECORD_ID });
+
+    // Act: 다시 연결한 뒤 같은 내용으로 저장한다
+    isOnline = true;
+    await save({ ...twoNewDraft, ...failedFields });
+
+    // Assert
+    expect(updateRecord).toHaveBeenCalledOnce();
+    expect([...stored].sort()).toEqual(
+      [PHOTO_C, PHOTO_D].flatMap((id) => [`${RECORD_ID}/${id}.jpg`, `${RECORD_ID}/${id}_thumb.jpg`]).sort(),
+    );
   });
 });
