@@ -1,0 +1,90 @@
+"use client";
+
+import Link from "next/link";
+import type { MouseEvent, ReactElement } from "react";
+import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
+import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
+import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
+import { TODOS_PATH, type Todo } from "@/lib/todos/list";
+import type { ShownTodo } from "@/lib/todos/pending";
+
+/**
+ * 항목의 완료 체크 id. 다른 목록으로 옮겨 그린 뒤 초점을 돌려줄 때 찾는다.
+ *
+ * @example document.getElementById(toCheckboxId(todo.id))?.focus();
+ */
+export const toCheckboxId = (todoId: string): string => `todo-${todoId}-done`;
+
+// 저장 중인 항목이 저장을 마치면 흐린 모양에서 원래 모양으로 부드럽게 바뀐다(#345). 자리는 그대로라 움직이지 않는다
+const MOVE_BUTTON_CLASS_NAME = `flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink press-icon aria-disabled:opacity-25 aria-disabled:hover:text-ink-sub ${SETTLE_TRANSITION_CLASS_NAME}`;
+
+interface TodoMoveButtonsProps {
+  content: string;
+  /** 끝에 있는 버튼은 초점을 잃지 않도록 disabled 대신 aria-disabled로 두고, 누르면 `onMove`에서 막는다 */
+  isFirst: boolean;
+  isLast: boolean;
+  onMove: (offset: -1 | 1) => void;
+}
+
+/**
+ * 하지 않은 항목의 오른쪽 끝 위·아래 버튼. 한 칸씩 옮겨 화면 읽기 프로그램으로도 같은 방법으로 바꿀 수 있다.
+ *
+ * @example <TodoMoveButtons content="바다 보기" isFirst={false} isLast onMove={(offset) => handleMove(todo, offset)} />
+ */
+export const TodoMoveButtons = ({ content, isFirst, isLast, onMove }: TodoMoveButtonsProps): ReactElement => (
+  <>
+    <button type="button" aria-label={`${content} 위로 옮기기`} aria-disabled={isFirst} onClick={() => onMove(-1)} className={MOVE_BUTTON_CLASS_NAME}>
+      <ChevronUpIcon className="size-5" />
+    </button>
+    <button type="button" aria-label={`${content} 아래로 옮기기`} aria-disabled={isLast} onClick={() => onMove(1)} className={MOVE_BUTTON_CLASS_NAME}>
+      <ChevronDownIcon className="size-5" />
+    </button>
+  </>
+);
+
+interface TodoItemProps {
+  todo: ShownTodo;
+  onToggle: (todo: Todo, isCompleted: boolean) => void;
+  /** 오른쪽 끝 버튼(순서 바꾸기). 완료한 항목에는 없다 */
+  children?: ReactElement;
+}
+
+/** 저장 중인 항목은 고치기 화면을 열지 않는다. 새 항목은 아직 서버에 없어 찾을 수 없다고 나온다 */
+const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDefault();
+
+/**
+ * 목록 한 줄: 완료 체크 + 내용(누르면 고치기 화면) + 순서 버튼. 저장 중이면 흐리게 그리고 누를 수 없게 한다.
+ *
+ * @example <TodoItem todo={todo} onToggle={handleToggle} />
+ */
+export const TodoItem = ({ todo, onToggle, children }: TodoItemProps): ReactElement => {
+  const isCompleted = todo.completedAt !== undefined;
+  const { isPending } = todo;
+  const textColorClassName = isCompleted || isPending ? "text-ink-sub" : "text-ink";
+  return (
+    <li className="flex min-h-[60px] items-center border-b border-line">
+      <label className="flex size-11 shrink-0 cursor-pointer items-center justify-center">
+        <input
+          id={toCheckboxId(todo.id)}
+          type="checkbox"
+          checked={isCompleted}
+          disabled={isPending}
+          aria-label={`${todo.content} 완료`}
+          onChange={(event) => onToggle(todo, event.target.checked)}
+          className={`size-5 accent-accent disabled:opacity-35 ${SETTLE_TRANSITION_CLASS_NAME}`}
+        />
+      </label>
+      <Link
+        href={`${TODOS_PATH}/${todo.id}/edit`}
+        transitionTypes={FORWARD_TRANSITION}
+        aria-disabled={isPending}
+        onClick={isPending ? preventOpening : undefined}
+        className={`min-w-0 flex-1 py-3 pr-2 text-[15px] leading-[1.5] break-words ${textColorClassName} ${isCompleted ? "line-through" : ""} ${SETTLE_TRANSITION_CLASS_NAME}`}
+      >
+        {todo.content}
+        {isPending && <span className="sr-only"> (저장 중)</span>}
+      </Link>
+      {children}
+    </li>
+  );
+};

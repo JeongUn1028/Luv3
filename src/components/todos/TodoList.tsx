@@ -1,24 +1,15 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, useSyncExternalStore, type MouseEvent, type ReactElement } from "react";
-import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
-import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
+import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, useSyncExternalStore, type ReactElement } from "react";
+import { toCheckboxId, TodoItem, TodoMoveButtons } from "@/components/todos/TodoItem";
 import { DELETING_KEYS, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
-import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { createClient } from "@/lib/supabase/client";
 import { saveTodoAction, TODO_ACTION_FAILED_MESSAGE } from "@/lib/todos/actions";
-import { applyTodoAction, groupTodos, TODOS_PATH, type Todo, type TodoAction } from "@/lib/todos/list";
+import { applyTodoAction, groupTodos, type Todo, type TodoAction } from "@/lib/todos/list";
 import { findSettledPendingIds, mergePendingTodos, pendingTodoStore, type PendingTodo, type ShownTodo } from "@/lib/todos/pending";
-
-/** 항목의 완료 체크 id. 다른 목록으로 옮겨 그린 뒤 초점을 돌려줄 때 찾는다 */
-const toCheckboxId = (todoId: string): string => `todo-${todoId}-done`;
-
-// 저장 중인 항목이 저장을 마치면 흐린 모양에서 원래 모양으로 부드럽게 바뀐다(#345). 자리는 그대로라 움직이지 않는다
-const MOVE_BUTTON_CLASS_NAME = `flex size-11 shrink-0 items-center justify-center text-ink-sub hover:text-ink press-icon aria-disabled:opacity-25 aria-disabled:hover:text-ink-sub ${SETTLE_TRANSITION_CLASS_NAME}`;
 
 // 서버에서 그릴 때는 저장 중인 항목이 없다. 같은 값을 돌려줘야 다시 그리지 않는다
 const NO_PENDING_TODOS: readonly PendingTodo[] = [];
@@ -145,24 +136,12 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
             const index = todo.isPending ? -1 : (movableIndexById.get(todo.id) ?? -1);
             return (
               <TodoItem key={todo.id} todo={todo} onToggle={handleToggle}>
-                <button
-                  type="button"
-                  aria-label={`${todo.content} 위로 옮기기`}
-                  aria-disabled={index <= 0}
-                  onClick={() => handleMove(todo, -1)}
-                  className={MOVE_BUTTON_CLASS_NAME}
-                >
-                  <ChevronUpIcon className="size-5" />
-                </button>
-                <button
-                  type="button"
-                  aria-label={`${todo.content} 아래로 옮기기`}
-                  aria-disabled={index === -1 || index === movable.length - 1}
-                  onClick={() => handleMove(todo, 1)}
-                  className={MOVE_BUTTON_CLASS_NAME}
-                >
-                  <ChevronDownIcon className="size-5" />
-                </button>
+                <TodoMoveButtons
+                  content={todo.content}
+                  isFirst={index <= 0}
+                  isLast={index === -1 || index === movable.length - 1}
+                  onMove={(offset) => handleMove(todo, offset)}
+                />
               </TodoItem>
             );
           })}
@@ -182,48 +161,5 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
         </section>
       )}
     </div>
-  );
-};
-
-interface TodoItemProps {
-  todo: ShownTodo;
-  onToggle: (todo: Todo, isCompleted: boolean) => void;
-  /** 오른쪽 끝 버튼(순서 바꾸기). 완료한 항목에는 없다 */
-  children?: ReactElement[];
-}
-
-/** 저장 중인 항목은 고치기 화면을 열지 않는다. 새 항목은 아직 서버에 없어 찾을 수 없다고 나온다 */
-const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDefault();
-
-/** 목록 한 줄: 완료 체크 + 내용(누르면 고치기 화면) + 순서 버튼. 저장 중이면 흐리게 그리고 누를 수 없게 한다 */
-const TodoItem = ({ todo, onToggle, children }: TodoItemProps): ReactElement => {
-  const isCompleted = todo.completedAt !== undefined;
-  const { isPending } = todo;
-  const textColorClassName = isCompleted || isPending ? "text-ink-sub" : "text-ink";
-  return (
-    <li className="flex min-h-[60px] items-center border-b border-line">
-      <label className="flex size-11 shrink-0 cursor-pointer items-center justify-center">
-        <input
-          id={toCheckboxId(todo.id)}
-          type="checkbox"
-          checked={isCompleted}
-          disabled={isPending}
-          aria-label={`${todo.content} 완료`}
-          onChange={(event) => onToggle(todo, event.target.checked)}
-          className={`size-5 accent-accent disabled:opacity-35 ${SETTLE_TRANSITION_CLASS_NAME}`}
-        />
-      </label>
-      <Link
-        href={`${TODOS_PATH}/${todo.id}/edit`}
-        transitionTypes={FORWARD_TRANSITION}
-        aria-disabled={isPending}
-        onClick={isPending ? preventOpening : undefined}
-        className={`min-w-0 flex-1 py-3 pr-2 text-[15px] leading-[1.5] break-words ${textColorClassName} ${isCompleted ? "line-through" : ""} ${SETTLE_TRANSITION_CLASS_NAME}`}
-      >
-        {todo.content}
-        {isPending && <span className="sr-only"> (저장 중)</span>}
-      </Link>
-      {children}
-    </li>
   );
 };
