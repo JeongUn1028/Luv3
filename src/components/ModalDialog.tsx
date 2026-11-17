@@ -33,6 +33,8 @@ interface ModalDialogProps {
   shouldGuardDoubleTap?: boolean;
   /** 화면 전체를 덮는다(지도에서 위치 고르기, #298). 머리글에 닫기 버튼을 두고, 내용은 남은 높이를 세로로 채운다 */
   isFullScreen?: boolean;
+  /** 화면 전체 창의 머리글 가운데에 제목 대신 보일 글자(사진 크게 보기의 "1 / 3", #350). 제목은 화면 읽기 프로그램에만 남는다 */
+  headerLabel?: ReactNode;
   children: ReactNode;
 }
 
@@ -55,6 +57,7 @@ export const ModalDialog = ({
   shouldCloseOnOutsideClick = false,
   shouldGuardDoubleTap = false,
   isFullScreen = false,
+  headerLabel,
   children,
 }: ModalDialogProps): ReactElement => {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -146,9 +149,10 @@ export const ModalDialog = ({
               <CloseIcon className="size-[22px]" />
               <span className="sr-only">닫기</span>
             </button>
-            <h2 id={titleId} className="min-w-0 truncate font-display text-[19px]">
+            <h2 id={titleId} className={headerLabel === undefined ? "min-w-0 truncate font-display text-[19px]" : "sr-only"}>
               {title}
             </h2>
+            {headerLabel !== undefined && <span className="min-w-0 font-display text-[15px] tracking-[2px] text-ink-sub">{headerLabel}</span>}
             <span aria-hidden="true" className="w-11 shrink-0" />
           </div>
           {/* 두 줄이 되어도 낱말 중간에서 끊지 않는다. 띄어쓰기 없이 긴 제목(일정 이름 등)은 break-words가 나눈다 */}
