@@ -23,6 +23,11 @@ export interface ResizeAndUploadPhotosParams {
   resize: (file: File) => Promise<ResizedPhoto>;
   /** 앞선 저장 시도가 올렸을 수 있으면 true. 이미 있어도 성공으로 보고, 저장된 기록이 가리킬 수 있어 실패해도 지우지 않는다 */
   mayAlreadyExist?: boolean;
+  /**
+   * 앞선 저장 시도가 실패하고 그 정리도 끊겨 이번 경로에 파일이 남았을 수 있으면 true(#408). 이미 있어도 성공으로 보되,
+   * 저장된 기록이 가리키는 파일은 아니므로 이번 시도가 실패하면 함께 지운다
+   */
+  mayHaveLeftovers?: boolean;
   /** 사진 한 장(원본+썸네일)을 다 올릴 때마다 (올린 장수, 전체 장수)로 불린다 */
   onProgress?: (uploadedCount: number, totalCount: number) => void;
 }
@@ -64,8 +69,10 @@ export const resizeAndUploadPhotos = async ({
   photos,
   resize,
   mayAlreadyExist = false,
+  mayHaveLeftovers = false,
   onProgress,
 }: ResizeAndUploadPhotosParams): Promise<UploadedPhoto[]> => {
+  const mayFileExist = mayAlreadyExist || mayHaveLeftovers;
   // id 형식 오류는 코드 실수라, 일부를 올린 뒤 "다시 시도해 주세요"로 감추지 않도록 올리기 전에 모두 확인한다
   const targets = photos.map((photo) => ({ ...photo, ...buildPhotoPaths(dateId, photo.photoId) }));
   const uploaded: UploadedPhoto[] = [];
@@ -76,11 +83,11 @@ export const resizeAndUploadPhotos = async ({
 
   const uploadOne = async ({ photoId, path, thumbPath }: PhotoPaths & { photoId: string }, { original, thumb }: ResizedPhoto): Promise<void> => {
     attemptedPaths.push(path);
-    await uploadPhotoFile({ storage, path, body: original, mayAlreadyExist });
+    await uploadPhotoFile({ storage, path, body: original, mayAlreadyExist: mayFileExist });
     // 다른 사진이 이미 실패했으면 어차피 지울 파일이라 더 올리지 않는다
     if (failure) return;
     attemptedPaths.push(thumbPath);
-    await uploadPhotoFile({ storage, path: thumbPath, body: thumb, mayAlreadyExist });
+    await uploadPhotoFile({ storage, path: thumbPath, body: thumb, mayAlreadyExist: mayFileExist });
     uploaded.push({ photoId, path, thumbPath });
     onProgress?.(uploaded.length, targets.length);
   };

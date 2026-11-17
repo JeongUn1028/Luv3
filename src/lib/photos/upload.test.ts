@@ -303,6 +303,29 @@ describe("resizeAndUploadPhotos", () => {
     expect(storage.remove).not.toHaveBeenCalled();
   });
 
+  it("앞선 시도의 파일이 남았을 수 있으면 처음부터 이미 있어도 성공으로 본다(#408)", async () => {
+    const { storage } = createFakeStorage({
+      failures: { [`${DATE_ID}/${PHOTO_A}.jpg`]: Infinity },
+      failWith: { message: "The resource already exists", status: 400, statusCode: "409" },
+    });
+
+    await expect(resizeAndUploadPhotos({ storage, dateId: DATE_ID, resize: fakeResize, photos: [photo(PHOTO_A)], mayHaveLeftovers: true })).resolves.toHaveLength(1);
+
+    expect(storage.upload).toHaveBeenCalledTimes(2);
+  });
+
+  it("앞선 시도의 파일이 남았을 수 있어도 저장된 기록이 가리키지 않으므로, 이번에 실패하면 시도한 파일을 지운다(#408)", async () => {
+    const { storage, files } = createFakeStorage({ failures: { [`${DATE_ID}/${PHOTO_B}.jpg`]: Infinity } });
+    files.set(`${DATE_ID}/${PHOTO_A}.jpg`, blob());
+
+    await expect(
+      resizeAndUploadPhotos({ storage, dateId: DATE_ID, resize: fakeResize, photos: [photo(PHOTO_A), photo(PHOTO_B)], mayHaveLeftovers: true }),
+    ).rejects.toBeInstanceOf(PhotoError);
+
+    expect(storage.remove).toHaveBeenCalledOnce();
+    expect(files.size).toBe(0);
+  });
+
   it("앞선 저장 시도가 올렸을 수 있으면 올리지 못해도 파일을 지우지 않는다", async () => {
     // 저장된 기록이 이 파일을 가리키고 있을 수 있다
     const { storage } = createFakeStorage({ failures: { [`${DATE_ID}/${PHOTO_A}.jpg`]: Infinity } });

@@ -18,17 +18,17 @@ describe("toFailedRecordFields", () => {
       recordId: "r1",
     });
 
-    expect(fields).toEqual({ hasConflict: false, expectedRevisions: ["rev-1", "rev-2"], uncertainSaveRecordId: "r1" });
+    expect(fields).toEqual({ hasConflict: false, expectedRevisions: ["rev-1", "rev-2"], uncertainSaveRecordId: "r1", mayHaveLeftoverPhotos: true });
   });
 
-  it("저장되지 않은 게 분명하면 앞서 기억한 기록 id와 판 번호를 그대로 둔다", () => {
+  it("저장되지 않은 게 분명하면 앞서 기억한 기록 id와 판 번호를 그대로 두고, 지우지 못한 사진 파일이 남았을 수 있다고 기억한다", () => {
     const fields = toFailedRecordFields({
       failure: failure(),
       draft: { expectedRevisions: ["rev-1"], nextRevision: "rev-2", uncertainSaveRecordId: "r0" },
       recordId: "r0",
     });
 
-    expect(fields).toEqual({ hasConflict: false, expectedRevisions: ["rev-1"], uncertainSaveRecordId: "r0" });
+    expect(fields).toEqual({ hasConflict: false, expectedRevisions: ["rev-1"], uncertainSaveRecordId: "r0", mayHaveLeftoverPhotos: true });
   });
 
   it("상대가 먼저 고쳤으면 충돌을 기억한다", () => {
@@ -48,7 +48,7 @@ describe("toFailedRecordFields", () => {
       recordId: "new-1",
     });
 
-    expect(fields).toEqual({ hasConflict: false, expectedRevisions: undefined, uncertainSaveRecordId: "new-1" });
+    expect(fields).toEqual({ hasConflict: false, expectedRevisions: undefined, uncertainSaveRecordId: "new-1", mayHaveLeftoverPhotos: true });
   });
 });
 
