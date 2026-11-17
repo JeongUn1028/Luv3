@@ -6,12 +6,16 @@ import { startTransition, useRef, useState, useTransition, type ReactElement } f
 import { ModalActions, ModalMessage } from "@/components/ModalActions";
 import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import { formatEventTime } from "@/lib/calendar/month";
+import type { DateRecordDetail } from "@/lib/dates/detail";
 import { formatRecordShortDate } from "@/lib/dates/record-date-format";
 import { linkRecordToEvent, toEventLinkMessage, unlinkRecordFromEvent } from "@/lib/dates/event-link";
 import type { LinkableEvent } from "@/lib/events/record-link";
 import { formatEventPeriod, toEventEditHref } from "@/lib/events/recurrence";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
+
+/** 기록에 이어진 일정. 서버가 그리는 값(`DateRecordDetail.linkedEvent`)과 같은 모양이다 */
+type LinkedEvent = NonNullable<DateRecordDetail["linkedEvent"]>;
 
 const describeEventDay = ({ eventDate, period, startTime }: LinkableEvent): string =>
   [period ? formatEventPeriod(period) : formatRecordShortDate({ date: eventDate, endDate: undefined }), startTime && formatEventTime(startTime)]
@@ -51,22 +55,15 @@ interface LinkEventButtonProps {
   recordId: string;
   /** 이 기록을 이을 수 있는 일정의 그날. 하나 이상이다 */
   events: LinkableEvent[];
+  /** 이으면 부른다. 부른 쪽이 이어진 일정 줄을 그린다 */
+  onLinked: (event: LinkedEvent) => void;
 }
 
-/**
- * 기록 상세의 "일정과 잇기"(#237). 기록 기간에 있는 함께 일정을 골라 바로 잇는다.
- *
- * @example <LinkEventButton recordId={record.id} events={events} />
- */
-export const LinkEventButton = ({ recordId, events }: LinkEventButtonProps): ReactElement => {
+/** 기록 상세의 "일정과 잇기"(#237). 기록 기간에 있는 함께 일정을 골라 바로 잇는다 */
+const LinkEventButton = ({ recordId, events, onLinked }: LinkEventButtonProps): ReactElement => {
   const modalRef = useRef<ModalDialogHandle>(null);
   const [linkingKey, setLinkingKey] = useState<string>();
-  // 이은 일정. 새 화면이 오기 전에 이어진 일정 줄을 먼저 그린다
-  const [linkedEvent, setLinkedEvent] = useState<LinkedEventRowProps["event"]>();
   const { message, setMessage, isPending, runChange } = useLinkChange();
-
-  // 끊으면 다시 이 버튼으로 돌아온다. 새 화면이 와도 이 버튼은 그대로 남으므로(서버가 같은 자리에 그린다) 이은 상태를 여기서 푼다
-  if (linkedEvent) return <LinkedEventRow recordId={recordId} event={linkedEvent} onUnlinked={() => setLinkedEvent(undefined)} />;
 
   return (
     <>
@@ -105,7 +102,7 @@ export const LinkEventButton = ({ recordId, events }: LinkEventButtonProps): Rea
                         modalRef.current?.close();
                         // 서버가 그리는 이어진 일정 줄과 같은 주소다(toDateRecordDetail)
                         const href = toEventEditHref({ id: event.eventId, date: event.eventDate, repeatRule: event.repeatRule, period: undefined });
-                        setLinkedEvent({ id: event.eventId, title: event.title, href });
+                        onLinked({ id: event.eventId, title: event.title, href });
                       },
                     );
                   }}
@@ -136,23 +133,15 @@ export const LinkEventButton = ({ recordId, events }: LinkEventButtonProps): Rea
 
 interface LinkedEventRowProps {
   recordId: string;
-  event: { id: string; title: string; href: string };
-  /** 끊은 뒤 부른 쪽이 결과를 그린다. 없으면 이 줄을 뺀다 */
-  onUnlinked?: () => void;
+  event: LinkedEvent;
+  /** 끊으면 부른다. 부른 쪽이 결과를 그린다 */
+  onUnlinked: () => void;
 }
 
-/**
- * 기록 상세에서 이어진 일정을 보여 주고 연결만 끊는 줄(#237). 기록과 일정은 그대로 남는다. 일정 이름을 누르면 그 일정으로 간다.
- *
- * @example <LinkedEventRow recordId={record.id} event={record.linkedEvent} />
- */
-export const LinkedEventRow = ({ recordId, event, onUnlinked }: LinkedEventRowProps): ReactElement => {
+/** 기록 상세에서 이어진 일정을 보여 주고 연결만 끊는 줄(#237). 기록과 일정은 그대로 남는다. 일정 이름을 누르면 그 일정으로 간다 */
+const LinkedEventRow = ({ recordId, event, onUnlinked }: LinkedEventRowProps): ReactElement => {
   const modalRef = useRef<ModalDialogHandle>(null);
-  // 끊었으면 새 화면이 오기 전에 줄을 먼저 뺀다. 새 화면이 오면 이을 일정 버튼이 나온다
-  const [isUnlinked, setIsUnlinked] = useState(false);
   const { message, setMessage, isPending, runChange } = useLinkChange();
-
-  if (isUnlinked) return <></>;
 
   return (
     <div className="mt-4 flex min-h-[51px] items-center gap-3 rounded-[10px] border border-line px-4 py-1">
@@ -186,8 +175,7 @@ export const LinkedEventRow = ({ recordId, event, onUnlinked }: LinkedEventRowPr
               () => unlinkRecordFromEvent({ recordId, eventId: event.id }),
               () => {
                 modalRef.current?.close();
-                if (onUnlinked) onUnlinked();
-                else setIsUnlinked(true);
+                onUnlinked();
               },
             )
           }
@@ -196,4 +184,39 @@ export const LinkedEventRow = ({ recordId, event, onUnlinked }: LinkedEventRowPr
       </ModalDialog>
     </div>
   );
+};
+
+/** 잇기·끊기 결과를 새 화면보다 먼저 그린 것. `linked`가 undefined면 끊은 것이다 */
+interface LocalLink {
+  linked: LinkedEvent | undefined;
+}
+
+const isSameLink = (local: LinkedEvent | undefined, server: LinkedEvent | undefined): boolean => local?.id === server?.id;
+
+interface RecordEventLinkProps {
+  recordId: string;
+  /** 서버가 읽은 이어진 일정. 없으면 undefined */
+  linkedEvent: LinkedEvent | undefined;
+  /** 이을 수 있는 일정의 그날. 이어진 일정이 있거나 못 읽었으면 비어 있다 */
+  events: LinkableEvent[];
+}
+
+/**
+ * 기록 상세의 일정 잇기·끊기 칸(#237). 이어져 있으면 끊는 줄을, 아니면 이을 일정이 있을 때 잇기 버튼을 그린다.
+ * 잇기·끊기 결과는 새 화면을 기다리지 않고 먼저 그리고(#346), 서버가 같은 결과를 그려 오면 서버 값으로 돌아간다.
+ * 서버가 그린 줄과 먼저 그린 줄이 같은 자리의 같은 컴포넌트라, 이은 직후 연 끊기 창이 새 화면이 와도 닫히지 않는다(#391).
+ * 앞선 변경의 새 화면이 늦게 와도(이은 뒤 바로 끊음) 먼저 그린 결과와 다르면 무시한다.
+ *
+ * @example <RecordEventLink recordId={record.id} linkedEvent={record.linkedEvent} events={events} />
+ */
+export const RecordEventLink = ({ recordId, linkedEvent, events }: RecordEventLinkProps): ReactElement | null => {
+  const [local, setLocal] = useState<LocalLink>();
+  // 서버가 먼저 그린 결과를 따라잡으면 서버 값을 따른다. 그 뒤 상대가 바꾼 연결도 새 화면에서 그대로 보인다
+  if (local && isSameLink(local.linked, linkedEvent)) setLocal(undefined);
+  const shown = local ? local.linked : linkedEvent;
+
+  if (shown) return <LinkedEventRow recordId={recordId} event={shown} onUnlinked={() => setLocal({ linked: undefined })} />;
+  // 이어져 있던 화면은 이을 일정을 읽지 않았다. 끊은 뒤 새 화면이 오면 잇기 버튼이 나온다
+  if (events.length === 0) return null;
+  return <LinkEventButton recordId={recordId} events={events} onLinked={(event) => setLocal({ linked: event })} />;
 };

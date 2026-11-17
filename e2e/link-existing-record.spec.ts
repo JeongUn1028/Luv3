@@ -232,6 +232,87 @@ test.describe("이미 쓴 기록을 일정에 잇기", () => {
     }
   });
 
+  // 이은 직후 연 끊기 창이 뒤늦게 온 새 화면 때문에 사라지면 안 된다(#391). 새 화면을 붙잡아 순서를 정한다
+  test("기록 상세에서 이은 직후 연 끊기 창은 새 화면이 와도 열린 채 남고, 끊을 수 있다", async ({ page }, testInfo) => {
+    // Arrange
+    const date = `${getMonth(testInfo)}-12`;
+    const recordId = randomUUID();
+    const title = createTestName("E2E 끊기 창 일정", testInfo);
+    const recordTitle = createTestName("E2E 끊기 창 기록", testInfo);
+    const deleteEvent = await createDisposableEvent({ id: randomUUID(), title, date });
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: recordTitle, date });
+    const linkButton = page.getByRole("button", { name: "일정과 잇기", exact: true }).locator("visible=true");
+    const unlinkButton = page.getByRole("button", { name: "연결 끊기", exact: true }).locator("visible=true");
+    let releaseRefresh = async (): Promise<void> => undefined;
+
+    try {
+      await openScreen(page, `/dates/${recordId}`, linkButton);
+      releaseRefresh = await holdScreenRefresh(page, `/dates/${recordId}`);
+      await openChooser(page, linkButton);
+      await getDialog(page).getByRole("button", { name: `${title} 일정과 잇기` }).click();
+      await unlinkButton.click();
+      await expect(getDialog(page)).toBeVisible();
+
+      // Act: 잇기 뒤의 새 화면이 끊기 창을 연 뒤에 온다
+      await releaseRefresh();
+
+      // Assert
+      await expect(getDialog(page)).toBeVisible();
+      await getDialog(page).getByRole("button", { name: "연결 끊기" }).click();
+      await expect(getDialog(page)).toHaveCount(0);
+      await expect(unlinkButton).toHaveCount(0);
+      await expect(linkButton).toBeVisible();
+    } finally {
+      await releaseRefresh();
+      await deleteRecord();
+      await deleteEvent();
+    }
+  });
+
+  // 잇기 뒤의 새 화면이 끊은 뒤에 늦게 오면, 이미 끊은 줄을 잠깐이라도 다시 그리면 안 된다
+  test("기록 상세에서 이은 뒤 바로 끊으면, 늦게 온 잇기 뒤의 새 화면이 끊은 줄을 다시 그리지 않는다", async ({ page }, testInfo) => {
+    // Arrange
+    const date = `${getMonth(testInfo)}-13`;
+    const recordId = randomUUID();
+    const title = createTestName("E2E 늦은 화면 일정", testInfo);
+    const recordTitle = createTestName("E2E 늦은 화면 기록", testInfo);
+    const deleteEvent = await createDisposableEvent({ id: randomUUID(), title, date });
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: recordTitle, date });
+    const linkButton = page.getByRole("button", { name: "일정과 잇기", exact: true }).locator("visible=true");
+    const unlinkButton = page.getByRole("button", { name: "연결 끊기", exact: true }).locator("visible=true");
+    let releaseRefresh = async (): Promise<void> => undefined;
+
+    try {
+      await openScreen(page, `/dates/${recordId}`, linkButton);
+      releaseRefresh = await holdScreenRefresh(page, `/dates/${recordId}`);
+      await openChooser(page, linkButton);
+      await getDialog(page).getByRole("button", { name: `${title} 일정과 잇기` }).click();
+      await unlinkButton.click();
+      await getDialog(page).getByRole("button", { name: "연결 끊기" }).click();
+      await expect(linkButton).toBeVisible();
+      // 이 뒤로 끊기 버튼이 한 번이라도 다시 그려지는지 적는다
+      await page.evaluate(() => {
+        const isUnlinkShown = () => [...document.querySelectorAll("main button")].some((button) => button.textContent === "연결 끊기");
+        new MutationObserver(() => {
+          if (isUnlinkShown()) Object.assign(window, { unlinkReappeared: true });
+        }).observe(document.body, { childList: true, subtree: true });
+      });
+
+      // Act: 잇기·끊기 뒤의 새 화면이 차례로 온다
+      await releaseRefresh();
+      await page.waitForLoadState("networkidle");
+
+      // Assert
+      await expect(linkButton).toBeVisible();
+      await expect(unlinkButton).toHaveCount(0);
+      expect(await page.evaluate(() => (window as unknown as { unlinkReappeared?: boolean }).unlinkReappeared ?? false)).toBe(false);
+    } finally {
+      await releaseRefresh();
+      await deleteRecord();
+      await deleteEvent();
+    }
+  });
+
   test("기록 상세에서 일정과 잇고, 연결을 끊으면 기록과 일정은 남고 캘린더에 다시 두 줄로 보인다", async ({ page }, testInfo) => {
     // Arrange
     const date = `${getMonth(testInfo)}-18`;
