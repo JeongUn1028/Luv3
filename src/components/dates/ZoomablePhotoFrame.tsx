@@ -1,7 +1,8 @@
 "use client";
 
 import { useRef, useState, type CSSProperties, type PointerEvent, type ReactElement, type ReactNode } from "react";
-import { NO_ZOOM, clampPhotoZoom, isDoubleTap, toDoubleTapZoom, toPinchZoom, type PhotoZoom } from "@/lib/dates/photo-zoom";
+import { isDismissDrag, shouldDismissPhoto, toDismissZoom, toReleaseVelocity, type DragSample } from "@/lib/dates/photo-dismiss";
+import { NO_ZOOM, clampPhotoZoom, isDoubleTap, toDoubleTapZoom, toPinchZoom, type PhotoZoom, type Point } from "@/lib/dates/photo-zoom";
 
 interface ZoomablePhotoFrameProps {
   /** 지금 보는 사진인지. 넘겨서 다른 사진이 되면 원래 크기로 돌린다 */
@@ -10,23 +11,25 @@ interface ZoomablePhotoFrameProps {
   onZoomedChange: (isZoomed: boolean) => void;
   /** 두 손가락 손동작을 시작하고 끝낼 때 알린다. 그사이 사진 줄이 넘어가지 않게 붙든다 */
   onPinchingChange: (isPinching: boolean) => void;
+  /** 원래 크기에서 아래로 밀어 놓으면 부른다. 크게 보기를 닫는다 */
+  onDismiss: () => void;
   /** 확대 모양을 받아 사진을 그린다. 사진은 칸의 첫 요소여야 크기를 잴 수 있다 */
   children: (zoomStyle: CSSProperties) => ReactNode;
-}
-
-interface Point {
-  x: number;
-  y: number;
 }
 
 /** 지금 한 손가락 또는 두 손가락으로 하는 일 */
 type Gesture =
   | { kind: "none" }
   | { kind: "pan"; start: PhotoZoom; startPoint: Point }
-  | { kind: "pinch"; start: PhotoZoom; startCenter: Point; startDistance: number };
+  | { kind: "pinch"; start: PhotoZoom; startCenter: Point; startDistance: number }
+  // 원래 크기에서 아래로 밀어 닫는 중. 놓을 때 빠르기를 재려고 움직임을 기록한다
+  | { kind: "dismiss"; startPoint: Point; samples: DragSample[] }
+  // 원래 크기에서 옆으로 끄는 중. 사진 줄(Embla)이 넘기므로 손대지 않는다
+  | { kind: "slide" };
 
 // 이만큼 넘게 움직이면 누르기가 아니라 끌기로 본다
 const TAP_MOVE_PX = 10;
+const MAX_DRAG_SAMPLES = 20;
 
 const toCenterAndDistance = ([first, second]: Point[]): { center: Point; distance: number } => ({
   center: { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 },
@@ -35,11 +38,12 @@ const toCenterAndDistance = ([first, second]: Point[]): { center: Point; distanc
 
 /**
  * 크게 보기 사진 칸(#350). 두 손가락으로 벌리고 오므려 키우고 줄이고, 두 번 누르면 확대·원래 크기를 오가며, 확대한 동안 한 손가락으로 옮긴다.
+ * 원래 크기에서 아래로 밀어 놓으면 닫는다.
  * 좌표는 칸 가운데를 (0, 0)으로 둔다.
  *
- * @example <ZoomablePhotoFrame isSelected onZoomedChange={setIsZoomed}>{(style) => <img style={style} src={src} alt="" />}</ZoomablePhotoFrame>
+ * @example <ZoomablePhotoFrame isSelected onZoomedChange={setIsZoomed} onPinchingChange={setIsPinching} onDismiss={close}>{(style) => <img style={style} src={src} alt="" />}</ZoomablePhotoFrame>
  */
-export const ZoomablePhotoFrame = ({ isSelected, onZoomedChange, onPinchingChange, children }: ZoomablePhotoFrameProps): ReactElement => {
+export const ZoomablePhotoFrame = ({ isSelected, onZoomedChange, onPinchingChange, onDismiss, children }: ZoomablePhotoFrameProps): ReactElement => {
   const frameRef = useRef<HTMLDivElement>(null);
   const [zoom, setZoom] = useState<PhotoZoom>(NO_ZOOM);
   const [isGesturing, setIsGesturing] = useState(false);
@@ -105,7 +109,10 @@ export const ZoomablePhotoFrame = ({ isSelected, onZoomedChange, onPinchingChang
     pointersRef.current.set(event.pointerId, point);
     const count = pointersRef.current.size;
     tapStartRef.current = count === 1 ? { ...point, time: event.timeStamp, isMulti: false } : tapStartRef.current && { ...tapStartRef.current, isMulti: true };
-    startGesture(zoom);
+    // 밀어 닫던 중 두 번째 손가락이 닿으면 줄어든 모양을 버리고 원래 크기에서 두 손가락 손동작을 시작한다
+    const current = gestureRef.current.kind === "dismiss" ? NO_ZOOM : zoom;
+    if (current !== zoom) changeZoom(current);
+    startGesture(current);
     if (gestureRef.current.kind !== "none") {
       // 칸 밖으로 손가락이 나가도 끝까지 따라간다
       event.currentTarget.setPointerCapture(event.pointerId);
@@ -121,8 +128,27 @@ export const ZoomablePhotoFrame = ({ isSelected, onZoomedChange, onPinchingChang
     }
     const point = toFramePoint(event);
     pointersRef.current.set(event.pointerId, point);
+    const tapStart = tapStartRef.current;
+    if (gestureRef.current.kind === "none" && tapStart && !tapStart.isMulti && zoom.scale === 1 && event.pointerType !== "mouse") {
+      // 원래 크기에서 한 손가락으로 끌기 시작하면 첫 움직임으로 방향을 한 번만 정한다. 사진 줄(Embla)도 첫 움직임에서 가로가 더 크면 끌고
+      // 아니면 놓으므로 같은 기준을 써야 넘기기와 밀어 닫기가 함께 일어나지 않는다. 마우스 끌기는 사진 줄 넘기기로 둔다
+      const delta = { x: point.x - tapStart.x, y: point.y - tapStart.y };
+      if (delta.x === 0 && delta.y === 0) return;
+      if (!isDismissDrag(delta)) {
+        setGesture({ kind: "slide" });
+        return;
+      }
+      setGesture({ kind: "dismiss", startPoint: tapStart, samples: [] });
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setIsGesturing(true);
+    }
     const gesture = gestureRef.current;
-    if (gesture.kind === "pinch") {
+    if (gesture.kind === "dismiss") {
+      // 빠르기는 놓기 직전 기록만 쓰므로 오래된 기록은 버린다(120Hz 화면에서 100ms가 약 12개)
+      gesture.samples.push({ y: point.y, time: event.timeStamp });
+      if (gesture.samples.length > MAX_DRAG_SAMPLES) gesture.samples.shift();
+      changeZoom(toDismissZoom({ x: point.x - gesture.startPoint.x, y: point.y - gesture.startPoint.y }));
+    } else if (gesture.kind === "pinch") {
       const { center, distance } = toCenterAndDistance([...pointersRef.current.values()]);
       changeZoom(toPinchZoom({ start: gesture.start, startCenter: gesture.startCenter, startDistance: gesture.startDistance, center, distance }));
     } else if (gesture.kind === "pan") {
@@ -138,6 +164,21 @@ export const ZoomablePhotoFrame = ({ isSelected, onZoomedChange, onPinchingChang
     }
     const point = toFramePoint(event);
     pointersRef.current.delete(event.pointerId);
+    const gesture = gestureRef.current;
+    // 거의 움직이지 않았으면 밀어 닫기가 아니라 누르기로 보고 아래 두 번 누르기 판단으로 넘긴다
+    if (gesture.kind === "dismiss" && Math.hypot(point.x - gesture.startPoint.x, point.y - gesture.startPoint.y) > TAP_MOVE_PX) {
+      cancelGesture();
+      lastTapRef.current = undefined;
+      const velocity = toReleaseVelocity({ samples: [...gesture.samples, { y: point.y, time: event.timeStamp }], time: event.timeStamp });
+      if (event.type === "pointerup" && shouldDismissPhoto({ distance: point.y - gesture.startPoint.y, velocity })) {
+        // 닫히는 동안 사진이 멈춰 있지 않게 화면 아래로 마저 내보낸다
+        changeZoom(toDismissZoom({ x: zoom.x, y: frameRef.current?.clientHeight ?? zoom.y }));
+        onDismiss();
+      } else {
+        changeZoom(NO_ZOOM);
+      }
+      return;
+    }
     const settled = clampToFrame(zoom);
     if (pointersRef.current.size > 0) {
       // 두 손가락 중 하나를 떼면 남은 손가락으로 이어서 옮긴다

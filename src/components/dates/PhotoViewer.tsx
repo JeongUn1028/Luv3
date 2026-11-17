@@ -30,10 +30,12 @@ interface ViewerSlidesProps {
   title: string;
   startIndex: number;
   onSelect: (index: number) => void;
+  /** 아래로 밀어 닫으면 부른다 */
+  onDismiss: () => void;
 }
 
 /** 넘겨 보는 사진 줄. 열 때마다 새로 그려 연 사진에서 시작한다 */
-const ViewerSlides = ({ photos, title, startIndex, onSelect }: ViewerSlidesProps): ReactElement => {
+const ViewerSlides = ({ photos, title, startIndex, onSelect, onDismiss }: ViewerSlidesProps): ReactElement => {
   // 확대한 동안에는 한 손가락 끌기로 사진을 옮기므로 사진 줄을 밀어 넘기지 않는다. 두 손가락을 대는 순간도 넘기기를 시작하지 않는다
   const isZoomedRef = useRef(false);
   // 한 손가락으로 사진 줄을 끌던 중 두 번째 손가락이 닿으면 Embla가 끈 힘으로 넘겨 버리므로, 두 손가락을 댄 사진으로 되돌린다
@@ -99,6 +101,7 @@ const ViewerSlides = ({ photos, title, startIndex, onSelect }: ViewerSlidesProps
                   isSelected={index === selectedIndex}
                   onZoomedChange={(isZoomed) => (isZoomedRef.current = isZoomed)}
                   onPinchingChange={(isPinching) => (pinchIndexRef.current = isPinching ? index : undefined)}
+                  onDismiss={onDismiss}
                 >
                   {(zoomStyle) =>
                     requestedIds.has(id) && (
@@ -128,6 +131,7 @@ const ViewerSlides = ({ photos, title, startIndex, onSelect }: ViewerSlidesProps
 
 /**
  * 기록 사진 크게 보기(#350). 화면 전체에 원본을 자르지 않고 원래 비율로 보여 주고, 좌우로 넘기며 사진 아래에 장소와 모음 한마디를 둔다.
+ * 두 손가락·두 번 누르기로 확대하고, 원래 크기에서 아래로 밀어 닫는다.
  * 초점과 Esc 닫기는 공통 전체 화면 창(`ModalDialog`)을 따른다.
  *
  * @example <PhotoViewer ref={viewerRef} photos={photos} groups={groups} title={title} onClose={(index) => emblaApi?.scrollTo(index, true)} />
@@ -168,7 +172,7 @@ export const PhotoViewer = ({ ref, photos, groups, title, onClose }: PhotoViewer
         onClose(selectedIndex);
       }}
     >
-      {isOpen && <ViewerSlides key={openCount} photos={photos} title={title} startIndex={startIndex} onSelect={setSelectedIndex} />}
+      {isOpen && <ViewerSlides key={openCount} photos={photos} title={title} startIndex={startIndex} onSelect={setSelectedIndex} onDismiss={() => modalRef.current?.close()} />}
       <div aria-live="polite" className="flex min-h-[88px] shrink-0 flex-col gap-1.5 px-4 pt-3 pb-[max(1rem,var(--bottom-safe-inset))]">
         {current && <PhotoPlace place={current.place} placeName={current.placeName} />}
         {caption && <p className="text-[14px] leading-[1.5] break-words whitespace-pre-line text-ink">{caption}</p>}

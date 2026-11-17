@@ -8,7 +8,8 @@ export interface PhotoZoom {
   y: number;
 }
 
-interface Point {
+/** 틀 가운데를 (0, 0)으로 둔 화면 좌표 */
+export interface Point {
   x: number;
   y: number;
 }
