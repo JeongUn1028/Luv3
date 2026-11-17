@@ -53,10 +53,7 @@ export const GroupLocationPicker = ({ appKey, initialLocation, otherLocations, o
     if (isSameMapSpot(named, location)) return;
     // 이름을 받지 못해도(경계 밖, 실패) 좌표는 쓸 수 있어 사진 정보와 같이 "찍은 곳"으로 둔다(#249)
     void readPlaceRegionName(location)
-      .catch((error: unknown) => {
-        console.error("지도 가운데 동네 이름 받기 실패", error);
-        return undefined;
-      })
+      .catch(() => undefined)
       .then((name) => {
         if (lookup === lookupRef.current) setNamed({ place: name ?? UNKNOWN_PHOTO_PLACE, ...location });
       });

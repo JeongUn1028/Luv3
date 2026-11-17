@@ -122,18 +122,21 @@ describe("createPlaceRegionNameReader", () => {
     expect(fetchName).toHaveBeenCalledTimes(2);
   });
 
-  it("기억하는 곳이 너무 많아지면 가장 먼저 기억한 곳부터 잊는다", async () => {
+  it("기억하는 곳이 너무 많아지면 가장 오래 쓰지 않은 곳부터 잊는다", async () => {
     // Arrange
     const fetchName = vi.fn().mockResolvedValue("어딘가");
     const readName = createPlaceRegionNameReader(fetchName, { maxSize: 2 });
+    const [home, cafe, park] = [{ lat: 37.1, lng: 127.1 }, { lat: 37.2, lng: 127.2 }, { lat: 37.3, lng: 127.3 }];
 
-    // Act
-    await readName({ lat: 37.1, lng: 127.1 });
-    await readName({ lat: 37.2, lng: 127.2 });
-    await readName({ lat: 37.3, lng: 127.3 });
-    await readName({ lat: 37.1, lng: 127.1 });
+    // Act: 집을 다시 써서 카페가 가장 오래 쓰지 않은 곳이 된 뒤 공원을 더한다
+    await readName(home);
+    await readName(cafe);
+    await readName(home);
+    await readName(park);
+    await readName(home);
+    await readName(cafe);
 
-    // Assert
-    expect(fetchName).toHaveBeenCalledTimes(4);
+    // Assert: 집은 남고 카페만 다시 묻는다
+    expect(fetchName.mock.calls.map((call: unknown[]) => call[0])).toEqual([home, cafe, park, cafe]);
   });
 });

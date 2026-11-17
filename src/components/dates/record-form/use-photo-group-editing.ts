@@ -66,17 +66,18 @@ export const usePhotoGroupEditing = ({ draft, setDraft, setErrors, setNotice, pr
     const newGroupId = crypto.randomUUID();
     const add = (current: RecordDraft, photos: PickedPhoto[]) =>
       groupId ? addPhotosToGroup(current, { groupId, photos }) : addPhotoGroup(current, { groupId: newGroupId, photos });
-    const { droppedCount } = add(draft, picked);
+    const { draft: added, droppedCount } = add(draft, picked);
+    // 모음 위치는 새 모음의 첫 사진(pendingLocationPhotoId)에서만 읽으므로 그 사진만 동네 이름을 묻는다(#353)
+    const locationPhotoId = groupId ? undefined : added.groups.find(({ id }) => id === newGroupId)?.pendingLocationPhotoId;
     const kept = picked.slice(0, picked.length - droppedCount);
     picked.slice(kept.length).forEach(({ previewUrl }) => previews.revoke(previewUrl));
     // 앞서 고른 사진의 정보가 아직 그려지기 전에 도착했을 수 있어, 그 값을 덮지 않게 최신 상태에 더한다.
     // 정보를 읽기 시작하는 `kept`만 더해, 읽지 않는 사진이 "읽는 중"으로 남아 저장을 막는 일이 없게 한다
     setDraft((current) => add(current, kept).draft);
     setErrors((current) => clearError(current, "photos"));
-    kept.forEach(({ id, file }, index) => {
-      // 줄이거나 HEIC를 바꾸면 사진 정보가 사라지므로 고른 원본에서 읽는다. readPhotoInfo는 실패해도 빈 값으로 끝난다.
-      // 모음 위치는 새 모음의 첫 사진에서만 읽으므로(addPhotoGroup의 pendingLocationPhotoId) 그 사진만 동네 이름을 묻는다(#353)
-      void readPhotoInfo({ file, isGroupLocation: !groupId && index === 0 }).then((info) => {
+    kept.forEach(({ id, file }) => {
+      // 줄이거나 HEIC를 바꾸면 사진 정보가 사라지므로 고른 원본에서 읽는다. readPhotoInfo는 실패해도 빈 값으로 끝난다
+      void readPhotoInfo({ file, isGroupLocation: id === locationPhotoId }).then((info) => {
         setDraft((current) => ({ ...current, groups: applyPhotoInfo(current.groups, { photoId: id, info }) }));
       });
     });

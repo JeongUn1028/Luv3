@@ -48,12 +48,15 @@ describe("readPhotoInfo", () => {
     const error = new PlaceRegionError({ status: 500 });
     const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    // Act
-    await readPhotoInfo({ file, isGroupLocation: true, readExif: exifWith({ coordinates: SEONGSU, takenAt: TAKEN_AT }), fetchRegionName: vi.fn().mockRejectedValue(error) });
+    try {
+      // Act
+      await readPhotoInfo({ file, isGroupLocation: true, readExif: exifWith({ coordinates: SEONGSU, takenAt: TAKEN_AT }), fetchRegionName: vi.fn().mockRejectedValue(error) });
 
-    // Assert
-    expect(logError).toHaveBeenCalledWith(expect.any(String), error);
-    logError.mockRestore();
+      // Assert
+      expect(logError).toHaveBeenCalledWith(expect.any(String), error);
+    } finally {
+      logError.mockRestore();
+    }
   });
 
   it("모음 위치가 될 사진이 아니면 동네 이름을 묻지 않고 찍은 시각만 돌려준다(#353)", async () => {
