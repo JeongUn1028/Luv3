@@ -80,19 +80,50 @@ self.addEventListener("push", (event) => {
   );
 });
 
+// 열린 앱 창에 연 주소를 넘기는 메시지 종류(#406). src/lib/push/message.ts의 PUSH_OPEN_MESSAGE와 같다
+const PUSH_OPEN_MESSAGE = "luv3:open-url";
+// 앱이 받았다고 답하기를 기다리는 시간. 숨겨졌던 앱이 앞으로 나와 다시 움직이기까지 걸리는 때를 넉넉히 둔다
+const OPEN_REPLY_TIMEOUT_MS = 3000;
+
+/**
+ * 앱 창에 주소를 넘기고, 앱이 받았다고 답하면 true. 정해진 시간 안에 답이 없으면 false.
+ * 알림을 받기 전에 열어 둔 예전 버전 앱은 메시지를 듣지 않아 답하지 않는다
+ */
+const askAppToOpen = (client, url) =>
+  new Promise((resolve) => {
+    const channel = new MessageChannel();
+    const finish = (isOpened) => {
+      clearTimeout(timer);
+      channel.port1.close();
+      resolve(isOpened);
+    };
+    const timer = setTimeout(() => finish(false), OPEN_REPLY_TIMEOUT_MS);
+    channel.port1.onmessage = (event) => finish(Boolean(event.data && event.data.type === PUSH_OPEN_MESSAGE));
+    try {
+      client.postMessage({ type: PUSH_OPEN_MESSAGE, url }, [channel.port2]);
+    } catch {
+      // 보내지 못하면 답도 오지 않으니 기다리지 않는다
+      finish(false);
+    }
+  });
+
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const target = toAppUrl(event.notification.data && event.notification.data.url);
   event.waitUntil(
-    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
-      // 이미 열린 앱이 있으면 새 창을 띄우지 않고 그 창을 앞으로 가져와 옮긴다.
-      // 이 서비스 워커가 맡지 않은 창은 옮길 수 없어(navigate 거절) 그때는 새로 연다
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (windows) => {
       const opened = windows.find((client) => new URL(client.url).origin === self.location.origin);
       if (!opened) return self.clients.openWindow(target);
-      return opened
-        .focus()
-        .then((client) => client.navigate(target))
-        .catch(() => self.clients.openWindow(target));
+      try {
+        // 이미 열린 앱이 있으면 새 창을 띄우지 않고 그 창을 앞으로 가져와, 앱이 스스로 옮기게 한다.
+        // 창을 통째로 옮기면 쓰던 글·고른 사진이 사라지지만, 앱 안 이동은 쓰던 폼을 숨겨 둔 채 남긴다
+        const client = await opened.focus();
+        if (await askAppToOpen(client, target)) return undefined;
+        // 답하지 않는 앱은 창을 옮긴다. 이 서비스 워커가 맡지 않은 창은 옮길 수 없어(navigate 거절) 그때는 새로 연다
+        return await client.navigate(target);
+      } catch {
+        return self.clients.openWindow(target);
+      }
     }),
   );
 });

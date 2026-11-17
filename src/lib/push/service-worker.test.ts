@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it, vi } from "vitest";
-import { PUSH_RECEIVED_MESSAGE } from "./message";
+import { PUSH_OPEN_MESSAGE, PUSH_RECEIVED_MESSAGE } from "./message";
 
 // public/sw.js는 번들을 거치지 않는 그냥 스크립트라, 가짜 서비스 워커 전역(self)을 만들어 그 안에서 실행해 본다
 const SOURCE = readFileSync(new URL("../../../public/sw.js", import.meta.url), "utf8");
@@ -12,7 +12,7 @@ interface FakeWindow {
   visibilityState?: DocumentVisibilityState;
   focus: () => Promise<FakeWindow>;
   navigate: (url: string) => Promise<unknown>;
-  postMessage?: (message: unknown) => void;
+  postMessage?: (message: unknown, transfer?: MessagePort[]) => void;
 }
 
 type Listener = (event: Record<string, unknown>) => void;
@@ -35,7 +35,14 @@ const loadServiceWorker = ({ windows = [], navigator = {} }: LoadOptions = {}) =
     clients: { claim: vi.fn(() => Promise.resolve()), matchAll: vi.fn(() => Promise.resolve(windows)), openWindow },
     location: { origin: ORIGIN },
   };
-  runInNewContext(SOURCE, { self, URL });
+  // 타이머는 부를 때의 전역을 써서, 테스트가 가짜 타이머로 바꿔도 따라가게 한다
+  runInNewContext(SOURCE, {
+    self,
+    URL,
+    MessageChannel,
+    setTimeout: (callback: () => void, delay: number) => setTimeout(callback, delay),
+    clearTimeout: (timer: ReturnType<typeof setTimeout>) => clearTimeout(timer),
+  });
 
   /** 이벤트를 보내고 waitUntil에 넘긴 작업이 끝날 때까지 기다린다 */
   const dispatch = async (type: string, event: Record<string, unknown>): Promise<void> => {
@@ -209,29 +216,90 @@ describe("서비스 워커 알림 누르기", () => {
     },
   );
 
-  it("열린 앱이 있으면 새 창 대신 그 창을 앞으로 가져와 옮긴다", async () => {
+  // 창을 통째로 옮기면 쓰던 글·고른 사진이 사라진다(#406). 앱이 스스로 옮기면 화면을 숨겨 두어 그대로 남는다
+  it("열린 앱이 있으면 그 창을 앞으로 가져와 앱에 주소만 넘기고, 앱이 받았다고 답하면 창을 옮기지 않는다", async () => {
     // Arrange
     const opened = fakeWindow();
+    const received: unknown[] = [];
+    opened.postMessage = vi.fn((message: unknown, transfer: MessagePort[] = []) => {
+      received.push(message);
+      const [reply] = transfer;
+      reply?.postMessage({ type: PUSH_OPEN_MESSAGE });
+      reply?.close();
+    });
+    const worker = loadServiceWorker({ windows: [opened] });
+
+    // Act
+    await worker.dispatch("notificationclick", clickEvent("/dates/1?photo=2"));
+
+    // Assert
+    expect(opened.focus).toHaveBeenCalled();
+    expect(received).toEqual([{ type: PUSH_OPEN_MESSAGE, url: `${ORIGIN}/dates/1?photo=2` }]);
+    expect(opened.navigate).not.toHaveBeenCalled();
+    expect(worker.openWindow).not.toHaveBeenCalled();
+  });
+
+  // 알림을 누르기 전에 열어 둔 예전 버전 앱은 메시지를 듣지 않는다
+  it("앱이 정해진 시간 안에 답하지 않으면 그 창을 알림 주소로 옮긴다", async () => {
+    vi.useFakeTimers();
+    try {
+      // Arrange
+      const opened = fakeWindow();
+      opened.postMessage = vi.fn();
+      const worker = loadServiceWorker({ windows: [opened] });
+
+      // Act
+      const clicked = worker.dispatch("notificationclick", clickEvent("/settings"));
+      await vi.advanceTimersByTimeAsync(3000);
+      await clicked;
+
+      // Assert
+      expect(opened.postMessage).toHaveBeenCalled();
+      expect(opened.navigate).toHaveBeenCalledWith(`${ORIGIN}/settings`);
+      expect(worker.openWindow).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("앱이 답하지 않고 창도 옮기지 못하면 새로 연다", async () => {
+    vi.useFakeTimers();
+    try {
+      // Arrange
+      const opened = fakeWindow(() => Promise.reject(new TypeError("not controlled")));
+      opened.postMessage = vi.fn();
+      const worker = loadServiceWorker({ windows: [opened] });
+
+      // Act
+      const clicked = worker.dispatch("notificationclick", clickEvent("/settings"));
+      await vi.advanceTimersByTimeAsync(3000);
+      await clicked;
+
+      // Assert
+      expect(opened.navigate).toHaveBeenCalledWith(`${ORIGIN}/settings`);
+      expect(worker.openWindow).toHaveBeenCalledWith(`${ORIGIN}/settings`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("앱 창에 메시지를 보내지 못하면 기다리지 않고 그 창을 알림 주소로 옮긴다", async () => {
+    // Arrange
+    const opened = fakeWindow();
+    opened.postMessage = vi.fn(() => {
+      throw new DOMException("gone", "InvalidStateError");
+    });
     const worker = loadServiceWorker({ windows: [opened] });
 
     // Act
     await worker.dispatch("notificationclick", clickEvent("/settings"));
 
     // Assert
-    expect(opened.focus).toHaveBeenCalled();
     expect(opened.navigate).toHaveBeenCalledWith(`${ORIGIN}/settings`);
     expect(worker.openWindow).not.toHaveBeenCalled();
   });
 
-  it("열린 창을 옮기지 못하면 새로 연다", async () => {
-    // Arrange
-    const opened = fakeWindow(() => Promise.reject(new TypeError("not controlled")));
-    const worker = loadServiceWorker({ windows: [opened] });
-
-    // Act
-    await worker.dispatch("notificationclick", clickEvent("/settings"));
-
-    // Assert
-    expect(worker.openWindow).toHaveBeenCalledWith(`${ORIGIN}/settings`);
+  it("앱 창에 보내는 주소 메시지 종류는 앱이 기다리는 값과 같다", () => {
+    expect(SOURCE).toContain(`const PUSH_OPEN_MESSAGE = "${PUSH_OPEN_MESSAGE}";`);
   });
 });
