@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SIGNED_URL_MIN_REMAINING } from "@/lib/photos/limits";
 import type { AlbumTile } from "./album";
-import { appendAlbumPage, appendNewItems, createAlbumPages, syncAlbumFirstPage, toAlbumItems, type AlbumFirstPage } from "./album-pages";
+import { appendAlbumPage, appendNewItems, createAlbumPages, syncAlbumFirstPage, toAlbumItems, toMsUntilPhotoUrlsStale, type AlbumFirstPage } from "./album-pages";
 import type { RecordCursor } from "./search-api";
 
 const tile = (id: string, thumbUrl?: string): AlbumTile => ({
@@ -118,5 +118,15 @@ describe("syncAlbumFirstPage", () => {
     // Assert
     expect(synced.next).toBeUndefined();
     expect(synced.generation).toBe(pages.generation);
+  });
+});
+
+describe("toMsUntilPhotoUrlsStale", () => {
+  it("받은 때부터 1시간이 지나기 전까지 남은 시간을 돌려주고, 지나면 0 이하다", () => {
+    // Act
+    const remaining = [toMsUntilPhotoUrlsStale(LOADED_AT, LOADED_AT), toMsUntilPhotoUrlsStale(LOADED_AT, LOADED_AT + 59 * MINUTE_MS), toMsUntilPhotoUrlsStale(LOADED_AT, LOADED_AT + 60 * MINUTE_MS)];
+
+    // Assert
+    expect(remaining).toEqual([60 * MINUTE_MS, MINUTE_MS, 0]);
   });
 });

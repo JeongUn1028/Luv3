@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { AlbumTile } from "./album";
-import { appendNewItems } from "./album-pages";
+import { appendNewItems, toMsUntilPhotoUrlsStale } from "./album-pages";
 import { fetchRecordPage, reportSessionLost } from "./fetch-record-page";
 import { toSearchWords, type RecordCursor } from "./search-api";
 
 interface LoadedResults {
   /** 이 결과를 받은 조건 */
   key: string;
+  /** 첫 묶음을 받은 때(이 기기 시각, ms). 사진 주소를 언제까지 쓸 수 있는지 가늠한다 */
+  receivedAt: number;
   items: AlbumTile[];
   total: number;
   next: RecordCursor | undefined;
@@ -41,6 +43,8 @@ interface UseRecordSearchResult {
 /**
  * 검색어·태그로 서버에서 기록을 찾고, 다음 묶음을 이어 받는다(#273). 검색어와 태그가 모두 비면 찾지 않는다.
  * 다른 화면에 갔다 돌아오면(Activity) 효과가 다시 돌지만, 같은 조건으로 이미 받은 결과는 다시 받지 않아 이어 받은 기록과 스크롤 위치를 지킨다.
+ * 단, 받은 사진 주소를 더 쓰면 안 될 만큼 오래되면 아직 받지 않은 사진이 깨지므로 같은 조건으로 첫 묶음부터 다시 찾는다(#410).
+ * 화면을 띄워 둔 채로도 그때가 되면 다시 찾는다.
  *
  * @example const search = useRecordSearch({ query, tag, refreshKey })
  */
@@ -50,11 +54,19 @@ export const useRecordSearch = ({ query, tag, refreshKey }: UseRecordSearchParam
   const key = JSON.stringify([words, tag, refreshKey]);
   const [results, setResults] = useState<LoadedResults | undefined>(undefined);
   const [failedKey, setFailedKey] = useState<string | undefined>(undefined);
-  const [retryCount, setRetryCount] = useState(0);
+  const [requestCount, setRequestCount] = useState(0);
   const loadedKey = useRef<string | undefined>(undefined);
+  const receivedAt = results?.key === key ? results.receivedAt : undefined;
 
   useEffect(() => {
-    if (!isActive || loadedKey.current === key) return;
+    if (!isActive) return;
+    if (loadedKey.current === key && receivedAt !== undefined) {
+      const staleIn = toMsUntilPhotoUrlsStale(receivedAt, Date.now());
+      if (staleIn > 0) {
+        const timer = setTimeout(() => setRequestCount((count) => count + 1), staleIn);
+        return () => clearTimeout(timer);
+      }
+    }
     const controller = new AbortController();
     fetchRecordPage({ query: words, tag, after: undefined }, controller.signal).then(
       (page) => {
@@ -62,7 +74,7 @@ export const useRecordSearch = ({ query, tag, refreshKey }: UseRecordSearchParam
         if (controller.signal.aborted) return;
         loadedKey.current = key;
         setFailedKey(undefined);
-        setResults({ key, ...page, isLoadingMore: false, isMoreFailed: false });
+        setResults({ key, receivedAt: Date.now(), ...page, isLoadingMore: false, isMoreFailed: false });
       },
       (error: unknown) => {
         if (controller.signal.aborted) return;
@@ -71,7 +83,7 @@ export const useRecordSearch = ({ query, tag, refreshKey }: UseRecordSearchParam
       },
     );
     return () => controller.abort();
-  }, [isActive, key, words, tag, retryCount]);
+  }, [isActive, key, words, tag, receivedAt, requestCount]);
 
   const isCurrent = results?.key === key;
   const status: RecordSearchStatus = !isActive ? "idle" : isCurrent ? "done" : failedKey === key ? "failed" : "loading";
@@ -94,7 +106,7 @@ export const useRecordSearch = ({ query, tag, refreshKey }: UseRecordSearchParam
 
   const retry = () => {
     setFailedKey(undefined);
-    setRetryCount((count) => count + 1);
+    setRequestCount((count) => count + 1);
   };
 
   return {

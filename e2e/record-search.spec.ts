@@ -15,7 +15,43 @@ const openSearch = async (page: Page): Promise<void> => {
   await page.getByRole("searchbox", { name: "기록 찾기" }).waitFor();
 };
 
+const MINUTE_MS = 60_000;
+
+/** 이 낱말로 찾는 요청(첫 묶음). 이어 받기 요청은 세지 않는다 */
+const isFirstSearchFor = (url: string, word: string): boolean => {
+  const { pathname, searchParams } = new URL(url);
+  return pathname === "/api/records/search" && searchParams.get("q") === word && !searchParams.has("beforeId");
+};
+
 test.describe("기록 찾기", () => {
+  test("찾은 결과를 오래 띄워 두면 사진 주소를 더 쓸 수 없기 전에 같은 조건으로 다시 찾는다(#410)", async ({ page }) => {
+    // Arrange
+    const id = randomUUID();
+    const word = createWord();
+    const title = `E2E 찾기 오래 ${word}`;
+    const deleteRecord = await createDisposableRecord({ id, title });
+    await page.clock.install();
+
+    try {
+      await openSearch(page);
+      await page.getByRole("searchbox", { name: "기록 찾기" }).fill(word);
+      // 새 기록은 그리드에도 보이므로, 링크가 아니라 찾은 결과의 수로 찾기가 끝난 것을 확인한다
+      const resultCount = page.getByRole("status").filter({ hasText: "기록 1개" });
+      await expect(resultCount).toBeVisible();
+      const searchedAgain = page.waitForRequest((request) => isFirstSearchFor(request.url(), word), { timeout: 5000 });
+
+      // Act: 받은 사진 주소가 1시간 넘게 남아 있어야 하는 기준(SIGNED_URL_MIN_REMAINING)을 넘긴다
+      await page.clock.fastForward(61 * MINUTE_MS);
+
+      // Assert
+      await searchedAgain;
+      await expect(resultCount).toBeVisible();
+      await expect(getRecordLink(page, title)).toBeVisible();
+    } finally {
+      await deleteRecord();
+    }
+  });
+
   test("평소에는 검색 칸이 없고, 돋보기로 열고 닫으면 적은 글자도 지워진다", async ({ page }) => {
     // Arrange
     await openScreen(page, "/records", page.getByRole("button", { name: "기록 찾기" }));
