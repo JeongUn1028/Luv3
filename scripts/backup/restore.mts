@@ -4,7 +4,15 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { parse } from "smol-toml";
 import { ALBUM_BUCKET, PHOTO_CACHE_CONTROL } from "../../src/lib/photos/limits.ts";
-import { compareCounts, describeBackupVersion, findLatestSnapshot, listPublicTables, toContentType, type BackupManifest } from "./lib.mts";
+import {
+  assertBackupFilesComplete,
+  chooseRestoreSnapshot,
+  compareCounts,
+  describeBackupVersion,
+  listPublicTables,
+  toContentType,
+  type BackupManifest,
+} from "./lib.mts";
 import { getLocalConnection, readLocalSizes, REPO_ROOT, runSupabase, runWithLimit } from "./supabase.mts";
 
 const UPLOAD_CONCURRENCY = 4;
@@ -43,12 +51,7 @@ const selectSnapshot = (root: string, requested: string | undefined): string => 
   const complete = existsSync(snapshotsDirectory)
     ? readdirSync(snapshotsDirectory).filter((name) => existsSync(path.join(snapshotsDirectory, name, "manifest.json")))
     : [];
-  const snapshot = requested ?? findLatestSnapshot(complete);
-
-  if (!snapshot || !complete.includes(snapshot)) {
-    throw new Error(`되살릴 수 있는 시점이 없습니다: ${requested ?? root}\n완성된 시점: ${complete.join(", ") || "없음"}`);
-  }
-  return path.join(snapshotsDirectory, snapshot);
+  return path.join(snapshotsDirectory, chooseRestoreSnapshot({ complete, requested, root }));
 };
 
 const readActualCounts = (container: string, tables: string[]): Record<string, number> => {
@@ -83,11 +86,7 @@ const main = async (): Promise<void> => {
 
   // 로컬 DB를 지우기 전에 되살릴 수 있는 백업인지 먼저 확인한다
   const albumDirectory = path.join(root, "album");
-  const localSizes = readLocalSizes(albumDirectory);
-  const missing = manifest.files.filter((file) => localSizes.get(file.path) !== file.size);
-  if (missing.length > 0) {
-    throw new Error(`백업 폴더에 없거나 크기가 다른 파일이 ${missing.length}개 있습니다.\n${missing.map((file) => file.path).join("\n")}`);
-  }
+  assertBackupFilesComplete(manifest.files, readLocalSizes(albumDirectory));
 
   manifest.files.forEach((file) => toContentType(file.path));
 

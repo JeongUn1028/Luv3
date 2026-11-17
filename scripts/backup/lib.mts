@@ -242,6 +242,55 @@ export const toSnapshotName = (date: Date): string =>
  */
 export const findLatestSnapshot = (names: string[]): string | undefined => names.toSorted().at(-1);
 
+export interface ChooseRestoreSnapshotParams {
+  /** 완성된 시점(manifest가 있는 폴더) 이름들 */
+  complete: string[];
+  /** 사람이 고른 시점. 고르지 않았으면 undefined */
+  requested: string | undefined;
+  /** 백업 폴더. 멈출 때 알려 준다 */
+  root: string;
+}
+
+/**
+ * 되살릴 시점을 고른다. 고르지 않으면 완성된 시점(manifest가 있는 폴더) 중 가장 늦은 것을 고른다.
+ * 로컬 DB를 지우기 전에 부른다.
+ *
+ * @throws {Error} 고른 시점이 완성된 목록에 없거나 완성된 시점이 없을 때
+ * @example chooseRestoreSnapshot({ complete: ["2026-11-01T00-00-00Z"], requested: undefined, root: "D:/backup" }) // "2026-11-01T00-00-00Z"
+ */
+export const chooseRestoreSnapshot = ({ complete, requested, root }: ChooseRestoreSnapshotParams): string => {
+  const snapshot = requested ?? findLatestSnapshot(complete);
+  if (!snapshot || !complete.includes(snapshot)) {
+    throw new Error(`되살릴 수 있는 시점이 없습니다: ${requested ?? root}\n완성된 시점: ${complete.join(", ") || "없음"}`);
+  }
+  return snapshot;
+};
+
+/**
+ * 백업 폴더에 시점의 파일이 모두 같은 크기로 있는지 확인한다. 로컬 DB를 지우기 전에 불러 되살릴 수 있는 백업인지 본다.
+ *
+ * @throws {Error} 없거나 크기가 다른 파일이 있을 때(그 목록을 담는다)
+ * @example assertBackupFilesComplete(manifest.files, readLocalSizes(albumDirectory))
+ */
+export const assertBackupFilesComplete = (files: BackupFile[], localSizes: ReadonlyMap<string, number>): void => {
+  const missing = findFilesToDownload(files, localSizes);
+  if (missing.length > 0) {
+    throw new Error(`백업 폴더에 없거나 크기가 다른 파일이 ${missing.length}개 있습니다.\n${missing.map((file) => file.path).join("\n")}`);
+  }
+};
+
+/**
+ * 로컬 Supabase 주소인지 확인한다. 복구는 DB를 지우므로 운영 주소면 멈춘다.
+ *
+ * @throws {Error} 호스트가 127.0.0.1·localhost가 아닐 때
+ * @example assertLocalApiUrl("http://127.0.0.1:54321")
+ */
+export const assertLocalApiUrl = (url: string): void => {
+  if (!["127.0.0.1", "localhost"].includes(new URL(url).hostname)) {
+    throw new Error(`로컬 주소가 아니므로 멈춥니다: ${url}`);
+  }
+};
+
 /**
  * 파일 경로의 확장자로 업로드 형식을 정한다.
  *

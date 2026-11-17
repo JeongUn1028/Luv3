@@ -4,7 +4,7 @@ import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { listAlbumObjects } from "../../src/lib/photos/album-files.ts";
 import { ALBUM_BUCKET } from "../../src/lib/photos/limits.ts";
-import { parseLastMigration, pickServiceKey, toBackupFile, type BackupFile, type ProjectApiKey } from "./lib.mts";
+import { assertLocalApiUrl, parseLastMigration, pickServiceKey, toBackupFile, type BackupFile, type ProjectApiKey } from "./lib.mts";
 
 export const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
 
@@ -83,9 +83,7 @@ export const getLocalConnection = (): SupabaseConnection => {
   const status = runSupabase(["status", "-o", "env"]);
   const url = readStatusValue(status, "API_URL");
 
-  if (!["127.0.0.1", "localhost"].includes(new URL(url).hostname)) {
-    throw new Error(`로컬 주소가 아니므로 멈춥니다: ${url}`);
-  }
+  assertLocalApiUrl(url);
   return { url, client: toClient(url, readStatusValue(status, "SERVICE_ROLE_KEY")), dumpTarget: ["--local"] };
 };
 
