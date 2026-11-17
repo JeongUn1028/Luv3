@@ -24,3 +24,10 @@ export const SIGN_OUT_PUSH_ENDPOINT_FIELD = "push_endpoint";
 
 /** 저장에 성공한 휴대폰이 상대에게 알림을 부탁하는 경로(#364, `POST`) */
 export const PUSH_NOTIFY_PATH = "/api/push/notify";
+
+/**
+ * 열린 앱 창이 있는데 알림을 누르면 서비스 워커가 앱 창에 보내는 메시지 종류(#406). `{ type, url }`에 연 주소 전체를 담고,
+ * 함께 넘긴 포트로 앱이 같은 종류를 답하면 서비스 워커는 창을 옮기지 않는다. 앱이 스스로 옮겨야 쓰던 폼이 숨겨진 채 남는다.
+ * `public/sw.js`는 번들을 거치지 않아 같은 글자를 따로 적는다(service-worker.test.ts가 같은지 확인한다)
+ */
+export const PUSH_OPEN_MESSAGE = "luv3:open-url";

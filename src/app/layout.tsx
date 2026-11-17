@@ -4,6 +4,7 @@ import { AppReturn } from "@/components/AppReturn";
 import { HistoryReturn } from "@/components/HistoryReturn";
 import { OfflineNotice } from "@/components/OfflineNotice";
 import { PushBadgeReset } from "@/components/PushBadgeReset";
+import { PushOpenListener } from "@/components/PushOpenListener";
 import { SaveNotices } from "@/components/SaveNotices";
 import { SessionLostDialog } from "@/components/SessionLostDialog";
 import { StartupSplash } from "@/components/StartupSplash";
@@ -92,6 +93,7 @@ const RootLayout = ({ children }: LayoutProps<"/">) => (
       <HistoryReturn />
       <AppReturn />
       <PushBadgeReset />
+      <PushOpenListener />
     </body>
   </html>
 );
