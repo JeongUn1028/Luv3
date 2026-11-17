@@ -8,6 +8,8 @@ export const SETTINGS_NICKNAME_PATH = "/settings/nickname";
 export const SETTINGS_TRASH_PATH = "/settings/trash";
 /** 앱 정보: 버전, 업데이트 기록, 함께 쓰는 서비스·출처(#404) */
 export const SETTINGS_ABOUT_PATH = "/settings/about";
+/** 앱에 들어가는 오픈소스의 라이선스 목록(#436). 앱 정보 화면에서 연다 */
+export const SETTINGS_ABOUT_LICENSES_PATH = "/settings/about/licenses";
 
 /** 무료 플랜 일시정지를 막으려고 Vercel Cron이 부르는 경로. 로그인 대신 CRON_SECRET으로 확인한다 */
 export const KEEPALIVE_PATH = "/api/keepalive";

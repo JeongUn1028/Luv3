@@ -1,5 +1,6 @@
+import nextPackageJson from "../node_modules/next/package.json";
 import packageJson from "../package.json";
-import { SETTINGS_ABOUT_PATH, SETTINGS_PATH } from "@/lib/auth/paths";
+import { SETTINGS_ABOUT_LICENSES_PATH, SETTINGS_ABOUT_PATH, SETTINGS_PATH } from "@/lib/auth/paths";
 import { expect, openScreen, test } from "./support/test";
 
 test.describe("앱 정보", () => {
@@ -18,7 +19,7 @@ test.describe("앱 정보", () => {
     await page.waitForURL(`**${SETTINGS_ABOUT_PATH}`);
     await expect(page.getByRole("heading", { level: 1, name: "앱 정보" })).toBeVisible();
     await expect(page.getByText(`버전 ${packageJson.version}`)).toBeVisible();
-    for (const name of ["업데이트 기록", "함께 쓰는 서비스", "자료 출처", "글꼴", "만든 사람"]) {
+    for (const name of ["업데이트 기록", "함께 쓰는 서비스", "자료 출처", "글꼴", "오픈소스", "만든 사람"]) {
       await expect(page.getByRole("heading", { level: 2, name })).toBeVisible();
     }
     await expect(page.getByText("우리 둘이 쓰려고 만들었어요")).toBeVisible();
@@ -53,5 +54,30 @@ test.describe("앱 정보", () => {
       const openReleases = page.locator("details[open]");
       await expect(openReleases).toHaveCount((await page.getByText("지금 버전").count()) > 0 ? 1 : 0);
     }
+  });
+
+  test("오픈소스 라이선스 줄을 누르면 앱 의존성마다 라이선스가 보이고, 누르면 전문이 펼쳐진다", async ({ page }) => {
+    // Arrange
+    const licensesRow = page.getByRole("link", { name: "오픈소스 라이선스" });
+    await openScreen(page, SETTINGS_ABOUT_PATH, licensesRow);
+
+    // Act
+    await licensesRow.click();
+
+    // Assert: 목록은 빌드 때 package.json dependencies로 만든다(#436)
+    await page.waitForURL(`**${SETTINGS_ABOUT_LICENSES_PATH}`);
+    await expect(page.getByRole("heading", { level: 1, name: "오픈소스 라이선스" })).toBeVisible();
+    const items = page.getByRole("listitem");
+    await expect(items).toHaveCount(Object.keys(packageJson.dependencies).length);
+    const next = items.filter({ has: page.getByText("next", { exact: true }) });
+    // package.json에는 범위(^)로 적힐 수 있어 설치된 버전과 비교한다
+    await expect(next).toContainText("MIT");
+    await expect(next).toContainText(`${nextPackageJson.version} · Copyright`);
+
+    // Act: 꾸러미를 누르면 라이선스 전문이 펼쳐진다
+    await next.locator("summary").click();
+
+    // Assert
+    await expect(next.getByText(/Permission is hereby granted/)).toBeVisible();
   });
 });
