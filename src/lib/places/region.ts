@@ -40,3 +40,54 @@ export const fetchPlaceRegionName = async ({ location, fetcher = fetch }: { loca
   if (!isObject(body) || (body.name !== null && typeof body.name !== "string")) throw new PlaceRegionError();
   return body.name ?? undefined;
 };
+
+/**
+ * 기억할 때 좌표를 이 자릿수로 줄여, 같은 칸(소수 넷째 자리, 약 10m)이면 같은 곳으로 본다. 행정동 경계에 걸친 칸에서는 이웃 동 이름이
+ * 붙을 수 있지만, 휴대폰 GPS 오차도 이만큼이라 받아들인다
+ */
+const REMEMBER_DECIMALS = 4;
+/** 기억하는 곳의 수. 넘으면 가장 오래 쓰지 않은 곳부터 잊는다 */
+const DEFAULT_REMEMBER_SIZE = 500;
+
+const toRememberKey = ({ lat, lng }: PlaceLocation): string => `${lat.toFixed(REMEMBER_DECIMALS)},${lng.toFixed(REMEMBER_DECIMALS)}`;
+
+/**
+ * 받은 동네 이름을 기기 메모리에 기억해, 같은 곳이나 같은 약 10m 칸 안의 가까운 곳은 다시 묻지 않는 읽기 함수를 만든다(#353).
+ * 묻는 중인 곳을 또 물으면 같은 요청을 기다리고, 경계 밖(이름 없음)이라는 답도 기억한다. 실패는 기억하지 않아 다음에 다시 묻는다.
+ * 기억이 넘치면 가장 오래 쓰지 않은 곳부터 잊어, 지도를 이리저리 옮겨도 자주 찍는 곳은 남긴다.
+ *
+ * @example const readName = createPlaceRegionNameReader(); await readName({ lat: 37.54, lng: 127.04 })
+ */
+export const createPlaceRegionNameReader = (
+  fetchName: (location: PlaceLocation) => Promise<string | undefined> = (location) => fetchPlaceRegionName({ location }),
+  { maxSize = DEFAULT_REMEMBER_SIZE }: { maxSize?: number } = {},
+): ((location: PlaceLocation) => Promise<string | undefined>) => {
+  const names = new Map<string, Promise<string | undefined>>();
+  return (location) => {
+    const key = toRememberKey(location);
+    const remembered = names.get(key);
+    if (remembered) {
+      // 맨 뒤로 옮겨 최근에 쓴 곳으로 둔다
+      names.delete(key);
+      names.set(key, remembered);
+      return remembered;
+    }
+    const name = fetchName(location);
+    names.set(key, name);
+    // 그 사이 다른 곳을 다시 받아 바뀌었으면 지우지 않는다
+    name.catch(() => {
+      if (names.get(key) === name) names.delete(key);
+    });
+    const [oldest] = names.keys();
+    if (names.size > maxSize && oldest !== undefined) names.delete(oldest);
+    return name;
+  };
+};
+
+/**
+ * 화면에서 쓰는 동네 이름 읽기. 앱을 켜 둔 동안 받은 이름을 기억한다(`createPlaceRegionNameReader`).
+ *
+ * @throws {PlaceRegionError} 처음 묻는 곳을 받지 못했을 때
+ * @example const name = await readPlaceRegionName({ lat: 37.54, lng: 127.04 })
+ */
+export const readPlaceRegionName = createPlaceRegionNameReader();

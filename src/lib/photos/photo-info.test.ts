@@ -15,7 +15,7 @@ describe("readPhotoInfo", () => {
     const fetchRegionName = vi.fn().mockResolvedValue("성동구 성수1가1동");
 
     // Act
-    const info = await readPhotoInfo({ file, readExif: exifWith({ coordinates: SEONGSU, takenAt: TAKEN_AT }), fetchRegionName });
+    const info = await readPhotoInfo({ file, isGroupLocation: true, readExif: exifWith({ coordinates: SEONGSU, takenAt: TAKEN_AT }), fetchRegionName });
 
     // Assert
     expect(info).toEqual({ location: { place: "성동구 성수1가1동", ...SEONGSU }, takenAt: TAKEN_AT });
@@ -24,7 +24,7 @@ describe("readPhotoInfo", () => {
 
   it("국내가 아니라 이름이 없으면 좌표를 '찍은 곳'으로 지킨다", async () => {
     // Act
-    const info = await readPhotoInfo({ file, readExif: exifWith({ coordinates: SEONGSU, takenAt: undefined }), fetchRegionName: vi.fn().mockResolvedValue(undefined) });
+    const info = await readPhotoInfo({ file, isGroupLocation: true, readExif: exifWith({ coordinates: SEONGSU, takenAt: undefined }), fetchRegionName: vi.fn().mockResolvedValue(undefined) });
 
     // Assert
     expect(info.location).toEqual({ place: "찍은 곳", ...SEONGSU });
@@ -34,6 +34,7 @@ describe("readPhotoInfo", () => {
     // Act
     const info = await readPhotoInfo({
       file,
+      isGroupLocation: true,
       readExif: exifWith({ coordinates: SEONGSU, takenAt: TAKEN_AT }),
       fetchRegionName: vi.fn().mockRejectedValue(new PlaceRegionError({ status: 500 })),
     });
@@ -42,12 +43,40 @@ describe("readPhotoInfo", () => {
     expect(info).toEqual({ location: { place: "찍은 곳", ...SEONGSU }, takenAt: TAKEN_AT });
   });
 
+  it("이름을 받지 못하면 그 실패를 기록한다(#353)", async () => {
+    // Arrange
+    const error = new PlaceRegionError({ status: 500 });
+    const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      // Act
+      await readPhotoInfo({ file, isGroupLocation: true, readExif: exifWith({ coordinates: SEONGSU, takenAt: TAKEN_AT }), fetchRegionName: vi.fn().mockRejectedValue(error) });
+
+      // Assert
+      expect(logError).toHaveBeenCalledWith(expect.any(String), error);
+    } finally {
+      logError.mockRestore();
+    }
+  });
+
+  it("모음 위치가 될 사진이 아니면 동네 이름을 묻지 않고 찍은 시각만 돌려준다(#353)", async () => {
+    // Arrange
+    const fetchRegionName = vi.fn();
+
+    // Act
+    const info = await readPhotoInfo({ file, isGroupLocation: false, readExif: exifWith({ coordinates: SEONGSU, takenAt: TAKEN_AT }), fetchRegionName });
+
+    // Assert
+    expect(info).toEqual({ location: undefined, takenAt: TAKEN_AT });
+    expect(fetchRegionName).not.toHaveBeenCalled();
+  });
+
   it("좌표가 없으면 이름을 받으러 가지 않고 시각만 돌려준다", async () => {
     // Arrange
     const fetchRegionName = vi.fn();
 
     // Act
-    const info = await readPhotoInfo({ file, readExif: exifWith({ coordinates: undefined, takenAt: TAKEN_AT }), fetchRegionName });
+    const info = await readPhotoInfo({ file, isGroupLocation: true, readExif: exifWith({ coordinates: undefined, takenAt: TAKEN_AT }), fetchRegionName });
 
     // Assert
     expect(info).toEqual({ location: undefined, takenAt: TAKEN_AT });
@@ -56,7 +85,7 @@ describe("readPhotoInfo", () => {
 
   it("사진 정보를 읽다 실패해도 던지지 않는다", async () => {
     // Act & Assert
-    await expect(readPhotoInfo({ file, readExif: vi.fn().mockRejectedValue(new Error("깨짐")) })).resolves.toEqual({
+    await expect(readPhotoInfo({ file, isGroupLocation: true, readExif: vi.fn().mockRejectedValue(new Error("깨짐")) })).resolves.toEqual({
       location: undefined,
       takenAt: undefined,
     });
