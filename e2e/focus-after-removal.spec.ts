@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page, Route } from "@playwright/test";
-import { MAX_TAGS } from "@/lib/dates/form";
+import { MAX_TAGS } from "@/lib/dates/tags";
 import { createDisposableRecord, createDisposableTodo, setRecordTags } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { getGroupPhoto, pickPhoto, pretendOffline } from "./support/actions";

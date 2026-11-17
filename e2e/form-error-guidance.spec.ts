@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
-import { TAG_MAX_LENGTH } from "@/lib/dates/form";
+import { TAG_MAX_LENGTH } from "@/lib/dates/tags";
 import { E2E_MEMBER, E2E_TODOS } from "./support/constants";
 import { createDisposableRecord, createDisposableTodo, setRecordSearchFields } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";

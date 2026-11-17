@@ -1,7 +1,7 @@
 import type { KeyboardEvent, ReactElement, RefObject } from "react";
 import { FILLED_TAG_CHIP_CLASS_NAME, OUTLINED_TAG_CHIP_CLASS_NAME } from "@/components/dates/tagChip";
 import { FieldError, FieldLabel, FIELD_BOX_CLASS_NAME } from "@/components/FormField";
-import { MAX_TAGS, TAG_MAX_LENGTH, pickTagSuggestions } from "@/lib/dates/form";
+import { MAX_TAGS, TAG_MAX_LENGTH, pickTagSuggestions } from "@/lib/dates/tags";
 import { runKeepingFocus } from "@/lib/keep-focus";
 
 interface TagFieldProps {

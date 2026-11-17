@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { EditableRecord } from "@/lib/dates/detail";
+import type { EditableRecord } from "@/lib/dates/editable-record";
 import { createEmptyRecordDraft, toEditRecordDraft, withNewPreviews } from "./record-draft";
 
 const location = { place: "서울특별시 성동구 성수동", lat: 37.54, lng: 127.05 };

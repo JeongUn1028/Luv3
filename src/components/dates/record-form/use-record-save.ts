@@ -2,10 +2,11 @@
 
 import { useState, type Dispatch, type SetStateAction } from "react";
 import { RECORDS_PATH } from "@/lib/dates/album";
-import type { EditableRecord } from "@/lib/dates/detail";
+import type { EditableRecord } from "@/lib/dates/editable-record";
 import { getDraftPhotos } from "@/lib/dates/photo-group-draft";
 import { toFailedRecordFields } from "@/lib/dates/record-form-outcome";
-import { DateRecordAlreadyLinkedError, saveDateRecord, toDateRecordSaveFailure, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
+import { saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
+import { DateRecordAlreadyLinkedError, toDateRecordSaveFailure } from "@/lib/dates/save-errors";
 import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
 import type { LeavableSave } from "@/lib/navigation/use-leavable-save";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";

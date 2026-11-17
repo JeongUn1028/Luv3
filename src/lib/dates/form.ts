@@ -1,6 +1,6 @@
 import type { PlaceLocation } from "@/lib/places/location";
 import { toNextDay } from "@/lib/calendar/month";
-import { countChars, isIsoDate, isSameFormValue } from "@/lib/form";
+import { countChars, isIsoDate } from "@/lib/form";
 import type { Database } from "@/lib/supabase/database.types";
 
 // 글자 수 제한은 DB check 제약(마이그레이션)과 같아야 한다
@@ -9,11 +9,6 @@ export const MEMO_MAX_LENGTH = 10_000;
 export const CAPTION_MAX_LENGTH = 100;
 /** 모음 장소 이름(#317). 기록 상세 사진 아래 한 줄에 들어가는 길이다 */
 export const PLACE_NAME_MAX_LENGTH = 30;
-export const TAG_MAX_LENGTH = 10;
-/** 기록 하나에 붙일 수 있는 태그 수 */
-export const MAX_TAGS = 5;
-/** 작성 화면에 추천할 태그 수 */
-const TAG_SUGGESTION_LIMIT = 12;
 
 /** 사진 모음의 위치. 이름과 좌표가 늘 함께 있다(photo_groups, #297) */
 export interface PhotoLocation extends PlaceLocation {
@@ -155,48 +150,6 @@ export interface RecordPrefill {
 export const takeChars = (text: string, max: number): string => Array.from(text.trim()).slice(0, max).join("");
 
 /**
- * 적은 태그를 다듬는다. 앞의 #은 습관처럼 붙이므로 지운다.
- *
- * @example normalizeTag(" #카페 ") // "카페"
- */
-export const normalizeTag = (text: string): string => text.trim().replace(/^[#\s]+/, "").replace(/\s+/g, " ");
-
-const addOneTag = (tags: string[], text: string): { tags: string[]; error?: string } => {
-  const tag = normalizeTag(text);
-  const isSameTag = (existing: string): boolean => existing.toLowerCase() === tag.toLowerCase();
-  if (tag === "" || tags.some(isSameTag)) return { tags };
-  if (countChars(tag) > TAG_MAX_LENGTH) return { tags, error: `태그는 ${TAG_MAX_LENGTH}자까지 적을 수 있어요.` };
-  if (tags.length >= MAX_TAGS) return { tags, error: `태그는 ${MAX_TAGS}개까지 붙일 수 있어요.` };
-  return { tags: [...tags, tag] };
-};
-
-/**
- * 태그를 더한다. 습관대로 `#카페 #여행`처럼 적으면 각각 더한다.
- * 이미 있으면 그대로 두고, 글자 수나 개수를 넘으면 하나도 더하지 않고 이유를 함께 돌려준다.
- *
- * @example addTag(["카페"], "#여행") // { tags: ["카페", "여행"] }
- */
-export const addTag = (tags: string[], text: string): { tags: string[]; error?: string } => {
-  let nextTags = tags;
-  for (const part of text.split("#")) {
-    const { tags: added, error } = addOneTag(nextTags, part);
-    if (error) return { tags, error };
-    nextTags = added;
-  }
-  return { tags: nextTags };
-};
-
-/**
- * 전에 쓴 태그에서 보여 줄 것을 고른다. 이미 붙인 태그를 뺀 뒤에 잘라, 붙인 만큼 추천이 줄지 않게 한다.
- *
- * @example pickTagSuggestions(["cafe", "여행"], ["Cafe"]) // ["여행"]
- */
-export const pickTagSuggestions = (suggestions: string[], tags: string[]): string[] => {
-  const used = new Set(tags.map((tag) => tag.toLowerCase()));
-  return suggestions.filter((suggestion) => !used.has(suggestion.toLowerCase())).slice(0, TAG_SUGGESTION_LIMIT);
-};
-
-/**
  * 입력값을 기록 작성 함수(`create_date_record`) 인자로 바꾼다. 빈 글·장소 이름·한마디와 넘기지 않은 끝 날짜는 DB 함수가 null로 저장한다.
  * 모음은 화면 순서대로 넘기고, DB가 모음 순서·모음 안 순서대로 사진 순서를 매긴다.
  *
@@ -226,41 +179,4 @@ export const toCreateRecordArgs = (recordId: string, draft: DateRecordDraft): Cr
     p_event_date: draft.eventLink?.eventDate,
     p_tags: draft.tags,
   };
-};
-
-// 저장 시도에 쓰는 칸(판 번호 등), 사진 파일·미리보기 주소, 위치를 정한 곳은 사용자가 쓴 내용이 아니라 비교에서 뺀다
-const toWrittenContent = ({ date, endDate, title, memo, groups, coverPhotoId, tags }: DateRecordDraft) => ({
-  date,
-  endDate,
-  title,
-  memo,
-  groups: groups.map(({ id, location, placeName, caption, photos }) => ({ id, location, placeName, caption, photos: photos.map((photo) => photo.id) })),
-  coverPhotoId,
-  tags,
-});
-
-/**
- * 기록 폼에 쓴 내용이 처음과 다른지 알려 준다. 다르면 뒤로 버튼을 누를 때 버릴지 묻는다(#165).
- *
- * @example hasRecordDraftChanges(initialDraft, draft) // true
- */
-export const hasRecordDraftChanges = (initial: DateRecordDraft, current: DateRecordDraft): boolean =>
-  !isSameFormValue(toWrittenContent(initial), toWrittenContent(current));
-
-/**
- * `discarded`에서 첫 사진 정보를 읽는 중이던 모음에 위치가 채워지고 모음 순서가 바뀐 것 말고는 쓴 내용이 같은지 알려 준다.
- * 나가기를 고른 뒤 늦게 도착한 사진 정보는 사람이 계속 쓴 것이 아니므로, 숨겨질 때 그대로 버린다(#284, #249).
- *
- * @example isSameExceptReadingPhotoInfo(draftWhenDiscarded, draft) // true
- */
-export const isSameExceptReadingPhotoInfo = <Photo extends DraftPhoto>(discarded: DateRecordDraft<Photo>, current: DateRecordDraft<Photo>): boolean => {
-  const readingGroupIds = new Set(discarded.groups.filter(({ pendingLocationPhotoId }) => pendingLocationPhotoId).map(({ id }) => id));
-  // 사진 정보가 도착하면 모음이 찍은 시각 자리로 옮겨지므로 순서는 견주지 않는다. 나가기를 고른 뒤에는 사람이 순서를 바꿀 수 없다
-  const withoutReadingInfo = (draft: DateRecordDraft<Photo>): DateRecordDraft<Photo> => ({
-    ...draft,
-    groups: draft.groups
-      .map((group) => (readingGroupIds.has(group.id) ? { ...group, location: undefined } : group))
-      .toSorted((left, right) => left.id.localeCompare(right.id)),
-  });
-  return !hasRecordDraftChanges(withoutReadingInfo(discarded), withoutReadingInfo(current));
 };
