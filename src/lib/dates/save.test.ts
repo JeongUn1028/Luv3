@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { PhotoError } from "@/lib/photos/errors";
-import type { PhotoStorage } from "@/lib/photos/upload";
+import type { PhotoStorage } from "@/lib/photos/upload-file";
 import type { DateRecordDraft } from "./form";
 import { saveDateRecord, updateDateRecord, type SaveProgress } from "./save";
 import { DateRecordAlreadyLinkedError, DateRecordConflictError, DateRecordGoneError, SaveDateRecordError } from "./save-errors";

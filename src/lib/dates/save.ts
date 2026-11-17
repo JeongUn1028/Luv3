@@ -1,5 +1,6 @@
 import type { ResizedPhoto } from "@/lib/photos/resize";
-import { removeUploadedPhotos, resizeAndUploadPhotos, type PhotoStorage, type UploadedPhoto } from "@/lib/photos/upload";
+import { removeUploadedPhotos, resizeAndUploadPhotos, type UploadedPhoto } from "@/lib/photos/upload";
+import type { PhotoStorage } from "@/lib/photos/upload-file";
 import { callWithRetry, isDuplicateKey, isOutcomeUnknown } from "@/lib/save-outcome";
 import { toCreateRecordArgs, type CreateDateRecordArgs, type DateRecordDraft, type UpdateDateRecordArgs } from "./form";
 import { getDraftPhotos } from "./photo-group-draft";

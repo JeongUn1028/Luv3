@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { PhotoError } from "./errors";
-import { removeUploadedPhotos, resizeAndUploadPhotos, UPLOAD_CONCURRENCY, type PhotoStorage } from "./upload";
+import { removeUploadedPhotos, resizeAndUploadPhotos, UPLOAD_CONCURRENCY } from "./upload";
+import type { PhotoStorage } from "./upload-file";
 
 const DATE_ID = "10000000-0000-4000-8000-000000000001";
 const PHOTO_A = "20000000-0000-4000-8000-00000000000a";
