@@ -4,6 +4,7 @@ import { FILE_PATH_COLUMNS } from "@/lib/photos/album-files";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { GET } from "./route";
 
+vi.mock("server-only", () => ({}));
 vi.mock("@supabase/supabase-js", () => ({ createClient: vi.fn() }));
 
 const SECRET = "a".repeat(32);
