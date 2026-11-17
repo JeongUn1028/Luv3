@@ -213,7 +213,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
         <RecordFormFooter
           notice={notice}
           isRecordGone={isRecordGone}
-          linkedRecordId={recordSave.linkedRecordId}
+          linkedRecordId={draft.alreadyLinkedRecordId}
           hasConflict={draft.hasConflict}
           isSaving={isSaving}
           isReadingPhotoInfo={isReadingPhotoInfo}

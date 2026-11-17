@@ -54,6 +54,15 @@ export const createAlbumPages = (firstPage: AlbumFirstPage, generation = 0): Alb
 });
 
 /**
+ * 받은 사진 주소를 더 쓰면 안 되기까지 남은 시간(ms). 0 이하면 아직 받지 않은 사진이 깨질 수 있어 다시 받아야 한다.
+ * 받는 주소는 `SIGNED_URL_MIN_REMAINING` 이상 남은 것이라, 받은 때부터 그 시간 동안은 쓸 수 있다.
+ *
+ * @param receivedAt 주소를 받은 때(ms)
+ * @example toMsUntilPhotoUrlsStale(receivedAt, Date.now()) <= 0
+ */
+export const toMsUntilPhotoUrlsStale = (receivedAt: number, now: number): number => receivedAt + SIGNED_URL_MIN_REMAINING * 1000 - now;
+
+/**
  * 화면을 새로 받아 온 첫 묶음으로 바꾼다. 기록이 그대로면 이어 받은 기록과 스크롤 위치를 지키고 첫 묶음의 사진 주소만 새것으로 바꾼다.
  * 기록이 바뀌었거나(판 번호가 다름) 이어 받은 사진 주소를 더 쓸 수 없으면 첫 묶음부터 다시 시작한다.
  * 이어 받은 주소는 받을 때 `SIGNED_URL_MIN_REMAINING` 이상 남은 것이라, 그 시간이 지나면 아직 받지 않은 사진이 깨질 수 있다.
@@ -62,7 +71,7 @@ export const createAlbumPages = (firstPage: AlbumFirstPage, generation = 0): Alb
  */
 export const syncAlbumFirstPage = (pages: AlbumPages, firstPage: AlbumFirstPage): AlbumPages => {
   const isChanged = firstPage.version !== pages.firstPage.version;
-  const isMoreExpired = pages.moreLoadedAt !== undefined && firstPage.loadedAt >= pages.moreLoadedAt + SIGNED_URL_MIN_REMAINING * 1000;
+  const isMoreExpired = pages.moreLoadedAt !== undefined && toMsUntilPhotoUrlsStale(pages.moreLoadedAt, firstPage.loadedAt) <= 0;
   if (isChanged || isMoreExpired) return createAlbumPages(firstPage, pages.generation + 1);
   return { ...pages, firstPage, next: pages.moreLoadedAt === undefined ? firstPage.next : pages.next };
 };

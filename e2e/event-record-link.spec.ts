@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
-import { getSubmitButton, pickPhoto } from "./support/actions";
+import { getSubmitButton, getTab, pickPhoto } from "./support/actions";
 import {
   createDisposableEvent,
   createDisposableRecord,
@@ -9,6 +9,8 @@ import {
   getRecordIdsByTitle,
   renameRecord,
 } from "./support/seed";
+import { CALENDAR_PATH } from "@/lib/calendar/month";
+import { TODOS_PATH } from "@/lib/todos/list";
 import { expect, openScreen, test } from "./support/test";
 import { createTestName } from "./support/names";
 
@@ -70,6 +72,51 @@ test.describe("일정과 기록 연결", () => {
       expect(await getRecordIdsByTitle(title)).toEqual([recordId]);
       await page.getByRole("link", { name: "남긴 기록 보기" }).click();
       await page.waitForURL(`**/dates/${recordId}`);
+    } finally {
+      await deleteRecord();
+      await deleteEvent();
+    }
+  });
+
+  test("저장 중 나가 폼이 사라진 뒤 이미 남긴 기록이 있다고 거절되면, 알림으로 돌아온 폼도 저장 대신 남긴 기록을 안내한다(#410)", async ({ page }, testInfo) => {
+    // Arrange
+    const eventId = randomUUID();
+    const recordId = randomUUID();
+    const title = createTestName("E2E 연결 중복 나감", testInfo);
+    const deleteEvent = await createDisposableEvent({ id: eventId, title, date: PAST_DATE });
+    const deleteRecord = await createDisposableRecord({ id: recordId, title, eventLink: { eventId, eventDate: PAST_DATE } });
+    let release = (): void => undefined;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await page.route("**/rest/v1/rpc/create_date_record", async (route) => {
+      await released;
+      await route.continue();
+    });
+
+    try {
+      await openScreen(page, `/dates/new?event=${eventId}&eventDate=${PAST_DATE}`, page.locator("#memo").locator("visible=true"));
+      await pickPhoto(page, 1);
+      const requested = page.waitForRequest("**/rest/v1/rpc/create_date_record");
+      await getSubmitButton(page).click();
+      await requested;
+
+      // Act: 숨겨 두는 화면 수(3개)를 넘겨 폼을 밀어낸 뒤 거절이 온다
+      await page.getByRole("link", { name: "뒤로" }).locator("visible=true").click();
+      await page.waitForURL((url) => !url.pathname.startsWith("/dates/new"));
+      for (const href of [TODOS_PATH, CALENDAR_PATH, "/"]) {
+        await getTab(page, href).click();
+        await page.waitForURL((url) => url.pathname === href);
+      }
+      release();
+      const notice = page.getByRole("alert").filter({ hasText: "기록을 저장하지 못했어요" });
+      await notice.getByRole("link", { name: "돌아가기" }).click();
+      await page.waitForURL("**/dates/new?*");
+
+      // Assert
+      await expect(getFormAlert(page)).toContainText("이 일정에는 이미 남긴 기록이 있어요");
+      await expect(page.getByRole("link", { name: "남긴 기록 보기" })).toBeVisible();
+      await expect(getSubmitButton(page)).toHaveCount(0);
     } finally {
       await deleteRecord();
       await deleteEvent();

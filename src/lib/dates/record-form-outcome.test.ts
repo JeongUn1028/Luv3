@@ -50,6 +50,19 @@ describe("toFailedRecordFields", () => {
 
     expect(fields).toEqual({ hasConflict: false, expectedRevisions: undefined, uncertainSaveRecordId: "new-1", mayHaveLeftoverPhotos: true });
   });
+
+  it("이미 남긴 기록 때문에 거절되면 그 기록 id를 기억하고, 다른 이유로 실패하면 기억하지 않는다(#410)", () => {
+    // Arrange
+    const draft = { expectedRevisions: undefined, nextRevision: undefined, uncertainSaveRecordId: undefined };
+
+    // Act
+    const linked = toFailedRecordFields({ failure: failure(), draft, recordId: "new-1", alreadyLinkedRecordId: "linked-1" });
+    const other = toFailedRecordFields({ failure: failure(), draft, recordId: "new-1" });
+
+    // Assert
+    expect(linked.alreadyLinkedRecordId).toBe("linked-1");
+    expect(other.alreadyLinkedRecordId).toBeUndefined();
+  });
 });
 
 describe("toRecordFormEnding", () => {

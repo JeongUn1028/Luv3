@@ -53,6 +53,11 @@ export interface DateRecordDraft<Photo extends DraftPhoto = DraftPhoto> {
    * 다시 저장할 때 같은 경로에 올린다. 그때 이미 있는 파일은 앞선 시도가 올린 같은 파일로 본다(#408)
    */
   mayHaveLeftoverPhotos?: boolean;
+  /**
+   * 일정에서 남기려는데 그 일정의 그날에 이미 남긴 기록이 있어 거절됐을 때 그 기록 id(#227). 저장 대신 그 기록을 안내한다.
+   * 실패 내용과 함께 보관해, 폼이 사라진 뒤 알림으로 돌아와도 저장 버튼을 다시 내지 않는다(#410)
+   */
+  alreadyLinkedRecordId?: string;
   /** 저장을 허용할 판 번호: 불러온 때의 판과, 저장됐을 수 있는 내 앞선 시도의 판. 새 기록이면 없다 */
   expectedRevisions?: string[];
   /** 이번 저장으로 바뀔 판 번호. 저장을 시도할 때마다 새로 정한다 */
