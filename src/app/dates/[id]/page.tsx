@@ -11,7 +11,7 @@ import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { PageShell } from "@/components/PageShell";
 import { RecordComments } from "@/components/dates/RecordComments";
 import { RecordDetailSkeleton } from "@/components/dates/RecordDetailSkeleton";
-import { LinkEventButton, LinkedEventRow } from "@/components/dates/RecordEventLink";
+import { RecordEventLink } from "@/components/dates/RecordEventLink";
 import { RecordRoute } from "@/components/dates/route/RecordRoute";
 import { RecordTagLink } from "@/components/dates/RecordTagLink";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -40,11 +40,10 @@ const DetailHeader = ({ actions }: { actions?: ReactNode }) => (
   </div>
 );
 
-// 이을 일정이 없으면 아무것도 그리지 않는다. 못 읽어도 기록은 그대로 볼 수 있다
-const LinkEventSuggestion = async ({ recordId, date, endDate }: { recordId: string; date: string; endDate: string | undefined }) => {
+// 이을 일정을 읽어 잇기 칸을 그린다. 못 읽으면 잇기 버튼만 빼고, 기록은 그대로 볼 수 있다
+const LinkableEventsSection = async ({ recordId, date, endDate }: { recordId: string; date: string; endDate: string | undefined }) => {
   const events = await catchLoadError(() => getLinkableEvents({ start: date, end: endDate ?? date }, toKstDate(new Date())), EventLoadError);
-  if (events instanceof EventLoadError || events.length === 0) return null;
-  return <LinkEventButton recordId={recordId} events={events} />;
+  return <RecordEventLink recordId={recordId} linkedEvent={undefined} events={events instanceof EventLoadError ? [] : events} />;
 };
 
 const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id]">, "params" | "searchParams">) => {
@@ -129,13 +128,15 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
             {/* 사진 위치를 찍은 순서대로 이은 동선(#251). 이을 곳이 둘 미만이면 그리지 않는다 */}
             {record.route && mapKey && <RecordRoute route={record.route} appKey={mapKey} />}
             {/* 이미 쓴 기록도 일정과 잇고, 잘못 이었으면 연결만 끊는다(#237). 이을 일정은 기록을 그린 뒤에 읽어 화면을 늦추지 않고, 늦게 나타나도 글을 밀지 않게 본문 끝에 둔다 */}
-            {record.linkedEvent ? (
-              <LinkedEventRow recordId={record.id} event={record.linkedEvent} />
-            ) : (
-              <LoadingSuspense fallback={null}>
-                <LinkEventSuggestion recordId={record.id} date={record.date} endDate={record.endDate} />
-              </LoadingSuspense>
-            )}
+            {/* 이어져 있든 아니든 같은 자리에 같은 RecordEventLink를 그려야, 잇거나 끊은 뒤 새 화면이 와도 그 칸이 새로 만들어지지 않는다(#391).
+                이어진 일정이 있으면 이을 일정을 읽지 않고 바로 그린다 */}
+            <LoadingSuspense fallback={null}>
+              {record.linkedEvent ? (
+                <RecordEventLink recordId={record.id} linkedEvent={record.linkedEvent} events={[]} />
+              ) : (
+                <LinkableEventsSection recordId={record.id} date={record.date} endDate={record.endDate} />
+              )}
+            </LoadingSuspense>
           </div>
         </article>
       </FirstPhotoGate>
