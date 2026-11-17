@@ -7,6 +7,7 @@ import { RememberedPhoto } from "@/components/RememberedPhoto";
 import type { DetailGroup, DetailPhoto } from "@/lib/dates/detail";
 import { toSlidePhotoLoad } from "@/lib/dates/detail-photo-loading";
 import { PhotoPlace } from "./PhotoPlace";
+import { ZoomablePhotoFrame } from "./ZoomablePhotoFrame";
 
 /** 크게 보기를 여는 기능 */
 export interface PhotoViewerHandle {
@@ -33,7 +34,14 @@ interface ViewerSlidesProps {
 
 /** 넘겨 보는 사진 줄. 열 때마다 새로 그려 연 사진에서 시작한다 */
 const ViewerSlides = ({ photos, title, startIndex, onSelect }: ViewerSlidesProps): ReactElement => {
-  const [viewportRef, emblaApi] = useEmblaCarousel({ startIndex });
+  // 확대한 동안에는 한 손가락 끌기로 사진을 옮기므로 사진 줄을 밀어 넘기지 않는다. 두 손가락을 대는 순간도 넘기기를 시작하지 않는다
+  const isZoomedRef = useRef(false);
+  // 한 손가락으로 사진 줄을 끌던 중 두 번째 손가락이 닿으면 Embla가 끈 힘으로 넘겨 버리므로, 두 손가락을 댄 사진으로 되돌린다
+  const pinchIndexRef = useRef<number | undefined>(undefined);
+  const [viewportRef, emblaApi] = useEmblaCarousel({
+    startIndex,
+    watchDrag: (_, event) => !isZoomedRef.current && !("touches" in event && event.touches.length > 1),
+  });
   const focusRef = useRef<HTMLDivElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(startIndex);
   // 다 받은 사진. 받기 전과 받지 못했을 때는 깨진 사진 표시 대신 빈 칸으로 둔다
@@ -51,12 +59,19 @@ const ViewerSlides = ({ photos, title, startIndex, onSelect }: ViewerSlidesProps
     if (!emblaApi) return;
     const handleSelect = () => {
       const index = emblaApi.selectedScrollSnap();
+      // 넘긴 사진은 원래 크기로 시작한다
+      isZoomedRef.current = false;
       setSelectedIndex(index);
       onSelect(index);
     };
+    const handlePointerUp = () => {
+      if (pinchIndexRef.current !== undefined) emblaApi.scrollTo(pinchIndexRef.current);
+    };
     emblaApi.on("select", handleSelect);
+    emblaApi.on("pointerUp", handlePointerUp);
     return () => {
       emblaApi.off("select", handleSelect);
+      emblaApi.off("pointerUp", handlePointerUp);
     };
   }, [emblaApi, onSelect]);
 
@@ -74,23 +89,32 @@ const ViewerSlides = ({ photos, title, startIndex, onSelect }: ViewerSlidesProps
   const markShown = (photoId: string) => setShownIds((ids) => (ids.has(photoId) ? ids : new Set(ids).add(photoId)));
 
   return (
-    <div ref={focusRef} tabIndex={0} role="region" aria-roledescription="carousel" aria-label="사진, 좌우 화살표로 넘기기" onKeyDown={handleKeyDown} className="flex min-h-0 flex-1 outline-none">
+    <div ref={focusRef} tabIndex={0} role="region" aria-roledescription="carousel" aria-label="사진, 좌우 화살표로 넘기기, 두 번 누르거나 두 손가락으로 확대" onKeyDown={handleKeyDown} className="flex min-h-0 flex-1 outline-none">
       <div ref={viewportRef} className="min-h-0 flex-1 overflow-hidden">
         <div className="flex h-full touch-pan-y">
-          {photos.map((photo, index) => (
-            <div key={photo.id} role="group" aria-roledescription="slide" aria-label={`${index + 1} / ${photos.length}`} className="flex h-full min-w-0 shrink-0 grow-0 basis-full items-center justify-center">
-              {photo.original ? (
-                requestedIds.has(photo.id) && (
-                  <RememberedPhoto
-                    photo={photo.original}
-                    alt={`${title} 사진 ${index + 1}`}
-                    draggable={false}
-                    loading="eager"
-                    fetchPriority={loads[index] === "now" ? "high" : "low"}
-                    onLoaded={() => markShown(photo.id)}
-                    className={`max-h-full max-w-full object-contain ${shownIds.has(photo.id) ? "" : "opacity-0"}`}
-                  />
-                )
+          {photos.map(({ id, original }, index) => (
+            <div key={id} role="group" aria-roledescription="slide" aria-label={`${index + 1} / ${photos.length}`} className="flex h-full min-w-0 shrink-0 grow-0 basis-full items-center justify-center">
+              {original ? (
+                <ZoomablePhotoFrame
+                  isSelected={index === selectedIndex}
+                  onZoomedChange={(isZoomed) => (isZoomedRef.current = isZoomed)}
+                  onPinchingChange={(isPinching) => (pinchIndexRef.current = isPinching ? index : undefined)}
+                >
+                  {(zoomStyle) =>
+                    requestedIds.has(id) && (
+                      <RememberedPhoto
+                        photo={original}
+                        alt={`${title} 사진 ${index + 1}`}
+                        draggable={false}
+                        loading="eager"
+                        fetchPriority={loads[index] === "now" ? "high" : "low"}
+                        onLoaded={() => markShown(id)}
+                        style={zoomStyle}
+                        className={`max-h-full max-w-full object-contain ${shownIds.has(id) ? "" : "opacity-0"}`}
+                      />
+                    )
+                  }
+                </ZoomablePhotoFrame>
               ) : (
                 <p className="text-[14px] text-ink-sub">사진을 불러오지 못했어요</p>
               )}

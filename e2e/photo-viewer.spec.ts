@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import type { CDPSession, Locator, Page } from "@playwright/test";
 import { expectImageLoaded } from "./support/actions";
 import { PHOTO_COUNT, PHOTO_RECORD } from "./support/constants";
 import { expect, test } from "./support/test";
@@ -11,6 +11,45 @@ const getViewer = (page: Page): Locator => page.getByRole("dialog", { name: `${P
 const getViewerPhoto = (page: Page, order: number): Locator => getViewer(page).getByRole("img", { name: `${PHOTO_RECORD.title} 사진 ${order}`, exact: true });
 const getOpenButton = (page: Page, order: number): Locator =>
   page.getByRole("button", { name: `${PHOTO_RECORD.title} 사진 ${order} 크게 보기` }).locator("visible=true");
+
+interface TouchPoint {
+  x: number;
+  y: number;
+}
+
+// Playwright의 touchscreen은 한 손가락만 누르므로, 두 손가락은 Chrome 개발자 도구 명령으로 보낸다
+const sendTouch = (session: CDPSession, type: "touchStart" | "touchMove" | "touchEnd", points: TouchPoint[]): Promise<unknown> =>
+  session.send("Input.dispatchTouchEvent", { type, touchPoints: points.map(({ x, y }, id) => ({ x, y, id })) });
+
+/** 손가락들을 처음 자리에서 끝 자리로 여러 번에 나눠 옮긴다 */
+const dragTouches = async (page: Page, from: TouchPoint[], to: TouchPoint[]): Promise<void> => {
+  const session = await page.context().newCDPSession(page);
+  const STEPS = 8;
+  await sendTouch(session, "touchStart", from);
+  for (let step = 1; step <= STEPS; step += 1) {
+    await sendTouch(
+      session,
+      "touchMove",
+      from.map((point, index) => ({ x: point.x + ((to[index].x - point.x) * step) / STEPS, y: point.y + ((to[index].y - point.y) * step) / STEPS })),
+    );
+  }
+  await sendTouch(session, "touchEnd", []);
+  await session.detach();
+};
+
+const getBox = async (locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> => {
+  const box = await locator.boundingBox();
+  if (!box) throw new Error("사진이 화면에 없다");
+  return box;
+};
+
+const openViewer = async (page: Page): Promise<Locator> => {
+  await openDetail(page);
+  await getOpenButton(page, 1).click();
+  const photo = getViewerPhoto(page, 1);
+  await expectImageLoaded(photo);
+  return photo;
+};
 
 const openDetail = async (page: Page): Promise<void> => {
   await page.goto(DETAIL_PATH);
@@ -74,5 +113,107 @@ test.describe("기록 사진 크게 보기", () => {
     // Assert
     await expect(page.getByText(`2 / ${PHOTO_COUNT}`).locator("visible=true")).toBeVisible();
     await expect(getViewer(page)).toBeHidden();
+  });
+
+  test("크게 보기 사진을 두 번 누르면 확대하고, 다시 두 번 누르면 원래 크기로 돌아간다", async ({ page }) => {
+    // Arrange
+    const photo = await openViewer(page);
+    const before = await getBox(photo);
+    const center = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+
+    // Act
+    await page.touchscreen.tap(center.x, center.y);
+    await page.touchscreen.tap(center.x, center.y);
+
+    // Assert
+    await expect.poll(async () => (await getBox(photo)).width / before.width).toBeCloseTo(2.5, 1);
+
+    // Act: 다시 두 번 누른다
+    await page.touchscreen.tap(center.x, center.y);
+    await page.touchscreen.tap(center.x, center.y);
+
+    // Assert
+    await expect.poll(async () => (await getBox(photo)).width / before.width).toBeCloseTo(1, 1);
+  });
+
+  test("크게 보기 사진을 두 손가락으로 벌리면 그만큼 키우고, 확대한 동안 한 손가락으로 끌면 넘기지 않고 사진을 옮긴다", async ({ page }) => {
+    // Arrange
+    const photo = await openViewer(page);
+    const before = await getBox(photo);
+    const center = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+
+    // Act: 사이 80px을 240px로 벌린다
+    await dragTouches(
+      page,
+      [
+        { x: center.x - 40, y: center.y },
+        { x: center.x + 40, y: center.y },
+      ],
+      [
+        { x: center.x - 120, y: center.y },
+        { x: center.x + 120, y: center.y },
+      ],
+    );
+
+    // Assert
+    await expect.poll(async () => (await getBox(photo)).width / before.width).toBeCloseTo(3, 1);
+    const zoomed = await getBox(photo);
+
+    // Act: 한 손가락으로 왼쪽으로 끈다
+    await dragTouches(page, [center], [{ x: center.x - 100, y: center.y }]);
+
+    // Assert
+    await expect.poll(async () => (await getBox(photo)).x - zoomed.x).toBeCloseTo(-100, -1);
+    await expect(getViewer(page).getByText(`1 / ${PHOTO_COUNT}`)).toBeVisible();
+  });
+
+  test("확대한 사진은 다른 사진으로 넘겼다 돌아오면 원래 크기로 보인다", async ({ page }) => {
+    // Arrange
+    const photo = await openViewer(page);
+    const before = await getBox(photo);
+    const center = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+    await page.touchscreen.tap(center.x, center.y);
+    await page.touchscreen.tap(center.x, center.y);
+    await expect.poll(async () => (await getBox(photo)).width / before.width).toBeCloseTo(2.5, 1);
+    const viewer = getViewer(page);
+
+    // Act
+    await page.keyboard.press("ArrowRight");
+    await expect(viewer.getByText(`2 / ${PHOTO_COUNT}`)).toBeVisible();
+    await page.keyboard.press("ArrowLeft");
+    await expect(viewer.getByText(`1 / ${PHOTO_COUNT}`)).toBeVisible();
+
+    // Assert
+    await expect.poll(async () => (await getBox(photo)).width / before.width).toBeCloseTo(1, 1);
+  });
+
+  test("한 손가락으로 조금 끌다가 두 번째 손가락을 대고 벌리면 넘기지 않고 지금 사진을 키운다", async ({ page }) => {
+    // Arrange: 실제 손가락은 차례로 닿는다
+    const photo = await openViewer(page);
+    const before = await getBox(photo);
+    const center = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+    const session = await page.context().newCDPSession(page);
+
+    // Act: 첫 손가락을 왼쪽으로 빠르게 끌다가 두 번째 손가락을 대고 벌린다
+    await sendTouch(session, "touchStart", [{ x: center.x + 40, y: center.y }]);
+    for (let step = 1; step <= 4; step += 1) await sendTouch(session, "touchMove", [{ x: center.x + 40 - step * 15, y: center.y }]);
+    await sendTouch(session, "touchStart", [
+      { x: center.x - 20, y: center.y },
+      { x: center.x + 60, y: center.y },
+    ]);
+    for (let step = 1; step <= 8; step += 1) {
+      await sendTouch(session, "touchMove", [
+        { x: center.x - 20 - step * 10, y: center.y },
+        { x: center.x + 60 + step * 10, y: center.y },
+      ]);
+    }
+    await sendTouch(session, "touchEnd", []);
+    await session.detach();
+
+    // Assert
+    await expect(getViewer(page).getByText(`1 / ${PHOTO_COUNT}`)).toBeVisible();
+    await expect.poll(async () => (await getBox(photo)).width / before.width).toBeGreaterThan(1.8);
+    await page.waitForTimeout(500);
+    await expect(getViewer(page).getByText(`1 / ${PHOTO_COUNT}`)).toBeVisible();
   });
 });
