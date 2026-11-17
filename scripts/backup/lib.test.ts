@@ -4,6 +4,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  assertBackupFilesComplete,
+  assertLocalApiUrl,
+  chooseRestoreSnapshot,
   compareCounts,
   countRowsByTable,
   describeBackupVersion,
@@ -303,5 +306,61 @@ describe("describeBackupVersion", () => {
 
   it("두 칸을 넣기 전에 받은 시점이면 기록 없음으로 보여 준다", () => {
     expect(describeBackupVersion({})).toBe("커밋 기록 없음, 마지막 마이그레이션 기록 없음");
+  });
+});
+
+// 복구는 로컬 DB를 지우고 다시 채운다. 지우기 전에 멈춰야 하는 판단들이다(#414)
+describe("assertLocalApiUrl", () => {
+  it.each(["http://127.0.0.1:54321", "http://localhost:54321"])("로컬 주소(%s)면 통과한다", (url) => {
+    expect(() => assertLocalApiUrl(url)).not.toThrow();
+  });
+
+  it.each(["https://zyalqrnkdjzbfxqhxhzd.supabase.co", "http://127.0.0.1.example.com:54321", "http://192.168.0.2:54321"])(
+    "로컬이 아닌 주소(%s)면 멈춘다",
+    (url) => {
+      expect(() => assertLocalApiUrl(url)).toThrow(`로컬 주소가 아니므로 멈춥니다: ${url}`);
+    },
+  );
+});
+
+describe("chooseRestoreSnapshot", () => {
+  const complete = ["2026-10-01T00-00-00Z", "2026-11-01T00-00-00Z"];
+
+  it("시점을 고르지 않으면 완성된 시점 중 가장 늦은 것을 고른다", () => {
+    expect(chooseRestoreSnapshot({ complete, requested: undefined, root: "D:/backup" })).toBe("2026-11-01T00-00-00Z");
+  });
+
+  it("고른 시점이 완성돼 있으면 그 시점을 고른다", () => {
+    expect(chooseRestoreSnapshot({ complete, requested: "2026-10-01T00-00-00Z", root: "D:/backup" })).toBe("2026-10-01T00-00-00Z");
+  });
+
+  // manifest가 없는 시점은 백업이 중간에 끊긴 것이다
+  it("고른 시점이 완성된 목록에 없으면 완성된 시점을 알려 주며 멈춘다", () => {
+    expect(() => chooseRestoreSnapshot({ complete, requested: "2026-12-01T00-00-00Z", root: "D:/backup" })).toThrow(
+      "되살릴 수 있는 시점이 없습니다: 2026-12-01T00-00-00Z\n완성된 시점: 2026-10-01T00-00-00Z, 2026-11-01T00-00-00Z",
+    );
+  });
+
+  it("완성된 시점이 하나도 없으면 폴더를 알려 주며 멈춘다", () => {
+    expect(() => chooseRestoreSnapshot({ complete: [], requested: undefined, root: "D:/backup" })).toThrow(
+      "되살릴 수 있는 시점이 없습니다: D:/backup\n완성된 시점: 없음",
+    );
+  });
+});
+
+describe("assertBackupFilesComplete", () => {
+  const files = [
+    { path: "a/1.jpg", size: 10 },
+    { path: "a/2.jpg", size: 20 },
+  ];
+
+  it("백업 폴더에 모든 파일이 같은 크기로 있으면 통과한다", () => {
+    expect(() => assertBackupFilesComplete(files, new Map([["a/1.jpg", 10], ["a/2.jpg", 20], ["b/extra.jpg", 1]]))).not.toThrow();
+  });
+
+  it("없거나 크기가 다른 파일이 있으면 그 목록을 알려 주며 멈춘다", () => {
+    expect(() => assertBackupFilesComplete(files, new Map([["a/1.jpg", 9]]))).toThrow(
+      "백업 폴더에 없거나 크기가 다른 파일이 2개 있습니다.\na/1.jpg\na/2.jpg",
+    );
   });
 });

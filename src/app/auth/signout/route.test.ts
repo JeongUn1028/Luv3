@@ -1,19 +1,23 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SIGN_OUT_PUSH_ENDPOINT_FIELD } from "@/lib/push/message";
+import { getSessionClaims } from "@/lib/supabase/jwks";
 import { createClient } from "@/lib/supabase/server";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/jwks", () => ({ getSessionClaims: vi.fn() }));
 
 const PHONE = "https://push.example/phone";
 
 interface FakeSupabaseOptions {
   deleteError?: { message: string };
+  /** 허용목록 확인(`is_member`)의 답 */
+  isMember?: { data: boolean | null; error: { message: string } | null };
 }
 
 /** 로그아웃 경로가 부르는 구독 지우기(delete…eq)와 로그아웃만 흉내 내고, 부른 순서를 기록한다 */
-const fakeSupabase = ({ deleteError }: FakeSupabaseOptions = {}) => {
+const fakeSupabase = ({ deleteError, isMember = { data: true, error: null } }: FakeSupabaseOptions = {}) => {
   const calls: string[] = [];
   const client = {
     from: (table: string) => ({
@@ -24,6 +28,10 @@ const fakeSupabase = ({ deleteError }: FakeSupabaseOptions = {}) => {
         },
       }),
     }),
+    rpc: (name: string) => {
+      calls.push(`rpc ${name}`);
+      return Promise.resolve(isMember);
+    },
     auth: {
       signOut: (options: unknown) => {
         calls.push(`signOut ${JSON.stringify(options)}`);
@@ -103,5 +111,81 @@ describe("POST /auth/signout", () => {
     expect(calls.at(-1)).toBe('signOut {"scope":"local"}');
     expect(response.status).toBe(303);
     expect(console.error).toHaveBeenCalledWith("로그아웃: 이 기기의 알림 구독을 지우지 못했습니다", "timeout");
+  });
+});
+
+/** 세션 토큰을 확인한 결과를 정한다. `userId`가 없으면 로그인하지 않은 것이다 */
+const setSession = (userId: string | undefined): void => {
+  const data = userId ? { claims: { sub: userId } } : null;
+  vi.mocked(getSessionClaims).mockResolvedValue({ data, error: null } as unknown as Awaited<ReturnType<typeof getSessionClaims>>);
+};
+
+const notMemberRequest = (): NextRequest => new NextRequest("http://localhost/auth/signout?reason=not_member");
+
+const locationOf = (response: Response): URL => new URL(response.headers.get("location") ?? "");
+
+// 허용목록 밖 계정을 내보내는 경로(getCurrentMember가 보낸다). 다른 사이트의 링크로 열려도 허용된 사람은 로그아웃되지 않아야 한다
+describe("GET /auth/signout", () => {
+  afterEach(() => {
+    vi.resetAllMocks();
+    vi.restoreAllMocks();
+  });
+
+  it("허용목록 밖 계정이면 로그아웃하고 로그인 화면에 not_member를 붙여 보낸다", async () => {
+    // Arrange
+    setSession("outsider");
+    const calls = fakeSupabase({ isMember: { data: false, error: null } });
+
+    // Act
+    const response = await GET(notMemberRequest());
+
+    // Assert
+    expect(calls).toEqual(["rpc is_member", 'signOut {"scope":"local"}']);
+    expect(response.status).toBe(307);
+    expect(locationOf(response).pathname).toBe("/login");
+    expect(locationOf(response).searchParams.get("error")).toBe("not_member");
+  });
+
+  it("허용된 사람이면 로그아웃하지 않고 홈으로 돌려보낸다", async () => {
+    // Arrange
+    setSession("member");
+    const calls = fakeSupabase({ isMember: { data: true, error: null } });
+
+    // Act
+    const response = await GET(notMemberRequest());
+
+    // Assert
+    expect(calls).toEqual(["rpc is_member"]);
+    expect(response.status).toBe(307);
+    expect(locationOf(response).pathname).toBe("/");
+  });
+
+  // 일시적인 DB 오류로 허용된 사람을 로그아웃시키지 않는다
+  it("허용목록을 확인하지 못하면 로그아웃하지 않고 에러를 낸다", async () => {
+    // Arrange
+    setSession("member");
+    const calls = fakeSupabase({ isMember: { data: null, error: { message: "timeout" } } });
+
+    // Act
+    const signingOut = GET(notMemberRequest());
+
+    // Assert
+    await expect(signingOut).rejects.toThrow("허용목록을 확인하지 못했습니다: timeout");
+    expect(calls).toEqual(["rpc is_member"]);
+  });
+
+  it("로그인하지 않았으면 묻지 않고 로그인 화면으로 보낸다", async () => {
+    // Arrange
+    setSession(undefined);
+    const calls = fakeSupabase();
+
+    // Act
+    const response = await GET(notMemberRequest());
+
+    // Assert
+    expect(calls).toEqual([]);
+    expect(response.status).toBe(307);
+    expect(locationOf(response).pathname).toBe("/login");
+    expect(locationOf(response).searchParams.get("error")).toBeNull();
   });
 });
