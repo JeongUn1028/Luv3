@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isIosDevice, isSameServerKey, toApplicationServerKey, toPushStatus, toPushSupport, toStoredSubscription } from "./subscription";
+import { isIosDevice, isSameServerKey, isUsableSubscription, toApplicationServerKey, toPushStatus, toPushSupport, toStoredSubscription } from "./subscription";
 
 const IPHONE_SAFARI = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
 const MAC_SAFARI = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
@@ -82,6 +82,20 @@ describe("isSameServerKey", () => {
   ])("%s %s", (_, current, result) => {
     // Act & Assert
     expect(isSameServerKey(current, expected)).toBe(result);
+  });
+});
+
+describe("isUsableSubscription", () => {
+  const serverKey = Uint8Array.from([1, 2, 3]);
+
+  it.each([
+    ["지금 키로 만든 구독이면", { options: { applicationServerKey: Uint8Array.from([1, 2, 3]).buffer } }, true],
+    ["예전 키로 만든 구독이면", { options: { applicationServerKey: Uint8Array.from([9]).buffer } }, false],
+    ["구독이 없으면", null, false],
+    ["알림 기능이 없어 구독을 모르면", undefined, false],
+  ])("%s %s", (_, subscription, result) => {
+    // Act & Assert
+    expect(isUsableSubscription(subscription, serverKey)).toBe(result);
   });
 });
 

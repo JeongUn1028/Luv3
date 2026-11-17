@@ -7,13 +7,17 @@ import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import { SIGN_IN_UNAVAILABLE_MESSAGE } from "@/lib/auth/login-messages";
 import { isSessionLostError, SESSION_LOST_EVENT } from "@/lib/auth/session-lost";
 import { signInAgain } from "@/lib/auth/sign-in-again";
+import { adoptThisDevicePushSubscription } from "@/lib/push/device-subscription";
 import { createClient } from "@/lib/supabase/client";
 
 /** 로그인에 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
 // async: 클라이언트를 만들다 던져도 거절된 약속이 되어 부르는 쪽의 catch가 받는다
 const signInHere = async (email: string, password: string): Promise<string | undefined> => {
   const supabase = createClient();
-  return signInAgain({ email, password, auth: supabase.auth, members: supabase.from("members") });
+  const failure = await signInAgain({ email, password, auth: supabase.auth, members: supabase.from("members") });
+  // 다른 사람이 이 자리에서 로그인했을 수 있어 이 기기 구독의 주인을 맞춘다(#409)
+  if (!failure) await adoptThisDevicePushSubscription();
+  return failure;
 };
 
 interface SessionLostFormProps {

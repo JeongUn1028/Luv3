@@ -13,26 +13,37 @@ const IPHONE_SAFARI_USER_AGENT =
 
 /**
  * 브라우저의 알림 구독을 가짜로 대신한다. 실제 구독은 구글 알림 서버에 접속해야 해 CI에서 흔들리고,
- * 실제로 보내는 일은 이 테스트가 다루지 않는다. 서비스 워커 등록과 구독 만들기·끊기만 흉내 낸다
+ * 실제로 보내는 일은 이 테스트가 다루지 않는다. 서비스 워커 등록과 구독 만들기·끊기만 흉내 낸다.
+ * `keepsSubscription`이면 실제 기기처럼 화면을 새로 열어도(전체 페이지 이동) 구독이 남는다
  */
-const useFakePushManager = async (page: Page, permission: NotificationPermission = "granted"): Promise<void> => {
-  await page.addInitScript((initialPermission: NotificationPermission) => {
+const useFakePushManager = async (page: Page, permission: NotificationPermission = "granted", { keepsSubscription = false } = {}): Promise<void> => {
+  await page.addInitScript(({ initialPermission, shouldKeep }: { initialPermission: NotificationPermission; shouldKeep: boolean }) => {
+    const STORAGE_KEY = "e2e-push-subscription";
     let current: PushSubscription | null = null;
     let notificationPermission = initialPermission;
+    const createSubscription = (endpoint: string, key: Uint8Array): PushSubscription =>
+      ({
+        endpoint,
+        options: { applicationServerKey: key.buffer, userVisibleOnly: true },
+        toJSON: () => ({ endpoint, expirationTime: null, keys: { p256dh: "e2e-key", auth: "e2e-auth" } }),
+        unsubscribe: async () => {
+          current = null;
+          sessionStorage.removeItem(STORAGE_KEY);
+          return true;
+        },
+      }) as unknown as PushSubscription;
+    const kept = shouldKeep ? sessionStorage.getItem(STORAGE_KEY) : null;
+    if (kept) {
+      const { endpoint, key } = JSON.parse(kept) as { endpoint: string; key: number[] };
+      current = createSubscription(endpoint, new Uint8Array(key));
+    }
     const pushManager = {
       getSubscription: async () => current,
       subscribe: async ({ applicationServerKey }: PushSubscriptionOptionsInit) => {
         const endpoint = `https://push.example/e2e-${crypto.randomUUID()}`;
         const key = new Uint8Array(applicationServerKey as ArrayBuffer);
-        current = {
-          endpoint,
-          options: { applicationServerKey: key.buffer, userVisibleOnly: true },
-          toJSON: () => ({ endpoint, expirationTime: null, keys: { p256dh: "e2e-key", auth: "e2e-auth" } }),
-          unsubscribe: async () => {
-            current = null;
-            return true;
-          },
-        } as unknown as PushSubscription;
+        current = createSubscription(endpoint, key);
+        if (shouldKeep) sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ endpoint, key: [...key] }));
         return current;
       },
     };
@@ -51,7 +62,7 @@ const useFakePushManager = async (page: Page, permission: NotificationPermission
       if (notificationPermission === "default") notificationPermission = "granted";
       return notificationPermission;
     };
-  }, permission);
+  }, { initialPermission: permission, shouldKeep: keepsSubscription });
 };
 
 const getSection = (page: Page) => page.getByRole("region", { name: "알림" });
@@ -93,6 +104,29 @@ test.describe("설정 알림 칸", () => {
     // Assert
     await expect(getSection(page).getByRole("button", { name: "알림 켜기" })).toBeVisible();
     await expect.poll(() => getPushSubscriptionEndpoints(memberId)).toEqual([]);
+  });
+
+  test("로그아웃 없이 다른 사람이 로그인하면 설정을 열지 않아도 이 기기 구독의 주인이 바뀐다", async ({ page, context }) => {
+    // Arrange: 앞 사람이 알림을 켠 뒤 세션만 끊긴다(로그아웃하지 않아 구독이 남는다, #409)
+    await useFakePushManager(page, "granted", { keepsSubscription: true });
+    await signInToHome(page, email, password);
+    await openScreen(page, SETTINGS_PATH, getSection(page).getByRole("button", { name: "알림 켜기" }));
+    await getSection(page).getByRole("button", { name: "알림 켜기" }).click();
+    await expect.poll(() => getPushSubscriptionEndpoints(memberId)).toHaveLength(1);
+    const [endpoint] = await getPushSubscriptionEndpoints(memberId);
+    await context.clearCookies();
+    const nextPassword = randomUUID();
+    const next = await createDisposableMember(nextPassword, "다음");
+    try {
+      // Act
+      await signInToHome(page, next.email, nextPassword);
+
+      // Assert
+      await expect.poll(() => getPushSubscriptionEndpoints(next.id)).toEqual([endpoint]);
+      expect(await getPushSubscriptionEndpoints(memberId)).toEqual([]);
+    } finally {
+      await next.remove();
+    }
   });
 
   // 시안 4번 A: 켠 뒤에는 종류별 스위치가 보이고, 설정은 사람마다 하나라 다시 열어도 그대로다

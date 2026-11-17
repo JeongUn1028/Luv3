@@ -1,17 +1,15 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
-import { deletePushSubscriptionRow } from "@/lib/push/device-subscription";
+import { deletePushSubscriptionRow, savePushSubscriptionRow } from "@/lib/push/device-subscription";
 import {
   isIosDevice,
-  isSameServerKey,
+  isUsableSubscription,
   toApplicationServerKey,
   toPushStatus,
   toPushSupport,
-  toStoredSubscription,
   type PushStatus,
   type PushSupport,
 } from "@/lib/push/subscription";
-import { createClient } from "@/lib/supabase/client";
 
 const SERVICE_WORKER_PATH = "/sw.js";
 /** 서비스 워커가 켜지기를 기다리는 시간(ms). 설치가 멈추면 "켜는 중"에서 영영 벗어나지 못한다 */
@@ -45,12 +43,6 @@ const readServerPushSupport = (): undefined => undefined;
 // 이미 등록돼 있으면 같은 등록을 돌려준다. 고친 서비스 워커가 바로 퍼지게 HTTP 저장본을 쓰지 않는다
 const registerServiceWorker = () => navigator.serviceWorker.register(SERVICE_WORKER_PATH, { scope: "/", updateViaCache: "none" });
 
-const saveSubscription = async (subscription: PushSubscription): Promise<void> => {
-  const { endpoint, p256dh, auth } = toStoredSubscription(subscription.toJSON());
-  const { error } = await createClient().rpc("save_push_subscription", { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth });
-  if (error) throw new Error(`알림 구독을 저장하지 못했습니다: ${error.message}`, { cause: error });
-};
-
 /** 서비스 워커가 켜지기를 기다리되, 정한 시간 안에 켜지지 않으면 실패로 본다 */
 const waitForServiceWorker = (): Promise<ServiceWorkerRegistration> => {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -79,11 +71,11 @@ export const usePushNotifications = (publicKey: string): PushNotificationsState 
     const check = async () => {
       const registration = await registerServiceWorker();
       const subscription = await registration.pushManager.getSubscription();
-      const isUsable = subscription !== null && isSameServerKey(subscription.options.applicationServerKey, toApplicationServerKey(publicKey));
+      const isUsable = isUsableSubscription(subscription, toApplicationServerKey(publicKey));
       const permission = Notification.permission;
       if (isCancelled) return;
       setCheckedStatus(toPushStatus({ support, permission, hasSubscription: isUsable }));
-      if (isUsable && permission === "granted") await saveSubscription(subscription);
+      if (subscription && isUsable && permission === "granted") await savePushSubscriptionRow(subscription);
     };
     check().catch((error: unknown) => {
       // 등록·저장에 실패해도 켜기 버튼에서 다시 시도할 수 있다
@@ -113,14 +105,14 @@ export const usePushNotifications = (publicKey: string): PushNotificationsState 
       const registration = await waitForServiceWorker();
       const serverKey = toApplicationServerKey(publicKey);
       const existing = await registration.pushManager.getSubscription();
-      const isUsable = existing !== null && isSameServerKey(existing.options.applicationServerKey, serverKey);
+      const isUsable = isUsableSubscription(existing, serverKey);
       // 알림 열쇠를 바꾼 뒤의 예전 구독으로는 보낼 수 없어, 서버의 행을 지우고 끊은 뒤 새로 만든다
       if (existing && !isUsable) {
         await deletePushSubscriptionRow(existing.endpoint);
         await existing.unsubscribe();
       }
-      const subscription = isUsable ? existing : await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: serverKey });
-      await saveSubscription(subscription);
+      const subscription = existing && isUsable ? existing : await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: serverKey });
+      await savePushSubscriptionRow(subscription);
       setCheckedStatus("on");
     } catch (error) {
       console.error(new Error("알림을 켜지 못했습니다.", { cause: error }));
