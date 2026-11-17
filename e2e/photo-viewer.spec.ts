@@ -216,4 +216,84 @@ test.describe("기록 사진 크게 보기", () => {
     await page.waitForTimeout(500);
     await expect(getViewer(page).getByText(`1 / ${PHOTO_COUNT}`)).toBeVisible();
   });
+
+  test("크게 보기 사진을 아래로 밀면 닫히고 상세도 보던 사진에 초점을 둔다", async ({ page }) => {
+    // Arrange
+    await openViewer(page);
+    const viewer = getViewer(page);
+    await page.keyboard.press("ArrowRight");
+    await expect(viewer.getByText(`2 / ${PHOTO_COUNT}`)).toBeVisible();
+    const photo = getViewerPhoto(page, 2);
+    await expectImageLoaded(photo);
+    await expect(photo).toBeInViewport({ ratio: 1 });
+    const box = await getBox(photo);
+    const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+
+    // Act
+    await dragTouches(page, [start], [{ x: start.x + 10, y: start.y + 200 }]);
+
+    // Assert
+    await expect(viewer).toBeHidden();
+    await expect(getOpenButton(page, 2)).toBeFocused();
+  });
+
+  test("크게 보기 사진을 조금만 천천히 내렸다 놓으면 닫지 않고 제자리로 돌아간다", async ({ page }) => {
+    // Arrange
+    const photo = await openViewer(page);
+    const before = await getBox(photo);
+    const start = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+    const session = await page.context().newCDPSession(page);
+
+    // Act: 40px을 천천히 내린 뒤 잠깐 멈췄다 놓는다
+    await sendTouch(session, "touchStart", [start]);
+    for (let step = 1; step <= 8; step += 1) {
+      await sendTouch(session, "touchMove", [{ x: start.x, y: start.y + step * 5 }]);
+      await page.waitForTimeout(30);
+    }
+    await page.waitForTimeout(200);
+    await sendTouch(session, "touchEnd", []);
+    await session.detach();
+
+    // Assert
+    await expect(getViewer(page)).toBeVisible();
+    await expect.poll(async () => (await getBox(photo)).y).toBeCloseTo(before.y, 0);
+  });
+
+  test("확대한 사진은 아래로 밀어도 닫지 않고 사진을 옮긴다", async ({ page }) => {
+    // Arrange
+    const photo = await openViewer(page);
+    const before = await getBox(photo);
+    const center = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+    await page.touchscreen.tap(center.x, center.y);
+    await page.touchscreen.tap(center.x, center.y);
+    await expect.poll(async () => (await getBox(photo)).width / before.width).toBeCloseTo(2.5, 1);
+
+    // Act
+    await dragTouches(page, [center], [{ x: center.x, y: center.y + 200 }]);
+
+    // Assert
+    await expect(getViewer(page)).toBeVisible();
+    await expect.poll(async () => (await getBox(photo)).width / before.width).toBeCloseTo(2.5, 1);
+  });
+
+  test("옆으로 조금 끌기 시작했다가 아래로 내리면 넘기기로 보고 닫지도 넘기지도 않는다", async ({ page }) => {
+    // Arrange: 엄지가 살짝 옆으로 출발한 뒤 아래로 내려간다
+    const photo = await openViewer(page);
+    const box = await getBox(photo);
+    const start = { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+    const session = await page.context().newCDPSession(page);
+
+    // Act
+    await sendTouch(session, "touchStart", [start]);
+    await sendTouch(session, "touchMove", [{ x: start.x + 3, y: start.y + 1 }]);
+    for (let step = 1; step <= 8; step += 1) await sendTouch(session, "touchMove", [{ x: start.x + 3 + step, y: start.y + 1 + step * 20 }]);
+    await sendTouch(session, "touchEnd", []);
+    await session.detach();
+
+    // Assert
+    await page.waitForTimeout(500);
+    await expect(getViewer(page)).toBeVisible();
+    await expect(getViewer(page).getByText(`1 / ${PHOTO_COUNT}`)).toBeVisible();
+    await expect.poll(async () => (await getBox(photo)).y).toBeCloseTo(box.y, 0);
+  });
 });
