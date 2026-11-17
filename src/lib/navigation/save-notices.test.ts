@@ -58,6 +58,33 @@ describe("저장 알림 저장소", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it("폼의 알림을 고치면 같은 알림으로 두고, 지우기로 한 알림은 지우며, 다른 폼은 그대로 둔다", () => {
+    const store = createSaveNoticeStore();
+    store.add(RECORD_FAILURE);
+    store.add(TODO_SAVED);
+    const [before, saved] = store.getNotices();
+
+    store.reviseForm(RECORD_FAILURE.formKey, (notice) => ({ ...notice, href: undefined }));
+
+    expect(store.getNotices()).toEqual([{ ...before, href: undefined }, saved]);
+
+    store.reviseForm(RECORD_FAILURE.formKey, () => undefined);
+
+    expect(store.getNotices()).toEqual([saved]);
+  });
+
+  it("고쳐도 바뀐 것이 없으면 구독자를 부르지 않는다", () => {
+    const store = createSaveNoticeStore();
+    store.add(RECORD_FAILURE);
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    store.reviseForm(RECORD_FAILURE.formKey, (notice) => notice);
+    store.reviseForm("없는 폼", () => undefined);
+
+    expect(listener).not.toHaveBeenCalled();
+  });
+
   it("구독을 끊으면 더 부르지 않는다", () => {
     const store = createSaveNoticeStore();
     const listener = vi.fn();
