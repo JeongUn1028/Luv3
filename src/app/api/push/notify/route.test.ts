@@ -3,6 +3,7 @@ import { getCurrentMember } from "@/lib/auth/member";
 import type { SendToSubscription, StoredPushSubscription } from "@/lib/push/send";
 import { getVapidConfig } from "@/lib/push/vapid";
 import { createWebPushSender } from "@/lib/push/web-push-sender";
+import { createSecretClient } from "@/lib/supabase/secret";
 import { createClient } from "@/lib/supabase/server";
 import { POST } from "./route";
 
@@ -10,6 +11,7 @@ vi.mock("@/lib/auth/member", () => ({ getCurrentMember: vi.fn() }));
 vi.mock("@/lib/push/vapid", () => ({ getVapidConfig: vi.fn() }));
 vi.mock("@/lib/push/web-push-sender", () => ({ createWebPushSender: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/supabase/secret", () => ({ createSecretClient: vi.fn() }));
 
 const MEMBER_ID = "00000000-0000-0000-0000-00000000000a";
 const RELEASE_TOKEN = "50000000-0000-4000-8000-000000000001";
@@ -34,10 +36,13 @@ interface FakeSupabaseOptions {
   releaseError?: { message: string };
 }
 
-/** 이 경로가 부르는 조회(from…select…eq…maybeSingle)와 함수 호출(rpc)만 흉내 내고, 받은 값을 기록한다 */
+/**
+ * 이 경로가 부르는 조회(from…select…eq…maybeSingle)와 함수 호출(rpc)만 흉내 내고, 받은 값을 기록한다.
+ * 글 읽기는 회원 세션 클라이언트, 알림 함수는 비밀 키 클라이언트만 갖게 해 함수를 세션으로 부르면 실패하게 한다(#412)
+ */
 const fakeSupabase = ({ rows = {}, loadError, claim, claimError, deleteError, releaseError }: FakeSupabaseOptions) => {
   const calls = { reads: [] as { table: string; columns: string; id: string }[], rpcs: [] as { name: string; args: unknown }[] };
-  const client = {
+  const sessionClient = {
     from: (table: "dates" | "comments" | "events" | "todos") => ({
       select: (columns: string) => ({
         eq: (column: string, id: string) => {
@@ -47,6 +52,8 @@ const fakeSupabase = ({ rows = {}, loadError, claim, claimError, deleteError, re
         },
       }),
     }),
+  };
+  const secretClient = {
     rpc: (name: string, args: unknown) => {
       calls.rpcs.push({ name, args });
       if (name === "claim_partner_push") return Promise.resolve(claimError ? { data: null, error: claimError } : { data: claim, error: null });
@@ -54,7 +61,8 @@ const fakeSupabase = ({ rows = {}, loadError, claim, claimError, deleteError, re
       return Promise.resolve({ data: null, error: deleteError ?? null });
     },
   };
-  vi.mocked(createClient).mockResolvedValue(client as unknown as Awaited<ReturnType<typeof createClient>>);
+  vi.mocked(createClient).mockResolvedValue(sessionClient as unknown as Awaited<ReturnType<typeof createClient>>);
+  vi.mocked(createSecretClient).mockReturnValue(secretClient as unknown as ReturnType<typeof createSecretClient>);
   return calls;
 };
 
@@ -103,6 +111,20 @@ describe("POST /api/push/notify", () => {
     expect(createClient).not.toHaveBeenCalled();
   });
 
+  it("비밀 키가 없으면 503을 돌려주고 원인을 로그에 남긴다", async () => {
+    // Arrange
+    vi.mocked(createSecretClient).mockReturnValue(undefined);
+
+    // Act
+    const response = await POST(requestWith({ kind: "record", id: RECORD_ID }));
+
+    // Assert
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({ code: "PUSH_NOT_CONFIGURED" });
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining("SUPABASE_SECRET_KEY"));
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["본문이 없으면", undefined],
     ["모르는 종류면", { kind: "photo", id: RECORD_ID }],
@@ -131,7 +153,7 @@ describe("POST /api/push/notify", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
     await expect(response.json()).resolves.toEqual({ sentCount: 2 });
     expect(calls.reads).toEqual([{ table: "dates", columns: "id", id: RECORD_ID }]);
-    expect(calls.rpcs).toEqual([{ name: "claim_partner_push", args: { p_kind: "record", p_target_id: RECORD_ID } }]);
+    expect(calls.rpcs).toEqual([{ name: "claim_partner_push", args: { p_member_id: MEMBER_ID, p_kind: "record", p_target_id: RECORD_ID } }]);
     expect(createWebPushSender).toHaveBeenCalledWith(VAPID);
     const payload = JSON.stringify({ title: "진아님이 기록을 남겼어요", body: "", url: `/dates/${RECORD_ID}`, badge: 3 });
     expect(send).toHaveBeenCalledWith(subscription("phone"), payload);
@@ -185,7 +207,7 @@ describe("POST /api/push/notify", () => {
     await POST(requestWith({ kind: "todo", id: TODO_ID }));
 
     // Assert
-    expect(calls.rpcs).toEqual([{ name: "claim_partner_push", args: { p_kind: "todo", p_target_id: TODO_ID } }]);
+    expect(calls.rpcs).toEqual([{ name: "claim_partner_push", args: { p_member_id: MEMBER_ID, p_kind: "todo", p_target_id: TODO_ID } }]);
     expect(calls.reads).toEqual([{ table: "todos", columns: "id", id: TODO_ID }]);
     expect(send).toHaveBeenCalledWith(
       subscription("phone"),

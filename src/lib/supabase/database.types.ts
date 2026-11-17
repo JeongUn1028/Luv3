@@ -287,7 +287,7 @@ isOneToOne: false
 { Args: { "p_cover_photo_id": string,"p_groups": Json }; Returns: undefined
                            },
 "claim_partner_push":
-{ Args: { "p_kind": string,"p_target_id": string }; Returns: Json
+{ Args: { "p_kind": string,"p_member_id": string,"p_target_id": string }; Returns: Json
                            },
 "clear_couple_photo":
 { Args: Record<PropertyKey, never>; Returns: string
