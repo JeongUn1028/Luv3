@@ -6,6 +6,8 @@ export const SETTINGS_PASSWORD_PATH = "/settings/password";
 export const SETTINGS_NICKNAME_PATH = "/settings/nickname";
 /** 지운 사진 휴지통(#311). 사진 한 장은 `/settings/trash/<휴지통 행 id>`로 연다 */
 export const SETTINGS_TRASH_PATH = "/settings/trash";
+/** 앱 정보: 버전, 업데이트 기록, 함께 쓰는 서비스·출처(#404) */
+export const SETTINGS_ABOUT_PATH = "/settings/about";
 
 /** 무료 플랜 일시정지를 막으려고 Vercel Cron이 부르는 경로. 로그인 대신 CRON_SECRET으로 확인한다 */
 export const KEEPALIVE_PATH = "/api/keepalive";

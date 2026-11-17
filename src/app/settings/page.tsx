@@ -10,10 +10,10 @@ import { NotificationSection } from "@/components/settings/NotificationSection";
 import { PushTypeSwitches } from "@/components/settings/PushTypeSwitches";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
 import { getCurrentMember } from "@/lib/auth/member";
-import { HOME_PATH, SETTINGS_NICKNAME_PATH, SETTINGS_PASSWORD_PATH, SETTINGS_TRASH_PATH } from "@/lib/auth/paths";
+import { APP_VERSION } from "@/lib/app-info/version";
+import { HOME_PATH, SETTINGS_ABOUT_PATH, SETTINGS_NICKNAME_PATH, SETTINGS_PASSWORD_PATH, SETTINGS_TRASH_PATH } from "@/lib/auth/paths";
 import { catchLoadError } from "@/lib/load";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
-import { ADMDONG_SOURCE } from "@/lib/places/admdong";
 import { getPushNotifySettings, PushSettingsLoadError } from "@/lib/push/queries";
 
 export const metadata: Metadata = { title: "설정 · Luv3" };
@@ -66,25 +66,21 @@ const PhotoSection = () => (
   </section>
 );
 
-const linkClassName = "underline underline-offset-2";
-
-/** 사진 동네 이름에 쓰는 행정동 경계의 출처. 원자료(공공누리 제1유형)와 가공분(CC BY 4.0) 모두 출처 표시가 조건이다(#249) */
-const DataSourceSection = () => (
-  <section aria-labelledby="settings-data-source" className="mt-8 flex flex-col">
-    <h2 id="settings-data-source" className="text-[13px] text-ink-sub">
-      데이터 출처
+/** 앱 정보(#434): 버전, 업데이트 기록, 함께 쓰는 서비스·출처. 지금 버전을 줄에 함께 보여 준다 */
+const AppSection = () => (
+  <section aria-labelledby="settings-app" className="mt-8 flex flex-col">
+    <h2 id="settings-app" className="text-[13px] text-ink-sub">
+      앱
     </h2>
-    <p className="mt-2 text-[12px] leading-[1.6] text-ink-sub">
-      사진의 동네 이름은 행정동 경계({ADMDONG_SOURCE})로 계산해요. 본 데이터는 통계청 통계지리정보서비스(SGIS,{" "}
-      <a href="https://sgis.kostat.go.kr" target="_blank" rel="noreferrer" className={linkClassName}>
-        https://sgis.kostat.go.kr
-      </a>
-      )에서 공공누리 제1유형으로 개방한 행정동 경계를 가공한 것이며(가공: vuski/admdongkor,{" "}
-      <a href="https://github.com/vuski/admdongkor" target="_blank" rel="noreferrer" className={linkClassName}>
-        https://github.com/vuski/admdongkor
-      </a>
-      ), CC BY 4.0으로 배포됩니다.
-    </p>
+    <Link
+      href={SETTINGS_ABOUT_PATH}
+      transitionTypes={FORWARD_TRANSITION}
+      className="press-wide mt-2 flex h-[51px] items-center gap-3 rounded-[10px] bg-surface pr-3 pl-4 text-[15px] text-ink"
+    >
+      <span className="flex-1">앱 정보</span>
+      <span className="text-ink-sub tabular-nums">v{APP_VERSION}</span>
+      <ChevronRightIcon className="size-[18px] shrink-0 text-ink-sub" />
+    </Link>
   </section>
 );
 
@@ -131,7 +127,7 @@ const SettingsPage = () => (
         <MemberSection />
       </LoadingSuspense>
       <PhotoSection />
-      <DataSourceSection />
+      <AppSection />
     </div>
   </PageShell>
 );
