@@ -40,7 +40,7 @@ const useFakePushManager = async (page: Page, permission: NotificationPermission
     const pushManager = {
       getSubscription: async () => current,
       subscribe: async ({ applicationServerKey }: PushSubscriptionOptionsInit) => {
-        const endpoint = `https://push.example/e2e-${crypto.randomUUID()}`;
+        const endpoint = `https://web.push.apple.com/e2e-${crypto.randomUUID()}`;
         const key = new Uint8Array(applicationServerKey as ArrayBuffer);
         current = createSubscription(endpoint, key);
         if (shouldKeep) sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ endpoint, key: [...key] }));

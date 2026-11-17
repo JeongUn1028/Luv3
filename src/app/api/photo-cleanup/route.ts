@@ -1,10 +1,10 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { isAuthorizedCronRequest } from "@/lib/cron";
-import { getSupabaseEnv } from "@/lib/env";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { cleanupOrphanPhotos, shouldDeleteOrphans } from "@/lib/photos/orphan-cleanup";
 import type { PhotoFileReferences } from "@/lib/photos/orphan-scan";
 import { readAllRows } from "@/lib/supabase/read-all-rows";
+import { createSecretClient } from "@/lib/supabase/secret";
 import type { Database } from "@/lib/supabase/database.types";
 import { NO_STORE_HEADERS, toErrorResponse } from "@/lib/api-response";
 
@@ -47,17 +47,14 @@ export const GET = async (request: Request): Promise<Response> => {
     return toErrorResponse("UNAUTHORIZED", "허락되지 않은 요청입니다.", 401);
   }
 
-  // 회원이 아닌 서버가 모든 파일 목록을 읽고 지우려면 RLS를 넘는 비밀 키가 필요하다. 이 경로에서만 쓴다
-  const secretKey = process.env.SUPABASE_SECRET_KEY;
-  if (!secretKey) {
+  // 회원이 아닌 서버가 모든 파일 목록을 읽고 지우려면 RLS를 넘는 비밀 키가 필요하다
+  const supabase = createSecretClient();
+  if (!supabase) {
     console.error("사진 정리: SUPABASE_SECRET_KEY가 없습니다");
     return toErrorResponse("CLEANUP_NOT_CONFIGURED", "사진 정리 설정이 없습니다.", 500);
   }
 
   try {
-    const supabase = createClient<Database>(getSupabaseEnv().url, secretKey, {
-      auth: { persistSession: false, autoRefreshToken: false },
-    });
     const result = await cleanupOrphanPhotos({
       storage: supabase.storage.from(ALBUM_BUCKET),
       readReferences: () => readPhotoFileReferences(supabase),

@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(17);
+select plan(19);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@trash.test', 'authenticated', 'authenticated'),
@@ -175,6 +175,20 @@ select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-0000000
 select is_empty(
   $$select 1 from public.photo_trash where date_id = '10000000-0000-0000-0000-000000000001'$$,
   '회원이 아닌 계정은 휴지통을 읽을 수 없다'
+);
+-- 회원이 아닌 계정은 경로가 기록·휴지통에 있는지 알 수 없다(#412)
+select is(
+  public.is_kept_album_file('10000000-0000-0000-0000-000000000009/20000000-0000-0000-0000-000000000009.jpg'),
+  null,
+  '회원이 아닌 계정에는 기록이 쓰는 파일인지 답하지 않는다'
+);
+
+-- 회원에게는 그대로 답한다
+select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+select is(
+  public.is_kept_album_file('10000000-0000-0000-0000-000000000009/20000000-0000-0000-0000-000000000009.jpg'),
+  true,
+  '회원에게는 기록이 쓰는 파일을 남길 파일이라고 답한다'
 );
 reset role;
 
