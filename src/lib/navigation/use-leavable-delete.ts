@@ -1,7 +1,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useRef } from "react";
 import { goBackInHistory, holdDocument } from "./history-back";
-import { isBackOnScreen, isOnReturnedScreen, shouldReturnNow, toDeletedNotice, toDeleteFailedNotice } from "./leave-result";
+import { isBackOnScreen, isOnReturnedScreen, reviseDeleteNoticeOnReturn, shouldReturnNow, toDeletedNotice, toDeleteFailedNotice } from "./leave-result";
 import { refreshOutsideForm } from "./refresh-outside-form";
 import { saveNoticeStore } from "./save-notices";
 import { BACK_TRANSITION } from "./transition";
@@ -65,8 +65,9 @@ export const useLeavableDelete = ({ noticeKey, subject }: UseLeavableDeleteParam
 
   useLayoutEffect(() => {
     isVisibleRef.current = true;
-    // 실패 알림의 "돌아가기"나 뒤로 가기로 돌아왔으니 알림이 머리글을 가릴 이유가 없다
-    saveNoticeStore.clearForm(noticeKey);
+    // 뒤로 가기 등으로 돌아왔으니 알림이 머리글을 가릴 이유가 없다. 단, 이 화면으로 돌아가라는 실패 알림은 사용자가 아직 못 봤을 수 있어 남긴다(#394)
+    const currentHref = `${window.location.pathname}${window.location.search}`;
+    saveNoticeStore.reviseForm(noticeKey, (notice) => reviseDeleteNoticeOnReturn(notice, currentHref));
     return () => {
       isVisibleRef.current = false;
       wasHiddenRef.current = true;

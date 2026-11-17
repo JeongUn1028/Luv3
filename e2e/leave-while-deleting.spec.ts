@@ -160,6 +160,34 @@ test.describe("지우는 사이 화면을 벗어나면", () => {
     }
   });
 
+  test("바로 돌아간 뒤 실패가 먼저 끝나고 앞으로 가기로 다시 와도 실패 알림이 남는다", async ({ page }, testInfo) => {
+    // Arrange: 느린 기기처럼 기록 화면이 다시 보이기 전에 실패가 끝나는 순서를 만든다(#394)
+    const id = randomUUID();
+    const title = createTestName("E2E 실패 먼저 돌아옴", testInfo);
+    const deleteRecord = await createDisposableRecord({ id, title });
+    try {
+      await openRecordFromList(page, id, title);
+      const request = await holdRecordDelete(page, failRequest);
+      await confirmDelete(page);
+      await request.requested;
+      await page.waitForURL(`**${RECORDS_PATH}`);
+      request.release();
+      const notice = getNotice(page, "alert", "기록을 지우지 못했어요");
+      await expect(notice.getByRole("link", { name: "돌아가기" })).toBeVisible();
+
+      // Act
+      await page.goForward();
+      await page.waitForURL(`**/dates/${id}`);
+      await expect(page.getByRole("heading", { name: title }).locator("visible=true")).toBeVisible();
+
+      // Assert: 이미 그 화면에 있으니 돌아갈 링크 없이 남는다
+      await expect(notice).toBeVisible();
+      await expect(notice.getByRole("link", { name: "돌아가기" })).toHaveCount(0);
+    } finally {
+      await deleteRecord();
+    }
+  });
+
   test("하고 싶은 것 삭제가 끝나도 옮겨 간 화면을 목록으로 바꾸지 않는다", async ({ page }, testInfo) => {
     // Arrange
     const id = randomUUID();

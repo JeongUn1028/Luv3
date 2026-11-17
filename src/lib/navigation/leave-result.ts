@@ -102,6 +102,8 @@ export const toDeletedNotice = ({ noticeKey, subject }: { noticeKey: string; sub
   title: `${subject} 지웠어요`,
 });
 
+const HERE_DELETE_FAILED_DESCRIPTION = "잠시 후 다시 시도해 주세요";
+
 interface ToDeleteFailedNoticeParams {
   noticeKey: string;
   subject: string;
@@ -120,6 +122,17 @@ export const toDeleteFailedNotice = ({ noticeKey, subject, isHere, startHref }: 
   formKey: noticeKey,
   isFailure: true,
   title: `${subject} 지우지 못했어요`,
-  description: isHere ? "잠시 후 다시 시도해 주세요" : "돌아가서 다시 시도해 주세요",
+  description: isHere ? HERE_DELETE_FAILED_DESCRIPTION : "돌아가서 다시 시도해 주세요",
   href: isHere ? undefined : startHref,
 });
+
+/**
+ * 지우던 화면이 다시 보일 때 그 폼의 알림을 어떻게 할지 정한다(`saveNoticeStore.reviseForm`에 넘긴다).
+ * 떠난 사이 지우지 못한 알림은 "돌아가기"가 이 화면을 가리킨다. 느린 기기에서는 화면이 다시 보이기 전에 실패가 끝나 사용자가 아직 못 봤을 수 있어(#394),
+ * 남기되 이미 이 화면이라 돌아갈 링크는 뺀다. 그 밖의 알림(지웠다는 알림, 이 화면에서 붙은 실패 알림)은 머리글을 가릴 이유가 없어 지운다.
+ *
+ * @param currentHref 지금 화면의 경로와 쿼리
+ * @example saveNoticeStore.reviseForm(noticeKey, (notice) => reviseDeleteNoticeOnReturn(notice, "/dates/1"))
+ */
+export const reviseDeleteNoticeOnReturn = (notice: SaveNotice, currentHref: string): SaveNotice | undefined =>
+  notice.isFailure && notice.href === currentHref ? { ...notice, description: HERE_DELETE_FAILED_DESCRIPTION, href: undefined } : undefined;

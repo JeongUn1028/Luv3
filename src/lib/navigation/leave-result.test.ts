@@ -3,6 +3,7 @@ import {
   isBackOnScreen,
   isOnReturnedScreen,
   isWatchingForm,
+  reviseDeleteNoticeOnReturn,
   shouldReturnNow,
   toDeletedNotice,
   toDeleteFailedNotice,
@@ -117,5 +118,29 @@ describe("알림 만들기", () => {
     const notice = toDeleteFailedNotice({ noticeKey: "delete:record:1", subject: "기록을", isHere: true, startHref: "/dates/1" });
 
     expect(notice).toMatchObject({ description: "잠시 후 다시 시도해 주세요", href: undefined });
+  });
+});
+
+describe("reviseDeleteNoticeOnReturn", () => {
+  const away = { id: "1", ...toDeleteFailedNotice({ noticeKey: "delete:record:1", subject: "기록을", isHere: false, startHref: "/dates/1" }) };
+
+  it("이 화면으로 돌아가라는 실패 알림은 같은 알림으로 남기고 돌아갈 링크만 뺀다", () => {
+    // Act
+    const revised = reviseDeleteNoticeOnReturn(away, "/dates/1");
+
+    // Assert
+    expect(revised).toEqual({ ...away, description: "잠시 후 다시 시도해 주세요", href: undefined });
+  });
+
+  it("다른 화면을 가리키는 실패 알림, 이 화면에서 붙은 실패 알림, 지웠다는 알림은 지운다", () => {
+    // Arrange
+    const here = { id: "2", ...toDeleteFailedNotice({ noticeKey: "delete:record:1", subject: "기록을", isHere: true, startHref: "/dates/1" }) };
+    const deleted = { id: "3", ...toDeletedNotice({ noticeKey: "delete:record:1", subject: "기록을" }), href: "/dates/1" };
+
+    // Act
+    const revised = [reviseDeleteNoticeOnReturn(away, "/dates/2"), reviseDeleteNoticeOnReturn(here, "/dates/1"), reviseDeleteNoticeOnReturn(deleted, "/dates/1")];
+
+    // Assert
+    expect(revised).toEqual([undefined, undefined, undefined]);
   });
 });

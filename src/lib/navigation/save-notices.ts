@@ -29,6 +29,11 @@ export interface SaveNoticeStore {
   add: (notice: Omit<SaveNotice, "id">) => void;
   dismiss: (id: string) => void;
   clearForm: (formKey: string) => void;
+  /**
+   * 그 폼의 알림을 하나씩 바꾸거나(같은 id로 두어, 사라지는 중인 알림은 그대로 사라진다) `undefined`를 돌려 지운다.
+   * 바뀐 것이 없으면 구독자를 부르지 않는다
+   */
+  reviseForm: (formKey: string, revise: (notice: SaveNotice) => SaveNotice | undefined) => void;
 }
 
 /**
@@ -57,6 +62,8 @@ export const createSaveNoticeStore = (): SaveNoticeStore => {
     add: (notice) => update([...notices.filter(({ formKey }) => formKey !== notice.formKey), { ...notice, id: crypto.randomUUID() }]),
     dismiss: (id) => update(notices.filter((notice) => notice.id !== id)),
     clearForm: (formKey) => update(notices.filter((notice) => notice.formKey !== formKey)),
+    reviseForm: (formKey, revise) =>
+      update(notices.flatMap((notice) => (notice.formKey === formKey ? (revise(notice) ?? []) : [notice]))),
   };
 };
 
