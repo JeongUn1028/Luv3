@@ -24,6 +24,22 @@ test.describe("앱 정보", () => {
     await expect(page.getByText("우리 둘이 쓰려고 만들었어요")).toBeVisible();
   });
 
+  test("설정을 다시 열어도 앱 정보를 뒤에서 다시 묻는 요청이 남지 않는다", async ({ page }) => {
+    // Arrange: 처음 연 설정이 앱 정보 줄을 미리 받아 두면, 브라우저가 다음에 그 답을 다시 확인하는 요청을 뒤에서 보낸다
+    const appRow = page.getByRole("link", { name: `앱 정보 v${packageJson.version}` });
+    await openScreen(page, SETTINGS_PATH, appRow);
+    const aboutRequests: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname === SETTINGS_ABOUT_PATH) aboutRequests.push(request.url());
+    });
+
+    // Act
+    await openScreen(page, SETTINGS_PATH, appRow);
+
+    // Assert
+    expect(aboutRequests).toEqual([]);
+  });
+
   test("업데이트 기록은 GitHub에서 받은 버전 목록이나, 받지 못했다는 안내 중 하나를 보여 준다", async ({ page }) => {
     // Arrange & Act
     await openScreen(page, SETTINGS_ABOUT_PATH, page.getByRole("heading", { name: "업데이트 기록" }));

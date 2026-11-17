@@ -72,8 +72,11 @@ const AppSection = () => (
     <h2 id="settings-app" className="text-[13px] text-ink-sub">
       앱
     </h2>
+    {/* 앱 정보는 업데이트 기록을 하루 기억해 미리 받은 답에 stale-while-revalidate가 붙는다. 그러면 브라우저가 설정을 열 때마다
+        그 답을 뒤에서 다시 묻는다. 자주 여는 화면이 아니라 미리 받지 않는다 */}
     <Link
       href={SETTINGS_ABOUT_PATH}
+      prefetch={false}
       transitionTypes={FORWARD_TRANSITION}
       className="press-wide mt-2 flex h-[51px] items-center gap-3 rounded-[10px] bg-surface pr-3 pl-4 text-[15px] text-ink"
     >
