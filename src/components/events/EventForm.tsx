@@ -9,17 +9,16 @@ import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { SaveButton } from "@/components/SaveButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { toCalendarHref } from "@/lib/calendar/month";
+import { changeDraftScope, type ScopeValues } from "@/lib/events/edit-scope";
 import {
   EVENT_MEMO_MAX_LENGTH,
   EVENT_PLACE_MAX_LENGTH,
   EVENT_TITLE_MAX_LENGTH,
-  changeDraftScope,
   validateEventDraft,
   type EventDraft,
   type EventDraftErrors,
   type EventEditScope,
   toWrittenFields,
-  type ScopeValues,
 } from "@/lib/events/form";
 import type { EventRecordLink } from "@/lib/events/record-link";
 import { showInvalidFields } from "@/lib/focus-invalid-field";

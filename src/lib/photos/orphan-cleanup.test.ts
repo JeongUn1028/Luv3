@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AlbumListStorage } from "./album-files";
-import { cleanupOrphanPhotos, shouldDeleteOrphans, type CleanupStorage, type PhotoFileReferences } from "./orphan-cleanup";
+import { cleanupOrphanPhotos, shouldDeleteOrphans, type CleanupStorage } from "./orphan-cleanup";
+import type { PhotoFileReferences } from "./orphan-scan";
 
 const NOW = new Date("2026-11-10T12:00:00Z");
 const OLD = "2026-11-08T12:00:00Z";

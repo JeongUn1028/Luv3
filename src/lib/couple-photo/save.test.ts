@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { PhotoError } from "@/lib/photos/errors";
-import type { PhotoStorage } from "@/lib/photos/upload";
+import type { PhotoStorage } from "@/lib/photos/upload-file";
 import { clearCouplePhoto, CouplePhotoError, replaceCouplePhoto } from "./save";
 
 const NEW_ID = "50000000-0000-4000-8000-000000000002";

@@ -1,5 +1,5 @@
 import { buildCouplePhotoPath, toCouplePhotoMediumPath } from "@/lib/photos/paths";
-import { uploadPhotoFile, type PhotoStorage } from "@/lib/photos/upload";
+import { uploadPhotoFile, type PhotoStorage } from "@/lib/photos/upload-file";
 
 /** 커플 사진 경로를 바꾼 결과. `data`는 밀려난 예전 파일 경로(없으면 null)다 */
 type SwapResult = PromiseLike<{ data: string | null; error: { message: string } | null }>;
