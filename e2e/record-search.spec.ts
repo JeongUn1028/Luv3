@@ -52,6 +52,34 @@ test.describe("기록 찾기", () => {
     }
   });
 
+  test("오래된 찾기 결과를 다시 찾다 실패하면 낡은 결과 대신 실패를 알리고, 다시 시도하면 보여 준다(#410)", async ({ page }) => {
+    // Arrange
+    const id = randomUUID();
+    const word = createWord();
+    const title = `E2E 찾기 다시 실패 ${word}`;
+    const deleteRecord = await createDisposableRecord({ id, title });
+    await page.clock.install();
+
+    try {
+      await openSearch(page);
+      await page.getByRole("searchbox", { name: "기록 찾기" }).fill(word);
+      await expect(page.getByRole("status").filter({ hasText: "기록 1개" })).toBeVisible();
+      await page.route((url) => isFirstSearchFor(url.href, word), (route) => route.fulfill({ status: 500, body: "" }));
+
+      // Act
+      await page.clock.fastForward(61 * MINUTE_MS);
+
+      // Assert
+      await expect(page.getByRole("alert").filter({ hasText: "기록을 찾지 못했어요" })).toBeVisible();
+      await page.unrouteAll();
+      await page.getByRole("button", { name: "다시 시도" }).click();
+      await expect(getRecordLink(page, title)).toBeVisible();
+      await expect(page.getByRole("status").filter({ hasText: "기록 1개" })).toBeVisible();
+    } finally {
+      await deleteRecord();
+    }
+  });
+
   test("평소에는 검색 칸이 없고, 돋보기로 열고 닫으면 적은 글자도 지워진다", async ({ page }) => {
     // Arrange
     await openScreen(page, "/records", page.getByRole("button", { name: "기록 찾기" }));
