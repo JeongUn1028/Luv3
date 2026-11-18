@@ -43,4 +43,5 @@ jobs:
         run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/release/check-pr.mts
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          RELEASE_PR_NUMBER: ${{ fromJSON(steps.release.outputs.pr).number }}
+          # 식 안에서 fromJSON으로 읽으면 PR을 만들지 않아 출력이 빈 실행에서도 읽혀 실패한다(#451). 문자열 그대로 넘긴다
+          RELEASE_PR: ${{ steps.release.outputs.pr }}

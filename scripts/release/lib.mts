@@ -77,3 +77,24 @@ const USER_FACING_SUBJECT = /^((feat|fix|perf|revert)(\([^)]*\))?!?|\w+(\([^)]*\
  * @example hasUserFacingCommits(["chore: 정리", "feat: 새 기능"]) // true
  */
 export const hasUserFacingCommits = (subjects: readonly string[]): boolean => subjects.some((subject) => USER_FACING_SUBJECT.test(subject));
+
+const parseJson = (text: string): unknown => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    // 읽지 못한 값은 아래에서 원래 글과 함께 알린다
+    return undefined;
+  }
+};
+
+/**
+ * release-please 액션의 `pr` 출력(PR 정보 JSON)에서 PR 번호를 읽는다(#451).
+ *
+ * @example readReleasePullRequestNumber(process.env.RELEASE_PR ?? "") // 452
+ */
+export const readReleasePullRequestNumber = (json: string): number => {
+  const value = parseJson(json);
+  const number = typeof value === "object" && value !== null && "number" in value ? value.number : undefined;
+  if (typeof number !== "number" || !Number.isInteger(number) || number <= 0) throw new Error(`릴리스 PR 정보를 읽지 못했습니다: ${json || "(빈 값)"}`);
+  return number;
+};

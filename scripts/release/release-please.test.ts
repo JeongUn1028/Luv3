@@ -96,5 +96,7 @@ describe("release-please 워크플로", () => {
 
     // Assert
     expect(check?.if).toContain("prs_created");
+    // 식 안에서 fromJSON으로 읽지 않는다(#451)
+    expect(check?.env).toEqual({ GITHUB_TOKEN: "${{ github.token }}", RELEASE_PR: "${{ steps.release.outputs.pr }}" });
   });
 });
