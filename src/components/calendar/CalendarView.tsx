@@ -18,6 +18,7 @@ import { replaceScreenAddress } from "@/lib/navigation/screen-freshness";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { MonthGrid } from "./MonthGrid";
 import { SelectedDayList } from "./SelectedDayList";
+import { useMonthSwipe } from "./use-month-swipe";
 
 interface CalendarViewProps {
   /** 서버가 그린 달 YYYY-MM. 넘긴 달은 주소에서 읽는다 */
@@ -66,6 +67,7 @@ const navButtonClassName = "press-icon flex size-11 items-center justify-center 
  * 공유 캘린더: 월 달력 + 고른 날의 데이트 기록·일정.
  * 폼에서 저장 중인 하루짜리 일정(#345)은 서버 목록이 따라잡을 때까지 띠와 줄을 먼저 그리고, 줄은 흐리게 두어 누를 수 없게 한다.
  * 달을 넘기면 화면을 서버에 다시 묻지 않고 달력 칸부터 그린 뒤 그 달 일정만 받아 채우고, 앞뒤 달은 미리 받아 둔다(#348).
+ * 달력 칸을 좌우로 밀어도 넘긴다(#348).
  */
 export const CalendarView = ({ month, today, requestedDate, events, records, holidayNames }: CalendarViewProps): ReactElement => {
   const shownMonth = parseMonth(useSearchParams().get("month") ?? undefined, today);
@@ -97,13 +99,17 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
   const [selection, setSelection] = useState(() => ({ month, date: getDefaultSelectedDate(month, today, requestedDate) }));
   const selectedDate = selection.month === shownMonth ? selection.date : getDefaultSelectedDate(shownMonth, today);
   const handleSelectDate = (date: string) => setSelection({ month: shownMonth, date });
-  const handleMonthClick = (event: MouseEvent<HTMLAnchorElement>, nextMonth: string) => {
-    if (!isPlainClick(event)) return;
-    event.preventDefault();
+  const goToMonth = (nextMonth: string) => {
     // 넘긴 달에서는 처음 고를 날(오늘이 있으면 오늘)부터 보여 준다
     setSelection({ month: nextMonth, date: getDefaultSelectedDate(nextMonth, today) });
     replaceScreenAddress(monthHref(nextMonth));
   };
+  const handleMonthClick = (event: MouseEvent<HTMLAnchorElement>, nextMonth: string) => {
+    if (!isPlainClick(event)) return;
+    event.preventDefault();
+    goToMonth(nextMonth);
+  };
+  const { trackRef, swipeHandlers } = useMonthSwipe({ month: shownMonth, onSwipe: (shift) => goToMonth(shiftMonth(shownMonth, shift)) });
 
   const shownEvents = shownData?.events ?? [];
   const shownRecords = shownData?.records ?? [];
@@ -166,15 +172,20 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
         </div>
       </div>
 
-      <MonthGrid
-        month={shownMonth}
-        today={today}
-        selectedDate={selectedDate}
-        eventsByDate={eventsByDate}
-        recordsByDate={recordsByDate}
-        holidayNames={shownHolidayNames}
-        onSelectDate={handleSelectDate}
-      />
+      {/* 좌우로 밀어 달을 넘긴다. 칸이 화면 끝까지 밀려나도록 바깥 여백까지 넓혀 자르고, 세로 스크롤은 브라우저에 맡긴다 */}
+      <div className="-mx-4 overflow-x-clip px-4">
+        <div ref={trackRef} data-testid="calendar-swipe" className="touch-pan-y select-none" {...swipeHandlers}>
+          <MonthGrid
+            month={shownMonth}
+            today={today}
+            selectedDate={selectedDate}
+            eventsByDate={eventsByDate}
+            recordsByDate={recordsByDate}
+            holidayNames={shownHolidayNames}
+            onSelectDate={handleSelectDate}
+          />
+        </div>
+      </div>
       <p className="mt-2 flex flex-wrap justify-end gap-x-3 gap-y-1 text-[11px] text-ink-sub">
         <span className="flex items-center gap-1">
           <span aria-hidden="true" className="size-2 rounded-full ring-1 ring-highlight" />
