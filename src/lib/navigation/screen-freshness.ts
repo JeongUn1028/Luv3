@@ -72,6 +72,17 @@ export const copyScreenLoaded = (fromUrl: string, toUrl: string, baseUrl: string
 };
 
 /**
+ * 화면을 서버에 다시 묻지 않고 지금 주소만 바꾼다(기록 찾기, 캘린더 달 넘기기). 돌아왔을 때 새로 부를지는 처음 받은 때로 판단하게 한다.
+ * 쌓지 않고 바꾸므로 뒤로 가기는 이 화면 앞의 화면으로 간다.
+ *
+ * @example replaceScreenAddress("/calendar?month=2026-12");
+ */
+export const replaceScreenAddress = (href: string): void => {
+  copyScreenLoaded(window.location.href, href, window.location.href);
+  window.history.replaceState(null, "", href);
+};
+
+/**
  * 지금까지 본 화면을 모두 방금 받은 것으로 친다. `router.refresh()`는 숨겨 둔 화면과 Next가 받아 둔 화면까지 지워, 다시 갈 때 Next가 새로 받기 때문이다.
  * 여기서 또 불러오면 같은 요청과 사진을 두 번 받는다.
  *

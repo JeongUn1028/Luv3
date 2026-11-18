@@ -74,7 +74,7 @@ export const MonthGrid = ({ month, today, selectedDate, eventsByDate, recordsByD
                     isSelected ? SELECTED_DAY_CELL_CLASS_NAME : ""
                   } ${isCurrentMonth ? "text-ink" : "text-ink-placeholder"}`}
                 >
-                  {highlightClassNames && <span aria-hidden="true" className={`${HIGHLIGHT_BAND_CLASS_NAME} ${highlightClassNames.band}`} />}
+                  {highlightClassNames && <span aria-hidden="true" className={`calendar-mark-in ${HIGHLIGHT_BAND_CLASS_NAME} ${highlightClassNames.band}`} />}
                   <span
                     className={`relative flex size-7 items-center justify-center rounded-full ${getDayNumberClassName({
                       isToday,
@@ -88,7 +88,7 @@ export const MonthGrid = ({ month, today, selectedDate, eventsByDate, recordsByD
                     {day}
                   </span>
                   <span aria-hidden="true" className="flex h-1.5 gap-1">
-                    {recordCount > 0 && <span className="size-1.5 rounded-full bg-ink-sub" />}
+                    {recordCount > 0 && <span className="calendar-mark-in size-1.5 rounded-full bg-ink-sub" />}
                   </span>
                 </button>
               </td>

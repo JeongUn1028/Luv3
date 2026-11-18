@@ -33,10 +33,11 @@ const CalendarContent = async ({ searchParams }: Pick<PageProps<"/calendar">, "s
   );
 
   if (result instanceof EventLoadError) return <LoadErrorMessage message={result.message} />;
-  // 달이나 주소의 날이 바뀌면 고른 날을 다시 정하도록 key로 새로 그린다
+  // 주소의 날(일정을 저장하고 돌아온 날)이 바뀌면 그날을 고르도록 key로 새로 그린다.
+  // 달은 key에 넣지 않는다. 넘긴 달에서 새로 받으면 서버가 그 달을 그리는데, 고른 날은 그대로 두어야 한다(#348)
   return (
     <CalendarView
-      key={`${month}:${String(dateParam)}`}
+      key={String(dateParam)}
       month={month}
       today={today}
       requestedDate={dateParam}

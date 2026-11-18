@@ -5,7 +5,8 @@ import { Suspense, useSyncExternalStore, type ReactElement } from "react";
 import { CloseIcon, SearchIcon } from "@/components/icons";
 import { SCREEN_HEADER_ICON_CLASS_NAME } from "@/components/ScreenHeader";
 import { RECORDS_PATH } from "@/lib/dates/album";
-import { parseRecordFilter, recordsLoadFailedCount, replaceRecordsAddress, toRecordSearchHref } from "@/lib/dates/search";
+import { parseRecordFilter, recordsLoadFailedCount, toRecordSearchHref } from "@/lib/dates/search";
+import { replaceScreenAddress } from "@/lib/navigation/screen-freshness";
 import { scrollAreaToTop } from "@/lib/navigation/scroll-memory";
 
 /**
@@ -21,7 +22,7 @@ const SearchToggle = (): ReactElement => {
   const handleClick = () => {
     if (isBlocked) return;
     scrollAreaToTop("records");
-    replaceRecordsAddress(isOpen ? RECORDS_PATH : toRecordSearchHref());
+    replaceScreenAddress(isOpen ? RECORDS_PATH : toRecordSearchHref());
   };
 
   return (

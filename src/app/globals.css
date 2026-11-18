@@ -553,3 +553,18 @@ input[type="time"] {
     translate: 0 -8px;
   }
 }
+
+/*
+  달력의 일정 띠와 기록 점이 칸 위에 살며시 나타난다. 달을 넘기면 칸부터 그리고 받은 표시가 뒤따르므로(#348) 갑자기 튀지 않게 한다. 동작 줄이기면 바로 보인다.
+*/
+@media (prefers-reduced-motion: no-preference) {
+  .calendar-mark-in {
+    animation: calendar-mark-in 200ms ease-out;
+  }
+}
+
+@keyframes calendar-mark-in {
+  from {
+    opacity: 0;
+  }
+}

@@ -7,7 +7,8 @@ import { FIELD_BOX_CLASS_NAME } from "@/components/FormField";
 import { LoadMoreTrigger } from "@/components/LoadMoreTrigger";
 import { RetryButton } from "@/components/RetryButton";
 import { SEARCH_TEXT_MAX_LENGTH } from "@/lib/dates/search-api";
-import { recordTagLinkCount, replaceRecordsAddress, toRecordSearchHref } from "@/lib/dates/search";
+import { recordTagLinkCount, toRecordSearchHref } from "@/lib/dates/search";
+import { replaceScreenAddress } from "@/lib/navigation/screen-freshness";
 import type { UseAlbumPagesResult } from "@/lib/dates/use-album-pages";
 import { useRecordSearch, type RecordSearchStatus } from "@/lib/dates/use-record-search";
 
@@ -86,7 +87,7 @@ export const RecordSearch = ({ grid, refreshKey, tags, tag }: RecordSearchProps)
 
   const selectTag = (nextTag?: string) => {
     setPressedTag(nextTag);
-    replaceRecordsAddress(toRecordSearchHref(nextTag));
+    replaceScreenAddress(toRecordSearchHref(nextTag));
   };
 
   // 누른 버튼이 사라지므로 초점을 검색 칸으로 옮겨, 다른 말로 바로 다시 찾을 수 있게 한다
