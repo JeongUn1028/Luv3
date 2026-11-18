@@ -16,8 +16,8 @@ import { createTestName } from "./support/names";
 
 // 창(ModalDialog)을 쓰는 화면의 동작을 모은 스펙(#196)
 
-const getDeleteButton = (page: Page): Locator => page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true");
-const getDialogDeleteButton = (page: Page): Locator => page.getByRole("dialog").getByRole("button", { name: "삭제", exact: true });
+const getDeleteButton = (page: Page): Locator => page.getByRole("button", { name: "지우기", exact: true }).locator("visible=true");
+const getDialogDeleteButton = (page: Page): Locator => page.getByRole("dialog").getByRole("button", { name: "지우기", exact: true });
 const getSessionDialog = (page: Page): Locator => page.getByRole("dialog", { name: "다시 로그인해 주세요" });
 
 // 닫히지 않은 창이 앱을 통째로 막으면 탭 자리의 맨 위 요소가 문서 자체가 되어 눌러도 이동하지 않는다

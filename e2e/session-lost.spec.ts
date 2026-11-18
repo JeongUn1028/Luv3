@@ -176,8 +176,8 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
       await dropSession(page);
 
       // Act
-      await page.getByRole("button", { name: "삭제" }).click();
-      await page.getByRole("dialog", { name: "이 일정을 지울까요?" }).getByRole("button", { name: "삭제" }).click();
+      await page.getByRole("button", { name: "지우기" }).click();
+      await page.getByRole("dialog", { name: "이 일정을 지울까요?" }).getByRole("button", { name: "지우기" }).click();
 
       // Assert
       await expect(getDialog(page)).toBeVisible();

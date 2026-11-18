@@ -12,7 +12,7 @@ interface TodoPreviewProps {
 
 /**
  * 홈의 하고 싶은 것 한 줄 카드. 항목을 점과 함께 가로로 잇고, 줄이 넘치면 끝을 "…"로 줄인다.
- * 링크가 카드 전체를 덮어 어디를 눌러도 Todo 탭(비었으면 추가 화면)으로 간다.
+ * 링크가 카드 전체를 덮어 어디를 눌러도 하고 싶은 것 탭(비었으면 추가 화면)으로 간다.
  *
  * @example <TodoPreview todos={await getOpenTodoPreview(3)} />
  */

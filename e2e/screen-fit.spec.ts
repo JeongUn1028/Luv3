@@ -50,10 +50,10 @@ const SCREENS: Screen[] = [
     ready: (page) => page.getByText("아직 지도에 표시할 사진이 없어요").or(page.getByRole("list", { name: "지도에 있는 사진" })),
   },
   { name: "캘린더", path: "/calendar", ready: (page) => page.locator('button[aria-pressed="true"]') },
-  { name: "Todo", path: "/todos", ready: (page) => page.getByText(TODO.content) },
+  { name: "하고 싶은 것", path: "/todos", ready: (page) => page.getByText(TODO.content) },
   { name: "설정", path: "/settings", ready: (page) => page.getByText(E2E_MEMBER.nickname, { exact: true }) },
-  { name: "닉네임 변경", path: "/settings/nickname", ready: (page) => page.getByLabel("닉네임", { exact: true }) },
-  { name: "비밀번호 변경", path: "/settings/password", ready: (page) => page.getByLabel("현재 비밀번호") },
+  { name: "닉네임 바꾸기", path: "/settings/nickname", ready: (page) => page.getByLabel("닉네임", { exact: true }) },
+  { name: "비밀번호 바꾸기", path: "/settings/password", ready: (page) => page.getByLabel("현재 비밀번호") },
   { name: "기록 상세", path: `/dates/${PHOTO_RECORD.id}`, ready: (page) => page.getByRole("heading", { name: PHOTO_RECORD.title }) },
   { name: "기록 작성", path: "/dates/new", ready: (page) => page.locator("#memo") },
   { name: "기록 고치기", path: `/dates/${PHOTO_RECORD.id}/edit`, ready: (page) => page.locator("#memo") },
@@ -153,6 +153,25 @@ test.describe("하단 탭", () => {
       await expect(tabBar.locator('a[aria-current="page"]')).toHaveAttribute("href", path);
     });
   }
+
+  test("하단 탭 이름은 화면 글과 같은 말로 쓰고, 가장 긴 이름도 한 줄에 들어간다(#415)", async ({ page }) => {
+    // Act
+    await openScreen(page, "/", page.getByText(TODO.content));
+    const links = page.getByRole("navigation", { name: "주요 화면" }).locator("visible=true").getByRole("link");
+
+    // Assert
+    await expect(links).toHaveText(["홈", "기록", "캘린더", "하고 싶은 것"]);
+    const lineCounts = await links.evaluateAll((elements) =>
+      elements.map((element) => {
+        const label = [...element.childNodes].find((node) => node.nodeType === Node.TEXT_NODE && node.textContent?.trim());
+        if (!label) return 0;
+        const range = document.createRange();
+        range.selectNodeContents(label);
+        return new Set([...range.getClientRects()].map((rect) => Math.round(rect.top))).size;
+      }),
+    );
+    expect(lineCounts).toEqual([1, 1, 1, 1]);
+  });
 });
 
 test.describe("내용 스크롤 영역", () => {

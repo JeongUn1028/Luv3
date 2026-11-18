@@ -62,7 +62,7 @@ interface PasswordFormProps {
 }
 
 /**
- * 비밀번호 변경 폼. 바꾸면 이 기기의 로그인은 유지된다. 같은 계정의 다른 기기는 바로 끊기지 않고, 이미 받은 접속 토큰이 끝나면(최대 `jwt_expiry`, 1시간) 다시 로그인해야 한다.
+ * 비밀번호 바꾸기 폼. 바꾸면 이 기기의 로그인은 유지된다. 같은 계정의 다른 기기는 바로 끊기지 않고, 이미 받은 접속 토큰이 끝나면(최대 `jwt_expiry`, 1시간) 다시 로그인해야 한다.
  *
  * @example <PasswordForm email="me@example.com" />
  */
@@ -123,7 +123,7 @@ export const PasswordForm = ({ email }: PasswordFormProps): ReactElement => {
   };
 
   return (
-    <PageShell bottomSpace="sm" className="px-4" header={<ScreenHeader back={{ href: SETTINGS_PATH }} title="비밀번호 변경" />}>
+    <PageShell bottomSpace="sm" className="px-4" header={<ScreenHeader back={{ href: SETTINGS_PATH }} title="비밀번호 바꾸기" />}>
       <form onSubmit={handleSubmit} noValidate className="mt-3 flex flex-col gap-4">
         {/* 비밀번호 관리자가 어느 계정의 비밀번호를 바꾸는지 알아보게 한다. type="hidden"은 알아보지 못하는 경우가 있어 쓰지 않는다 */}
         <input type="text" name="username" autoComplete="username" value={email} readOnly className="hidden" />

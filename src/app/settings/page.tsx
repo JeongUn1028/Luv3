@@ -41,7 +41,7 @@ const MemberSection = async () => {
         transitionTypes={FORWARD_TRANSITION}
         className="press-wide mt-3 flex h-[51px] items-center justify-between rounded-[10px] bg-surface pr-3 pl-4 text-[15px] text-ink"
       >
-        비밀번호 변경
+        비밀번호 바꾸기
         <ChevronRightIcon className="size-[18px] text-ink-sub" />
       </Link>
       <LogoutForm />

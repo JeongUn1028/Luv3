@@ -22,7 +22,7 @@ const openNicknameScreen = (page: Page): Promise<void> => openScreen(page, SETTI
 
 const isTruncated = (locator: Locator): Promise<boolean> => locator.evaluate((element) => element.scrollWidth > element.clientWidth);
 
-test.describe("닉네임 변경", () => {
+test.describe("닉네임 바꾸기", () => {
   let memberId: string;
   let email: string;
   let password: string;

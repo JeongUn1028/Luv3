@@ -32,7 +32,7 @@ export const getScrollArea = (page: Page): Locator => page.locator("main > .over
 /**
  * 주소를 열고, 내용과 이미지가 다 그려진 뒤에 재도록 기다린다.
  *
- * @example await openScreen(page, "/todos", page.getByText("할 일"))
+ * @example await openScreen(page, "/todos", page.getByText("하고 싶은 것"))
  */
 export const openScreen = async (page: Page, path: string, ready: Locator): Promise<void> => {
   await page.goto(path);

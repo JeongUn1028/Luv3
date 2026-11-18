@@ -157,7 +157,7 @@ test.describe("설정 알림 칸", () => {
     await getSection(page).getByRole("button", { name: "알림 켜기" }).click();
     const eventSwitch = getSection(page).getByRole("switch", { name: "새 일정" });
     await expect(getSection(page).getByText("이 기기에서 받는 중")).toBeVisible();
-    for (const name of ["새 기록", "댓글", "새 일정", "할 일"]) {
+    for (const name of ["새 기록", "댓글", "새 일정", "하고 싶은 것"]) {
       await expect(getSection(page).getByRole("switch", { name })).toBeChecked();
     }
 

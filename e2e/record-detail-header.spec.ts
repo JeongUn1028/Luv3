@@ -7,16 +7,16 @@ const LONG_MEMO = Array.from({ length: 60 }, (_, line) => `${line + 1}번째 줄
 
 // 긴 글과 댓글을 읽어 내려가도 뒤로·수정·삭제를 쓸 수 있게 머리글을 위에 붙여 둔다(#349)
 test.describe("기록 상세 머리글", () => {
-  test("긴 글을 끝까지 내려도 뒤로·수정·삭제 버튼이 처음 자리에 남는다", async ({ page }) => {
+  test("긴 글을 끝까지 내려도 뒤로·고치기·지우기 버튼이 처음 자리에 남는다", async ({ page }) => {
     // Arrange
     const id = randomUUID();
     const deleteRecord = await createDisposableRecord({ id, title: `E2E 긴 글 ${id.slice(0, 6)}` });
     await setRecordSearchFields(id, { memo: LONG_MEMO, caption: "" });
 
     try {
-      const editLink = page.getByRole("link", { name: "수정" });
+      const editLink = page.getByRole("link", { name: "고치기" });
       await openScreen(page, `/dates/${id}`, editLink);
-      const buttons = [page.getByRole("link", { name: "뒤로" }), editLink, page.getByRole("button", { name: "삭제" })];
+      const buttons = [page.getByRole("link", { name: "뒤로" }), editLink, page.getByRole("button", { name: "지우기" })];
       const topsBefore = await Promise.all(buttons.map(async (button) => (await button.boundingBox())?.y));
 
       // Act
@@ -42,7 +42,7 @@ test.describe("기록 상세 머리글", () => {
     await setRecordTags(id, [tag]);
 
     try {
-      await openScreen(page, `/dates/${id}`, page.getByRole("link", { name: "수정" }));
+      await openScreen(page, `/dates/${id}`, page.getByRole("link", { name: "고치기" }));
       await getScrollArea(page).evaluate((area) => area.scrollTo({ top: area.scrollHeight }));
       const tagLink = page.getByRole("list", { name: "태그" }).getByRole("link");
 

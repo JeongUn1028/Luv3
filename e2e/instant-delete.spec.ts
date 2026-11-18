@@ -21,8 +21,8 @@ const getVisibleLink = (page: Page, name: string | RegExp): Locator => page.loca
 const getEventRow = (page: Page, title: string): Locator => getCalendarEventRow(page, title);
 
 const confirmDelete = async (page: Page): Promise<void> => {
-  await page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true").tap();
-  await page.getByRole("dialog").getByRole("button", { name: "삭제", exact: true }).tap();
+  await page.getByRole("button", { name: "지우기", exact: true }).locator("visible=true").tap();
+  await page.getByRole("dialog").getByRole("button", { name: "지우기", exact: true }).tap();
 };
 
 const failRequest = (route: Route) => route.fulfill({ status: 500, json: { message: "E2E 삭제 실패" } });

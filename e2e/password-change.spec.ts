@@ -23,7 +23,7 @@ const fillPasswords = async (page: Page, { current, next, confirm = next }: { cu
 
 const getSubmitButton = (page: Page) => page.getByRole("button", { name: "비밀번호 바꾸기" });
 
-test.describe("비밀번호 변경", () => {
+test.describe("비밀번호 바꾸기", () => {
   let email: string;
   let password: string;
   let removeMember: () => Promise<void>;
@@ -40,8 +40,8 @@ test.describe("비밀번호 변경", () => {
   test("설정에서 들어가 바꾸면 설정으로 돌아오고 새 비밀번호로만 다시 로그인할 수 있다", async ({ page }) => {
     // Arrange
     await signInToHome(page, email, password);
-    await openScreen(page, "/settings", page.getByRole("link", { name: "비밀번호 변경" }));
-    await page.getByRole("link", { name: "비밀번호 변경" }).click();
+    await openScreen(page, "/settings", page.getByRole("link", { name: "비밀번호 바꾸기" }));
+    await page.getByRole("link", { name: "비밀번호 바꾸기" }).click();
     await page.getByLabel("현재 비밀번호").waitFor();
 
     // Act
@@ -52,7 +52,7 @@ test.describe("비밀번호 변경", () => {
     await page.waitForURL("**/settings");
     await expect(page.getByRole("status").filter({ hasText: "비밀번호를 바꿨어요" })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("link", { name: "비밀번호 변경" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "비밀번호 바꾸기" })).toBeVisible();
 
     await page.getByRole("button", { name: "로그아웃" }).click();
     await page.waitForURL("**/login");
@@ -116,8 +116,8 @@ test.describe("비밀번호 변경", () => {
   test("적다가 화면을 떠나면 숨겨진 칸에 비밀번호가 남지 않고 다시 열면 비어 있다", async ({ page }) => {
     // Arrange
     await signInToHome(page, email, password);
-    await openScreen(page, "/settings", page.getByRole("link", { name: "비밀번호 변경" }));
-    await page.getByRole("link", { name: "비밀번호 변경" }).click();
+    await openScreen(page, "/settings", page.getByRole("link", { name: "비밀번호 바꾸기" }));
+    await page.getByRole("link", { name: "비밀번호 바꾸기" }).click();
     await page.getByLabel("현재 비밀번호").waitFor();
     await fillPasswords(page, { current: password, next: NEW_PASSWORD });
 
@@ -130,7 +130,7 @@ test.describe("비밀번호 변경", () => {
       .poll(() => page.locator('input[type="password"]').evaluateAll((inputs) => inputs.map((input) => (input as HTMLInputElement).value).join("")))
       .toBe("");
 
-    await page.getByRole("link", { name: "비밀번호 변경" }).click();
+    await page.getByRole("link", { name: "비밀번호 바꾸기" }).click();
     await expect(page.getByLabel("현재 비밀번호")).toHaveValue("");
   });
 
