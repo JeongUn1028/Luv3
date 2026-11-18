@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import type { Locator } from "@playwright/test";
 import { PHOTO_FIXTURE_PATH } from "./support/constants";
-import { createDisposableRecord, setRecordTags } from "./support/seed";
-import { expect, openScreen, test } from "./support/test";
+import { createDisposableRecord, createDisposableRecords, setRecordTags } from "./support/seed";
+import { expect, getScrollArea, openScreen, test } from "./support/test";
 
 const TAP_TARGET_SIZE = 44;
 
@@ -132,5 +132,31 @@ test.describe("누름 영역", () => {
     await openScreen(page, "/", change);
 
     expect(await getMissedPoints(change)).toEqual([]);
+  });
+
+  test("기록 탭에서 다음 묶음을 받지 못했을 때 다시 불러오기 버튼은 44px 영역을 눌러도 눌린다", async ({ page }) => {
+    // Arrange: 한 묶음(60개)보다 많이 만들고 다음 묶음 요청을 끊는다
+    const deleteRecords = await createDisposableRecords({ count: 65, titlePrefix: `E2E 다시 불러오기 ${randomUUID().slice(0, 8)}` });
+    await page.route(
+      (url) => url.pathname === "/api/records/search" && url.searchParams.has("beforeId") && !url.searchParams.has("q"),
+      (route) => route.abort(),
+    );
+
+    try {
+      await openScreen(page, "/records", page.getByRole("button", { name: "기록 찾기" }));
+      const retry = page.getByRole("button", { name: "다시 불러오기" });
+      await expect(async () => {
+        await getScrollArea(page).evaluate((element) => element.scrollTo({ top: element.scrollHeight }));
+        await expect(retry).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
+
+      // Act
+      const missed = await getMissedPoints(retry);
+
+      // Assert
+      expect(missed).toEqual([]);
+    } finally {
+      await deleteRecords();
+    }
   });
 });

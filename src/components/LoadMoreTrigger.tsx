@@ -49,7 +49,7 @@ export const LoadMoreTrigger = ({ hasMore, isLoading, isFailed, onLoad }: LoadMo
           <p role="alert" className="text-[12px] text-ink-sub">
             더 불러오지 못했어요.
           </p>
-          <button type="button" onClick={onLoad} className="press-wide h-10 rounded-[10px] border border-line bg-surface px-4 text-[13px] text-ink">
+          <button type="button" onClick={onLoad} className="press-wide h-11 rounded-[10px] border border-line bg-surface px-4 text-[13px] text-ink">
             다시 불러오기
           </button>
         </>
