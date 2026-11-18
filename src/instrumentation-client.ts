@@ -2,7 +2,7 @@ import { addTransitionType } from "react";
 import { claimBackMotion } from "@/lib/navigation/history-back";
 import { markNavigationStart } from "@/lib/navigation/refresh-outside-form";
 import { markRouterNavigation } from "@/lib/navigation/router-navigation";
-import { markScreenLoaded } from "@/lib/navigation/screen-freshness";
+import { markScreenLoaded, markScreenOpened, STALE_ARRIVAL_EVENT } from "@/lib/navigation/screen-freshness";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 
 // 처음 연 화면은 Next가 이동을 시작하지 않으므로 여기서 적는다
@@ -19,8 +19,8 @@ export const onRouterTransitionStart = (url: string, navigationType: "push" | "r
   markNavigationStart(url, window.location.href);
   markRouterNavigation(navigationType);
   if (navigationType !== "traverse") {
-    // 링크로 옮긴 화면은 서버에서 새로 받는다. 되돌아간 화면은 숨겨 둔 그대로라 HistoryReturn이 판단한다
-    markScreenLoaded(url, window.location.href);
+    // 링크로 옮긴 화면은 서버에서 새로 받는다. 탭 화면은 받은 지 30초가 안 됐으면 받아 둔 내용을 쓴다(#405). 되돌아간 화면은 숨겨 둔 그대로라 HistoryReturn이 판단한다
+    if (markScreenOpened(url, window.location.href)) window.dispatchEvent(new Event(STALE_ARRIVAL_EVENT));
     return;
   }
   if (claimBackMotion()) BACK_TRANSITION.forEach(addTransitionType);

@@ -1,6 +1,12 @@
+import { randomUUID } from "node:crypto";
 import type { Locator, Page } from "@playwright/test";
 import { SETTINGS_PATH } from "@/lib/auth/paths";
+import { RECORDS_PATH } from "@/lib/dates/album";
 import { PUSH_OPEN_MESSAGE } from "@/lib/push/message";
+import { TODOS_PATH } from "@/lib/todos/list";
+import { getTab } from "./support/actions";
+import { createTestName } from "./support/names";
+import { createDisposableTodo } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
 // 앱을 켜 둔 채 알림을 누르면(#406) 서비스 워커(public/sw.js)가 앱 창에 주소를 넘기고, 앱이 받았다고 답하면 창을 옮기지 않는다.
@@ -43,6 +49,26 @@ test.describe("앱을 켜 둔 채 알림 누르기", () => {
     await page.waitForURL("**/todos/new");
     await expect(getTodoContent(page)).toHaveValue("알림 오기 전에 쓰던 하고 싶은 것");
     expect(await page.evaluate(() => (window as unknown as { pushOpenMarker?: boolean }).pushOpenMarker)).toBe(true);
+  });
+
+  // 탭 화면은 받은 지 30초가 안 됐으면 받아 둔 내용을 다시 쓴다(#405). 알림은 상대가 바꾼 것을 보라는 뜻이라 받아 둔 내용을 보여 주면 안 된다
+  test("30초 안에 본 탭의 알림을 누르면 상대가 더한 항목이 보인다", async ({ page }, testInfo) => {
+    // Arrange
+    const content = createTestName("E2E 알림 탭", testInfo);
+    await openScreen(page, TODOS_PATH, getTab(page, TODOS_PATH));
+    await getTab(page, RECORDS_PATH).tap();
+    await page.waitForURL(`**${RECORDS_PATH}`);
+    const deleteTodo = await createDisposableTodo({ id: randomUUID(), content });
+    try {
+      // Act
+      await sendPushOpenMessage(page, new URL(TODOS_PATH, page.url()).href);
+      await page.waitForURL(`**${TODOS_PATH}`);
+
+      // Assert
+      await expect(page.locator("main").locator("visible=true").getByText(content)).toBeVisible();
+    } finally {
+      await deleteTodo();
+    }
   });
 
   // 같은 주소로 한 번 더 옮기면 방문 기록이 하나 늘어, 뒤로 가기를 한 번 눌러도 그대로인 것처럼 보인다
