@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Locator, Page, Route } from "@playwright/test";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
-import { getSubmitButton } from "./support/actions";
+import { getSubmitButton, openEventEditFromCalendar } from "./support/actions";
 import { pickDate } from "./support/date-picker";
 import { readAnimations, recordAnimations } from "./support/motion";
 import { createDisposableEvent, deleteEventsByTitle } from "./support/seed";
@@ -63,7 +63,7 @@ test.describe("새 일정을 저장하면", () => {
       await page.waitForURL(`**${CALENDAR_PATH}?*`);
       const row = getEventRow(page, title);
       await expect(row).toContainText("(저장 중)");
-      await expect(row.getByRole("link")).toHaveAttribute("aria-disabled", "true");
+      await expect(row.getByRole("button").first()).toHaveAttribute("aria-disabled", "true");
       await expect(page.getByRole("button", { name: /^5월 14일 .*함께 일정 1개/ }).locator("visible=true")).toBeVisible();
 
       // Act
@@ -71,7 +71,7 @@ test.describe("새 일정을 저장하면", () => {
 
       // Assert
       await expect(row).not.toContainText("(저장 중)");
-      await expect(row.getByRole("link")).not.toHaveAttribute("aria-disabled", "true");
+      await expect(row.getByRole("button").first()).not.toHaveAttribute("aria-disabled", "true");
       // 돌아간 캘린더가 이미 보여 주므로 "저장했어요" 알림은 띄우지 않는다
       await expect(page.getByRole("status").filter({ hasText: "일정을 저장했어요" })).toHaveCount(0);
     } finally {
@@ -164,7 +164,7 @@ test("하루짜리 일정을 고쳐 저장하면 캘린더로 바로 돌아가 �
   const deleteEvent = await createDisposableEvent({ id, title, date: day });
   try {
     await openScreen(page, `${CALENDAR_PATH}?month=${MONTH}&date=${day}`, getEventRow(page, title));
-    await getEventRow(page, title).getByRole("link").tap();
+    await openEventEditFromCalendar(page, getEventRow(page, title).getByRole("button").first());
     await page.waitForURL(`**/events/${id}/edit*`);
     await getTitleField(page).fill(fixedTitle);
     const save = await holdSaveRequest(page);

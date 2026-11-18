@@ -21,6 +21,8 @@ export interface CalendarEvent {
   startTime: string | null;
   title: string;
   place: string | undefined;
+  /** 메모(#352). 캘린더만 읽고, 비었으면 두지 않는다 */
+  memo?: string | undefined;
   /** 둘이 함께 하는 일정이면 true(분홍 형광펜), 한 사람 일정이면 false(크림색 형광펜) */
   isTogether: boolean;
   authorNickname: string | undefined;
@@ -69,6 +71,8 @@ export interface CalendarEventRow {
   start_time: string | null;
   title: string;
   place: string | null;
+  /** 메모(캘린더만 읽는다) */
+  memo?: string | null;
   is_together: boolean;
   repeat_rule: string | null;
   repeat_until: string | null;
@@ -136,6 +140,7 @@ export const toCalendarEvent = ({
   start_time,
   title,
   place,
+  memo,
   is_together,
   repeat_rule,
   end_date,
@@ -149,6 +154,7 @@ export const toCalendarEvent = ({
   startTime: start_time,
   title,
   place: place ?? undefined,
+  ...(memo ? { memo } : {}),
   isTogether: is_together,
   authorNickname: author?.nickname,
   ...(revision === undefined ? {} : { revision }),

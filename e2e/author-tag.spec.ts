@@ -4,6 +4,7 @@ import { E2E_EVENTS, E2E_MEMBER, E2E_TODOS, PHOTO_RECORD } from "./support/const
 import { createDisposableEvent, createDisposableMember, createDisposableTodo, createMemberContent } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
 import { createTestName } from "./support/names";
+import { getCalendarEventRow } from "./support/actions";
 
 const AUTHOR_NAME = `작성자 ${E2E_MEMBER.nickname}`;
 /** DB가 받는 가장 긴 예전 닉네임(20자). 넓은 글자 6자가 줄지 않는지는 닉네임 변경 E2E가 본다 */
@@ -29,8 +30,7 @@ test.describe("작성자 이름표", () => {
   test("캘린더 아래 목록의 함께 일정 줄은 작성자 대신 함께 이름표를 보여 주고 함께 일정으로 읽는다", async ({ page }) => {
     // Act
     await openScreen(page, "/calendar", page.getByText(E2E_EVENTS[0].title));
-    // 오늘의 함께 일정이라 같은 제목이 든 "기록 남기기" 링크도 있어 일정 주소로 고른다
-    const row = page.locator(`a[href^="/events/${E2E_EVENTS[0].id}/"]`);
+    const row = getCalendarEventRow(page, E2E_EVENTS[0].title);
 
     // Assert: 홈 일정 칸과 같은 이름을 쓴다(#201)
     await expect(row.getByRole("img", { name: "함께 일정" })).toHaveText("함께");
@@ -46,7 +46,7 @@ test.describe("작성자 이름표", () => {
     try {
       // Act
       await openScreen(page, "/calendar", page.getByText(title));
-      const row = page.getByRole("link", { name: new RegExp(title) });
+      const row = getCalendarEventRow(page, title);
 
       // Assert
       await expect(row.getByText(E2E_MEMBER.nickname, { exact: true })).toHaveCount(1);
@@ -114,7 +114,7 @@ test.describe("작성자 이름표", () => {
 
       // 캘린더 한 사람 일정 줄의 주인 이름표
       await openScreen(page, "/calendar", page.getByText(`${label} 일정`));
-      const ownerTag = page.getByRole("link", { name: new RegExp(`${label} 일정`) }).getByRole("img", { name: `${LONGEST_NICKNAME} 일정` });
+      const ownerTag = getCalendarEventRow(page, `${label} 일정`).getByRole("img", { name: `${LONGEST_NICKNAME} 일정` });
       await expect(ownerTag).toBeVisible();
       expect(await isTruncated(ownerTag)).toBe(true);
       expect((await getScrollAreaOverflow(page)).horizontal).toBe(0);

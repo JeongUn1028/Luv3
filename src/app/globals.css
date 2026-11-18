@@ -404,6 +404,27 @@ input[type="time"] {
     animation: modal-step-in 160ms ease-out;
   }
 
+  /* 아래에서 올라오는 창(#352)은 아래로 들어오고 나간다. 끌어내리다 닫으면 내린 자리에서 이어서 나간다 */
+  .modal-bottom-sheet[open] {
+    animation-name: bottom-sheet-in;
+  }
+
+  .modal-bottom-sheet[data-closing] {
+    animation-name: bottom-sheet-out;
+  }
+
+  @keyframes bottom-sheet-in {
+    from {
+      translate: 0 100%;
+    }
+  }
+
+  @keyframes bottom-sheet-out {
+    to {
+      translate: 0 100%;
+    }
+  }
+
   @keyframes modal-sheet-in {
     from {
       opacity: 0;

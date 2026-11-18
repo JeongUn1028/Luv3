@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import type { MouseEvent, ReactElement } from "react";
+import { useRef, useState, type ReactElement } from "react";
 import { AuthorTag, EventOwnerTag } from "@/components/AuthorTag";
 import { EventRecordAction } from "@/components/events/EventRecordAction";
 import { PlusIcon } from "@/components/icons";
+import type { ModalDialogHandle } from "@/components/ModalDialog";
 import { RetryButton } from "@/components/RetryButton";
 import { SkeletonBlock } from "@/components/Skeleton";
 import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
@@ -14,12 +15,10 @@ import type { CalendarRecord } from "@/lib/events/calendar";
 import { EVENT_LOAD_ERROR_MESSAGE } from "@/lib/events/load-error";
 import type { ShownEvent } from "@/lib/events/pending";
 import { getEventRecordLink } from "@/lib/events/record-link";
-import { formatEventPeriod, formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
+import { formatEventPeriod, formatRepeatRule } from "@/lib/events/recurrence";
 import type { HolidayNames } from "@/lib/holidays/holidays";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
-
-// 저장 중인 일정은 아직 서버에 없을 수 있어 고치기 화면을 열지 않는다
-const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDefault();
+import { EventDetailSheet } from "./EventDetailSheet";
 
 interface SelectedDayListProps {
   selectedDate: string;
@@ -57,7 +56,7 @@ const MonthLoadFailed = ({ onRetry }: { onRetry: () => void }): ReactElement => 
 
 /**
  * 캘린더에서 고른 날: 날짜 머리글과 "일정 추가", 그날의 기념일·공휴일·기록·일정 줄.
- * 폼에서 저장 중인 일정(#345)은 흐리게 두어 누를 수 없게 한다.
+ * 일정 줄을 누르면 아래에서 읽기 창을 연다(#352). 폼에서 저장 중인 일정(#345)은 흐리게 두어 누를 수 없게 한다.
  *
  * @example <SelectedDayList selectedDate="2026-11-16" today="2026-11-16" holidayNames={holidayNames} records={records} events={events} />
  */
@@ -73,6 +72,14 @@ export const SelectedDayList = ({
   const anniversary = getAnniversaryLabel(ANNIVERSARY_DATE, selectedDate);
   const holiday = holidayNames[selectedDate];
   const isEmptyDay = !anniversary && !holiday && records.length === 0 && events.length === 0;
+  const sheetRef = useRef<ModalDialogHandle>(null);
+  // 닫히는 동안에도 내용을 그리도록 마지막으로 연 일정을 남긴다. 열린 동안 목록이 새로 오면(고친 뒤 등) 새 내용을 보여 준다
+  const [lastOpenedEvent, setOpenedEvent] = useState<ShownEvent | undefined>(undefined);
+  const openedEvent = lastOpenedEvent && (events.find(({ id, date }) => id === lastOpenedEvent.id && date === lastOpenedEvent.date) ?? lastOpenedEvent);
+  const openEvent = (event: ShownEvent) => {
+    setOpenedEvent(event);
+    sheetRef.current?.open();
+  };
 
   return (
     <section aria-labelledby="selected-day" className="mt-4 flex flex-col">
@@ -133,12 +140,13 @@ export const SelectedDayList = ({
             const recordLink = isPending ? undefined : getEventRecordLink(event, today);
             return (
               <li key={event.id} className="flex gap-2">
-                <Link
-                  href={toEventEditHref(event)}
-                  transitionTypes={FORWARD_TRANSITION}
+                {/* 저장 중인 일정은 아직 서버에 없을 수 있어 열지 않는다 */}
+                <button
+                  type="button"
                   aria-disabled={isPending}
-                  onClick={isPending ? preventOpening : undefined}
-                  className="press-card flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
+                  aria-haspopup="dialog"
+                  onClick={isPending ? undefined : () => openEvent(event)}
+                  className="press-card flex min-h-[51px] min-w-0 flex-1 items-center gap-3 rounded-[10px] bg-surface px-4 py-2 text-left"
                 >
                   <span className="w-11 shrink-0 text-[12px] text-ink-sub">{formatEventTime(event.startTime)}</span>
                   <span className="flex min-w-0 flex-1 flex-col">
@@ -155,7 +163,7 @@ export const SelectedDayList = ({
                     )}
                   </span>
                   <EventOwnerTag isTogether={event.isTogether} authorNickname={event.authorNickname} />
-                </Link>
+                </button>
                 {/* 지난 함께 일정(오늘 포함)은 데이트 기록으로 이어 쓸 수 있고, 이미 남긴 일정은 그 기록을 연다(#227) */}
                 {recordLink && (
                   <EventRecordAction
@@ -170,6 +178,12 @@ export const SelectedDayList = ({
           })}
         </ul>
       )}
+      <EventDetailSheet
+        ref={sheetRef}
+        event={openedEvent}
+        recordLink={openedEvent && getEventRecordLink(openedEvent, today)}
+        onLeave={() => sheetRef.current?.closeImmediately()}
+      />
     </section>
   );
 };

@@ -3,7 +3,7 @@ import type { Locator, Page, Request } from "@playwright/test";
 import { E2E_MEMBER, E2E_TODOS } from "./support/constants";
 import { createComment, createDisposableEvent, createDisposableRecord, createNonMemberAccount, deleteTodosByContent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getGroupPhoto, getSaveButton, isScreenRequest, pickPhoto, returnToFailedTodoForm } from "./support/actions";
+import { getCalendarEventRow, getGroupPhoto, getSaveButton, isScreenRequest, openEventEditFromCalendar, pickPhoto, returnToFailedTodoForm } from "./support/actions";
 import { createTestName } from "./support/names";
 
 const [, , TODO] = E2E_TODOS;
@@ -169,9 +169,9 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
     const deleteEvent = await createDisposableEvent({ id, title, date: "2015-03-10" });
 
     try {
-      const row = page.getByRole("link", { name: new RegExp(`^(?!.*기록 남기기).*${title}`) });
+      const row = getCalendarEventRow(page, title);
       await openScreen(page, "/calendar?month=2015-03&date=2015-03-10", row);
-      await row.tap();
+      await openEventEditFromCalendar(page, row);
       await page.locator("#event-memo").locator("visible=true").waitFor();
       await dropSession(page);
 
