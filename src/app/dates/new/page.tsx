@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { DateRecordForm } from "@/components/dates/DateRecordForm";
 import { FormSkeleton } from "@/components/FormSkeleton";
 import { LoadErrorScreen } from "@/components/LoadErrorScreen";
@@ -15,6 +16,8 @@ export const metadata: Metadata = { title: "기록 남기기 · Luv3" };
 
 const MemberOnlyForm = async ({ searchParams }: Pick<PageProps<"/dates/new">, "searchParams">) => {
   const params = await searchParams;
+  // 회원 확인을 기다리지 않으므로, 오늘 날짜를 읽기 전에 요청 때 그리는 칸임을 알린다(cacheComponents, #446)
+  await connection();
   const today = toKstDate(new Date());
   const { event: eventId, eventDate } = params;
   // 캘린더의 지난 일정에서 넘어오면 일정을 읽어 날짜·제목·메모를 채우고 그 일정과 잇는다(#227).
