@@ -11,8 +11,8 @@ import {
   describeBackupVersion,
   listPublicTables,
   toContentType,
-  type BackupManifest,
 } from "./lib.mts";
+import { parseBackupManifest } from "./manifest.mts";
 import { getLocalConnection, readLocalSizes, REPO_ROOT, runSupabase, runWithLimit } from "./supabase.mts";
 
 const UPLOAD_CONCURRENCY = 4;
@@ -80,7 +80,7 @@ const main = async (): Promise<void> => {
 
   const root = path.resolve(directory);
   const snapshotDirectory = selectSnapshot(root, requestedSnapshot);
-  const manifest = JSON.parse(readFileSync(path.join(snapshotDirectory, "manifest.json"), "utf8")) as BackupManifest;
+  const manifest = parseBackupManifest(readFileSync(path.join(snapshotDirectory, "manifest.json"), "utf8"));
   console.log(`되살릴 시점: ${path.basename(snapshotDirectory)} (${manifest.source === "linked" ? "운영" : "로컬 시험"} 데이터)`);
   console.log(`백업할 때: ${describeBackupVersion(manifest)}`);
 

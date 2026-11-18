@@ -14,6 +14,7 @@ import {
   type BackupFile,
   type BackupManifest,
 } from "./lib.mts";
+import { parseBackupManifest } from "./manifest.mts";
 import {
   getLinkedConnection,
   getLocalConnection,
@@ -52,7 +53,12 @@ const assertSameSource = (root: string, source: BackupManifest["source"]): void 
   for (const name of readdirSync(snapshotsDirectory)) {
     const manifestPath = path.join(snapshotsDirectory, name, "manifest.json");
     if (!existsSync(manifestPath)) continue;
-    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as BackupManifest;
+    let manifest: BackupManifest;
+    try {
+      manifest = parseBackupManifest(readFileSync(manifestPath, "utf8"));
+    } catch (error) {
+      throw new Error(`예전 시점 ${name}의 기록을 읽지 못해 새 백업을 멈춥니다. 그 시점을 고치거나 폴더 밖으로 옮기세요.`, { cause: error });
+    }
     if (manifest.source !== source) {
       throw new Error(`이 폴더에는 다른 곳(${manifest.source})에서 받은 백업이 있습니다. 폴더를 나누세요: ${root}`);
     }
