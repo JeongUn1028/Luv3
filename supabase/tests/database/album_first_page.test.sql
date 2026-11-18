@@ -3,7 +3,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(6);
+select plan(7);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@first-page.test', 'authenticated', 'authenticated'),
@@ -22,6 +22,9 @@ select ok(
   '비로그인은 기록 탭 첫 묶음을 읽을 수 없다'
 );
 
+-- 판 번호 함수가 줄마다 불리면 기록이 많을 때 첫 화면이 느려진다(1,000개에서 약 190ms). 이 트랜잭션에서 불린 횟수로 확인한다
+set local track_functions = 'all';
+
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
 
@@ -34,6 +37,13 @@ select is(
   (select array_agg(distinct records_version) from public.album_first_page(3)),
   array[public.date_records_version()],
   '모든 줄에 같은 판 번호를 붙이고, 따로 읽은 판 번호와 같다'
+);
+select set_config('test.version_calls', coalesce(pg_stat_get_xact_function_calls('public.date_records_version()'::regprocedure), 0)::text, true);
+select count(*) from public.album_first_page(3);
+select is(
+  coalesce(pg_stat_get_xact_function_calls('public.date_records_version()'::regprocedure), 0) - current_setting('test.version_calls')::bigint,
+  1::bigint,
+  '판 번호는 줄 수와 상관없이 한 번만 계산한다'
 );
 select is(
   (select array_agg(id) from public.album_first_page(2)),
