@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { chromium } from "@playwright/test";
 import { REMEMBERED_PHOTO_URLS_KEY } from "@/lib/photos/remembered-url";
 import { BASE_URL, E2E_MEMBER, MEMBER_STATE_PATH } from "./support/constants";
@@ -29,6 +30,8 @@ const globalSetup = async (): Promise<() => Promise<void>> => {
       ...origin,
       localStorage: origin.localStorage.filter(({ name }) => name !== REMEMBERED_PHOTO_URLS_KEY),
     }));
+    // 직접 쓰면 Playwright처럼 폴더를 만들어 주지 않는다. CI에는 폴더가 없다
+    await mkdir(dirname(MEMBER_STATE_PATH), { recursive: true });
     await writeFile(MEMBER_STATE_PATH, JSON.stringify({ ...state, origins }, undefined, 2));
   } catch (error) {
     // 정리까지 실패해도 원인인 로그인 오류가 가려지지 않게 한다
