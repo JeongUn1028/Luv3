@@ -192,7 +192,7 @@ test.describe("하고 싶은 것 목록", () => {
 });
 
 test.describe("지우기 확인 창", () => {
-  test("인터넷이 끊겨 화면에 남으면 지우는 중에는 Esc를 연달아 눌러도 닫히지 않고, 실패하면 삭제 버튼에 초점이 남는다", async ({ page }, testInfo) => {
+  test("인터넷이 끊겨 화면에 남으면 지우는 중에는 Esc를 연달아 눌러도 닫히지 않고, 실패하면 지우기 버튼에 초점이 남는다", async ({ page }, testInfo) => {
     // Arrange: 지우기 요청을 붙잡아 두었다가 실패시킨다. 인터넷이 이어져 있으면 응답을 기다리지 않고 돌아간다(#346)
     const id = randomUUID();
     const deleteTodo = await createDisposableTodo({ id, content: createTestName("초점 지우기", testInfo) });

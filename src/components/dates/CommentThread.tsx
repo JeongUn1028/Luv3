@@ -165,10 +165,10 @@ export const CommentThread = ({ recordId, comments, memberNickname, memberId }: 
                   <button
                     type="button"
                     onClick={() => handleOpenDelete(id)}
-                    aria-label="댓글 삭제"
+                    aria-label="댓글 지우기"
                     className="press-icon -my-3 -mr-3 h-11 px-3 text-[13px] text-ink-sub hover:text-ink"
                   >
-                    삭제
+                    지우기
                   </button>
                 )}
               </div>
@@ -185,7 +185,7 @@ export const CommentThread = ({ recordId, comments, memberNickname, memberId }: 
         onSaved={handleSaved}
       />
       <ModalDialog ref={modalRef} title="이 댓글을 지울까요?" description="두 사람 화면에서 모두 지워지고 되돌릴 수 없어요." onClose={handleDialogClose}>
-        <ModalActions cancelLabel="취소" onCancel={() => modalRef.current?.close()} confirmLabel="삭제" onConfirm={handleConfirmDelete} />
+        <ModalActions cancelLabel="취소" onCancel={() => modalRef.current?.close()} confirmLabel="지우기" onConfirm={handleConfirmDelete} />
       </ModalDialog>
     </>
   );

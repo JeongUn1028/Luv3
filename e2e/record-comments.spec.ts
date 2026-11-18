@@ -51,7 +51,7 @@ test.describe("기록 댓글", () => {
       await openRecord(page, recordId);
       const partnerComment = getComment(page, "상대가 단 댓글");
       await expect(partnerComment.getByRole("img", { name: `작성자 ${partnerNickname}` })).toBeVisible();
-      await expect(partnerComment.getByRole("button", { name: "댓글 삭제" })).toHaveCount(0);
+      await expect(partnerComment.getByRole("button", { name: "댓글 지우기" })).toHaveCount(0);
 
       // Act: 앞뒤 공백은 빼고, 줄바꿈은 그대로 남긴다
       await getCommentInput(page).fill("  내가 단 댓글\n두 번째 줄  ");
@@ -67,8 +67,8 @@ test.describe("기록 댓글", () => {
       await expect(page.getByRole("status").filter({ hasText: "댓글을 남겼어요." })).toHaveCount(1);
 
       // Act: 내 댓글 지우기
-      await myComment.getByRole("button", { name: "댓글 삭제" }).click();
-      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "삭제", exact: true }).click();
+      await myComment.getByRole("button", { name: "댓글 지우기" }).click();
+      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "지우기", exact: true }).click();
 
       // Assert: 버튼과 함께 사라진 초점은 댓글 제목으로 옮긴다
       await expect(getComments(page)).toHaveCount(1);
@@ -111,7 +111,7 @@ test.describe("기록 댓글", () => {
     }
   });
 
-  test("남기기를 누르면 저장을 기다리지 않고 목록 끝에 붙고, 저장이 끝나면 시각과 삭제가 붙는다", async ({ page }, testInfo) => {
+  test("남기기를 누르면 저장을 기다리지 않고 목록 끝에 붙고, 저장이 끝나면 시각과 지우기 버튼이 붙는다", async ({ page }, testInfo) => {
     // Arrange
     const recordId = randomUUID();
     const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 댓글 바로 반영 기록", testInfo) });
@@ -128,7 +128,7 @@ test.describe("기록 댓글", () => {
       const comment = getComment(page, "바로 붙는 댓글");
       await expect(comment.getByText("남기는 중…")).toBeVisible();
       await expect(comment.getByRole("img", { name: `작성자 ${E2E_MEMBER.nickname}` })).toBeVisible();
-      await expect(comment.getByRole("button", { name: "댓글 삭제" })).toHaveCount(0);
+      await expect(comment.getByRole("button", { name: "댓글 지우기" })).toHaveCount(0);
       await expect(getHeading(page)).toHaveText("댓글1");
       await expect(getCommentInput(page)).toHaveValue("");
       await expect(getSendButton(page)).toBeDisabled();
@@ -136,10 +136,10 @@ test.describe("기록 댓글", () => {
       // Act
       release();
 
-      // Assert: 저장이 끝나면 시각과 삭제가 나타나고, 다시 받은 목록에서도 한 줄이다
+      // Assert: 저장이 끝나면 시각과 지우기 버튼이 나타나고, 다시 받은 목록에서도 한 줄이다
       await expect(comment.locator("time")).toBeVisible();
       await expect(comment.getByText("남기는 중…")).toHaveCount(0);
-      await expect(comment.getByRole("button", { name: "댓글 삭제" })).toBeVisible();
+      await expect(comment.getByRole("button", { name: "댓글 지우기" })).toBeVisible();
       await expect(page.getByRole("status").filter({ hasText: "댓글을 남겼어요." })).toHaveCount(1);
       await expect(getSendButton(page)).toBeEnabled();
       await page.waitForLoadState("networkidle");
@@ -203,8 +203,8 @@ test.describe("기록 댓글", () => {
         }
         return route.continue();
       });
-      await getComment(page, "먼저 지울 댓글").getByRole("button", { name: "댓글 삭제" }).click();
-      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "삭제", exact: true }).click();
+      await getComment(page, "먼저 지울 댓글").getByRole("button", { name: "댓글 지우기" }).click();
+      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "지우기", exact: true }).click();
       await expect(getComments(page)).toHaveCount(0);
       await expect.poll(() => heldRefreshCount).toBeGreaterThan(0);
       await page.route(COMMENTS_ROUTE, (route) => (route.request().method() === "POST" ? route.abort() : route.fallback()));
@@ -252,8 +252,8 @@ test.describe("기록 댓글", () => {
       const readCountAfterAdd = commentReadCount;
 
       // Act: 지우기
-      await getComment(page, "댓글만 다시 읽는 댓글").getByRole("button", { name: "댓글 삭제" }).click();
-      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "삭제", exact: true }).click();
+      await getComment(page, "댓글만 다시 읽는 댓글").getByRole("button", { name: "댓글 지우기" }).click();
+      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "지우기", exact: true }).click();
 
       // Assert
       await expect(getComments(page)).toHaveCount(0);
@@ -265,7 +265,7 @@ test.describe("기록 댓글", () => {
     }
   });
 
-  test("댓글을 남기면 화면을 연 뒤 상대가 남긴 댓글도 함께 보이고, 상대 댓글에는 삭제가 붙지 않는다", async ({ page }, testInfo) => {
+  test("댓글을 남기면 화면을 연 뒤 상대가 남긴 댓글도 함께 보이고, 상대 댓글에는 지우기 버튼이 붙지 않는다", async ({ page }, testInfo) => {
     // Arrange
     const recordId = randomUUID();
     const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 상대 댓글 함께 읽기 기록", testInfo) });
@@ -285,10 +285,10 @@ test.describe("기록 댓글", () => {
       const partnerComment = getComments(page).first();
       await expect(partnerComment).toContainText("화면을 연 뒤 상대가 단 댓글");
       await expect(partnerComment.getByRole("img", { name: `작성자 ${partnerNickname}` })).toBeVisible();
-      await expect(partnerComment.getByRole("button", { name: "댓글 삭제" })).toHaveCount(0);
+      await expect(partnerComment.getByRole("button", { name: "댓글 지우기" })).toHaveCount(0);
       const myComment = getComments(page).last();
       await expect(myComment).toContainText("내가 이어서 단 댓글");
-      await expect(myComment.getByRole("button", { name: "댓글 삭제" })).toBeVisible();
+      await expect(myComment.getByRole("button", { name: "댓글 지우기" })).toBeVisible();
       await expect(getHeading(page)).toHaveText("댓글2");
     } finally {
       await deleteRecord();
@@ -307,8 +307,8 @@ test.describe("기록 댓글", () => {
       await getCommentInput(page).fill("새로 남긴 댓글");
       await getSendButton(page).click();
       await expect(getComment(page, "새로 남긴 댓글").locator("time")).toBeVisible();
-      await getComment(page, "처음부터 있던 댓글").getByRole("button", { name: "댓글 삭제" }).click();
-      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "삭제", exact: true }).click();
+      await getComment(page, "처음부터 있던 댓글").getByRole("button", { name: "댓글 지우기" }).click();
+      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "지우기", exact: true }).click();
       await expect(getComments(page)).toHaveCount(1);
       await page.waitForLoadState("networkidle");
 
@@ -370,9 +370,9 @@ test.describe("기록 댓글", () => {
       const release = await holdCommentRequest(page, "DELETE", "continue");
 
       // Act
-      await getComment(page, "바로 빠지는 댓글").getByRole("button", { name: "댓글 삭제" }).click();
+      await getComment(page, "바로 빠지는 댓글").getByRole("button", { name: "댓글 지우기" }).click();
       const dialog = page.getByRole("dialog", { name: "이 댓글을 지울까요?" });
-      await dialog.getByRole("button", { name: "삭제", exact: true }).click();
+      await dialog.getByRole("button", { name: "지우기", exact: true }).click();
 
       // Assert: 지우는 요청이 붙잡혀 있는 동안에도 창이 닫히고 목록에서 빠진다
       await expect(dialog).toBeHidden();
@@ -402,8 +402,8 @@ test.describe("기록 댓글", () => {
       const release = await holdCommentRequest(page, "DELETE", "abort");
 
       // Act
-      await getComment(page, "남아야 하는 댓글").getByRole("button", { name: "댓글 삭제" }).click();
-      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "삭제", exact: true }).click();
+      await getComment(page, "남아야 하는 댓글").getByRole("button", { name: "댓글 지우기" }).click();
+      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "지우기", exact: true }).click();
       await expect(getComments(page)).toHaveCount(0);
       release();
 
@@ -418,8 +418,8 @@ test.describe("기록 댓글", () => {
 
       // Act: 다시 지우면 지난 안내는 사라진다
       await page.unroute(COMMENTS_ROUTE);
-      await getComment(page, "남아야 하는 댓글").getByRole("button", { name: "댓글 삭제" }).click();
-      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "삭제", exact: true }).click();
+      await getComment(page, "남아야 하는 댓글").getByRole("button", { name: "댓글 지우기" }).click();
+      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "지우기", exact: true }).click();
 
       // Assert
       await expect(notice).toHaveCount(0);
@@ -441,9 +441,9 @@ test.describe("기록 댓글", () => {
       await page.route("**/rest/v1/comments*", (route) => (route.request().method() === "DELETE" ? route.fulfill({ status: 204 }) : route.continue()));
 
       // Act
-      await getComment(page, "남아 있는 댓글").getByRole("button", { name: "댓글 삭제" }).click();
+      await getComment(page, "남아 있는 댓글").getByRole("button", { name: "댓글 지우기" }).click();
       const dialog = page.getByRole("dialog", { name: "이 댓글을 지울까요?" });
-      await dialog.getByRole("button", { name: "삭제", exact: true }).click();
+      await dialog.getByRole("button", { name: "지우기", exact: true }).click();
 
       // Assert
       await expect(dialog).toBeHidden();
@@ -512,7 +512,7 @@ test.describe("기록 댓글", () => {
 test.describe("상대 계정으로 들어가면", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("E2E 계정이 단 댓글은 지울 수 없고, 상대가 남긴 댓글에는 삭제 버튼이 붙는다", async ({ page }, testInfo) => {
+  test("E2E 계정이 단 댓글은 지울 수 없고, 상대가 남긴 댓글에는 지우기 버튼이 붙는다", async ({ page }, testInfo) => {
     // Arrange
     const recordId = randomUUID();
     const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 상대 댓글 기록", testInfo) });
@@ -526,7 +526,7 @@ test.describe("상대 계정으로 들어가면", () => {
       await openRecord(page, recordId);
       const memberComment = getComment(page, "E2E 계정이 단 댓글");
       await expect(memberComment.getByRole("img", { name: `작성자 ${E2E_MEMBER.nickname}` })).toBeVisible();
-      await expect(memberComment.getByRole("button", { name: "댓글 삭제" })).toHaveCount(0);
+      await expect(memberComment.getByRole("button", { name: "댓글 지우기" })).toHaveCount(0);
 
       // Act
       await getCommentInput(page).fill("상대 계정이 단 댓글");
@@ -535,7 +535,7 @@ test.describe("상대 계정으로 들어가면", () => {
       // Assert
       const partnerComment = getComment(page, "상대 계정이 단 댓글");
       await expect(partnerComment.getByRole("img", { name: `작성자 ${partnerNickname}` })).toBeVisible();
-      await expect(partnerComment.getByRole("button", { name: "댓글 삭제" })).toHaveCount(1);
+      await expect(partnerComment.getByRole("button", { name: "댓글 지우기" })).toHaveCount(1);
     } finally {
       await deleteRecord();
       await partner.remove();

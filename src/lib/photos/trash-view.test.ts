@@ -49,7 +49,7 @@ describe("toTrashSections", () => {
 
     // Assert
     expect(sections.map(({ title, deletedLabel, photos }) => [title, deletedLabel, photos.map(({ id }) => id)])).toEqual([
-      ["11월 10일 · 성수 산책", "어제 지움 · 기록째 삭제", ["a", "b"]],
+      ["11월 10일 · 성수 산책", "어제 지움 · 기록째 지움", ["a", "b"]],
       ["11월 2일 · 첫 캠핑", "11월 5일 지움 · 사진 빼기", ["c"]],
     ]);
   });
@@ -68,13 +68,13 @@ describe("toTrashSections", () => {
     // 한국 시간 11월 12일 0시 30분(UTC로는 11일)
     const sections = toTrashSections([row({ deleted_at: "2026-11-11T15:30:00Z" })], [], NOW);
 
-    expect(sections[0]?.deletedLabel).toBe("오늘 지움 · 기록째 삭제");
+    expect(sections[0]?.deletedLabel).toBe("오늘 지움 · 기록째 지움");
   });
 
   it("올해가 아닌 날짜는 연도를 붙인다", () => {
     const sections = toTrashSections([row({ record_date: "2025-12-30", deleted_at: "2025-12-31T01:00:00Z" })], [], NOW);
 
-    expect(sections[0]).toMatchObject({ title: "2025년 12월 30일 · 성수 산책", deletedLabel: "2025년 12월 31일 지움 · 기록째 삭제" });
+    expect(sections[0]).toMatchObject({ title: "2025년 12월 30일 · 성수 산책", deletedLabel: "2025년 12월 31일 지움 · 기록째 지움" });
   });
 
   it("기록 날짜·제목을 남기지 못한 사진은 제목 없는 기록으로 보여 준다", () => {
