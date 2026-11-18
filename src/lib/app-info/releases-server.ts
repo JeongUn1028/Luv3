@@ -66,7 +66,7 @@ export const isCurrentReleaseReady = (releases: AppRelease[], currentVersion: st
 /**
  * 앱 정보 화면이 쓰는 업데이트 기록. 화면을 열 때마다 GitHub를 부르지 않게 하루 동안 기억하고,
  * 받지 못했으면 몇 분만 기억해 곧 다시 묻는다. 오류를 던지면 화면 오류로 번지므로 `undefined`로 돌려받는다.
- * 버전을 올려 배포한 직후에는 아직 Release나 그 요약이 없으므로(README "버전과 릴리스" 3~5번), 지금 버전의 요약이 없으면 한 시간만 기억한다
+ * 버전을 올려 배포한 직후에는 아직 Release나 그 요약이 없으므로(README "버전과 릴리스" 3~4번), 지금 버전의 요약이 없으면 한 시간만 기억한다
  *
  * @example const releases = await getReleases()
  */

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/v17.6.0/schemas/config.json",
+  "release-type": "node",
+  "changelog-type": "github",
+  "skip-changelog": true,
+  "include-component-in-tag": false,
+  "include-v-in-tag": true,
+  "pull-request-title-pattern": "chore: 버전 ${version}으로 올리기",
+  "packages": {
+    ".": {}
+  }
+}
