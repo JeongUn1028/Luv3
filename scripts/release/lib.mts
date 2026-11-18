@@ -78,6 +78,42 @@ const USER_FACING_SUBJECT = /^((feat|fix|perf|revert)(\([^)]*\))?!?|\w+(\([^)]*\
  */
 export const hasUserFacingCommits = (subjects: readonly string[]): boolean => subjects.some((subject) => USER_FACING_SUBJECT.test(subject));
 
+export interface DecideReleaseGateParams {
+  /** `.release-please-manifest.json`의 지금 버전 태그(예: `v1.3.0`) */
+  tag: string;
+  /** 그 태그 뒤 커밋 제목. 태그가 아직 없으면 `undefined` */
+  subjects: readonly string[] | undefined;
+  /** 이번 커밋이 `.release-please-manifest.json`을 바꿨는지(= 릴리스 PR을 머지한 커밋) */
+  isReleaseCommit: boolean;
+}
+
+export interface ReleaseGateDecision {
+  /** release-please의 `skip-github-pull-request`로 넘길 값 */
+  shouldSkipPullRequest: boolean;
+  /** 실행 기록에 남길 한 줄 */
+  message: string;
+}
+
+/**
+ * 이번 실행에서 새 릴리스 PR을 만들지 정한다. Release·태그 만들기는 이 값과 상관없이 release-please가 한다.
+ * 릴리스 PR을 머지한 커밋에서는 기록 파일이 이미 새 버전이고 그 태그는 바로 다음 단계가 만드므로,
+ * 실패하지 않고 새 릴리스 PR만 건너뛴다(#469). 그 뒤 커밋은 다음 main 머지 때 새 태그부터 센다.
+ * 릴리스 커밋이 아닌데 태그가 없으면 앞 실행이 태그를 못 만든 고장이므로, 조용히 건너뛰지 않고 복구법과 함께 실패한다.
+ *
+ * @example decideReleaseGate({ tag: "v1.3.0", subjects: undefined, isReleaseCommit: true }) // { shouldSkipPullRequest: true, ... }
+ */
+export const decideReleaseGate = ({ tag, subjects, isReleaseCommit }: DecideReleaseGateParams): ReleaseGateDecision => {
+  if (subjects === undefined) {
+    if (!isReleaseCommit) {
+      throw new Error(`${tag} 태그가 없습니다. 릴리스 PR의 머지 커밋에 태그를 붙여 push한 뒤 다시 실행하세요(README "버전과 릴리스")`);
+    }
+    return { shouldSkipPullRequest: true, message: `${tag} 태그가 아직 없음(방금 머지한 릴리스 PR) → 태그·Release는 다음 단계가 만들고 새 릴리스 PR은 만들지 않는다` };
+  }
+  const shouldSkipPullRequest = !hasUserFacingCommits(subjects);
+  const result = shouldSkipPullRequest ? "없음 → 릴리스 PR을 만들지 않는다" : "있음";
+  return { shouldSkipPullRequest, message: `${tag} 뒤 커밋 ${subjects.length}개, 사용자에게 보이는 변경 ${result}` };
+};
+
 const parseJson = (text: string): unknown => {
   try {
     return JSON.parse(text);
