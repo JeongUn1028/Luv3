@@ -13,6 +13,16 @@ export interface AlbumFirstPage {
   loadedAt: number;
 }
 
+/** 보이는 기록이 없을 때의 판 번호. 판 번호는 첫 묶음끼리만 견주므로(`syncAlbumFirstPage`) 정해 둔 값이면 된다 */
+export const EMPTY_RECORDS_VERSION = "empty";
+
+/**
+ * 첫 묶음 줄(`album_first_page`)에서 판 번호를 꺼낸다. 모든 줄에 같은 값이 붙고, 줄이 없으면 기록이 없을 때의 값이다(#411).
+ *
+ * @example pickRecordsVersion(rows) // "3f2a..."
+ */
+export const pickRecordsVersion = (rows: readonly { records_version: string }[]): string => rows[0]?.records_version ?? EMPTY_RECORDS_VERSION;
+
 /** 기록 탭 그리드가 지금까지 받은 기록 */
 export interface AlbumPages {
   firstPage: AlbumFirstPage;

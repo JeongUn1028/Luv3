@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { SIGNED_URL_MIN_REMAINING } from "@/lib/photos/limits";
 import type { AlbumTile } from "./album";
-import { appendAlbumPage, appendNewItems, createAlbumPages, syncAlbumFirstPage, toAlbumItems, toMsUntilPhotoUrlsStale, type AlbumFirstPage } from "./album-pages";
+import {
+  appendAlbumPage,
+  appendNewItems,
+  createAlbumPages,
+  EMPTY_RECORDS_VERSION,
+  pickRecordsVersion,
+  syncAlbumFirstPage,
+  toAlbumItems,
+  toMsUntilPhotoUrlsStale,
+  type AlbumFirstPage,
+} from "./album-pages";
 import type { RecordCursor } from "./search-api";
 
 const LOADED_AT = Date.UTC(2026, 10, 10, 12);
@@ -129,5 +139,15 @@ describe("toMsUntilPhotoUrlsStale", () => {
 
     // Assert
     expect(remaining).toEqual([60 * MINUTE_MS, MINUTE_MS, 0]);
+  });
+});
+
+describe("pickRecordsVersion", () => {
+  it("첫 묶음 줄에 붙은 판 번호를 쓴다", () => {
+    expect(pickRecordsVersion([{ records_version: "v1" }, { records_version: "v1" }])).toBe("v1");
+  });
+
+  it("보이는 기록이 없어 줄이 없으면 정해 둔 값을 쓴다", () => {
+    expect(pickRecordsVersion([])).toBe(EMPTY_RECORDS_VERSION);
   });
 });

@@ -277,7 +277,12 @@ isOneToOne: false
             [_ in never]: never
           }
           Functions: {
-            "are_valid_date_tags":
+            "album_first_page":
+{ Args: { "p_limit": number }; Returns: {
+              "created_at": string,"date": string,"end_date": string,"id": string,"records_version": string,"tags": (string)[],"thumb_path": string,"title": string,"total_count": number
+            }[]
+                           },
+"are_valid_date_tags":
 { Args: { "p_tags": (string)[] }; Returns: boolean
                            },
 "assert_date_record_fields":
