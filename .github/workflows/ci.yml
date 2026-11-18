@@ -10,6 +10,10 @@ concurrency:
   # main은 머지마다 두 기기 전체 E2E를 도는 유일한 실행이라, 다음 머지가 와도 취소하지 않는다(#194)
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# 저장소를 읽기만 한다. 결과 파일 올리기(upload-artifact)는 토큰 권한이 따로 필요 없다
+permissions:
+  contents: read
+
 jobs:
   check:
     name: lint · type-check · test · build
@@ -21,9 +25,9 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_dummy
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -43,9 +47,9 @@ jobs:
     # 평소 1.5분
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -79,9 +83,9 @@ jobs:
       # PR에서는 아이폰 17에서 크기를 재는 스펙만 돌리고, main에 머지될 때 두 기기 전체를 돌린다(e2e/support/devices.ts)
       E2E_ALL_DEVICES: ${{ github.event_name == 'push' && '1' || '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -89,7 +93,7 @@ jobs:
       # 로그인·기록·사진을 쓰므로 gotrue·storage-api는 띄우고 나머지는 뺀다
       - run: pnpm exec supabase start -x studio,imgproxy,mailpit,realtime,edge-runtime,logflare,vector,supavisor,postgres-meta
       - run: pnpm test:e2e --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           # 어느 대의 보고서인지 이름으로 바로 찾게 대 번호를 붙인다

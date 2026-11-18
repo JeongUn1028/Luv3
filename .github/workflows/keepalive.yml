@@ -19,12 +19,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      # 운영 주소(docs/plan.md의 도메인 결정). 바꾸면 여기와 keep-warm.yml·storage-check.yml을 함께 고친다
-      KEEPALIVE_URL: https://luv3.vercel.app/api/keepalive
+      # 운영 주소는 저장소 변수 PRODUCTION_URL(README "운영 주소 저장소 변수")
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+      KEEPALIVE_URL: ${{ vars.PRODUCTION_URL }}/api/keepalive
       CRON_SECRET: ${{ secrets.CRON_SECRET }}
     steps:
-      - name: 비밀 값 확인
+      - name: 비밀 값·운영 주소 확인
         run: |
+          # 뒤에 경로를 붙이므로 https로 시작하고 끝에 /가 없어야 한다
+          if ! [[ "$PRODUCTION_URL" =~ ^https://[^/]+$ ]]; then
+            echo "::error::저장소 변수 PRODUCTION_URL이 없거나 모양이 다릅니다(지금 값: '$PRODUCTION_URL'). https://로 시작하고 끝에 /가 없는 운영 주소(README \"운영 주소 저장소 변수\")를 Settings > Secrets and variables > Actions > Variables에 넣어 주세요."
+            exit 1
+          fi
           if [ -z "$CRON_SECRET" ]; then
             echo "::error::저장소 비밀 값 CRON_SECRET이 없습니다. Vercel의 CRON_SECRET과 같은 값을 Settings > Secrets and variables > Actions에 넣어 주세요."
             exit 1
@@ -40,7 +46,7 @@ jobs:
             --header "Authorization: Bearer $CRON_SECRET" "$KEEPALIVE_URL") || curl_exit=$?
           echo "응답: HTTP $status $(cat response.json 2>/dev/null)"
           if [ "$curl_exit" != "0" ]; then
-            echo "::error::운영 주소에서 응답을 받지 못했습니다(curl 종료 코드 $curl_exit: 6 주소 찾기 실패, 7 연결 거부, 28 시간 초과, 35 암호화 연결 실패). Vercel 배포와 KEEPALIVE_URL을 확인해 주세요."
+            echo "::error::운영 주소에서 응답을 받지 못했습니다(curl 종료 코드 $curl_exit: 6 주소 찾기 실패, 7 연결 거부, 28 시간 초과, 35 암호화 연결 실패). Vercel 배포와 저장소 변수 PRODUCTION_URL을 확인해 주세요."
             exit 1
           fi
           if [ "$status" != "200" ]; then

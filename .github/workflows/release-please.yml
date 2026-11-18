@@ -22,10 +22,10 @@ jobs:
     timeout-minutes: 10
     steps:
       # 앞 태그 뒤 커밋 제목을 읽으려고 기록과 태그를 모두 받는다
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       # 사용자에게 보이는 변경(feat·fix·perf·revert)이 없으면 릴리스 PR을 만들지 않는다. 머지된 릴리스 PR의 태그는 그대로 만든다

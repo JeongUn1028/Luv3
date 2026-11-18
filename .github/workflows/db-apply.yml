@@ -21,8 +21,8 @@ jobs:
     # 평소 10초 안. 필수 검사라 멈추면 머지도 막히므로 짧게 끊는다(#241)
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
       - run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/db-apply/check.mts
