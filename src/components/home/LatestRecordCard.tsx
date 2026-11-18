@@ -7,10 +7,12 @@ import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 interface LatestRecordCardProps {
   record: LatestRecord;
+  /** 서버가 쿠키를 보고 고른 대표 사진 주소(#356). 화면 코드가 뜨기 전에 받기 시작한다 */
+  serverSrc: string | undefined;
 }
 
 /** 홈의 최근 데이트 정사각형 칸: 대표 사진을 가득 깔고 아래에 제목과 날짜·장소를 쓴다. 누르면 기록 상세로 간다 */
-export const LatestRecordCard = ({ record }: LatestRecordCardProps): ReactElement => {
+export const LatestRecordCard = ({ record, serverSrc }: LatestRecordCardProps): ReactElement => {
   const titleId = useId();
 
   return (
@@ -23,7 +25,9 @@ export const LatestRecordCard = ({ record }: LatestRecordCardProps): ReactElemen
         최근 데이트
       </h2>
       <Link href={`/dates/${record.id}`} transitionTypes={FORWARD_TRANSITION} className="absolute inset-0 rounded-[16px] -outline-offset-2">
-        {record.thumb && <RememberedPhoto photo={record.thumb} alt="" className="size-full rounded-[16px] object-cover" />}
+        {record.thumb && (
+          <RememberedPhoto photo={record.thumb} homeSlot="latest" serverSrc={serverSrc} alt="" className="size-full rounded-[16px] object-cover" />
+        )}
         {/* 흰 사진 위에서도 두 줄 제목 윗줄까지 글자가 읽히도록(명암비 4.5:1) 글자 높이까지 진하게 깐다 */}
         <span className="absolute inset-x-0 bottom-0 flex flex-col gap-0.5 rounded-b-[16px] bg-gradient-to-t from-background/90 via-background/70 via-60% to-transparent px-3 pt-9 pb-3">
           <span className="line-clamp-2 font-display text-[15px] leading-5 text-ink">{record.title}</span>

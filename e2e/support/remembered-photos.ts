@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
+import { decodeHomePhotoCookie, HOME_PHOTO_COOKIE, type HomePhotoCookie } from "@/lib/photos/home-photo-cookie";
 import { REMEMBERED_PHOTO_URLS_KEY, type RememberedUrls } from "@/lib/photos/remembered-url";
 import { PHOTO_FIXTURE_PATH } from "./constants";
 
@@ -13,6 +14,16 @@ const PLANTED_TOKEN = "e2e-remembered";
  */
 export const readRememberedPhotoUrls = (page: Page): Promise<RememberedUrls> =>
   page.evaluate((key) => JSON.parse(window.localStorage.getItem(key) ?? "{}") as RememberedUrls, REMEMBERED_PHOTO_URLS_KEY);
+
+/**
+ * 홈 사진 두 칸의 주소를 기억한 쿠키를 읽는다(#356).
+ *
+ * @example const { couple } = await readHomePhotoCookie(page)
+ */
+export const readHomePhotoCookie = async (page: Page): Promise<HomePhotoCookie> => {
+  const cookie = (await page.context().cookies()).find(({ name }) => name === HOME_PHOTO_COOKIE);
+  return decodeHomePhotoCookie(cookie?.value);
+};
 
 /**
  * 받은 사진 주소를 기억한 경로를 찾는다.
@@ -48,6 +59,15 @@ export const plantRememberedUrl = async (page: Page, { path, serverUrl, expiresA
       isBroken
         ? route.fulfill({ status: 400, json: { statusCode: "400", error: "InvalidJWT", message: '"exp" claim timestamp check failed' } })
         : route.fulfill({ status: 200, contentType: "image/jpeg", body: readFileSync(PHOTO_FIXTURE_PATH) }),
+  );
+  // 서버는 쿠키를 보고 HTML에 넣을 주소를 고르므로 쿠키에도 같은 기억을 심는다(#356)
+  const cookie = await readHomePhotoCookie(page);
+  const slot = cookie.latest?.path === path ? "latest" : "couple";
+  await page.evaluate(
+    ({ name, value }) => {
+      document.cookie = `${name}=${value}; Path=/; SameSite=Lax`;
+    },
+    { name: HOME_PHOTO_COOKIE, value: encodeURIComponent(JSON.stringify({ ...cookie, [slot]: { path, url: planted.toString(), expiresAt } })) },
   );
   await page.evaluate(
     ({ key, entry }) => {

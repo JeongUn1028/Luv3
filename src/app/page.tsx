@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { connection } from "next/server";
 import { CouplePhoto } from "@/components/home/CouplePhoto";
 import { DdayHeader } from "@/components/home/DdayHeader";
@@ -20,6 +21,8 @@ import { RECORDS_PATH } from "@/lib/dates/album";
 import { AlbumLoadError, getLatestRecord } from "@/lib/dates/queries";
 import { EventLoadError, getUpcomingEvents } from "@/lib/events/queries";
 import { catchLoadError } from "@/lib/load";
+import { HOME_PHOTO_COOKIE, parseHomePhotoCookie, pickHomePhotoSrc, type HomePhotoSlot } from "@/lib/photos/home-photo-cookie";
+import type { RememberablePhoto } from "@/lib/photos/remembered-url";
 import { getOpenTodoPreview, TodoLoadError } from "@/lib/todos/queries";
 
 /** 탭을 오갈 때 받은 지 이 시간(초)이 안 됐으면 서버에 다시 묻지 않는다(#405). `STALE_AFTER_MS`와 같아야 한다. 저장·지우기 뒤의 router.refresh()는 받아 둔 화면을 비운다 */
@@ -31,6 +34,13 @@ const TODO_PREVIEW_COUNT = 3;
 // 칸마다 세션을 읽고 따로 불러와서, 한 칸이 느리거나 실패해도 나머지 칸은 먼저 보인다.
 // 각 칸에서 회원을 확인하는 이유: 허용목록 밖 계정이 먼저 그려진 칸을 누르지 않게 로그아웃 처리 경로로 보낸다.
 // 확인과 조회는 함께 시작한다(#344)
+
+// 홈 사진은 쿠키에 기억한 주소를 HTML에 바로 넣어, 화면 코드가 뜨기 전에 휴대폰이 저장해 둔 사진을 그린다(#356)
+const pickServerPhotoSrc = async (photo: RememberablePhoto | undefined, slot: HomePhotoSlot): Promise<string | undefined> => {
+  if (!photo) return undefined;
+  const remembered = parseHomePhotoCookie((await cookies()).get(HOME_PHOTO_COOKIE)?.value)[slot];
+  return pickHomePhotoSrc(photo, remembered, Date.now());
+};
 
 const HomeDday = async () => {
   await getCurrentMember();
@@ -49,7 +59,7 @@ const HomeCouplePhoto = async () => {
       </p>
     );
   }
-  return <CouplePhoto photo={photo} />;
+  return <CouplePhoto photo={photo} serverSrc={await pickServerPhotoSrc(photo, "couple")} />;
 };
 
 const HomeLatestRecord = async () => {
@@ -69,7 +79,7 @@ const HomeLatestRecord = async () => {
       </HomeTile>
     );
   }
-  return <LatestRecordCard record={record} />;
+  return <LatestRecordCard record={record} serverSrc={await pickServerPhotoSrc(record.thumb, "latest")} />;
 };
 
 const HomeUpcomingEvents = async () => {

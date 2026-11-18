@@ -32,6 +32,8 @@ const toMessage = (error: unknown): string =>
 interface CouplePhotoProps {
   /** 커플 사진의 경로·서명 주소. 없으면 추가 칸을 보여 준다 */
   photo: RememberablePhoto | undefined;
+  /** 서버가 쿠키를 보고 고른 사진 주소(#356). 화면 코드가 뜨기 전에 받기 시작한다 */
+  serverSrc: string | undefined;
 }
 
 /**
@@ -40,7 +42,7 @@ interface CouplePhotoProps {
  * 고른 사진과 지우기는 저장을 기다리지 않고 먼저 보여 주고, 실패하면 원래 사진으로 되돌린다(#329).
  * 사진 자체를 누르는 방식은 스크롤하다 스쳐도 열리고, 길게 누르기는 iOS 이미지 메뉴와 겹쳐 쓰지 않는다(#60).
  */
-export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
+export const CouplePhoto = ({ photo, serverSrc }: CouplePhotoProps): ReactElement => {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<ModalDialogHandle>(null);
@@ -190,6 +192,7 @@ export const CouplePhoto = ({ photo }: CouplePhotoProps): ReactElement => {
       ) : (
         <CouplePhotoCard
           photo={photo}
+          serverSrc={serverSrc}
           view={view}
           isUploading={busyTask === "upload"}
           isBusy={isBusy}

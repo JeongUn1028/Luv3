@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { HOME_PHOTO_COOKIE } from "@/lib/photos/home-photo-cookie";
 import { SIGN_OUT_PUSH_ENDPOINT_FIELD } from "@/lib/push/message";
 import { getSessionClaims } from "@/lib/supabase/jwks";
 import { createClient } from "@/lib/supabase/server";
@@ -71,6 +72,18 @@ describe("POST /auth/signout", () => {
     expect(calls).toEqual([`delete push_subscriptions endpoint=${PHONE}`, 'signOut {"scope":"local"}']);
     expect(response.status).toBe(303);
     expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/login");
+  });
+
+  // 홈 사진 주소는 7일 동안 쓸 수 있어 로그아웃한 기기에 남기지 않는다(#356, 휴대폰 저장소의 기억은 로그인 화면이 지운다)
+  it("홈 사진 주소 쿠키를 지운다", async () => {
+    // Arrange
+    fakeSupabase();
+
+    // Act
+    const response = await POST(signOutRequest());
+
+    // Assert
+    expect(response.cookies.get(HOME_PHOTO_COOKIE)).toMatchObject({ value: "", maxAge: 0, path: "/" });
   });
 
   it.each([

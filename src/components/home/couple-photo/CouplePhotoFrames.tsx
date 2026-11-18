@@ -18,6 +18,8 @@ const BusyBadge = ({ label }: { label: string }): ReactElement => (
 interface CouplePhotoCardProps {
   /** 서버의 커플 사진. 고른 사진만 있으면 없다 */
   photo: RememberablePhoto | undefined;
+  /** 서버가 쿠키를 보고 고른 서버 사진 주소(#356) */
+  serverSrc: string | undefined;
   view: Exclude<CouplePhotoView, { kind: "empty" }>;
   isUploading: boolean;
   /** 저장하는 중이면 카메라 버튼을 숨긴다 */
@@ -31,10 +33,11 @@ interface CouplePhotoCardProps {
 /**
  * 사진이 있을 때의 커플 사진 카드. 서버 사진 위에 방금 고른 사진을 먼저 보여 주고, 모서리 카메라 버튼이 메뉴를 연다.
  *
- * @example <CouplePhotoCard photo={photo} view={view} isUploading={false} isBusy={false} menuButtonRef={ref} onServerPhotoLoaded={handleLoaded} onPreviewError={handleError} onOpenMenu={handleOpenMenu} />
+ * @example <CouplePhotoCard photo={photo} serverSrc={serverSrc} view={view} isUploading={false} isBusy={false} menuButtonRef={ref} onServerPhotoLoaded={handleLoaded} onPreviewError={handleError} onOpenMenu={handleOpenMenu} />
  */
 export const CouplePhotoCard = ({
   photo,
+  serverSrc,
   view,
   isUploading,
   isBusy,
@@ -49,6 +52,10 @@ export const CouplePhotoCard = ({
     {photo && (
       <RememberedPhoto
         photo={photo}
+        homeSlot="couple"
+        serverSrc={serverSrc}
+        // 홈 첫 화면에서 가장 큰 사진이라 다른 받기보다 먼저 받는다
+        fetchPriority="high"
         alt={view.kind === "preview" ? "" : "커플 사진"}
         onLoaded={onServerPhotoLoaded}
         className="absolute inset-0 size-full object-cover"
