@@ -20,3 +20,15 @@ describe("조회가 있는 화면의 회원 확인", () => {
     expect(source).toContain("withCurrentMember(");
   });
 });
+
+// #446: 회원 확인을 함께 시작하면 그 앞에서 현재 시각을 읽게 된다. Next는 링크를 미리 받을 때 요청 정보 없이 화면을 미리 그리고,
+// 그때 현재 시각을 읽으면 오류를 낸다. 조회보다 먼저 시각을 읽는 화면은 connection()으로 요청 시점에 그린다
+describe("조회보다 먼저 현재 시각을 읽는 화면", () => {
+  it("기록 작성은 오늘 날짜를 읽기 전에 요청 시점에 그리도록 기다린다", () => {
+    const source = readSource("app/dates/new/page.tsx");
+    const waitAt = source.indexOf("await connection()");
+
+    expect(waitAt).toBeGreaterThanOrEqual(0);
+    expect(waitAt).toBeLessThan(source.indexOf("new Date()"));
+  });
+});
