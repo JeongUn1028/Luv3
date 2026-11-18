@@ -13,6 +13,8 @@ import { createTestName } from "./support/names";
 const CREATE_RECORD_URL = "**/rest/v1/rpc/create_date_record";
 const UPDATE_RECORD_URL = "**/rest/v1/rpc/update_date_record";
 const RESPONSE_LOST_MESSAGE = "저장됐는지 확인하지 못했어요";
+/** 사진마다 올리는 파일 수(원본·상세용 #411·썸네일) */
+const FILES_PER_PHOTO = 3;
 const CONFLICT_MESSAGE = "그사이 이 기록이 바뀌어 저장하지 않았어요";
 
 const getTitleField = (page: Page) => page.locator("#title").locator("visible=true");
@@ -44,7 +46,7 @@ test.describe("저장은 됐는데 응답만 끊기면", () => {
       await expect(getFormAlert(page)).toContainText(RESPONSE_LOST_MESSAGE);
       const [savedId] = await getRecordIdsByTitle(title);
       expect(savedId).toBeDefined();
-      expect(await listRecordFiles(savedId ?? "")).toHaveLength(2);
+      expect(await listRecordFiles(savedId ?? "")).toHaveLength(FILES_PER_PHOTO);
 
       await page.unroute(CREATE_RECORD_URL);
       await getSubmitButton(page).tap();
@@ -53,7 +55,7 @@ test.describe("저장은 됐는데 응답만 끊기면", () => {
 
       // Assert
       expect(await getRecordIdsByTitle(title)).toEqual([savedId]);
-      expect(await listRecordFiles(savedId ?? "")).toHaveLength(2);
+      expect(await listRecordFiles(savedId ?? "")).toHaveLength(FILES_PER_PHOTO);
     } finally {
       for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id);
     }
@@ -75,7 +77,7 @@ test.describe("저장은 됐는데 응답만 끊기면", () => {
       // Act
       await getSubmitButton(page).tap();
       await expect(getFormAlert(page)).toContainText(RESPONSE_LOST_MESSAGE);
-      expect(await listRecordFiles(id)).toHaveLength(filesBefore + 2);
+      expect(await listRecordFiles(id)).toHaveLength(filesBefore + FILES_PER_PHOTO);
 
       await page.unroute(UPDATE_RECORD_URL);
       await getSubmitButton(page).tap();
@@ -83,7 +85,7 @@ test.describe("저장은 됐는데 응답만 끊기면", () => {
       // Assert: 내 앞선 저장을 상대의 저장으로 오해해 거부하지 않는다
       await page.waitForURL(new RegExp(`/dates/${id}$`));
       await expect(page.getByRole("heading", { name: `${title} 고침` })).toBeVisible();
-      expect(await listRecordFiles(id)).toHaveLength(filesBefore + 2);
+      expect(await listRecordFiles(id)).toHaveLength(filesBefore + FILES_PER_PHOTO);
     } finally {
       await deleteRecord();
     }

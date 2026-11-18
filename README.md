@@ -186,8 +186,8 @@ Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패�
 사진은 Storage에 먼저 올리고 기록을 나중에 저장한다. 업로드 중에 앱을 닫거나, 저장 결과를 몰라 일부러 남기면 기록이 가리키지 않는 파일이 `album` 버킷에 남는다(#31). 기록을 지우거나 고치기에서 뺀 사진은 앱이 바로 지우지 않고 휴지통(`photo_trash`, #311)에 남는다. Vercel Cron이 매달 1일(`0 4 1 * *`, UTC 4시대, 한국 시간 오후 1시대) `/api/photo-cleanup`을 불러 두 가지를 치운다.
 
 - **휴지통**: 사진 행이 지워질 때(기록째 지움, 사진·모음 빼기) DB 트리거가 경로, 기록 날짜·제목, 지운 회원과 시각을 남긴다. 보관 기간 30일(`src/lib/photos/trash.ts`의 `TRASH_RETENTION_DAYS`)이 지난 파일과 그 행만 지우므로 실제로는 30~61일 남는다. 기간 안의 휴지통 파일은 아래 주인 없는 파일로 보지 않는다. 회원은 휴지통 표를 읽기만 할 수 있다. 두 사람은 설정 > 휴지통에서 남은 날과 함께 사진을 보고, 사진을 열어 "휴대폰에 저장"으로 받은 뒤 기록 고치기에서 다시 추가한다(기록으로 바로 되돌리기는 없다). 앱을 쓸 수 없으면 `photo_trash`에서 경로를 찾아 대시보드 Storage에서 내려받는다.
-- 주인 없는 파일: 기록 사진(`photos.path`·`thumb_path`)과 지금 커플 사진(`couple_photo.path`와 같은 id의 `_medium.jpg`)이 가리키지 않고, 올린 지 하루가 넘은 파일. 하루가 안 됐거나 올린 시각을 모르는 파일은 업로드 중일 수 있어 남긴다.
-- 앱이 만드는 이름(`{기록 id}/{사진 id}.jpg`·`_thumb.jpg`, `couple/{id}.jpg`·`_medium.jpg`)이 아닌 파일은 건드리지 않고 응답의 `unknownPaths`로 알린다.
+- 주인 없는 파일: 기록 사진(`photos.path`와 같은 id의 상세용 `_medium.jpg`·`thumb_path`)과 지금 커플 사진(`couple_photo.path`와 같은 id의 `_medium.jpg`)이 가리키지 않고, 올린 지 하루가 넘은 파일. 하루가 안 됐거나 올린 시각을 모르는 파일은 업로드 중일 수 있어 남긴다.
+- 앱이 만드는 이름(`{기록 id}/{사진 id}.jpg`·`_medium.jpg`·`_thumb.jpg`, `couple/{id}.jpg`·`_medium.jpg`)이 아닌 파일은 건드리지 않고 응답의 `unknownPaths`로 알린다.
 - 지울 파일이 100개를 넘거나 쓰는 파일보다 많으면 DB를 잘못 읽었을 수 있어 지우지 않고 409와 `status: "blocked"`, 이유(`reason`)를 돌려준다. Vercel 실행 기록에는 실패로 보인다. 미리 보기에서도 이 경우면 `reason`이 함께 온다. 이때는 휴지통 파일도 지우지 않는다.
 - 지우기 직전에 DB를 한 번 더 읽어, 그사이 기록에 이어진 파일은 빼고 지운다.
 - 사진 경로를 담는 칸을 새로 만들면 `FILE_PATH_COLUMNS`(`src/lib/photos/album-files.ts`, 백업도 같은 목록을 쓴다)와 `src/app/api/photo-cleanup/route.ts`의 `readPhotoFileReferences`에 더한다. 빠뜨리면 그 칸의 파일이 지워진다. `database.types.ts`에 이름에 `path`가 든 칸이 생기면 단위 테스트가 실패해 알려 준다.
@@ -209,7 +209,7 @@ Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패�
 
 ### 저장 공간·사진 정리 점검
 
-무료 플랜 저장 용량은 1GB이고 기록 사진은 한 장에 파일 2개(원본·썸네일)라 생각보다 빨리 찰 수 있다. 위 정리 Cron이 실패하거나 멈춰도 알림이 없다. 그래서 GitHub Actions(`.github/workflows/storage-check.yml`)가 매달 1일 정리 Cron 뒤(UTC 5시 23분, 한국 시간 오후 2시 23분)에 `?preview=1`을 불러, 아래 중 하나라도 있으면 실패로 끝낸다(#310). 메일은 위 "keepalive 실패 알림"과 같은 방식으로 온다.
+무료 플랜 저장 용량은 1GB이고 기록 사진은 한 장에 파일 3개(원본·상세용·썸네일, 상세용은 #411 뒤로 올린 사진만)라 생각보다 빨리 찰 수 있다. 위 정리 Cron이 실패하거나 멈춰도 알림이 없다. 그래서 GitHub Actions(`.github/workflows/storage-check.yml`)가 매달 1일 정리 Cron 뒤(UTC 5시 23분, 한국 시간 오후 2시 23분)에 `?preview=1`을 불러, 아래 중 하나라도 있으면 실패로 끝낸다(#310). 메일은 위 "keepalive 실패 알림"과 같은 방식으로 온다.
 
 - **사용량**: 크기 합계가 1GB의 80% 이상. 기준 값은 백업 출력과 같은 `NEAR_LIMIT_RATIO`(`scripts/backup/lib.mts`)다.
 - **정리가 멈추는 상태**: 응답에 `reason`이 있다(지울 파일이 100개를 넘거나 쓰는 파일보다 많다).
@@ -284,7 +284,7 @@ pnpm backup "<백업 폴더>"   # 예: "G:\내 드라이브\Luv3-백업"
 
 ```text
 <백업 폴더>/
-  album/                  사진 원본·썸네일·couple/. 시점과 상관없이 계속 쌓인다
+  album/                  사진 원본·상세용·썸네일·couple/. 시점과 상관없이 계속 쌓인다
   snapshots/<시점>/
     data.sql              public 스키마와 계정(auth.users, auth.identities)
     manifest.json         표 행 수, 그 시점의 파일 목록, 백업 때의 커밋(commit)과 DB의 마지막 마이그레이션(lastMigration). 이 파일이 없으면 중간에 끊긴 백업이다

@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { catchLoadError } from "@/lib/load";
+import { createMediumPhotoSigner } from "@/lib/photos/medium-signer";
 import { getHomePhotoSignedUrls, getSignedUrls } from "@/lib/photos/signed-urls";
 import { toLatestRecord, toTagSuggestions, type LatestRecord } from "./album";
 import { pickRecordsVersion, type AlbumFirstPage } from "./album-pages";
@@ -114,8 +115,12 @@ const signPaths = async (supabase: Awaited<ReturnType<typeof createClient>>, pat
   return data;
 };
 
+// 기록 화면의 2시간 주소 보관(`getSignedUrls`)을 그대로 쓰고, 중간 크기가 없는 예전 사진만 이 함수가 기억한다
+const signDetailPhotos = createMediumPhotoSigner(getSignedUrls);
+
 /**
- * 기록 하나와 사진 전체를 불러오고, 원본 사진과 처음 펼칠 사진의 썸네일에 서명 URL을 붙인다.
+ * 기록 하나와 사진 전체를 불러오고, 상세용 중간 크기·원본 사진과 처음 펼칠 사진의 썸네일에 서명 URL을 붙인다.
+ * 중간 크기(#411)가 없는 예전 사진은 원본으로 대신한다.
  *
  * @param startPhotoId 주소로 고른 처음 펼칠 사진(`?photo=`). 없으면 첫 사진이다
  * @returns 없는 기록이거나 id 형식이 틀리면 undefined
@@ -128,8 +133,12 @@ export const getDateRecordDetail = async (id: string, startPhotoId?: string): Pr
   if (!row) return undefined;
   // 처음 펼칠 사진의 썸네일을 기록 목록 칸과 같은 서명 함수로 함께 서명한다. 목록 칸에서 받은 사진이면 같은 주소라 다시 받지 않고 바로 보인다(#313)
   const startThumbPath = findStartPhotoRow(row.photos, startPhotoId)?.thumb_path;
-  const paths = row.photos.map(({ path }) => path);
-  return toDateRecordDetail(row, await signPaths(supabase, startThumbPath ? [...paths, startThumbPath] : paths), startPhotoId);
+  const { data, error } = await signDetailPhotos(supabase.storage.from(ALBUM_BUCKET), {
+    originalPaths: row.photos.map(({ path }) => path),
+    otherPaths: startThumbPath ? [startThumbPath] : [],
+  });
+  if (error) throw new DateRecordLoadError({ cause: error });
+  return toDateRecordDetail(row, data, startPhotoId);
 };
 
 /**

@@ -2,7 +2,7 @@ import imageCompression, { type Options } from "browser-image-compression";
 import { HEIC_EXTENSION, isAcceptedPhoto, isHeic } from "./accepted";
 import { toImageCompressionLibUrl } from "./compression-lib";
 import { PhotoError } from "./errors";
-import { BUCKET_FILE_SIZE_LIMIT, MEDIUM_MAX_EDGE, ORIGINAL_MAX_EDGE, THUMB_MAX_EDGE, UPLOAD_CONTENT_TYPE } from "./limits";
+import { BUCKET_FILE_SIZE_LIMIT, DETAIL_MAX_EDGE, MEDIUM_MAX_EDGE, ORIGINAL_MAX_EDGE, THUMB_MAX_EDGE, UPLOAD_CONTENT_TYPE } from "./limits";
 
 // 줄이기는 화면을 그리는 스레드를 막지 않도록 웹 워커에서 한다(#312). 워커는 라이브러리 스크립트를 다시 불러오는데,
 // 기본값(jsdelivr CDN)은 CSP에 막히고 CDN이 느리면 저장도 느려져 우리 주소의 사본을 쓴다(compressWithOptions에서 넣음).
@@ -28,6 +28,12 @@ const THUMB_OPTIONS = {
   initialQuality: 0.8,
 } as const satisfies Options;
 
+const DETAIL_OPTIONS = {
+  ...BASE_OPTIONS,
+  maxWidthOrHeight: DETAIL_MAX_EDGE,
+  initialQuality: 0.85,
+} as const satisfies Options;
+
 const MEDIUM_OPTIONS = {
   ...BASE_OPTIONS,
   maxWidthOrHeight: MEDIUM_MAX_EDGE,
@@ -35,8 +41,10 @@ const MEDIUM_OPTIONS = {
 } as const satisfies Options;
 
 export interface ResizedPhoto {
-  /** 긴 변 2000px JPEG(상세 화면용) */
+  /** 긴 변 2000px JPEG(크게 보기용) */
   original: Blob;
+  /** 긴 변 1200px JPEG(기록 상세 사진 칸용, #411) */
+  medium: Blob;
   /** 긴 변 600px JPEG(앨범 그리드용) */
   thumb: Blob;
 }
@@ -81,19 +89,21 @@ const resizeOriginal = async (file: File): Promise<File> => {
 };
 
 /**
- * 고른 사진을 원본용(긴 변 2000px)·썸네일(긴 변 600px) JPEG 두 벌로 줄인다. 브라우저에서만 쓴다.
+ * 고른 사진을 원본용(긴 변 2000px)·상세용(긴 변 1200px)·썸네일(긴 변 600px) JPEG 세 벌로 줄인다. 브라우저에서만 쓴다.
  * JPEG·PNG·WebP·HEIC를 받고, HEIC는 먼저 JPEG로 바꾼다. 원래 사진이 기준보다 작으면 키우지 않는다.
  *
  * @throws {PhotoError} 받지 않는 형식이거나(`unsupported-type`) 읽지 못했거나(`decode-failed`) 버킷 제한을 넘으면(`too-large`)
  * @example
- * const { original, thumb } = await resizePhoto(input.files[0])
+ * const { original, medium, thumb } = await resizePhoto(input.files[0])
  */
 export const resizePhoto = async (file: File): Promise<ResizedPhoto> => {
   const original = await resizeOriginal(file);
-  // 수천만 화소 원본을 다시 읽는 것보다 이미 줄인 원본용에서 만드는 편이 빠르다
+  // 수천만 화소 원본을 다시 읽는 것보다 이미 줄인 원본용에서 만드는 편이 빠르다.
+  // 썸네일을 상세용에서 만들면 조금 더 빠르지만, 두 번 압축해 화질이 떨어지지 않게 둘 다 원본용에서 만든다
+  const medium = await compress(original, DETAIL_OPTIONS);
   const thumb = await compress(original, THUMB_OPTIONS);
 
-  return { original, thumb };
+  return { original, medium, thumb };
 };
 
 /**

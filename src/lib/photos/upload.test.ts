@@ -11,8 +11,8 @@ const PHOTO_D = "20000000-0000-4000-8000-00000000000d";
 
 const blob = () => new Blob([new Uint8Array(1)], { type: "image/jpeg" });
 const photo = (photoId: string) => ({ photoId, file: new File([new Uint8Array(1)], `${photoId}.jpg`, { type: "image/jpeg" }) });
-/** 줄이기 대신 1바이트 원본·썸네일을 바로 돌려준다 */
-const fakeResize = async () => ({ original: blob(), thumb: blob() });
+/** 줄이기 대신 1바이트 원본·상세용·썸네일을 바로 돌려준다 */
+const fakeResize = async () => ({ original: blob(), medium: blob(), thumb: blob() });
 
 interface FakeStorageOptions {
   /** 경로별로 실패시킬 횟수. Infinity면 계속 실패한다 */
@@ -79,16 +79,28 @@ const createHeldUploads = (storage: PhotoStorage, { only }: { only?: string[] } 
 };
 
 describe("resizeAndUploadPhotos", () => {
-  it("사진마다 원본과 썸네일을 정해진 경로에 올리고 경로를 돌려준다", async () => {
+  it("사진마다 원본·상세용·썸네일을 정해진 경로에 올리고 경로를 돌려준다", async () => {
     const { storage, files } = createFakeStorage();
 
     const uploaded = await resizeAndUploadPhotos({ storage, dateId: DATE_ID, resize: fakeResize, photos: [photo(PHOTO_A), photo(PHOTO_B)] });
 
     expect(uploaded).toEqual([
-      { photoId: PHOTO_A, path: `${DATE_ID}/${PHOTO_A}.jpg`, thumbPath: `${DATE_ID}/${PHOTO_A}_thumb.jpg` },
-      { photoId: PHOTO_B, path: `${DATE_ID}/${PHOTO_B}.jpg`, thumbPath: `${DATE_ID}/${PHOTO_B}_thumb.jpg` },
+      { photoId: PHOTO_A, path: `${DATE_ID}/${PHOTO_A}.jpg`, mediumPath: `${DATE_ID}/${PHOTO_A}_medium.jpg`, thumbPath: `${DATE_ID}/${PHOTO_A}_thumb.jpg` },
+      { photoId: PHOTO_B, path: `${DATE_ID}/${PHOTO_B}.jpg`, mediumPath: `${DATE_ID}/${PHOTO_B}_medium.jpg`, thumbPath: `${DATE_ID}/${PHOTO_B}_thumb.jpg` },
     ]);
-    expect([...files.keys()]).toHaveLength(4);
+    expect([...files.keys()]).toHaveLength(6);
+  });
+
+  // 상세용 중간 크기는 DB에 경로가 없어, 기록이 그 사진을 가리키기 전에 올려 두어야 상세 화면이 원본으로 대신하지 않는다(#411)
+  it("원본·상세용·썸네일을 각자 줄인 파일로 올린다", async () => {
+    const { storage, files } = createFakeStorage();
+    const resized = { original: blob(), medium: blob(), thumb: blob() };
+
+    await resizeAndUploadPhotos({ storage, dateId: DATE_ID, resize: async () => resized, photos: [photo(PHOTO_A)] });
+
+    expect(files.get(`${DATE_ID}/${PHOTO_A}.jpg`)).toBe(resized.original);
+    expect(files.get(`${DATE_ID}/${PHOTO_A}_medium.jpg`)).toBe(resized.medium);
+    expect(files.get(`${DATE_ID}/${PHOTO_A}_thumb.jpg`)).toBe(resized.thumb);
   });
 
   // 같은 경로에 덮어쓰면 다른 기록의 사진을 지울 수 있다
@@ -142,12 +154,14 @@ describe("resizeAndUploadPhotos", () => {
 
     await expect(promise).rejects.toBeInstanceOf(PhotoError);
     await expect(promise).rejects.toMatchObject({ reason: "upload-failed" });
-    expect(storage.upload).toHaveBeenCalledTimes(5); // A 원본·썸네일, B 원본, B 썸네일 2번
+    expect(storage.upload).toHaveBeenCalledTimes(7); // A 원본·상세용·썸네일, B 원본·상세용, B 썸네일 2번
     // 두 장을 함께 올려 시도한 순서는 정해져 있지 않다
     expect(vi.mocked(storage.remove).mock.calls[0]?.[0].toSorted()).toEqual([
       `${DATE_ID}/${PHOTO_A}.jpg`,
+      `${DATE_ID}/${PHOTO_A}_medium.jpg`,
       `${DATE_ID}/${PHOTO_A}_thumb.jpg`,
       `${DATE_ID}/${PHOTO_B}.jpg`,
+      `${DATE_ID}/${PHOTO_B}_medium.jpg`,
       `${DATE_ID}/${PHOTO_B}_thumb.jpg`,
     ]);
     expect(files.size).toBe(0);
@@ -184,9 +198,12 @@ describe("resizeAndUploadPhotos", () => {
     expect(resize).toHaveBeenCalledTimes(UPLOAD_CONCURRENCY);
     expect(held.pendingPaths()).toHaveLength(UPLOAD_CONCURRENCY);
 
-    // Act: 첫 장의 원본과 썸네일을 다 올린다
+    // Act: 첫 장의 원본·상세용·썸네일을 다 올린다
     held.release(`${DATE_ID}/${photos[0]?.photoId}.jpg`);
     await flushTasks();
+    held.release(`${DATE_ID}/${photos[0]?.photoId}_medium.jpg`);
+    await flushTasks();
+    expect(resize).toHaveBeenCalledTimes(UPLOAD_CONCURRENCY);
     held.release(`${DATE_ID}/${photos[0]?.photoId}_thumb.jpg`);
     await flushTasks();
 
@@ -205,6 +222,8 @@ describe("resizeAndUploadPhotos", () => {
     await flushTasks();
     held.release(`${DATE_ID}/${PHOTO_B}.jpg`);
     await flushTasks();
+    held.release(`${DATE_ID}/${PHOTO_B}_medium.jpg`);
+    await flushTasks();
     held.release(`${DATE_ID}/${PHOTO_B}_thumb.jpg`);
     await flushTasks();
     held.releaseAll();
@@ -215,13 +234,13 @@ describe("resizeAndUploadPhotos", () => {
   // 고르기 전에 걸렀어도 HEIC를 읽지 못하는 등 줄이기는 중간에 실패할 수 있고, 그때는 이미 올린 사진이 있다
   it("줄이기에 실패하면 앞서 올린 사진을 지우고 줄이기 에러를 그대로 낸다", async () => {
     const { storage, files } = createFakeStorage();
-    const resize = vi.fn(fakeResize).mockResolvedValueOnce({ original: blob(), thumb: blob() }).mockRejectedValueOnce(new PhotoError("decode-failed"));
+    const resize = vi.fn(fakeResize).mockResolvedValueOnce({ original: blob(), medium: blob(), thumb: blob() }).mockRejectedValueOnce(new PhotoError("decode-failed"));
 
     const promise = resizeAndUploadPhotos({ storage, dateId: DATE_ID, resize, photos: [photo(PHOTO_A), photo(PHOTO_B), photo(PHOTO_C)] });
 
     await expect(promise).rejects.toMatchObject({ reason: "decode-failed" });
     expect(resize).toHaveBeenCalledTimes(2);
-    // A의 원본을 올리는 사이 B 줄이기가 실패해 A의 썸네일은 올리지 않는다
+    // A의 원본을 올리는 사이 B 줄이기가 실패해 A의 상세용·썸네일은 올리지 않는다
     expect(storage.remove).toHaveBeenCalledWith([`${DATE_ID}/${PHOTO_A}.jpg`]);
     expect(files.size).toBe(0);
   });
@@ -243,8 +262,9 @@ describe("resizeAndUploadPhotos", () => {
     // Act
     held.release(`${DATE_ID}/${PHOTO_A}.jpg`);
 
-    // Assert: 실패를 알린 뒤로는 A의 썸네일을 올리지 않고, 시도한 파일을 모두 지운다
+    // Assert: 실패를 알린 뒤로는 A의 상세용·썸네일을 올리지 않고, 시도한 파일을 모두 지운다
     await expect(settled).resolves.toMatchObject({ reason: "upload-failed" });
+    expect(storage.upload).not.toHaveBeenCalledWith(`${DATE_ID}/${PHOTO_A}_medium.jpg`, expect.anything(), expect.anything());
     expect(storage.upload).not.toHaveBeenCalledWith(`${DATE_ID}/${PHOTO_A}_thumb.jpg`, expect.anything(), expect.anything());
     expect(vi.mocked(storage.remove).mock.calls[0]?.[0]).toEqual(expect.arrayContaining([`${DATE_ID}/${PHOTO_A}.jpg`, `${DATE_ID}/${PHOTO_B}.jpg`]));
     expect(files.size).toBe(0);
@@ -293,13 +313,13 @@ describe("resizeAndUploadPhotos", () => {
 
   it("앞선 저장 시도가 올렸을 수 있으면 처음부터 이미 있어도 성공으로 본다", async () => {
     const { storage } = createFakeStorage({
-      failures: { [`${DATE_ID}/${PHOTO_A}.jpg`]: Infinity, [`${DATE_ID}/${PHOTO_A}_thumb.jpg`]: Infinity },
+      failures: { [`${DATE_ID}/${PHOTO_A}.jpg`]: Infinity, [`${DATE_ID}/${PHOTO_A}_medium.jpg`]: Infinity, [`${DATE_ID}/${PHOTO_A}_thumb.jpg`]: Infinity },
       failWith: { message: "The resource already exists", status: 400, statusCode: "409" },
     });
 
     await expect(resizeAndUploadPhotos({ storage, dateId: DATE_ID, resize: fakeResize, photos: [photo(PHOTO_A)], mayAlreadyExist: true })).resolves.toHaveLength(1);
 
-    expect(storage.upload).toHaveBeenCalledTimes(2);
+    expect(storage.upload).toHaveBeenCalledTimes(3);
     expect(storage.remove).not.toHaveBeenCalled();
   });
 
@@ -311,7 +331,7 @@ describe("resizeAndUploadPhotos", () => {
 
     await expect(resizeAndUploadPhotos({ storage, dateId: DATE_ID, resize: fakeResize, photos: [photo(PHOTO_A)], mayHaveLeftovers: true })).resolves.toHaveLength(1);
 
-    expect(storage.upload).toHaveBeenCalledTimes(2);
+    expect(storage.upload).toHaveBeenCalledTimes(3);
   });
 
   it("앞선 시도의 파일이 남았을 수 있어도 저장된 기록이 가리키지 않으므로, 이번에 실패하면 시도한 파일을 지운다(#408)", async () => {
@@ -377,7 +397,7 @@ describe("resizeAndUploadPhotos", () => {
     await expect(resizeAndUploadPhotos({ storage, dateId: DATE_ID, resize: fakeResize, photos: [photo(PHOTO_A)] })).rejects.toMatchObject({
       reason: "upload-failed",
     });
-    expect(storage.remove).toHaveBeenCalledWith([`${DATE_ID}/${PHOTO_A}.jpg`, `${DATE_ID}/${PHOTO_A}_thumb.jpg`]);
+    expect(storage.remove).toHaveBeenCalledWith([`${DATE_ID}/${PHOTO_A}.jpg`, `${DATE_ID}/${PHOTO_A}_medium.jpg`]);
   });
 
   // 정리에 실패해도 사용자에게는 원래 실패 이유(업로드 실패)를 알려야 한다
@@ -394,7 +414,7 @@ describe("resizeAndUploadPhotos", () => {
 });
 
 describe("removeUploadedPhotos", () => {
-  it("올린 사진의 원본과 썸네일을 한 번에 지운다", async () => {
+  it("올린 사진의 원본·상세용·썸네일을 한 번에 지운다", async () => {
     const { storage, files } = createFakeStorage();
     const uploaded = await resizeAndUploadPhotos({ storage, dateId: DATE_ID, resize: fakeResize, photos: [photo(PHOTO_A), photo(PHOTO_B)] });
 
@@ -414,7 +434,7 @@ describe("removeUploadedPhotos", () => {
 
   it("삭제에 실패하면 에러를 낸다", async () => {
     const { storage } = createFakeStorage({ removeError: { message: "remove failed" } });
-    const uploaded = [{ photoId: PHOTO_A, path: "a.jpg", thumbPath: "a_thumb.jpg" }];
+    const uploaded = [{ photoId: PHOTO_A, path: "a.jpg", mediumPath: "a_medium.jpg", thumbPath: "a_thumb.jpg" }];
 
     await expect(removeUploadedPhotos(storage, uploaded)).rejects.toThrow("remove failed");
   });

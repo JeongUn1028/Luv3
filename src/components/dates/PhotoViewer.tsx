@@ -94,7 +94,7 @@ const ViewerSlides = ({ photos, title, startIndex, onSelect, onDismiss }: Viewer
     <div ref={focusRef} tabIndex={0} role="region" aria-roledescription="carousel" aria-label="사진, 좌우 화살표로 넘기기, 두 번 누르거나 두 손가락으로 확대" onKeyDown={handleKeyDown} className="flex min-h-0 flex-1 outline-none">
       <div ref={viewportRef} className="min-h-0 flex-1 overflow-hidden">
         <div className="flex h-full touch-pan-y">
-          {photos.map(({ id, original }, index) => (
+          {photos.map(({ id, original, display }, index) => (
             <div key={id} role="group" aria-roledescription="slide" aria-label={`${index + 1} / ${photos.length}`} className="flex h-full min-w-0 shrink-0 grow-0 basis-full items-center justify-center">
               {original ? (
                 <ZoomablePhotoFrame
@@ -105,16 +105,31 @@ const ViewerSlides = ({ photos, title, startIndex, onSelect, onDismiss }: Viewer
                 >
                   {(zoomStyle) =>
                     requestedIds.has(id) && (
-                      <RememberedPhoto
-                        photo={original}
-                        alt={`${title} 사진 ${index + 1}`}
-                        draggable={false}
-                        loading="eager"
-                        fetchPriority={loads[index] === "now" ? "high" : "low"}
-                        onLoaded={() => markShown(id)}
-                        style={zoomStyle}
-                        className={`max-h-full max-w-full object-contain ${shownIds.has(id) ? "" : "opacity-0"}`}
-                      />
+                      <>
+                        {/* 확대 틀은 첫 자식으로 사진 크기를 재므로 원본을 먼저 둔다 */}
+                        <RememberedPhoto
+                          photo={original}
+                          alt={`${title} 사진 ${index + 1}`}
+                          draggable={false}
+                          loading="eager"
+                          fetchPriority={loads[index] === "now" ? "high" : "low"}
+                          onLoaded={() => markShown(id)}
+                          style={zoomStyle}
+                          className={`max-h-full max-w-full object-contain ${shownIds.has(id) ? "" : "opacity-0"}`}
+                        />
+                        {/* 상세 칸은 중간 크기만 받아(#411) 원본은 여기서 처음 받는다. 받는 동안 상세에서 받은 사진을 같은 자리에 겹쳐 둔다 */}
+                        {display && display.path !== original.path && !shownIds.has(id) && (
+                          <RememberedPhoto
+                            photo={display}
+                            alt=""
+                            draggable={false}
+                            // 못 받아도 원본을 기다리면 되므로 화면을 새로 받지 않는다
+                            onLoadFailed={() => true}
+                            style={zoomStyle}
+                            className="absolute inset-0 m-auto max-h-full max-w-full object-contain"
+                          />
+                        )}
+                      </>
                     )
                   }
                 </ZoomablePhotoFrame>

@@ -1,4 +1,4 @@
-import { buildCouplePhotoPath, toCouplePhotoMediumPath } from "@/lib/photos/paths";
+import { buildCouplePhotoPath, toMediumPhotoPath } from "@/lib/photos/paths";
 import { uploadPhotoFile, type PhotoStorage } from "@/lib/photos/upload-file";
 
 /** 커플 사진 경로를 바꾼 결과. `data`는 밀려난 예전 파일 경로(없으면 null)다 */
@@ -64,7 +64,7 @@ const removePrevious = async (
   // 같은 경로를 돌려받는 건 지금 보여 주는 파일이라 지우지 않는다
   if (!previousPath || previousPath === currentPath) return;
   try {
-    const { error } = await storage.remove([previousPath, toCouplePhotoMediumPath(previousPath)]);
+    const { error } = await storage.remove([previousPath, toMediumPhotoPath(previousPath)]);
     if (error) onCleanupError?.(error);
   } catch (error) {
     onCleanupError?.(error);
@@ -97,7 +97,7 @@ export const replaceCouplePhoto = async ({
   onCleanupError,
 }: ReplaceCouplePhotoParams): Promise<void> => {
   const path = buildCouplePhotoPath(photoId);
-  const mediumPath = toCouplePhotoMediumPath(path);
+  const mediumPath = toMediumPhotoPath(path);
   // 저장이 안 된 새 파일은 어디에서도 가리키지 않으므로, 실패하면 바로 지운다(정리 실패는 원래 실패 이유를 가리지 않게 삼킨다).
   // 응답만 끊기고 올라갔을 수 있어 올리기에 실패한 파일도 함께 지운다
   const discardNewFile = () => storage.remove([path, mediumPath]).catch(() => undefined);

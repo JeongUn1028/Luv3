@@ -218,7 +218,7 @@ export const ZoomablePhotoFrame = ({ isSelected, onZoomedChange, onPinchingChang
       onPointerUp={handlePointerEnd}
       onPointerCancel={handlePointerEnd}
       // 손가락으로 움직이는 동안에는 바로 따라가고, 두 번 누르기·손 뗀 뒤 제자리 맞추기만 부드럽게 움직인다
-      className={`flex h-full w-full touch-none items-center justify-center ${isGesturing ? "" : "*:transition-transform *:duration-200 motion-reduce:*:transition-none"}`}
+      className={`relative flex h-full w-full touch-none items-center justify-center ${isGesturing ? "" : "*:transition-transform *:duration-200 motion-reduce:*:transition-none"}`}
     >
       {children(zoomStyle)}
     </div>

@@ -3,7 +3,7 @@
 import { createContext, use, useState, type ReactElement, type ReactNode } from "react";
 
 interface FirstPhotoGateValue {
-  /** 첫 사진의 원본을 다 받았는지. 받기 전에 다른 사진으로 넘겼으면 그 사진이라도 다 받았는지다 */
+  /** 첫 사진을 다 받았는지. 받기 전에 다른 사진으로 넘겼으면 그 사진이라도 다 받았는지다 */
   isFirstPhotoShown: boolean;
   markFirstPhotoShown: () => void;
 }

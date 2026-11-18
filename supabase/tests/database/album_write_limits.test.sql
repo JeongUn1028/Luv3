@@ -2,7 +2,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(34);
+select plan(35);
 
 -- 준비: 허용된 두 사람(a, b), 허용목록 밖(outsider), 이미 지난 함께 일정 하나
 insert into auth.users (id, email, aud, role) values
@@ -158,6 +158,11 @@ select lives_ok(
   $$insert into storage.objects (bucket_id, name, owner) values
     ('album', '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000003_thumb.jpg', '00000000-0000-0000-0000-00000000000a')$$,
   '기록 사진 경로로는 올린다'
+);
+select lives_ok(
+  $$insert into storage.objects (bucket_id, name, owner) values
+    ('album', '10000000-0000-0000-0000-000000000001/20000000-0000-0000-0000-000000000003_medium.jpg', '00000000-0000-0000-0000-00000000000a')$$,
+  '기록 사진의 상세용 중간 크기 경로로도 올린다(#411)'
 );
 select lives_ok(
   $$insert into storage.objects (bucket_id, name, owner) values

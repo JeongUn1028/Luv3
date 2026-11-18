@@ -4,7 +4,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 
-select plan(19);
+select plan(22);
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-0000-0000-00000000000a', 'a@trash.test', 'authenticated', 'authenticated'),
@@ -122,10 +122,14 @@ select results_eq(
 );
 
 -- Storage: 회원은 기록 사진·휴지통 사진 파일을 지울 수 없다(캐시된 예전 앱이 바로 지우지 못하게). 저장 실패로 남은 파일은 지울 수 있다
+-- 상세용 중간 크기(#411)는 표에 경로가 없어도 원본과 같이 다룬다
 insert into storage.objects (bucket_id, name) values
   ('album', '10000000-0000-0000-0000-000000000002/20000000-0000-0000-0000-000000000003.jpg'),
+  ('album', '10000000-0000-0000-0000-000000000002/20000000-0000-0000-0000-000000000003_medium.jpg'),
   ('album', '10000000-0000-0000-0000-000000000009/20000000-0000-0000-0000-000000000009.jpg'),
-  ('album', '10000000-0000-0000-0000-000000000009/20000000-0000-0000-0000-000000000099.jpg');
+  ('album', '10000000-0000-0000-0000-000000000009/20000000-0000-0000-0000-000000000009_medium.jpg'),
+  ('album', '10000000-0000-0000-0000-000000000009/20000000-0000-0000-0000-000000000099.jpg'),
+  ('album', '10000000-0000-0000-0000-000000000009/20000000-0000-0000-0000-000000000099_medium.jpg');
 insert into public.dates (id, date, title, author_id) values
   ('10000000-0000-0000-0000-000000000009', '2026-11-04', '쓰는 기록', '00000000-0000-0000-0000-00000000000a');
 insert into public.photo_groups (id, date_id, sort_order, place, place_lat, place_lng) values
@@ -153,6 +157,18 @@ select ok(
 select ok(
   not exists (select 1 from storage.objects where name = '10000000-0000-0000-0000-000000000009/20000000-0000-0000-0000-000000000099.jpg'),
   '회원은 기록·휴지통 어디에도 없는 파일(저장 실패로 남은 사진)은 지울 수 있다'
+);
+select ok(
+  exists (select 1 from storage.objects where name = '10000000-0000-0000-0000-000000000002/20000000-0000-0000-0000-000000000003_medium.jpg'),
+  '회원은 휴지통에 있는 사진의 상세용 중간 크기를 지울 수 없다'
+);
+select ok(
+  exists (select 1 from storage.objects where name = '10000000-0000-0000-0000-000000000009/20000000-0000-0000-0000-000000000009_medium.jpg'),
+  '회원은 기록이 쓰는 사진의 상세용 중간 크기를 지울 수 없다'
+);
+select ok(
+  not exists (select 1 from storage.objects where name = '10000000-0000-0000-0000-000000000009/20000000-0000-0000-0000-000000000099_medium.jpg'),
+  '회원은 기록·휴지통 어디에도 없는 사진의 상세용 중간 크기는 지울 수 있다'
 );
 
 -- 휴지통 표를 쓰는 함수는 트리거로만 부른다
