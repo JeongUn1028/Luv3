@@ -94,7 +94,7 @@ test.describe("휴지통", () => {
 
       // Assert
       const section = getTrashSection(page, title);
-      await expect(section).toContainText("오늘 지움 · 기록째 삭제");
+      await expect(section).toContainText("오늘 지움 · 기록째 지움");
       await expect(section.getByRole("link")).toHaveCount(1);
       await expect(section.getByRole("link")).toHaveAccessibleName("사진 1, 30일 남음");
     } finally {

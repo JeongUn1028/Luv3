@@ -9,7 +9,7 @@ import { createTestName } from "./support/names";
 
 const getDeleteButton = (page: Page): Locator => page.getByRole("button", { name: "지우기", exact: true }).locator("visible=true");
 
-/** 이 뒤로 나가는 할 일 삭제 요청을 모은다. 창이 닫힌 것만으로는 삭제가 눌렸는지 알 수 없다 */
+/** 이 뒤로 나가는 할 일 삭제 요청을 모은다. 창이 닫힌 것만으로는 지우기가 눌렸는지 알 수 없다 */
 const trackTodoDeletes = (page: Page): string[] => {
   const requests: string[] = [];
   page.on("request", (request) => {
@@ -46,9 +46,9 @@ test.describe("움직임을 켠 기기에서", () => {
 
       // Arrange: 닫기를 누른 뒤 곧바로 "지우기"를 누를 자리
       const confirmBox = await dialog.getByRole("button", { name: "지우기" }).boundingBox();
-      if (!confirmBox) throw new Error("삭제 버튼이 보이지 않습니다");
+      if (!confirmBox) throw new Error("지우기 버튼이 보이지 않습니다");
 
-      // Act: 취소 직후 삭제 자리를 누른다
+      // Act: 취소 직후 지우기 자리를 누른다
       await dialog.getByRole("button", { name: "취소" }).click();
       await page.mouse.click(confirmBox.x + confirmBox.width / 2, confirmBox.y + confirmBox.height / 2);
 
@@ -79,7 +79,7 @@ test.describe("움직임을 켠 기기에서", () => {
   });
 
   test("Esc로 닫는 동안 Enter를 눌러도 지워지지 않는다", async ({ page }, testInfo) => {
-    // Arrange: 삭제 버튼에 초점을 둔다
+    // Arrange: 지우기 버튼에 초점을 둔다
     const deleteTodo = await openDisposableTodo(page, createTestName("창 키보드", testInfo));
     const deleteRequests = trackTodoDeletes(page);
 

@@ -31,7 +31,7 @@ export interface TrashSection {
   key: string;
   /** 예: "11월 10일 · 성수 산책" */
   title: string;
-  /** 예: "어제 지움 · 기록째 삭제" */
+  /** 예: "어제 지움 · 기록째 지움" */
   deletedLabel: string;
   photos: TrashPhotoTile[];
 }
@@ -106,7 +106,7 @@ export const toTrashSections = (rows: TrashRow[], signedThumbs: SignedUrl[], now
     const section = sections.get(key) ?? {
       key,
       title: formatRecordLabel(trashRow, today),
-      deletedLabel: `${formatDeletedDay(deletedDate, today)} 지움 · ${trashRow.deleted_with_record ? "기록째 삭제" : "사진 빼기"}`,
+      deletedLabel: `${formatDeletedDay(deletedDate, today)} 지움 · ${trashRow.deleted_with_record ? "기록째 지움" : "사진 빼기"}`,
       photos: [],
     };
     section.photos.push({

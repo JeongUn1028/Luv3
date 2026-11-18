@@ -146,8 +146,8 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
 
       // Act: 지우기
       const comment = page.getByRole("listitem").filter({ hasText: "지우지 못한 댓글" }).locator("visible=true");
-      await comment.getByRole("button", { name: "댓글 삭제" }).click();
-      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "삭제", exact: true }).click();
+      await comment.getByRole("button", { name: "댓글 지우기" }).click();
+      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "지우기", exact: true }).click();
 
       // Assert: 댓글이 다시 나타나고, 실패 뒤 화면을 다시 받지 않아 로그인 화면으로 넘어가지 않는다
       await expect(getDialog(page)).toBeVisible();

@@ -4,7 +4,7 @@ import { formatCommentTime, type RecordComment } from "./comment";
 export interface ShownComment extends RecordComment {
   /** 남긴 시각 글자. 서버에서 읽은 댓글은 서버에서 정해, 처음 그린 화면과 브라우저가 이어 그린 화면이 어긋나지 않게 한다 */
   timeLabel: string;
-  /** 저장을 기다리는 중이면 시각 대신 "남기는 중…"을 보이고 삭제를 붙이지 않는다 */
+  /** 저장을 기다리는 중이면 시각 대신 "남기는 중…"을 보이고 지우기 버튼을 붙이지 않는다 */
   isSending: boolean;
 }
 

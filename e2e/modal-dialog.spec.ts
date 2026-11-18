@@ -55,8 +55,8 @@ const holdTodoDelete = async (page: Page, finish: "continue" | "abort") => {
   return { release, getRequests: () => requests };
 };
 
-test.describe("삭제 확인 창", () => {
-  test("열면 제목과 설명을 읽을 수 있고 취소하면 닫히며 초점이 삭제 버튼으로 돌아간다", async ({ page }, testInfo) => {
+test.describe("지우기 확인 창", () => {
+  test("열면 제목과 설명을 읽을 수 있고 취소하면 닫히며 초점이 지우기 버튼으로 돌아간다", async ({ page }, testInfo) => {
     // Arrange
     const { deleteTodo } = await openDisposableTodo(page, createTestName("창 취소", testInfo));
 
