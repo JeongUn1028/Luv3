@@ -1,71 +1,26 @@
 import "server-only";
 import type { KstNow } from "@/lib/anniversary";
-import { getGridRange } from "@/lib/calendar/month";
 import { isRecordId } from "@/lib/dates/record-href";
 import { readAllRows } from "@/lib/supabase/read-all-rows";
 import { createClient } from "@/lib/supabase/server";
-import { toCalendarRecord, type CalendarEvent, type CalendarRecord } from "./calendar";
+import type { CalendarEvent } from "./calendar";
+import { EVENT_COLUMNS, readCalendarMonth, selectCalendarEvents, type CalendarMonth } from "./calendar-month";
 import type { RecordPrefill } from "@/lib/dates/form";
 import { isIsoDate } from "@/lib/form";
 import { toEditableEvent, type EditableEvent } from "./form";
 import { listLinkableEvents, toEventRecordPrefill, type LinkableEvent } from "./record-link";
+import { EventLoadError } from "./load-error";
 import { expandEventRows, expandUpcomingEventRows, type DateRange } from "./recurrence";
 
-/** 일정을 불러오지 못했을 때 */
-export class EventLoadError extends Error {
-  constructor(options?: ErrorOptions) {
-    super("일정을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.", options);
-    this.name = "EventLoadError";
-  }
-}
-
-const EVENT_COLUMNS =
-  "id, date, start_time, title, place, is_together, repeat_rule, repeat_until, end_date, created_at, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date)";
-
-/** 캘린더는 일정 줄에 "기록 보기"를 달려고 일정에서 남긴 기록도 읽는다(#227). 기록 날짜가 달 밖이어도 빠지지 않는다 */
-// 저장 중인 일정을 먼저 그린 뒤 서버 값이 따라잡았는지 판 번호로 안다(#345)
-const CALENDAR_EVENT_COLUMNS = `${EVENT_COLUMNS}, revision, records:dates(id, event_date)` as const;
-
-type ServerClient = Awaited<ReturnType<typeof createClient>>;
-
-/** 범위와 겹치는 일정을 이어진 기록과 함께 읽는다. 하루 일정은 범위 안의 날만, 반복·기간 일정은 범위 앞에 시작했어도 끝나지 않았으면 읽는다 */
-const selectCalendarEvents = (supabase: ServerClient, { start, end }: DateRange) =>
-  supabase
-    .from("events")
-    .select(CALENDAR_EVENT_COLUMNS)
-    .lte("date", end)
-    // 반복이 아니면 끝나는 날은 늘 비어 있다
-    .or(`date.gte.${start},repeat_rule.not.is.null,end_date.gte.${start}`)
-    .or(`repeat_until.is.null,repeat_until.gte.${start}`);
+export { EventLoadError } from "./load-error";
 
 /**
- * 달력에 그릴 한 달(앞뒤 주 포함)의 일정과 데이트 기록을 함께 읽는다. 기록은 기간이 이 범위와 겹치면 읽는다.
- * 반복 일정은 범위 안의 날마다 펼치고, 일정은 날짜 → 종일 먼저 → 시간 → 만든 순서로 정렬한다.
+ * 달력에 그릴 한 달(앞뒤 주 포함)의 일정과 데이트 기록을 서버에서 읽는다(`readCalendarMonth`).
  *
  * @throws {EventLoadError} 조회가 실패했을 때
  * @example const { events, records } = await getCalendarMonth("2026-11")
  */
-export const getCalendarMonth = async (
-  month: string,
-): Promise<{ events: CalendarEvent[]; records: CalendarRecord[] }> => {
-  const { start, end } = getGridRange(month);
-  const supabase = await createClient();
-  const [eventsResult, recordsResult] = await Promise.all([
-    selectCalendarEvents(supabase, { start, end }),
-    supabase
-      .from("dates")
-      .select("id, date, end_date, title, author:members!dates_author_id_fkey(nickname)")
-      .lte("date", end)
-      // coalesce(end_date, date) >= start와 같다. 끝 날짜는 있으면 늘 시작일보다 뒤다(dates_end_date_after_date)
-      .or(`date.gte.${start},end_date.gte.${start}`)
-      .order("date")
-      .order("created_at"),
-  ]);
-  if (eventsResult.error) throw new EventLoadError({ cause: eventsResult.error });
-  if (recordsResult.error) throw new EventLoadError({ cause: recordsResult.error });
-
-  return { events: expandEventRows(eventsResult.data, { start, end }), records: recordsResult.data.map(toCalendarRecord) };
-};
+export const getCalendarMonth = async (month: string): Promise<CalendarMonth> => readCalendarMonth(await createClient(), month);
 
 /**
  * 앞으로의 일정을 하나당 가장 가까운 날 한 줄씩 날짜 → 종일 먼저 → 시간 → 만든 순서로 읽는다(홈).

@@ -1,5 +1,4 @@
 import { createExternalValue } from "@/lib/external-value";
-import { copyScreenLoaded } from "@/lib/navigation/screen-freshness";
 import { RECORDS_PATH } from "./album";
 
 const SEARCH_PARAM = "search";
@@ -31,17 +30,6 @@ export const parseRecordFilter = (params: Pick<URLSearchParams, "get" | "has">):
 export const toRecordSearchHref = (tag?: string): string => {
   const params = new URLSearchParams({ [SEARCH_PARAM]: "1", ...(tag && { [TAG_PARAM]: tag }) });
   return `${RECORDS_PATH}?${params.toString()}`;
-};
-
-/**
- * 찾기 결과는 찾기 화면이 따로 받으므로 화면을 다시 부르지 않고 기록 탭 주소만 바꾼다.
- * 화면 내용은 그대로이므로, 돌아왔을 때 새로 부를지는 처음 받은 때로 판단하게 한다.
- *
- * @example replaceRecordsAddress(toRecordSearchHref("카페"))
- */
-export const replaceRecordsAddress = (href: string): void => {
-  copyScreenLoaded(window.location.href, href, window.location.href);
-  window.history.replaceState(null, "", href);
 };
 
 /**

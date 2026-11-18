@@ -5,10 +5,13 @@ import type { MouseEvent, ReactElement } from "react";
 import { AuthorTag, EventOwnerTag } from "@/components/AuthorTag";
 import { EventRecordAction } from "@/components/events/EventRecordAction";
 import { PlusIcon } from "@/components/icons";
+import { RetryButton } from "@/components/RetryButton";
+import { SkeletonBlock } from "@/components/Skeleton";
 import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
 import { ANNIVERSARY_DATE, countDaysTogether, getAnniversaryLabel } from "@/lib/anniversary";
 import { formatDayHeading, formatEventTime } from "@/lib/calendar/month";
 import type { CalendarRecord } from "@/lib/events/calendar";
+import { EVENT_LOAD_ERROR_MESSAGE } from "@/lib/events/load-error";
 import type { ShownEvent } from "@/lib/events/pending";
 import { getEventRecordLink } from "@/lib/events/record-link";
 import { formatEventPeriod, formatRepeatRule, toEventEditHref } from "@/lib/events/recurrence";
@@ -25,7 +28,32 @@ interface SelectedDayListProps {
   holidayNames: HolidayNames;
   records: readonly CalendarRecord[];
   events: readonly ShownEvent[];
+  /** 넘긴 달의 일정을 받는 중이거나 받지 못했는지(#348). 받은 달이면 생략한다 */
+  monthStatus?: "loading" | "failed";
+  /** 받지 못한 달을 다시 받는다 */
+  onRetryMonth?: () => void;
 }
+
+const MonthLoading = (): ReactElement => (
+  <div className="mt-2 flex flex-col gap-2">
+    <p role="status" className="sr-only">
+      일정을 받는 중이에요
+    </p>
+    <SkeletonBlock className="h-[51px] rounded-[10px]" />
+    <SkeletonBlock className="h-[51px] rounded-[10px]" />
+  </div>
+);
+
+const MonthLoadFailed = ({ onRetry }: { onRetry: () => void }): ReactElement => (
+  <div className="flex flex-col items-center gap-3 py-6 text-center">
+    <p role="alert" className="text-[13px] break-keep text-balance text-ink-sub">
+      {EVENT_LOAD_ERROR_MESSAGE}
+    </p>
+    <div className="flex w-full max-w-60 flex-col">
+      <RetryButton isPending={false} onRetry={onRetry} />
+    </div>
+  </div>
+);
 
 /**
  * 캘린더에서 고른 날: 날짜 머리글과 "일정 추가", 그날의 기념일·공휴일·기록·일정 줄.
@@ -33,7 +61,15 @@ interface SelectedDayListProps {
  *
  * @example <SelectedDayList selectedDate="2026-11-16" today="2026-11-16" holidayNames={holidayNames} records={records} events={events} />
  */
-export const SelectedDayList = ({ selectedDate, today, holidayNames, records, events }: SelectedDayListProps): ReactElement => {
+export const SelectedDayList = ({
+  selectedDate,
+  today,
+  holidayNames,
+  records,
+  events,
+  monthStatus,
+  onRetryMonth = () => undefined,
+}: SelectedDayListProps): ReactElement => {
   const anniversary = getAnniversaryLabel(ANNIVERSARY_DATE, selectedDate);
   const holiday = holidayNames[selectedDate];
   const isEmptyDay = !anniversary && !holiday && records.length === 0 && events.length === 0;
@@ -58,7 +94,11 @@ export const SelectedDayList = ({ selectedDate, today, holidayNames, records, ev
           일정 추가
         </Link>
       </div>
-      {isEmptyDay ? (
+      {monthStatus === "loading" ? (
+        <MonthLoading />
+      ) : monthStatus === "failed" ? (
+        <MonthLoadFailed onRetry={onRetryMonth} />
+      ) : isEmptyDay ? (
         <p className="py-6 text-center text-[13px] text-ink-sub">이날은 아직 비어 있어요</p>
       ) : (
         <ul className="mt-2 flex flex-col gap-2">
