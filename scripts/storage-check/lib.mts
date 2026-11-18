@@ -66,7 +66,7 @@ const findStatusHint = (httpStatus: number, errorCode: unknown): string | undefi
     case 401:
       return "저장소 비밀 값 CRON_SECRET이 Vercel 값과 다릅니다";
     case 404:
-      return "운영 주소(CLEANUP_PREVIEW_URL)와 배포를 확인하세요";
+      return "운영 주소(저장소 변수 PRODUCTION_URL)와 배포를 확인하세요";
     case 500:
       return errorCode === "CLEANUP_NOT_CONFIGURED"
         ? "Vercel 환경 변수 SUPABASE_SECRET_KEY가 없습니다"

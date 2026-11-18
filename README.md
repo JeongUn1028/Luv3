@@ -161,6 +161,10 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 3. 예전 키로 서명한 토큰이 모두 만료된 뒤(바꾼 때부터 대시보드의 접속 토큰 유지 시간이 지난 뒤, 2026-11 기준 1시간) 예전 키를 **상수에서 먼저 지우고 배포한 다음** Supabase에서 폐기(revoke)한다. 상수에 남은 키는 Supabase에서 폐기해도 이 앱의 로그인 확인이 계속 믿기 때문이다. DB 조회는 Supabase가 따로 확인해 막지만, 화면 이동은 로그인한 것처럼 지나간다.
 4. 키가 새어 급히 폐기해야 하면 3번처럼 상수에서 먼저 지우고 배포한 뒤 바로 폐기한다.
 
+### 운영 주소 저장소 변수
+
+운영 주소를 부르는 세 워크플로(keepalive 확인, 서버 깨워 두기, 저장 공간·사진 정리 점검)는 저장소 변수 `PRODUCTION_URL`(Settings > Secrets and variables > Actions > Variables, 값 `https://luv3.vercel.app`, 끝에 `/` 없이)에서 주소를 읽는다(#359). 운영 주소를 바꾸면 이 값 하나만 고친다. 값이 없으면 keepalive 확인과 점검은 실패하며 알리고, 서버 깨워 두기는 경고만 남긴다.
+
 ### keepalive 실패 알림
 
 Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패해도 알림이 없다. 그래서 GitHub Actions(`.github/workflows/keepalive.yml`)가 매일 한국 시간 밤 9시 17분에 같은 `/api/keepalive`를 따로 부른다. Vercel Cron과 시간을 떨어뜨려 두어 한쪽이 멈춰도 다른 쪽이 7일 일시정지를 막는다.
@@ -170,7 +174,6 @@ Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패�
 - 저장소 비밀 값 `CRON_SECRET`(Settings > Secrets and variables > Actions)에 Vercel과 같은 값을 넣는다. Vercel에서 값을 바꾸면 여기도 바꾼다.
 - 손으로 돌리기: Actions > keepalive 확인 > Run workflow, 또는 `gh workflow run keepalive.yml`
 - 실패 문구: 401이면 두 비밀 값이 다르고, 502면 Supabase를 깨우지 못한 것이다(아래 절). 비밀 값이 없으면 그렇다고 알린다.
-- 운영 주소를 바꾸면 워크플로의 `KEEPALIVE_URL`도 고친다.
 
 ### 서버 깨워 두기
 
@@ -180,7 +183,6 @@ Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패�
 - 요청 이름(User-Agent)이 `luv3-keep-warm`이라 Vercel 로그에서 Vercel Cron(`vercel-cron`)의 401과 가릴 수 있다.
 - GitHub 예약 실행은 몇 분씩 늦거나 빠질 수 있어 매번 깨어 있다고 보장하지는 않는다.
 - 공개 리포라 Actions 사용 시간은 들지 않는다. Vercel 함수 호출은 한 번 부를 때 `proxy`와 서버 함수가 함께 돌아 한 달 약 1만 7천 번, Edge 요청은 약 9천 번 늘어난다. Hobby 한도(각각 월 100만 번)에 비해 작지만 월 1회 점검의 사용량에서 함께 본다.
-- 운영 주소를 바꾸면 워크플로의 `KEEP_WARM_URL`도 고친다.
 
 ### 받아들인 보안 결정
 
@@ -228,7 +230,7 @@ Vercel Hobby의 Cron 실행 기록과 로그는 1시간 뒤 사라지고 실패�
 
 - 손으로 돌리기: Actions > 저장 공간·사진 정리 점검 > Run workflow, 또는 `gh workflow run storage-check.yml`
 - 판단은 `scripts/storage-check/lib.mts`가 한다. 받아 둔 응답으로 직접 확인하려면 `node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/storage-check/check.mts <응답 파일> <HTTP 상태 코드>`
-- 운영 주소를 바꾸면 워크플로의 `CLEANUP_PREVIEW_URL`도 고친다. 주소의 `?preview=1`을 빼면 정리가 실제로 지우므로 빼지 않는다.
+- 워크플로의 `CLEANUP_PREVIEW_URL`에서 `?preview=1`을 빼면 정리가 실제로 지우므로 빼지 않는다.
 
 ### 프로젝트가 일시정지됐을 때
 

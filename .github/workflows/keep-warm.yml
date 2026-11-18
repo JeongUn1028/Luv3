@@ -25,13 +25,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 2
     env:
-      # 운영 주소(docs/plan.md의 도메인 결정). 바꾸면 여기와 keepalive.yml·storage-check.yml을 함께 고친다
-      KEEP_WARM_URL: https://luv3.vercel.app/api/keepalive
+      # 운영 주소는 저장소 변수 PRODUCTION_URL(README "운영 주소 저장소 변수")
+      PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+      KEEP_WARM_URL: ${{ vars.PRODUCTION_URL }}/api/keepalive
     steps:
       - name: 운영 주소 부르기
         # 401이 정상이다. 결과(상태 코드·첫 응답 시간)는 실행 기록에만 남기고, 연결이 안 되거나 다른 상태 코드여도 경고만 남긴다.
         # Vercel 로그에서 Vercel Cron(vercel-cron)·keepalive 확인(curl) 요청과 가릴 수 있게 이름을 달아 보낸다
         run: |
+          if ! [[ "$PRODUCTION_URL" =~ ^https://[^/]+$ ]]; then
+            echo "::warning::저장소 변수 PRODUCTION_URL이 없거나 모양이 달라(https://로 시작, 끝에 / 없음) 부르지 않았습니다. 이 작업은 실패로 끝내지 않습니다."
+            exit 0
+          fi
           curl_exit=0
           status=$(curl --silent --show-error --output /dev/null \
             --connect-timeout 10 --max-time 30 --user-agent "luv3-keep-warm" \
@@ -40,5 +45,5 @@ jobs:
           if [ "$curl_exit" != "0" ]; then
             echo "::warning::운영 주소에서 응답을 받지 못했습니다(curl 종료 코드 $curl_exit). 이 작업은 실패로 끝내지 않습니다. 계속되면 keepalive 확인 작업이 알립니다."
           elif [ "${status% *}" != "401" ]; then
-            echo "::warning::401이 아닌 HTTP ${status% *}을 받았습니다. 404면 KEEP_WARM_URL, 307이면 로그인 없이 여는 경로 목록, 403·429면 Vercel의 봇 차단을 확인해 주세요."
+            echo "::warning::401이 아닌 HTTP ${status% *}을 받았습니다. 404면 저장소 변수 PRODUCTION_URL, 307이면 로그인 없이 여는 경로 목록, 403·429면 Vercel의 봇 차단을 확인해 주세요."
           fi
