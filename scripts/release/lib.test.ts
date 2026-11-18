@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toReleaseNotes } from "@/lib/app-info/releases";
-import { addReleaseSummary, findUnexpectedReleaseChanges, hasUserFacingCommits } from "./lib.mts";
+import { addReleaseSummary, findUnexpectedReleaseChanges, hasUserFacingCommits, readReleasePullRequestNumber } from "./lib.mts";
 
 // release-please가 만드는 노트(changelog-type: github): 버전 제목 + GitHub 자동 목록
 const GENERATED_BODY = [
@@ -119,6 +119,24 @@ describe("findUnexpectedReleaseChanges", () => {
   it("바뀐 내용을 받지 못한 package.json(너무 큰 변경)은 알린다", () => {
     // Act & Assert
     expect(findUnexpectedReleaseChanges([{ filename: "package.json" }])).toEqual(["package.json: 바뀐 내용을 볼 수 없음"]);
+  });
+});
+
+describe("readReleasePullRequestNumber", () => {
+  it("release-please 액션의 pr 출력(JSON)에서 PR 번호를 읽는다", () => {
+    // Act & Assert
+    expect(readReleasePullRequestNumber('{"number":452,"title":"chore: 버전 1.3.0으로 올리기","headBranchName":"release-please--branches--main--components--luv3"}')).toBe(452);
+  });
+
+  it.each([
+    ["빈 값(PR을 만들지 않은 실행)", ""],
+    ["깨진 JSON", '{"number":'],
+    ["객체가 아닌 값", "452"],
+    ["번호가 없는 값", '{"title":"chore: 버전 1.3.0으로 올리기"}'],
+    ["양의 정수가 아닌 번호", '{"number":0}'],
+  ])("%s이면 멈춘다", (_, value) => {
+    // Act & Assert
+    expect(() => readReleasePullRequestNumber(value)).toThrow("릴리스 PR");
   });
 });
 
