@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { chromium } from "@playwright/test";
+import { REMEMBERED_PHOTO_URLS_KEY } from "@/lib/photos/remembered-url";
 import { BASE_URL, E2E_MEMBER, MEMBER_STATE_PATH } from "./support/constants";
 import { seedE2eData } from "./support/seed";
 
@@ -20,7 +23,16 @@ const globalSetup = async (): Promise<() => Promise<void>> => {
     await page.getByLabel("비밀번호").fill(password);
     await page.getByRole("button", { name: "로그인" }).click();
     await page.waitForURL(`${BASE_URL}/`);
-    await page.context().storageState({ path: MEMBER_STATE_PATH });
+    // 홈이 그리는 사진 주소를 휴대폰이 기억했는지는 저장하는 시각에 따라 달라, 실행마다 테스트의 처음 상태가 달라진다.
+    // 기억한 주소가 있으면 그리드가 그 주소로 받아 서버 주소를 거절하는 테스트가 엇나가므로(app-return) 빼고 저장한다. 필요한 테스트는 직접 심는다
+    const state = await page.context().storageState();
+    const origins = state.origins.map((origin) => ({
+      ...origin,
+      localStorage: origin.localStorage.filter(({ name }) => name !== REMEMBERED_PHOTO_URLS_KEY),
+    }));
+    // 직접 쓰면 Playwright처럼 폴더를 만들어 주지 않는다. CI에는 폴더가 없다
+    await mkdir(dirname(MEMBER_STATE_PATH), { recursive: true });
+    await writeFile(MEMBER_STATE_PATH, JSON.stringify({ ...state, origins }, undefined, 2));
   } catch (error) {
     // 정리까지 실패해도 원인인 로그인 오류가 가려지지 않게 한다
     await clear().catch((clearError: unknown) => console.error(clearError));

@@ -4,12 +4,12 @@ import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { catchLoadError } from "@/lib/load";
 import { getHomePhotoSignedUrls, getSignedUrls } from "@/lib/photos/signed-urls";
 import { toLatestRecord, toTagSuggestions, type LatestRecord } from "./album";
-import type { AlbumFirstPage } from "./album-pages";
+import { pickRecordsVersion, type AlbumFirstPage } from "./album-pages";
 import { PHOTO_GROUP_LOCATION_COLUMNS, toPhotoWithGroupLocation } from "./photo-groups";
 import { findStartPhotoRow, toDateRecordDetail, type DateRecordDetail, type DetailRow } from "./detail";
 import { toEditableRecord, type EditableRecord } from "./editable-record";
 import { isRecordId } from "./record-href";
-import { ALL_RECORDS_FIRST_PAGE, loadRecordPage } from "./search-queries";
+import { RECORD_PAGE_FETCH_SIZE, toSignedRecordPage } from "./search-queries";
 
 /** 앨범 그리드를 불러오지 못했을 때 */
 export class AlbumLoadError extends Error {
@@ -19,33 +19,20 @@ export class AlbumLoadError extends Error {
   }
 }
 
-class RecordsVersionLoadError extends Error {
-  constructor(options?: ErrorOptions) {
-    super("기록 판 번호를 불러오지 못했어요.", options);
-    this.name = "RecordsVersionLoadError";
-  }
-}
-
-const loadRecordsVersion = async (): Promise<string> => {
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("date_records_version");
-  if (error) throw new RecordsVersionLoadError({ cause: error });
-  return data;
-};
-
 /**
  * 기록 탭 그리드의 첫 묶음(최신순 60개)과 모든 기록의 판 번호를 불러온다(#274). 나머지는 화면이 내리면서 이어 받는다.
  * 판 번호로 화면을 새로 받았을 때 이어 받아 둔 기록이 아직 맞는지 판단한다.
- * 판 번호를 먼저 읽는다. 그 사이 기록이 바뀌면 다음에 새로 받을 때 판 번호가 달라 처음부터 다시 받는다(거꾸로면 예전 기록을 맞다고 본다).
- * 판 번호를 못 읽어도 그리드는 보여 준다. 로그만 남기고 매번 다른 값을 줘, 새로 받을 때마다 처음부터 다시 받게 한다.
+ * 판 번호와 첫 묶음은 DB 함수 하나(`album_first_page`)가 같은 순간의 기록으로 읽어 왕복을 하나 줄인다(#411).
  *
  * @throws {AlbumLoadError} 기록 조회나 서명 URL 발급이 실패했을 때
  * @example const firstPage = await getAlbumFirstPage()
  */
 export const getAlbumFirstPage = async (): Promise<AlbumFirstPage> => {
-  const version = await catchLoadError(loadRecordsVersion, RecordsVersionLoadError);
-  const { items, next, loadedAt } = await loadRecordPage(ALL_RECORDS_FIRST_PAGE, (cause) => new AlbumLoadError({ cause }));
-  return { items, next, loadedAt, version: version instanceof RecordsVersionLoadError ? `unknown:${crypto.randomUUID()}` : version };
+  const supabase = await createClient();
+  const { data: found, error } = await supabase.rpc("album_first_page", { p_limit: RECORD_PAGE_FETCH_SIZE });
+  if (error) throw new AlbumLoadError({ cause: error });
+  const { items, next, loadedAt } = await toSignedRecordPage({ supabase, found, toError: (cause) => new AlbumLoadError({ cause }) });
+  return { items, next, loadedAt, version: pickRecordsVersion(found) };
 };
 
 /**
