@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useEffect } from "react";
 import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
+import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { PUSH_OPEN_MESSAGE } from "@/lib/push/message";
 import { readPushOpenPath } from "@/lib/push/open-message";
@@ -31,6 +32,8 @@ export const PushOpenListener = (): null => {
         refreshOutsideForm(() => startTransition(() => router.refresh()));
         return;
       }
+      // 알림은 상대가 바꾼 것을 보라는 뜻이다. 30초 안에 본 탭은 받아 둔 내용을 다시 쓰므로(#405) 도착한 뒤 새로 받게 한다
+      markAllScreensStale();
       router.push(path, { transitionTypes: FORWARD_TRANSITION });
     };
     serviceWorker.addEventListener("message", handleMessage);
