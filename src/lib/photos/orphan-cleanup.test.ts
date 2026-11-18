@@ -342,7 +342,7 @@ describe("cleanupOrphanPhotos 휴지통", () => {
     expect(deleteTrashRows).toHaveBeenCalledWith(["trash-1", "trash-2"]);
     // 영구 삭제한 휴지통 파일을 실행 기록에서 찾을 수 있게 돌려준다
     expect(result.expiredTrashPaths.toSorted()).toEqual(
-      [overdue.path, overdue.thumb_path, justExpired.path, justExpired.thumb_path].toSorted(),
+      [overdue, justExpired].flatMap(({ path, thumb_path }) => [path, path.replace(".jpg", "_medium.jpg"), thumb_path]).toSorted(),
     );
   });
 
@@ -360,7 +360,7 @@ describe("cleanupOrphanPhotos 휴지통", () => {
     });
 
     const removeCalls = vi.mocked(storage.remove).mock.calls.map(([paths]) => paths.length);
-    expect(removeCalls.reduce((sum, count) => sum + count, 0)).toBe(600);
+    expect(removeCalls.reduce((sum, count) => sum + count, 0)).toBe(900); // 사진마다 원본·상세용·썸네일
     expect(Math.max(...removeCalls)).toBeLessThanOrEqual(500);
     const deleteCalls = deleteTrashRows.mock.calls.map(([ids]) => ids.length);
     expect(deleteCalls.reduce((sum, count) => sum + count, 0)).toBe(300);

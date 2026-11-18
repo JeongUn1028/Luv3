@@ -1,5 +1,5 @@
 import type { Locator, Page, Route } from "@playwright/test";
-import { toCouplePhotoMediumPath } from "@/lib/photos/paths";
+import { toMediumPhotoPath } from "@/lib/photos/paths";
 import { expectImageLoaded, getCouplePhoto } from "./support/actions";
 import { COUPLE_PHOTO_PATH, PHOTO_FIXTURE_PATH } from "./support/constants";
 import { TARGET_DEVICES } from "./support/devices";
@@ -80,7 +80,7 @@ for (const device of TARGET_DEVICES) {
         const savedPath = await getCouplePhotoPath();
         if (savedPath === undefined) throw new Error("커플 사진 경로가 비었다");
         expect(savedPath).not.toBe(COUPLE_PHOTO_PATH);
-        expect(await readPhotoPath(getCouplePhoto(page))).toBe(toCouplePhotoMediumPath(savedPath));
+        expect(await readPhotoPath(getCouplePhoto(page))).toBe(toMediumPhotoPath(savedPath));
         await expectImageLoaded(getCouplePhoto(page));
         await expect(getUploadingBadge(page)).toHaveCount(0);
         await expect(openMenu).toBeVisible();
@@ -90,7 +90,7 @@ for (const device of TARGET_DEVICES) {
 
         // Assert
         await expectImageLoaded(getCouplePhoto(page));
-        expect(await readPhotoPath(getCouplePhoto(page))).toBe(toCouplePhotoMediumPath(savedPath));
+        expect(await readPhotoPath(getCouplePhoto(page))).toBe(toMediumPhotoPath(savedPath));
       } finally {
         // 실패해 끝날 때 올리기·저장이 아직 돌고 있으면 되돌린 뒤에 저장이 끝나 원래 사진을 밀어낼 수 있다. 화면을 먼저 닫아 요청을 끊는다
         await page.close();

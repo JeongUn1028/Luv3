@@ -27,7 +27,8 @@ const navButtonClassName =
 /**
  * 화면 폭으로 넘겨 보는 사진과 지금 사진의 장소, 지금 모음의 한마디.
  * 모음 칩은 장소 줄과 같은 이름을 되풀이해 없앴다(#317). 다른 모음으로 넘어가면 장소 줄의 이름이 바뀌어 알 수 있다.
- * 사진은 지금 사진을 먼저 받고, 다 받으면 앞뒤 한 장을 미리 받는다(#313). 처음 펼친 사진은 원본을 받는 동안 썸네일을 먼저 보여 준다
+ * 사진은 지금 사진을 먼저 받고, 다 받으면 앞뒤 한 장을 미리 받는다(#313). 처음 펼친 사진은 사진을 받는 동안 썸네일을 먼저 보여 준다.
+ * 칸에는 상세용 중간 크기(없으면 원본)를 그리고, 크게 보기는 원본을 쓴다(#411)
  */
 export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCarouselProps): ReactElement => {
   const [viewportRef, emblaApi] = useEmblaCarousel({ startIndex });
@@ -35,7 +36,7 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
   const total = photos.length;
   // 숨겨 둔 상세를 다른 사진 주소로 다시 열면 화면은 그대로지만, Embla가 바뀐 시작 순서로 다시 맞추고(reInit) 아래에서 상태도 맞춘다
   const current = photos[selectedIndex];
-  // 원본을 다 받은 사진
+  // 칸에 그릴 사진을 다 받은 사진
   const [shownPhotoIds, setShownPhotoIds] = useState<ReadonlySet<string>>(() => new Set());
   // 받기 시작한 사진. 다 받기 전에 멀리 넘겨도 주소를 빼지 않아, 받던 것을 끊고 나중에 처음부터 다시 받지 않는다
   const [requestedPhotoIds, setRequestedPhotoIds] = useState<ReadonlySet<string>>(() => new Set());
@@ -43,7 +44,7 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
   const viewerRef = useRef<PhotoViewerHandle>(null);
   const openButtonsRef = useRef<Map<number, HTMLButtonElement>>(new Map());
   // 받을 주소가 없는 사진은 기다릴 것이 없다
-  const isSelectedShown = current === undefined || current.original === undefined || shownPhotoIds.has(current.id);
+  const isSelectedShown = current === undefined || current.display === undefined || shownPhotoIds.has(current.id);
   const loads = photos.map((_, index) => toSlidePhotoLoad({ index, selectedIndex, isSelectedShown }));
   const newlyRequestedIds = photos.filter(({ id }, index) => loads[index] !== "later" && !requestedPhotoIds.has(id)).map(({ id }) => id);
   // 받을 차례가 된 사진을 이번 그리기에서 바로 기억한다(이전 그리기의 값으로 다음 값을 정하는 React의 그리기 중 갱신)
@@ -101,7 +102,7 @@ export const PhotoCarousel = ({ photos, groups, title, startIndex = 0 }: PhotoCa
                 >
                   <DetailPhotoFrame
                     // 받을 차례가 아닌 사진은 주소를 넘기지 않아 받지 않는다(브라우저의 lazy는 옆 칸도 미리 받아 첫 사진과 회선을 나눠 쓴다)
-                    photo={load !== "later" || requestedPhotoIds.has(photo.id) ? photo.original : undefined}
+                    photo={load !== "later" || requestedPhotoIds.has(photo.id) ? photo.display : undefined}
                     // 썸네일은 처음 펼칠 사진에만 온다. 넘겨 보는 사진은 미리 받아 두므로 썸네일을 거치지 않는다
                     placeholder={index === startIndex ? photo.thumb : undefined}
                     alt={`${title} 사진 ${index + 1}`}

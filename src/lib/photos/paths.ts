@@ -8,21 +8,25 @@ const assertUuid = (id: string): void => {
 export interface PhotoPaths {
   /** 원본용 경로 `{date_id}/{photo_id}.jpg` */
   path: string;
+  /** 기록 상세용 중간 크기 경로 `{date_id}/{photo_id}_medium.jpg`(#411). DB에는 두지 않고 `toMediumPhotoPath`로 원본에서 정한다 */
+  mediumPath: string;
   /** 썸네일 경로 `{date_id}/{photo_id}_thumb.jpg` */
   thumbPath: string;
 }
 
 /**
- * album 버킷 안의 원본·썸네일 경로를 만든다. 경로에는 버킷 이름을 넣지 않는다(docs/plan.md "데이터 구조").
+ * album 버킷 안의 원본·상세용 중간 크기·썸네일 경로를 만든다. 경로에는 버킷 이름을 넣지 않는다(docs/plan.md "데이터 구조").
  *
- * @example buildPhotoPaths(dateId, photoId) // { path: "<dateId>/<photoId>.jpg", thumbPath: "<dateId>/<photoId>_thumb.jpg" }
+ * @example buildPhotoPaths(dateId, photoId) // { path: "<dateId>/<photoId>.jpg", mediumPath: "<dateId>/<photoId>_medium.jpg", thumbPath: "<dateId>/<photoId>_thumb.jpg" }
  */
 export const buildPhotoPaths = (dateId: string, photoId: string): PhotoPaths => {
   assertUuid(dateId);
   assertUuid(photoId);
 
+  const path = `${dateId}/${photoId}.jpg`;
   return {
-    path: `${dateId}/${photoId}.jpg`,
+    path,
+    mediumPath: toMediumPhotoPath(path),
     thumbPath: `${dateId}/${photoId}_thumb.jpg`,
   };
 };
@@ -40,12 +44,24 @@ export const buildCouplePhotoPath = (photoId: string): string => {
 };
 
 /**
- * 커플 사진 원본 경로 옆에 두는 홈 카드용 중간 크기 경로를 만든다. DB에는 원본 경로만 저장하고 이 경로는 원본에서 정한다.
+ * 원본 경로 옆에 두는 중간 크기 경로를 만든다. 커플 사진은 홈 카드용(#218), 기록 사진은 상세용(#411)이다.
+ * DB에는 원본 경로만 저장하고 이 경로는 원본에서 정한다.
  *
- * @example toCouplePhotoMediumPath("couple/<photoId>.jpg") // "couple/<photoId>_medium.jpg"
+ * @example toMediumPhotoPath("couple/<photoId>.jpg") // "couple/<photoId>_medium.jpg"
+ * @example toMediumPhotoPath("<dateId>/<photoId>.jpg") // "<dateId>/<photoId>_medium.jpg"
  */
-export const toCouplePhotoMediumPath = (path: string): string => {
+export const toMediumPhotoPath = (path: string): string => {
   // .jpg로 끝나지 않으면 중간 크기 경로가 원본 경로와 같아져, 원본을 덮어쓰거나 지울 수 있다
-  if (!path.endsWith(".jpg")) throw new Error(`커플 사진 경로는 .jpg로 끝나야 합니다: ${path}`);
+  if (!path.endsWith(".jpg")) throw new Error(`사진 경로는 .jpg로 끝나야 합니다: ${path}`);
   return `${path.slice(0, -".jpg".length)}_medium.jpg`;
 };
+
+/**
+ * DB에서 읽은 원본 경로 옆의 중간 크기 경로. 기록 사진 경로는 DB 제약이 없어, `.jpg`로 끝나지 않는 행이 있으면 에러 대신
+ * 중간 크기가 없다고 본다. 손으로 고친 행 하나 때문에 상세 화면이나 월간 정리가 멈추지 않게 읽는 쪽에서만 쓰고,
+ * 올리거나 지울 경로는 `toMediumPhotoPath`로 정한다.
+ *
+ * @example findMediumPhotoPath("<dateId>/<photoId>.jpg") // "<dateId>/<photoId>_medium.jpg"
+ * @example findMediumPhotoPath("<dateId>/<photoId>.JPG") // undefined
+ */
+export const findMediumPhotoPath = (path: string): string | undefined => (path.endsWith(".jpg") ? toMediumPhotoPath(path) : undefined);

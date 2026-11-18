@@ -1,6 +1,6 @@
 import type { AlbumObject } from "./album-files";
 import { getLastCleanupStart } from "./cleanup-schedule";
-import { toCouplePhotoMediumPath } from "./paths";
+import { findMediumPhotoPath, toMediumPhotoPath } from "./paths";
 import { isTrashExpired } from "./trash";
 
 /**
@@ -10,8 +10,8 @@ import { isTrashExpired } from "./trash";
 const MIN_ORPHAN_AGE_MS = 24 * 60 * 60 * 1000;
 
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
-// 앱이 만드는 이름만 지운다: 기록 사진 `{date_id}/{photo_id}.jpg`·`_thumb.jpg`, 커플 사진 `couple/{id}.jpg`·`_medium.jpg`
-const APP_FILE_PATH = new RegExp(`^(?:${UUID}/${UUID}(?:_thumb)?|couple/${UUID}(?:_medium)?)\\.jpg$`, "i");
+// 앱이 만드는 이름만 지운다: 기록 사진 `{date_id}/{photo_id}.jpg`·`_medium.jpg`·`_thumb.jpg`, 커플 사진 `couple/{id}.jpg`·`_medium.jpg`
+const APP_FILE_PATH = new RegExp(`^(?:${UUID}/${UUID}(?:_medium|_thumb)?|couple/${UUID}(?:_medium)?)\\.jpg$`, "i");
 
 /** DB에서 읽은, 파일을 가리키는 칸들 */
 export interface PhotoFileReferences {
@@ -54,17 +54,25 @@ export interface OrphanScan {
   overdueTrashCount: number;
 }
 
+// 사진 행 하나가 가리키는 파일. 기록 상세용 중간 크기(#411)는 DB에 경로가 없고 원본 경로에서 정한다.
+// 중간 크기를 만들기 전에 올린 사진은 그 파일이 없지만, 없는 경로는 버킷 목록과 견줄 때도 지울 때도 문제가 없다
+const toFilePaths = (rows: { path: string; thumb_path: string }[]): string[] =>
+  rows.flatMap(({ path, thumb_path }) => {
+    const mediumPath = findMediumPhotoPath(path);
+    return mediumPath ? [path, mediumPath, thumb_path] : [path, thumb_path];
+  });
+
 /**
- * 기록·커플 사진이 가리키는 파일 경로. 커플 사진은 DB에 없는 중간 크기 경로도 넣는다.
+ * 기록·커플 사진이 가리키는 파일 경로. DB에 없는 중간 크기 경로(기록 상세용, 커플 홈 카드용)도 넣는다.
  *
  * @example collectReferencedPaths({ photos: [], couplePhotoPath: "couple/a.jpg", trash: [] }).has("couple/a_medium.jpg") // true
  */
 export const collectReferencedPaths = ({ photos, couplePhotoPath }: PhotoFileReferences): Set<string> => {
-  const paths = new Set(photos.flatMap(({ path, thumb_path }) => [path, thumb_path]));
+  const paths = new Set(toFilePaths(photos));
   if (couplePhotoPath) {
     // 홈 카드용 중간 크기는 DB에 경로가 없고 원본 경로에서 정한다(#218)
     paths.add(couplePhotoPath);
-    paths.add(toCouplePhotoMediumPath(couplePhotoPath));
+    paths.add(toMediumPhotoPath(couplePhotoPath));
   }
   return paths;
 };
@@ -82,9 +90,6 @@ interface ScanOrphanFilesParams {
   references: PhotoFileReferences;
   now: Date;
 }
-
-const toFilePaths = (rows: { path: string; thumb_path: string }[]): string[] =>
-  rows.flatMap(({ path, thumb_path }) => [path, thumb_path]);
 
 /**
  * 보관 기간이 지난 휴지통 행.

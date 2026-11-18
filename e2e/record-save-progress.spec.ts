@@ -15,8 +15,13 @@ const CREATE_RECORD_URL = "**/rest/v1/rpc/create_date_record";
 
 const isUpload = (request: Request): boolean => request.method() === "POST";
 
-/** 올리는 파일 경로의 마지막 조각(`<사진 id>.jpg`, `<사진 id>_thumb.jpg`) */
+/** 올리는 파일 경로의 마지막 조각(`<사진 id>.jpg`, `<사진 id>_medium.jpg`, `<사진 id>_thumb.jpg`) */
 const toFileName = (request: Request): string => new URL(request.url()).pathname.split("/").at(-1) ?? "";
+
+/** 사진마다 올리는 파일 수(원본·상세용 #411·썸네일) */
+const FILES_PER_PHOTO = 3;
+
+const isOriginalName = (name: string): boolean => !name.includes("_");
 
 /** 올린 파일이 속한 기록 id(경로의 `album/<기록 id>/...`) */
 const toRecordId = (request: Request): string => new URL(request.url()).pathname.split("/").at(-2) ?? "";
@@ -78,14 +83,16 @@ test.describe("사진이 있는 기록 저장", () => {
       await expect(button).toHaveText(`사진 올리는 중… 0/${photoCount}`);
       await expect(button).toBeDisabled();
       await expect.poll(() => uploads.pendingNames()).toHaveLength(UPLOAD_CONCURRENCY);
-      expect(uploads.pendingNames().every((name) => !name.includes("_thumb"))).toBe(true);
+      expect(uploads.pendingNames().every(isOriginalName)).toBe(true);
 
-      // Act: 첫 사진의 원본과 썸네일을 올린다
+      // Act: 첫 사진의 원본·상세용·썸네일을 올린다
       const [firstOriginal = ""] = uploads.pendingNames();
       await uploads.release(firstOriginal);
-      const firstThumb = firstOriginal.replace(".jpg", "_thumb.jpg");
-      await expect.poll(() => uploads.pendingNames()).toContain(firstThumb);
-      await uploads.release(firstThumb);
+      for (const suffix of ["_medium.jpg", "_thumb.jpg"]) {
+        const name = firstOriginal.replace(".jpg", suffix);
+        await expect.poll(() => uploads.pendingNames()).toContain(name);
+        await uploads.release(name);
+      }
 
       // Assert
       await expect(button).toHaveText(`사진 올리는 중… 1/${photoCount}`);
@@ -100,7 +107,7 @@ test.describe("사진이 있는 기록 저장", () => {
       releaseSave();
       await page.waitForURL(`**${RECORDS_PATH}`);
       const [savedId = ""] = await getRecordIdsByTitle(title);
-      expect(await listRecordFiles(savedId)).toHaveLength(photoCount * 2);
+      expect(await listRecordFiles(savedId)).toHaveLength(photoCount * FILES_PER_PHOTO);
     } finally {
       releaseSave();
       for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id);
@@ -142,7 +149,7 @@ test.describe("사진이 있는 기록 저장", () => {
       if (!isUpload(request)) return route.continue();
       recordId = toRecordId(request);
       const name = toFileName(request);
-      if (!name.includes("_thumb") && !originals.includes(name)) originals.push(name);
+      if (isOriginalName(name) && !originals.includes(name)) originals.push(name);
       if (name === originals[1]) return route.abort("connectionreset");
       return route.continue();
     });
@@ -163,7 +170,7 @@ test.describe("사진이 있는 기록 저장", () => {
       // Assert
       await page.waitForURL(`**${RECORDS_PATH}`);
       const [savedId = ""] = await getRecordIdsByTitle(title);
-      expect(await listRecordFiles(savedId)).toHaveLength(photoCount * 2);
+      expect(await listRecordFiles(savedId)).toHaveLength(photoCount * FILES_PER_PHOTO);
     } finally {
       for (const id of await getRecordIdsByTitle(title)) await deleteRecordWithFiles(id);
     }

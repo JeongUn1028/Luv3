@@ -55,7 +55,7 @@ const createFakeStorage = () => {
   return { storage, stored };
 };
 
-const resize = vi.fn(async () => ({ original: new Blob(["o"]), thumb: new Blob(["t"]) }));
+const resize = vi.fn(async () => ({ original: new Blob(["o"]), medium: new Blob(["m"]), thumb: new Blob(["t"]) }));
 
 const LOST_RESPONSE = { message: "TypeError: Failed to fetch", code: "" };
 const REJECTED = { message: "rls", code: "42501" };
@@ -77,7 +77,7 @@ describe("saveDateRecord", () => {
       onProgress: (step) => progress.push(step),
     });
 
-    expect(stored.size).toBe(4);
+    expect(stored.size).toBe(6);
     expect(createRecord).toHaveBeenCalledWith(
       expect.objectContaining({ p_id: RECORD_ID, p_cover_photo_id: PHOTO_A }),
     );
@@ -109,7 +109,7 @@ describe("saveDateRecord", () => {
     await saveDateRecord({ recordId: RECORD_ID, draft, files, storage, resize, createRecord });
 
     expect(createRecord).toHaveBeenCalledTimes(2);
-    expect(stored.size).toBe(4);
+    expect(stored.size).toBe(6);
     expect(storage.remove).not.toHaveBeenCalled();
   });
 
@@ -120,7 +120,7 @@ describe("saveDateRecord", () => {
     const failure = saveDateRecord({ recordId: RECORD_ID, draft, files, storage, resize, createRecord });
 
     await expect(failure).rejects.toMatchObject({ name: "SaveDateRecordError", mayHaveSaved: true, message: expect.stringContaining("확인하지 못했어요") });
-    expect(stored.size).toBe(4);
+    expect(stored.size).toBe(6);
     expect(storage.remove).not.toHaveBeenCalled();
   });
 
@@ -130,7 +130,7 @@ describe("saveDateRecord", () => {
 
     await expect(saveDateRecord({ recordId: RECORD_ID, draft, files, storage, resize, createRecord })).rejects.toMatchObject({ mayHaveSaved: true });
 
-    expect(stored.size).toBe(4);
+    expect(stored.size).toBe(6);
   });
 
   it("첫 요청의 결과를 모르면 두 번째가 거절돼도 사진을 지우지 않는다", async () => {
@@ -142,7 +142,7 @@ describe("saveDateRecord", () => {
 
     await expect(saveDateRecord({ recordId: RECORD_ID, draft, files, storage, resize, createRecord })).rejects.toMatchObject({ mayHaveSaved: true });
 
-    expect(stored.size).toBe(4);
+    expect(stored.size).toBe(6);
     expect(storage.remove).not.toHaveBeenCalled();
   });
 
@@ -155,7 +155,7 @@ describe("saveDateRecord", () => {
 
     await expect(saveDateRecord({ recordId: RECORD_ID, draft, files, storage, resize, createRecord })).resolves.toBe("already-saved");
 
-    expect(stored.size).toBe(4);
+    expect(stored.size).toBe(6);
   });
 
   it("앞선 시도가 저장했을 수 있는데 이미 있으면 덮어쓰지 않고 저장된 것으로 끝낸다", async () => {
@@ -254,7 +254,7 @@ describe("updateDateRecord", () => {
     });
 
     expect([...stored].sort()).toEqual(
-      [...removedPaths, `${RECORD_ID}/${PHOTO_C}.jpg`, `${RECORD_ID}/${PHOTO_C}_thumb.jpg`].sort(),
+      [...removedPaths, `${RECORD_ID}/${PHOTO_C}.jpg`, `${RECORD_ID}/${PHOTO_C}_medium.jpg`, `${RECORD_ID}/${PHOTO_C}_thumb.jpg`].sort(),
     );
     expect(storage.remove).not.toHaveBeenCalled();
     expect(updateRecord).toHaveBeenCalledWith(
@@ -329,7 +329,7 @@ describe("updateDateRecord", () => {
     await updateDateRecord({ recordId: RECORD_ID, draft, files, storage, resize, updateRecord });
 
     expect(updateRecord).toHaveBeenCalledTimes(2);
-    expect(stored.size).toBe(4);
+    expect(stored.size).toBe(6);
     expect(storage.remove).not.toHaveBeenCalled();
   });
 
@@ -339,7 +339,7 @@ describe("updateDateRecord", () => {
 
     await expect(updateDateRecord({ recordId: RECORD_ID, draft, files, storage, resize, updateRecord })).rejects.toMatchObject({ mayHaveSaved: true });
 
-    expect(stored.size).toBe(4);
+    expect(stored.size).toBe(6);
     expect(storage.remove).not.toHaveBeenCalled();
   });
 
@@ -436,7 +436,7 @@ describe("updateDateRecord", () => {
     // Assert
     expect(updateRecord).toHaveBeenCalledOnce();
     expect([...stored].sort()).toEqual(
-      [PHOTO_C, PHOTO_D].flatMap((id) => [`${RECORD_ID}/${id}.jpg`, `${RECORD_ID}/${id}_thumb.jpg`]).sort(),
+      [PHOTO_C, PHOTO_D].flatMap((id) => [`${RECORD_ID}/${id}.jpg`, `${RECORD_ID}/${id}_medium.jpg`, `${RECORD_ID}/${id}_thumb.jpg`]).sort(),
     );
   });
 });

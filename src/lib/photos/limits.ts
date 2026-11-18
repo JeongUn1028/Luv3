@@ -4,10 +4,10 @@ export const ALBUM_BUCKET = "album";
 /** album 버킷이 받는 한 파일의 최대 크기(5MB). 초기 마이그레이션의 버킷 설정과 같아야 한다 */
 export const BUCKET_FILE_SIZE_LIMIT = 5 * 1024 * 1024;
 
-/** 원본·썸네일 모두 JPEG로 올린다. 버킷은 JPEG·WebP만 받는다 */
+/** 원본·중간 크기·썸네일 모두 JPEG로 올린다. 버킷은 JPEG·WebP만 받는다 */
 export const UPLOAD_CONTENT_TYPE = "image/jpeg";
 
-/** 상세 화면용 원본의 긴 변(px) */
+/** 원본의 긴 변(px). 사진 크게 보기(#350)와 휴지통 사진 저장에 쓴다 */
 export const ORIGINAL_MAX_EDGE = 2000;
 
 /** 앨범 그리드용 썸네일의 긴 변(px) */
@@ -15,6 +15,12 @@ export const THUMB_MAX_EDGE = 600;
 
 /** 홈 커플 사진 카드용 중간 크기의 긴 변(px). 카드 폭(약 360px) × 화면 배율 3에 맞춘다 */
 export const MEDIUM_MAX_EDGE = 1100;
+
+/**
+ * 기록 상세 사진 칸용 중간 크기의 긴 변(px, #411). 칸 폭(393px 화면에서 약 361px) × 화면 배율 3(약 1,083px)보다 조금 크게 둔다.
+ * 크게 보기(#350)는 확대할 수 있어 원본을 쓴다
+ */
+export const DETAIL_MAX_EDGE = 1200;
 
 /**
  * 홈 사진(커플 사진·최근 데이트 썸네일)의 서명 URL 유효 시간(초, 7일). 휴대폰이 주소를 기억해 다시 쓰므로(#219)

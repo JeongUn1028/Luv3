@@ -50,14 +50,17 @@ describe("resizeCouplePhoto", () => {
 });
 
 describe("resizePhoto", () => {
-  it("긴 변 2000px 원본용과 긴 변 600px 썸네일을 JPEG로 만든다", async () => {
+  // 상세 사진 칸은 폭 약 361px × 화면 배율 3이라 2000px 원본은 필요보다 크다. 원본은 크게 보기(#350)에 쓴다(#411)
+  it("긴 변 2000px 원본용, 긴 변 1200px 상세용, 긴 변 600px 썸네일을 JPEG로 만든다", async () => {
     const result = await resizePhoto(jpeg("a.jpg"));
 
-    expect(compressMock).toHaveBeenCalledTimes(2);
-    const [originalOptions, thumbOptions] = compressMock.mock.calls.map(([, options]) => options);
+    expect(compressMock).toHaveBeenCalledTimes(3);
+    const [originalOptions, mediumOptions, thumbOptions] = compressMock.mock.calls.map(([, options]) => options);
     expect(originalOptions).toMatchObject({ maxWidthOrHeight: 2000, fileType: "image/jpeg" });
+    expect(mediumOptions).toMatchObject({ maxWidthOrHeight: 1200, fileType: "image/jpeg" });
     expect(thumbOptions).toMatchObject({ maxWidthOrHeight: 600, fileType: "image/jpeg" });
     expect(result.original).toMatchObject({ name: "2000-a.jpg" });
+    expect(result.medium).toMatchObject({ name: "1200-2000-a.jpg" });
     expect(result.thumb).toMatchObject({ name: "600-2000-a.jpg" });
   });
 
@@ -81,7 +84,7 @@ describe("resizePhoto", () => {
     await resizePhoto(jpeg("a.jpg"));
 
     // Assert
-    expect(compressMock).toHaveBeenCalledTimes(2);
+    expect(compressMock).toHaveBeenCalledTimes(3);
     for (const [, options] of compressMock.mock.calls) {
       expect(options).toMatchObject({ useWebWorker: true, libURL: "https://luv3.test/vendor/browser-image-compression-2.0.2.js" });
     }
@@ -96,10 +99,10 @@ describe("resizePhoto", () => {
     }
   });
 
-  it("썸네일은 원본 파일이 아니라 줄인 원본용 사진에서 만든다", async () => {
+  it("상세용과 썸네일은 원본 파일이 아니라 줄인 원본용 사진에서 만든다", async () => {
     await resizePhoto(jpeg("a.jpg"));
 
-    expect(compressMock.mock.calls[1][0].name).toBe("2000-a.jpg");
+    expect(compressMock.mock.calls.slice(1).map(([file]) => file.name)).toEqual(["2000-a.jpg", "2000-a.jpg"]);
   });
 
   it("HEIC는 JPEG로 바꾼 뒤 줄인다", async () => {
@@ -172,7 +175,7 @@ describe("resizePhoto", () => {
     compressMock.mockResolvedValueOnce(jpeg("huge.jpg", BUCKET_FILE_SIZE_LIMIT + 1));
 
     await expect(resizePhoto(jpeg("a.jpg"))).rejects.toMatchObject({ reason: "too-large" });
-    expect(compressMock).toHaveBeenCalledTimes(1); // 썸네일은 만들지 않는다
+    expect(compressMock).toHaveBeenCalledTimes(1); // 상세용·썸네일은 만들지 않는다
   });
 
   it("버킷 용량 제한과 같은 크기는 허용한다", async () => {

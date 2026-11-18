@@ -23,6 +23,7 @@ describe("toDateRecordDetail", () => {
         {
           id: "p1",
           groupId: "g1",
+          display: { path: "r1/p1.jpg", url: "https://example.test/p1", expiresAt: 1000 },
           original: { path: "r1/p1.jpg", url: "https://example.test/p1", expiresAt: 1000 },
           thumb: { path: "r1/p1_thumb.jpg", url: "https://example.test/t1", expiresAt: 1000 },
           place: "어니언 성수",
@@ -31,6 +32,7 @@ describe("toDateRecordDetail", () => {
         {
           id: "p2",
           groupId: "g2",
+          display: { path: "r1/p2.jpg", url: "https://example.test/p2", expiresAt: 1000 },
           original: { path: "r1/p2.jpg", url: "https://example.test/p2", expiresAt: 1000 },
           thumb: undefined,
           place: "성수 서울숲",
@@ -139,7 +141,33 @@ describe("toDateRecordDetail", () => {
 
   it("서명 URL을 받지 못한 사진은 URL 없이 둔다", () => {
     const detail = toDateRecordDetail(row, [{ path: "r1/p1.jpg", signedUrl: null, expiresAt: undefined }]);
-    expect(detail.photos.map(({ original }) => original)).toEqual([undefined, undefined]);
+    expect(detail.photos.map(({ display, original }) => [display, original])).toEqual([
+      [undefined, undefined],
+      [undefined, undefined],
+    ]);
+  });
+
+  it(".jpg로 끝나지 않는 사진 경로도 화면을 멈추지 않고 원본을 그린다", () => {
+    const oddRow = { ...row, photos: row.photos.map((photo) => (photo.id === "p1" ? { ...photo, path: "r1/p1.JPG" } : photo)) };
+
+    const detail = toDateRecordDetail(oddRow, [{ path: "r1/p1.JPG", signedUrl: "https://example.test/p1", expiresAt: 1000 }]);
+
+    expect(detail.photos.find(({ id }) => id === "p1")?.display?.path).toBe("r1/p1.JPG");
+  });
+
+  // 상세 칸(약 1,083px)에 2000px 원본은 크다. 원본은 크게 보기에서 확대할 때 쓴다(#411)
+  it("상세용 중간 크기가 있으면 칸에 그리고, 없는 예전 사진은 원본을 그리며, 원본은 따로 넘긴다", () => {
+    const detail = toDateRecordDetail(row, [
+      { path: "r1/p1_medium.jpg", signedUrl: "https://example.test/m1", expiresAt: 1000 },
+      { path: "r1/p1.jpg", signedUrl: "https://example.test/p1", expiresAt: 1000 },
+      { path: "r1/p2_medium.jpg", signedUrl: null, expiresAt: undefined },
+      { path: "r1/p2.jpg", signedUrl: "https://example.test/p2", expiresAt: 1000 },
+    ]);
+
+    expect(detail.photos.map(({ display, original }) => [display?.path, original?.path])).toEqual([
+      ["r1/p1_medium.jpg", "r1/p1.jpg"],
+      ["r1/p2.jpg", "r1/p2.jpg"],
+    ]);
   });
 });
 

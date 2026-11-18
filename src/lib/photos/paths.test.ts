@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { buildCouplePhotoPath, buildPhotoPaths, toCouplePhotoMediumPath } from "./paths";
+import { buildCouplePhotoPath, buildPhotoPaths, findMediumPhotoPath, toMediumPhotoPath } from "./paths";
 
 const DATE_ID = "10000000-0000-4000-8000-000000000001";
 const PHOTO_ID = "20000000-0000-4000-8000-000000000002";
 
 describe("buildPhotoPaths", () => {
-  it("기록 id와 사진 id로 원본·썸네일 경로를 만든다", () => {
+  it("기록 id와 사진 id로 원본·상세용 중간 크기·썸네일 경로를 만든다", () => {
     expect(buildPhotoPaths(DATE_ID, PHOTO_ID)).toEqual({
       path: `${DATE_ID}/${PHOTO_ID}.jpg`,
+      mediumPath: `${DATE_ID}/${PHOTO_ID}_medium.jpg`,
       thumbPath: `${DATE_ID}/${PHOTO_ID}_thumb.jpg`,
     });
   });
@@ -36,13 +37,29 @@ describe("buildCouplePhotoPath", () => {
   });
 });
 
-describe("toCouplePhotoMediumPath", () => {
+describe("toMediumPhotoPath", () => {
   // DB에는 원본 경로만 있어, 홈 카드용 중간 크기는 이름 규칙으로 원본 옆에 둔다(#218)
   it("원본 경로 옆에 _medium을 붙인 경로를 만든다", () => {
-    expect(toCouplePhotoMediumPath(`couple/${PHOTO_ID}.jpg`)).toBe(`couple/${PHOTO_ID}_medium.jpg`);
+    expect(toMediumPhotoPath(`couple/${PHOTO_ID}.jpg`)).toBe(`couple/${PHOTO_ID}_medium.jpg`);
+  });
+
+  // 기록 상세용 중간 크기도 DB에 경로를 두지 않고 같은 규칙으로 원본 옆에 둔다(#411)
+  it("기록 사진 원본 경로도 같은 규칙으로 바꾼다", () => {
+    expect(toMediumPhotoPath(`${DATE_ID}/${PHOTO_ID}.jpg`)).toBe(`${DATE_ID}/${PHOTO_ID}_medium.jpg`);
   });
 
   it(".jpg로 끝나지 않는 경로는 원본과 같은 경로가 되므로 받지 않는다", () => {
-    expect(() => toCouplePhotoMediumPath(`couple/${PHOTO_ID}.JPG`)).toThrow();
+    expect(() => toMediumPhotoPath(`couple/${PHOTO_ID}.JPG`)).toThrow();
+  });
+});
+
+describe("findMediumPhotoPath", () => {
+  it("원본 경로 옆의 중간 크기 경로를 찾는다", () => {
+    expect(findMediumPhotoPath(`${DATE_ID}/${PHOTO_ID}.jpg`)).toBe(`${DATE_ID}/${PHOTO_ID}_medium.jpg`);
+  });
+
+  // 기록 사진 경로는 DB 제약이 없어, 손으로 고친 행 하나 때문에 상세 화면이나 월간 정리가 멈추면 안 된다
+  it(".jpg로 끝나지 않는 경로는 에러 대신 중간 크기가 없다고 본다", () => {
+    expect(findMediumPhotoPath(`${DATE_ID}/${PHOTO_ID}.JPG`)).toBeUndefined();
   });
 });

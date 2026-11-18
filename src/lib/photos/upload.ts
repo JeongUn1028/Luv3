@@ -19,7 +19,7 @@ export interface ResizeAndUploadPhotosParams {
   /** 사진이 속할 기록의 id. `dates.id`에도 같은 값을 쓴다 */
   dateId: string;
   photos: PhotoFileToUpload[];
-  /** 고른 사진을 원본·썸네일로 줄인다. 보통 `resizePhoto` */
+  /** 고른 사진을 원본·상세용·썸네일로 줄인다. 보통 `resizePhoto` */
   resize: (file: File) => Promise<ResizedPhoto>;
   /** 앞선 저장 시도가 올렸을 수 있으면 true. 이미 있어도 성공으로 보고, 저장된 기록이 가리킬 수 있어 실패해도 지우지 않는다 */
   mayAlreadyExist?: boolean;
@@ -28,7 +28,7 @@ export interface ResizeAndUploadPhotosParams {
    * 저장된 기록이 가리키는 파일은 아니므로 이번 시도가 실패하면 함께 지운다
    */
   mayHaveLeftovers?: boolean;
-  /** 사진 한 장(원본+썸네일)을 다 올릴 때마다 (올린 장수, 전체 장수)로 불린다 */
+  /** 사진 한 장(원본+상세용+썸네일)을 다 올릴 때마다 (올린 장수, 전체 장수)로 불린다 */
   onProgress?: (uploadedCount: number, totalCount: number) => void;
 }
 
@@ -45,7 +45,7 @@ interface UploadFailure {
 }
 
 /**
- * 고른 사진을 한 장씩 줄여, 줄이는 대로 album 버킷의 `{date_id}/{photo_id}.jpg`, `{date_id}/{photo_id}_thumb.jpg`에 올린다.
+ * 고른 사진을 한 장씩 줄여, 줄이는 대로 album 버킷의 `{date_id}/{photo_id}.jpg`, `_medium.jpg`(상세용, #411), `_thumb.jpg`에 올린다.
  * 한 장을 올리는 동안 다음 장을 줄이고, 동시에 `UPLOAD_CONCURRENCY`장까지 올린다. 자리가 없으면 다음 장을 줄이지 않고 기다려,
  * 줄인 사진을 모두 메모리에 쌓아 두지 않는다. 파일마다 한 번 더 시도하고, 줄이기나 올리기가 실패하면 새 사진은 더 줄이지 않고
  * 올리던 사진이 끝나기를 기다린 뒤 이번에 올리려던 파일을 모두 지우고 에러를 낸다(먼저 지우면 지운 뒤에 올라간 파일이 남는다).
@@ -81,14 +81,19 @@ export const resizeAndUploadPhotos = async ({
   const inFlight = new Set<Promise<void>>();
   let failure: UploadFailure | undefined;
 
-  const uploadOne = async ({ photoId, path, thumbPath }: PhotoPaths & { photoId: string }, { original, thumb }: ResizedPhoto): Promise<void> => {
-    attemptedPaths.push(path);
-    await uploadPhotoFile({ storage, path, body: original, mayAlreadyExist: mayFileExist });
-    // 다른 사진이 이미 실패했으면 어차피 지울 파일이라 더 올리지 않는다
-    if (failure) return;
-    attemptedPaths.push(thumbPath);
-    await uploadPhotoFile({ storage, path: thumbPath, body: thumb, mayAlreadyExist: mayFileExist });
-    uploaded.push({ photoId, path, thumbPath });
+  const uploadOne = async ({ photoId, path, mediumPath, thumbPath }: PhotoPaths & { photoId: string }, resized: ResizedPhoto): Promise<void> => {
+    const files = [
+      { path, body: resized.original },
+      { path: mediumPath, body: resized.medium },
+      { path: thumbPath, body: resized.thumb },
+    ];
+    for (const file of files) {
+      // 다른 사진이 이미 실패했으면 어차피 지울 파일이라 더 올리지 않는다
+      if (failure) return;
+      attemptedPaths.push(file.path);
+      await uploadPhotoFile({ storage, ...file, mayAlreadyExist: mayFileExist });
+    }
+    uploaded.push({ photoId, path, mediumPath, thumbPath });
     onProgress?.(uploaded.length, targets.length);
   };
 
@@ -129,7 +134,7 @@ export const resizeAndUploadPhotos = async ({
 };
 
 /**
- * 올린 사진의 원본·썸네일을 지운다. 사진 업로드 뒤 DB 행 저장이 실패했을 때 쓴다.
+ * 올린 사진의 원본·상세용·썸네일을 지운다. 사진 업로드 뒤 DB 행 저장이 실패했을 때 쓴다.
  *
  * @throws {Error} Storage가 삭제를 거부하면
  * @example await removeUploadedPhotos(supabase.storage.from(ALBUM_BUCKET), uploaded)
@@ -137,6 +142,6 @@ export const resizeAndUploadPhotos = async ({
 export const removeUploadedPhotos = async (storage: PhotoStorage, photos: UploadedPhoto[]): Promise<void> => {
   if (photos.length === 0) return;
 
-  const { error } = await storage.remove(photos.flatMap(({ path, thumbPath }) => [path, thumbPath]));
+  const { error } = await storage.remove(photos.flatMap(({ path, mediumPath, thumbPath }) => [path, mediumPath, thumbPath]));
   if (error) throw new Error(`사진 파일을 지우지 못했습니다: ${error.message}`, { cause: error });
 };
