@@ -30,8 +30,8 @@ import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 export const metadata: Metadata = { title: "기록 · Luv3" };
 
-// 수정·삭제 버튼이 기록을 읽은 뒤에야 정해져 머리글도 Suspense 안에서 그린다. 틀의 고정 머리글 자리 대신 스크롤 영역 맨 위에 붙여,
-// 긴 글과 댓글을 읽어 내려가도 뒤로·수정·삭제가 남게 한다(#349). 아래로 지나가는 사진·글이 비치지 않게 바탕을 칠하고,
+// 고치기·지우기 버튼이 기록을 읽은 뒤에야 정해져 머리글도 Suspense 안에서 그린다. 틀의 고정 머리글 자리 대신 스크롤 영역 맨 위에 붙여,
+// 긴 글과 댓글을 읽어 내려가도 뒤로·고치기·지우기가 남게 한다(#349). 아래로 지나가는 사진·글이 비치지 않게 바탕을 칠하고,
 // 위쪽 알림(SaveNotices, z-10)은 가리지 않도록 본문 위로만 올린다
 // 제목은 사진 아래 본문의 h1이 맡는다
 const DetailHeader = ({ actions }: { actions?: ReactNode }) => (
@@ -94,7 +94,7 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
               transitionTypes={FORWARD_TRANSITION}
               className="press-icon flex h-11 items-center px-3 text-[14px] text-ink-sub hover:text-ink"
             >
-              수정
+              고치기
             </Link>
             <DeleteRecordButton recordId={record.id} photoCount={record.photos.length} />
           </>
@@ -148,7 +148,7 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
 const DateRecordPage = ({ params, searchParams }: PageProps<"/dates/[id]">) => (
   // 위에 붙인 머리글(44px)만큼 비워, 초점을 옮겨 스크롤될 때 그 칸이 머리글 밑에 들어가지 않게 한다
   <PageShell bottomSpace="md" className="scroll-pt-11">
-    {/* 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents). 수정·삭제는 기록을 읽은 뒤 보인다 */}
+    {/* 주소의 id와 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents). 고치기·지우기는 기록을 읽은 뒤 보인다 */}
     <LoadingSuspense
       fallback={
         <>

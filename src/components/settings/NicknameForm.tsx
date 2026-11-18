@@ -72,7 +72,7 @@ export const NicknameForm = ({ memberId, initialNickname }: NicknameFormProps): 
   };
 
   return (
-    <PageShell bottomSpace="sm" className="px-4" header={<ScreenHeader back={{ href: SETTINGS_PATH }} title="닉네임 변경" />}>
+    <PageShell bottomSpace="sm" className="px-4" header={<ScreenHeader back={{ href: SETTINGS_PATH }} title="닉네임 바꾸기" />}>
       <form onSubmit={handleSubmit} noValidate className="mt-3 flex flex-col gap-4">
         <TextField
           id="nickname"

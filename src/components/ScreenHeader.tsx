@@ -20,7 +20,7 @@ interface ScreenHeaderProps {
   isTitleHidden?: boolean;
   /** 제목 바로 뒤에 붙일 것(작성자 이름표 등) */
   titleAddon?: ReactNode;
-  /** 오른쪽 끝 버튼들(설정, 추가, 수정·삭제 등) */
+  /** 오른쪽 끝 버튼들(설정, 추가, 고치기·지우기 등) */
   actions?: ReactNode;
   /** 줄 위에 겹쳐 화면 가운데에 놓을 것(홈 D-day). 머리글 높이는 그대로이고 눌리지 않으므로 보여 주기만 하는 내용을 넣는다 */
   center?: ReactNode;

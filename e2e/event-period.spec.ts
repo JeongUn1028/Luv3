@@ -56,10 +56,10 @@ test.describe("기간 일정", () => {
       // Act: 지우기
       await openScreen(page, "/calendar?month=2036-05&date=2036-05-01", getRow(page, title));
       await openEventEditFromCalendar(page, getRow(page, title), "click");
-      await page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true").click();
+      await page.getByRole("button", { name: "지우기", exact: true }).locator("visible=true").click();
       await expect(page.getByRole("dialog").getByRole("heading", { name: "기간 일정을 지울까요?" })).toBeVisible();
       const deleted = waitForDeleteResponse(page, "events");
-      await page.getByRole("dialog").getByRole("button", { name: "삭제", exact: true }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "지우기", exact: true }).click();
       await page.waitForURL(/\/calendar/);
       await deleted;
 

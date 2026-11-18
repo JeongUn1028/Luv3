@@ -29,7 +29,7 @@ type ModalActionsProps = ModalActionsBaseProps & ({ onConfirm: () => void; isSub
 /**
  * 창 아래쪽의 취소·확인 버튼 한 줄.
  *
- * @example <ModalActions cancelLabel="취소" onCancel={handleClose} confirmLabel="삭제" onConfirm={handleConfirm} />
+ * @example <ModalActions cancelLabel="취소" onCancel={handleClose} confirmLabel="지우기" onConfirm={handleConfirm} />
  */
 export const ModalActions = ({
   cancelLabel,

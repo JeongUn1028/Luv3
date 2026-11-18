@@ -18,11 +18,11 @@ const PAST_EVENT_DATE = "2020-04-15";
 const getNotice = (page: Page, role: "status" | "alert", name: string): Locator =>
   page.getByRole(role).filter({ hasText: name }).filter({ has: page.getByRole("button", { name: "닫기" }) });
 
-const getDeleteButton = (page: Page): Locator => page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true");
+const getDeleteButton = (page: Page): Locator => page.getByRole("button", { name: "지우기", exact: true }).locator("visible=true");
 
 const confirmDelete = async (page: Page): Promise<void> => {
   await getDeleteButton(page).tap();
-  await page.getByRole("dialog").getByRole("button", { name: "삭제", exact: true }).tap();
+  await page.getByRole("dialog").getByRole("button", { name: "지우기", exact: true }).tap();
 };
 
 const failRequest = (route: Route) => route.fulfill({ status: 500, json: { message: "E2E 삭제 실패" } });
@@ -120,7 +120,7 @@ test.describe("지우는 사이 화면을 벗어나면", () => {
       const dialog = page.getByRole("dialog", { name: "이 기록을 지울까요?" });
       // 지난 실패 문구가 창에 남거나 "지우는 중"에 멈춰 있지 않다
       await expect(dialog.getByText("지우지 못했어요")).toHaveCount(0);
-      await dialog.getByRole("button", { name: "삭제", exact: true }).tap();
+      await dialog.getByRole("button", { name: "지우기", exact: true }).tap();
 
       // Assert
       await page.waitForURL(`**${RECORDS_PATH}`);

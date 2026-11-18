@@ -210,12 +210,12 @@ test.describe("지우기 확인 창", () => {
       });
       await openScreen(page, `/todos/${id}/edit`, page.locator("#todo-content").locator("visible=true"));
       await pretendOffline(page);
-      await getVisibleButton(page, "삭제").click();
+      await getVisibleButton(page, "지우기").click();
       const dialog = page.getByRole("dialog", { name: "이 항목을 지울까요?" });
       await expect(dialog).toBeVisible();
 
       // Act
-      await pressWithKeyboard(dialog.getByRole("button", { name: "삭제", exact: true }));
+      await pressWithKeyboard(dialog.getByRole("button", { name: "지우기", exact: true }));
       const busyConfirm = dialog.getByRole("button", { name: "지우는 중…" });
       await expect(busyConfirm).toBeVisible();
       for (let count = 0; count < 4; count += 1) await page.keyboard.press("Escape");
@@ -230,7 +230,7 @@ test.describe("지우기 확인 창", () => {
 
       // Assert
       await expect(dialog.getByRole("alert")).toHaveText("지우지 못했어요. 잠시 후 다시 시도해 주세요.");
-      await expect(dialog.getByRole("button", { name: "삭제", exact: true })).toBeFocused();
+      await expect(dialog.getByRole("button", { name: "지우기", exact: true })).toBeFocused();
     } finally {
       failDelete();
       await deleteTodo();

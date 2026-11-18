@@ -16,7 +16,7 @@ const MAIN_TABS = [
   { tab: "home", href: HOME_PATH, label: "홈", Icon: HomeIcon },
   { tab: "records", href: RECORDS_PATH, label: "기록", Icon: GridIcon },
   { tab: "calendar", href: CALENDAR_PATH, label: "캘린더", Icon: CalendarIcon },
-  { tab: "todos", href: TODOS_PATH, label: "Todo", Icon: TodoIcon },
+  { tab: "todos", href: TODOS_PATH, label: "하고 싶은 것", Icon: TodoIcon },
 ] as const;
 
 export type MainTab = (typeof MAIN_TABS)[number]["tab"];
@@ -105,7 +105,7 @@ export const TabBar = ({ current }: TabBarProps): ReactElement => {
                   if (isCurrent) handleCurrentTabClick(event, tab, href);
                   else pendingTabChange = { from: current, to: tab };
                 }}
-                className={`tab-link flex flex-1 flex-col items-center justify-center gap-1 font-display text-[11px] ${isCurrent ? "text-highlight" : "text-ink-sub"}`}
+                className={`tab-link flex flex-1 flex-col items-center justify-center gap-1 font-display text-[11px] whitespace-nowrap ${isCurrent ? "text-highlight" : "text-ink-sub"}`}
               >
                 <Icon className="size-[22px]" />
                 {label}

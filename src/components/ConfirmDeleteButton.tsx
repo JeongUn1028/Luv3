@@ -29,12 +29,12 @@ interface ConfirmDeleteButtonProps {
   noticeKey: string;
   /** 실패했을 때 확인 창에 보여 줄 문구 */
   failureMessage: string;
-  /** 한 화면에 "삭제"가 여럿일 때 무엇을 지우는지 읽어 줄 이름. 예: "댓글 삭제" */
+  /** 한 화면에 "지우기"가 여럿일 때 무엇을 지우는지 읽어 줄 이름. 예: "댓글 지우기" */
   accessibleName?: string;
   className?: string;
 }
 
-/** "삭제" 버튼과 확인 창 */
+/** "지우기" 버튼과 확인 창 */
 export const ConfirmDeleteButton = ({
   title,
   description,
@@ -96,14 +96,14 @@ export const ConfirmDeleteButton = ({
   return (
     <>
       <button type="button" onClick={handleOpen} aria-label={accessibleName} className={className}>
-        삭제
+        지우기
       </button>
       <ModalDialog ref={modalRef} title={title} description={description} isBusy={isDeleting}>
         {message && <ModalMessage>{message}</ModalMessage>}
         <ModalActions
           cancelLabel="취소"
           onCancel={() => modalRef.current?.close()}
-          confirmLabel={isDeleting ? "지우는 중…" : "삭제"}
+          confirmLabel={isDeleting ? "지우는 중…" : "지우기"}
           onConfirm={handleConfirm}
           isDisabled={isDeleting}
         />

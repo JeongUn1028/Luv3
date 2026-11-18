@@ -11,7 +11,7 @@ import { catchLoadError } from "@/lib/load";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { getTodos, TodoLoadError } from "@/lib/todos/queries";
 
-export const metadata: Metadata = { title: "Todo · Luv3" };
+export const metadata: Metadata = { title: "하고 싶은 것 · Luv3" };
 
 /** 탭을 오갈 때 받은 지 이 시간(초)이 안 됐으면 서버에 다시 묻지 않는다(#405). `STALE_AFTER_MS`와 같아야 한다. 저장·지우기 뒤의 router.refresh()는 받아 둔 화면을 비운다 */
 export const unstable_dynamicStaleTime = 30;
@@ -28,7 +28,7 @@ const TodosContent = async () => {
 const TodosPage = () => (
   <TabScreen
     tab="todos"
-    title="Todo"
+    title="하고 싶은 것"
     actions={
       <ScreenHeaderLink href={`${TODOS_PATH}/new`} label="하고 싶은 것 추가">
         <PlusIcon className="size-6" />

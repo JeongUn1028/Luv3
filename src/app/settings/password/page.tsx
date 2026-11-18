@@ -5,7 +5,7 @@ import { PasswordForm } from "@/components/settings/PasswordForm";
 import { getCurrentEmail, getCurrentMember } from "@/lib/auth/member";
 import { SETTINGS_PATH } from "@/lib/auth/paths";
 
-export const metadata: Metadata = { title: "비밀번호 변경 · Luv3" };
+export const metadata: Metadata = { title: "비밀번호 바꾸기 · Luv3" };
 
 const PasswordFormSection = async () => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
@@ -17,7 +17,7 @@ const PasswordFormSection = async () => {
 
 const PasswordPage = () => (
   // 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <LoadingSuspense fallback={<FormSkeleton back={{ href: SETTINGS_PATH }} title="비밀번호 변경" fieldCount={3} />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: SETTINGS_PATH }} title="비밀번호 바꾸기" fieldCount={3} />}>
     <PasswordFormSection />
   </LoadingSuspense>
 );

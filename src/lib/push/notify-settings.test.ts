@@ -23,11 +23,11 @@ describe("toPushNotifySettings", () => {
 });
 
 describe("PUSH_NOTIFY_SWITCHES", () => {
-  it("시안 4번 A 순서로 새 기록·댓글·새 일정 스위치를 두고, 그 다음에 할 일 스위치를 둔다", () => {
+  it("시안 4번 A 순서로 새 기록·댓글·새 일정 스위치를 두고, 그 다음에 하고 싶은 것 스위치를 둔다", () => {
     // Act
     const switches = PUSH_NOTIFY_SWITCHES.map(({ kind, label }) => `${kind}:${label}`);
 
     // Assert
-    expect(switches).toEqual(["record:새 기록", "comment:댓글", "event:새 일정", "todo:할 일"]);
+    expect(switches).toEqual(["record:새 기록", "comment:댓글", "event:새 일정", "todo:하고 싶은 것"]);
   });
 });

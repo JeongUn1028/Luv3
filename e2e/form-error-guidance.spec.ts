@@ -192,7 +192,7 @@ test.describe("지난 실패 문구는 다른 화면에 다녀오면 지운다",
       await page.unroute("**/rest/v1/comments*");
 
       // Act: 고치기 화면에 다녀온다(상세에는 하단 탭이 없다)
-      await page.getByRole("link", { name: "수정" }).locator("visible=true").click();
+      await page.getByRole("link", { name: "고치기" }).locator("visible=true").click();
       await page.waitForURL(`**/dates/${recordId}/edit`);
       await page.goBack();
       await page.waitForURL(`**/dates/${recordId}`);
@@ -261,7 +261,7 @@ test.describe("띄어쓰기 없는 긴 글자", () => {
       await openScreen(page, `/todos/${id}/edit`, page.locator("#todo-content").locator("visible=true"));
 
       // Act
-      await page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true").click();
+      await page.getByRole("button", { name: "지우기", exact: true }).locator("visible=true").click();
       const dialog = page.getByRole("dialog", { name: "이 항목을 지울까요?" });
       await expect(dialog).toBeVisible();
 

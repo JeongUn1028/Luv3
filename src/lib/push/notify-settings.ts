@@ -18,7 +18,7 @@ export const PUSH_NOTIFY_SWITCHES: readonly { kind: PartnerPushKind; label: stri
   { kind: "record", label: "새 기록" },
   { kind: "comment", label: "댓글" },
   { kind: "event", label: "새 일정" },
-  { kind: "todo", label: "할 일" },
+  { kind: "todo", label: "하고 싶은 것" },
 ];
 
 /**

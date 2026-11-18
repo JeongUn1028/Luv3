@@ -7,7 +7,7 @@ import { expect, openScreen, test } from "./support/test";
 import { getSubmitButton } from "./support/actions";
 import { createTestName } from "./support/names";
 
-const getDeleteButton = (page: Page): Locator => page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true");
+const getDeleteButton = (page: Page): Locator => page.getByRole("button", { name: "지우기", exact: true }).locator("visible=true");
 
 /** 이 뒤로 나가는 할 일 삭제 요청을 모은다. 창이 닫힌 것만으로는 삭제가 눌렸는지 알 수 없다 */
 const trackTodoDeletes = (page: Page): string[] => {
@@ -44,8 +44,8 @@ test.describe("움직임을 켠 기기에서", () => {
       // Assert
       await expect.poll(() => readAnimations(page)).toEqual(expect.arrayContaining(["modal-sheet-in", "modal-backdrop-in"]));
 
-      // Arrange: 닫기를 누른 뒤 곧바로 "삭제"를 누를 자리
-      const confirmBox = await dialog.getByRole("button", { name: "삭제" }).boundingBox();
+      // Arrange: 닫기를 누른 뒤 곧바로 "지우기"를 누를 자리
+      const confirmBox = await dialog.getByRole("button", { name: "지우기" }).boundingBox();
       if (!confirmBox) throw new Error("삭제 버튼이 보이지 않습니다");
 
       // Act: 취소 직후 삭제 자리를 누른다
@@ -87,7 +87,7 @@ test.describe("움직임을 켠 기기에서", () => {
       await getDeleteButton(page).click();
       const dialog = page.getByRole("dialog", { name: "이 항목을 지울까요?" });
       await expect(dialog).toBeVisible();
-      await dialog.getByRole("button", { name: "삭제" }).focus();
+      await dialog.getByRole("button", { name: "지우기" }).focus();
 
       // Act: 화면이 다시 그려지기 전에 두 키가 닿게 기다리지 않고 함께 보낸다
       await Promise.all([page.keyboard.press("Escape"), page.keyboard.press("Enter")]);

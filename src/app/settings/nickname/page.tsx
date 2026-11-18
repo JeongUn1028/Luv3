@@ -5,7 +5,7 @@ import { NicknameForm } from "@/components/settings/NicknameForm";
 import { getCurrentMember } from "@/lib/auth/member";
 import { SETTINGS_PATH } from "@/lib/auth/paths";
 
-export const metadata: Metadata = { title: "닉네임 변경 · Luv3" };
+export const metadata: Metadata = { title: "닉네임 바꾸기 · Luv3" };
 
 const NicknameFormSection = async () => {
   const { id, nickname } = await getCurrentMember();
@@ -15,7 +15,7 @@ const NicknameFormSection = async () => {
 
 const NicknamePage = () => (
   // 세션은 요청 때만 알 수 있어 Suspense 안에서 읽는다(cacheComponents)
-  <LoadingSuspense fallback={<FormSkeleton back={{ href: SETTINGS_PATH }} title="닉네임 변경" fieldCount={1} />}>
+  <LoadingSuspense fallback={<FormSkeleton back={{ href: SETTINGS_PATH }} title="닉네임 바꾸기" fieldCount={1} />}>
     <NicknameFormSection />
   </LoadingSuspense>
 );

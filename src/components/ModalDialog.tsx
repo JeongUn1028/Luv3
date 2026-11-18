@@ -48,9 +48,9 @@ interface ModalDialogProps {
  *
  * @example
  * const modalRef = useRef<ModalDialogHandle>(null);
- * <button type="button" onClick={() => modalRef.current?.open()}>삭제</button>
+ * <button type="button" onClick={() => modalRef.current?.open()}>지우기</button>
  * <ModalDialog ref={modalRef} title="이 기록을 지울까요?" description="되돌릴 수 없어요.">
- *   <ModalActions cancelLabel="취소" onCancel={() => modalRef.current?.close()} confirmLabel="삭제" onConfirm={handleConfirm} />
+ *   <ModalActions cancelLabel="취소" onCancel={() => modalRef.current?.close()} confirmLabel="지우기" onConfirm={handleConfirm} />
  * </ModalDialog>
  */
 export const ModalDialog = ({

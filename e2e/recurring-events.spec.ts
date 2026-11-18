@@ -275,10 +275,10 @@ test.describe("반복 일정 폼", () => {
     try {
       // Act
       await openScreen(page, `/events/${id}/edit?date=2040-03-14`, page.locator("#event-title"));
-      await page.getByRole("button", { name: "삭제" }).click();
+      await page.getByRole("button", { name: "지우기" }).click();
       await expect(page.getByRole("dialog")).toContainText("3월 14일 수요일 하루만");
       const deleted = waitForDeleteResponse(page, "event_exceptions");
-      await page.getByRole("dialog").getByRole("button", { name: "삭제" }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "지우기" }).click();
       await page.waitForURL(/\/calendar/);
       await deleted;
 
@@ -307,10 +307,10 @@ test.describe("반복 일정 폼", () => {
       // Act
       await openScreen(page, `/events/${id}/edit?date=2041-03-13`, page.locator("#event-title"));
       await page.getByText("전체", { exact: true }).click();
-      await page.getByRole("button", { name: "삭제" }).click();
+      await page.getByRole("button", { name: "지우기" }).click();
       await expect(page.getByRole("dialog")).toContainText("따로 고친 날도 함께");
       const deleted = waitForDeleteResponse(page, "events");
-      await page.getByRole("dialog").getByRole("button", { name: "삭제" }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "지우기" }).click();
       await page.waitForURL(/\/calendar/);
       await deleted;
 
@@ -350,9 +350,9 @@ test.describe("반복 일정 폼", () => {
       await openEventEditFromCalendar(page, getRow(page, title).first(), "click");
       await page.locator("#event-title").locator("visible=true").waitFor();
       await page.getByText("전체", { exact: true }).locator("visible=true").click();
-      await page.getByRole("button", { name: "삭제" }).locator("visible=true").click();
+      await page.getByRole("button", { name: "지우기" }).locator("visible=true").click();
       const deleted = waitForDeleteResponse(page, "events");
-      await page.getByRole("dialog").getByRole("button", { name: "삭제" }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "지우기" }).click();
       await page.waitForURL(/\/calendar/);
       await deleted;
 
@@ -398,9 +398,9 @@ test.describe("반복 일정 폼", () => {
       await deleteEventById(id);
 
       // Act
-      await page.getByRole("button", { name: "삭제" }).click();
+      await page.getByRole("button", { name: "지우기" }).click();
       const deleted = waitForDeleteResponse(page, "event_exceptions");
-      await page.getByRole("dialog").getByRole("button", { name: "삭제" }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "지우기" }).click();
 
       // Assert: 지우기를 기다리지 않고 캘린더로 돌아가고(#346), 끝나도 지우지 못했다고 하지 않는다
       await page.waitForURL(/\/calendar/);
@@ -422,8 +422,8 @@ test.describe("반복 일정 폼", () => {
       await stopEventRepeat(id);
 
       // Act
-      await page.getByRole("button", { name: "삭제" }).click();
-      await page.getByRole("dialog").getByRole("button", { name: "삭제" }).click();
+      await page.getByRole("button", { name: "지우기" }).click();
+      await page.getByRole("dialog").getByRole("button", { name: "지우기" }).click();
 
       // Assert: 지우기를 기다리지 않고 캘린더로 돌아가므로(#346) 캘린더 위쪽 알림이 알린다
       await page.waitForURL(/\/calendar/);
