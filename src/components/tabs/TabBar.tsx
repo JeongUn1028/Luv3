@@ -7,6 +7,7 @@ import { HOME_PATH } from "@/lib/auth/paths";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { scrollAreaToTop } from "@/lib/navigation/scroll-memory";
+import { refreshTab } from "@/lib/navigation/tab-refresh";
 import { TAB_TRANSITION } from "@/lib/navigation/transition";
 import { TODOS_PATH } from "@/lib/todos/list";
 
@@ -61,10 +62,15 @@ interface TabBarProps {
   current: MainTab;
 }
 
-/** 지금 탭을 다시 누르면 맨 위로 올린다. 다른 달을 보던 캘린더처럼 주소가 다르면 이동도 그대로 한다 */
+/**
+ * 지금 탭을 다시 누르면 맨 위로 올리고, 이미 맨 위였으면 새로 받는다(#351). 상대가 방금 바꾼 것을 볼 수 있게 한다.
+ * 다른 달을 보던 캘린더처럼 주소가 다르면 이동도 그대로 한다. 옮기면 서버에서 받으므로 따로 새로 받지 않는다
+ */
 const handleCurrentTabClick = (event: MouseEvent<HTMLAnchorElement>, tab: MainTab, href: string) => {
-  scrollAreaToTop(tab);
-  if (`${window.location.pathname}${window.location.search}` === href) event.preventDefault();
+  const wasAtTop = scrollAreaToTop(tab);
+  if (`${window.location.pathname}${window.location.search}` !== href) return;
+  event.preventDefault();
+  if (wasAtTop) refreshTab(tab);
 };
 
 /**
