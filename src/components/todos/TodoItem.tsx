@@ -7,6 +7,7 @@ import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { TODOS_PATH, type Todo } from "@/lib/todos/list";
 import type { ShownTodo } from "@/lib/todos/pending";
+import type { StrikePhase } from "@/components/todos/use-todo-motion";
 
 /**
  * 항목의 완료 체크 id. 다른 목록으로 옮겨 그린 뒤 초점을 돌려줄 때 찾는다.
@@ -45,29 +46,46 @@ export const TodoMoveButtons = ({ content, isFirst, isLast, onMove }: TodoMoveBu
 interface TodoItemProps {
   todo: ShownTodo;
   onToggle: (todo: Todo, isCompleted: boolean) => void;
+  /** 폼에서 막 더한 항목이면 잠깐 표시한다(#347) */
+  isJustAdded?: boolean;
+  /** 완료를 눌러 제자리에서 줄을 긋는 중이면 그 단계. 체크된 채로 그린다(#347) */
+  strikePhase?: StrikePhase | undefined;
+  /** 방금 완료 칸으로 옮겨 나타나는 중인지 */
+  isArriving?: boolean;
   /** 오른쪽 끝 버튼(순서 바꾸기). 완료한 항목에는 없다 */
   children?: ReactElement;
 }
+
+const toMotionClassName = ({ isJustAdded, strikePhase, isArriving }: Pick<TodoItemProps, "isJustAdded" | "strikePhase" | "isArriving">): string => {
+  if (strikePhase === "leaving") return "todo-leave";
+  if (isArriving) return "todo-arrive";
+  return isJustAdded ? "todo-just-added" : "";
+};
 
 /** 저장 중인 항목은 고치기 화면을 열지 않는다. 새 항목은 아직 서버에 없어 찾을 수 없다고 나온다 */
 const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDefault();
 
 /**
  * 목록 한 줄: 완료 체크 + 내용(누르면 고치기 화면) + 순서 버튼. 저장 중이면 흐리게 그리고 누를 수 없게 한다.
+ * 움직임(막 더함 표시·줄긋기·나타남)은 `globals.css`의 `todo-*` 클래스다.
  *
  * @example <TodoItem todo={todo} onToggle={handleToggle} />
  */
-export const TodoItem = ({ todo, onToggle, children }: TodoItemProps): ReactElement => {
+export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isArriving = false, children }: TodoItemProps): ReactElement => {
   const isCompleted = todo.completedAt !== undefined;
+  const isStriking = strikePhase !== undefined;
   const { isPending } = todo;
-  const textColorClassName = isCompleted || isPending ? "text-ink-sub" : "text-ink";
+  const textColorClassName = isCompleted || isPending || isStriking ? "text-ink-sub" : "text-ink";
   return (
-    <li className="flex min-h-[60px] items-center border-b border-line">
+    <li
+      data-just-added={isJustAdded || undefined}
+      className={`flex min-h-[60px] items-center border-b border-line ${toMotionClassName({ isJustAdded, strikePhase, isArriving })}`}
+    >
       <label className="flex size-11 shrink-0 cursor-pointer items-center justify-center">
         <input
           id={toCheckboxId(todo.id)}
           type="checkbox"
-          checked={isCompleted}
+          checked={isCompleted || isStriking}
           disabled={isPending}
           aria-label={`${todo.content} 완료`}
           onChange={(event) => onToggle(todo, event.target.checked)}
@@ -81,7 +99,7 @@ export const TodoItem = ({ todo, onToggle, children }: TodoItemProps): ReactElem
         onClick={isPending ? preventOpening : undefined}
         className={`min-w-0 flex-1 py-3 pr-2 text-[15px] leading-[1.5] break-words ${textColorClassName} ${isCompleted ? "line-through" : ""} ${SETTLE_TRANSITION_CLASS_NAME}`}
       >
-        {todo.content}
+        {isStriking ? <span className="todo-strike">{todo.content}</span> : todo.content}
         {isPending && <span className="sr-only"> (저장 중)</span>}
       </Link>
       {children}

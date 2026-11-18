@@ -10,6 +10,7 @@ import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { showInvalidFields } from "@/lib/focus-invalid-field";
 import { clearError, isResolvedFieldNotice } from "@/lib/form";
+import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
@@ -82,6 +83,8 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
     pendingTodoStore.add({ id: pendingId, content: savedContent, revision, previousRevisions: todoId ? expectedRevisions : [], isNew: !todoId });
     // 인터넷이 끊겨 폼에 남으면 목록에 먼저 보여 줄 일이 없다(저장은 실패한다)
     if (!beginSave({ returnTo: TODOS_PATH })) pendingTodoStore.discard(pendingId, revision);
+    // 새 항목은 목록이 그 줄로 스크롤해 보여 준다(#347). 기억한 자리로 되돌리기가 그 스크롤을 덮지 않게 지운다
+    else if (!todoId) forgetScrollPosition("todos");
     const failure = await saveTodo({ todos: createClient().from("todos"), content: savedContent, todoId, newTodoId: saveId, expectedRevisions, revision });
     if (failure) {
       pendingTodoStore.discard(pendingId, revision);

@@ -480,3 +480,60 @@ input[type="time"] {
     opacity: 0.2;
   }
 }
+
+/*
+  할 일 움직임(#347, 시안 https://claude.ai/artifact/7MEgeUqV1jzPG23Mf2udqF).
+  막 더한 항목은 옅은 분홍(작성자 이름표와 같은 16%)이 잠깐 머문 뒤 사라진다. 자리는 그대로고 색만 바뀌어 "동작 줄이기"에서도 보여 준다.
+*/
+.todo-just-added {
+  animation: todo-just-added 1.8s ease-out both;
+}
+
+@keyframes todo-just-added {
+  0%,
+  35% {
+    background-color: color-mix(in srgb, var(--color-highlight) 16%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+/* 완료 줄긋기는 "동작 줄이기"가 꺼져 있을 때만 쓴다(use-todo-motion.ts). 여러 줄이면 줄마다 긋는다 */
+.todo-strike {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 0 55%;
+  background-size: 100% 1.5px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  animation: todo-strike 300ms ease-out both;
+}
+
+@keyframes todo-strike {
+  from {
+    background-size: 0% 1.5px;
+  }
+}
+
+.todo-leave {
+  animation: todo-leave 250ms ease-in both;
+}
+
+@keyframes todo-leave {
+  to {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.todo-arrive {
+  animation: todo-arrive 250ms ease-out both;
+}
+
+@keyframes todo-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
