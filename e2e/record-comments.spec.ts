@@ -313,7 +313,7 @@ test.describe("기록 댓글", () => {
       await page.waitForLoadState("networkidle");
 
       // Act: 받은 지 30초가 안 돼 돌아와도 다시 받지 않는 사이에 다녀온다
-      await page.getByRole("link", { name: "수정" }).locator("visible=true").click();
+      await page.getByRole("link", { name: "고치기" }).locator("visible=true").click();
       await page.waitForURL(`**/dates/${recordId}/edit`);
       await page.goBack();
       await page.waitForURL(`**/dates/${recordId}`);
