@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore, type MouseEvent, type ReactElement } from "react";
 import { useGridHolidayNames } from "@/components/date-picker/use-grid-holiday-names";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
-import { getHighlightClassNames, LEGEND_EVENT_KINDS } from "@/lib/calendar/highlight";
+import { CALENDAR_LEGEND, getHighlightClassNames } from "@/lib/calendar/highlight";
 import { loadCalendarMonth } from "@/lib/calendar/load-month";
 import { buildMonthGrid, formatMonthTitle, getDefaultSelectedDate, groupByDate, parseMonth, shiftMonth, toCalendarHref } from "@/lib/calendar/month";
 import { createMonthCache, getAdjacentMonths, type MonthCache, type MonthState } from "@/lib/calendar/month-cache";
@@ -123,7 +123,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
   // 지우기를 확인하고 돌아온 일정·기록은 응답을 기다리지 않고 숨긴다(#346)
   const deletingKeys = useDeletingKeys();
   const eventsByDate = groupByDate(mergePendingEvents(shownEvents, pendingEvents).filter((event) => !isDeletingEvent(deletingKeys, event)));
-  // 일정에 이어진 기록은 일정 줄의 "기록 보기"로 열므로 기록 줄·점에서 뺀다(#228)
+  // 일정에 이어진 기록은 일정 줄의 "기록 보기"로 열므로 기록 줄에서 뺀다(#228)
   const recordsByDate = new Map(
     Array.from(groupByDate(omitDeleting(shownRecords, deletingKeys, DELETING_KEYS.record)), ([date, dayRecords]) => [
       date,
@@ -191,17 +191,13 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
           <span aria-hidden="true" className="size-2 rounded-full ring-1 ring-highlight" />
           기념일
         </span>
-        <span className="flex items-center gap-1">
-          <span aria-hidden="true" className="size-1.5 rounded-full bg-ink-sub" />
-          데이트 기록
-        </span>
-        {LEGEND_EVENT_KINDS.map(({ highlight, label }) => (
+        {CALENDAR_LEGEND.map(({ highlight, label }) => (
           <span key={highlight} className="flex items-center gap-1">
             <span
               aria-hidden="true"
               className={`h-2 w-3.5 -rotate-2 rounded-[2px] ${getHighlightClassNames({ highlight, isCurrentMonth: true }).band}`}
             />
-            {label} 일정
+            {label}
           </span>
         ))}
       </p>

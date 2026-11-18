@@ -35,7 +35,7 @@ interface MonthGridProps {
 }
 
 /**
- * 월 달력 표. 날마다 일정 형광펜 띠, 기념일·공휴일·오늘 표시, 기록 점을 그리고 누르면 그날을 고른다.
+ * 월 달력 표. 날마다 일정·기록 형광펜 띠, 기념일·공휴일·오늘 표시를 그리고 누르면 그날을 고른다.
  *
  * @example <MonthGrid month="2026-11" today="2026-11-16" selectedDate={selectedDate} eventsByDate={eventsByDate} recordsByDate={recordsByDate} holidayNames={holidayNames} onSelectDate={setSelectedDate} />
  */
@@ -60,7 +60,7 @@ export const MonthGrid = ({ month, today, selectedDate, eventsByDate, recordsByD
             const isToday = date === today;
             const anniversary = getAnniversaryLabel(ANNIVERSARY_DATE, date);
             const holidayName = holidayNames[date];
-            const highlight = getDayHighlight(dayEvents);
+            const highlight = getDayHighlight({ events: dayEvents, hasRecord: recordCount > 0 });
             const highlightClassNames = highlight && getHighlightClassNames({ highlight, isCurrentMonth });
             const summary = [...describeDayEvents(dayEvents), recordCount > 0 && `기록 ${recordCount}개`].filter(Boolean);
             return (
@@ -86,9 +86,6 @@ export const MonthGrid = ({ month, today, selectedDate, eventsByDate, recordsByD
                     })}`}
                   >
                     {day}
-                  </span>
-                  <span aria-hidden="true" className="flex h-1.5 gap-1">
-                    {recordCount > 0 && <span className="calendar-mark-in size-1.5 rounded-full bg-ink-sub" />}
                   </span>
                 </button>
               </td>

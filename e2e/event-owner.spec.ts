@@ -40,8 +40,8 @@ test.describe("일정 주인 이름", () => {
     await openScreen(page, CALENDAR_PATH, page.locator('button[aria-pressed="true"]'));
 
     // Assert
-    const legend = page.locator("main p").filter({ hasText: "데이트 기록" }).locator("visible=true");
-    await expect(legend).toContainText("함께 일정");
+    const legend = page.locator("main p").filter({ hasText: "기념일" }).locator("visible=true");
+    await expect(legend).toContainText("함께 일정·기록");
     await expect(legend).toContainText("개인 일정");
     await expect(legend).not.toContainText(`${E2E_MEMBER.nickname} 일정`);
   });

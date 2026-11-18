@@ -1,7 +1,7 @@
 import { toOwnerLabel, type CalendarEvent } from "@/lib/events/calendar";
 import { getWeekday } from "./month";
 
-/** 일정 있는 날에 칠하는 형광펜 종류. 함께 일정은 분홍, 한 사람 일정만 있으면 크림색 */
+/** 일정·기록 있는 날에 칠하는 형광펜 종류. 함께 일정이나 기록이 있으면 분홍, 한 사람 일정만 있으면 크림색 */
 export type DayHighlight = "together" | "personal";
 
 type EventKind = Pick<CalendarEvent, "isTogether">;
@@ -22,23 +22,33 @@ export const getEventKinds = (personalLabel: string): EventKindOption[] => [
   { isTogether: false, highlight: "personal", label: personalLabel },
 ];
 
-/**
- * 캘린더 범례의 일정 종류. 크림색은 두 사람 일정에 모두 칠해지므로 닉네임 대신 종류 이름을 쓴다.
- * 누구 일정인지는 고른 날 목록의 작성자 이름으로 알 수 있다.
- *
- * @example LEGEND_EVENT_KINDS.map(({ label }) => `${label} 일정`) // ["함께 일정", "개인 일정"]
- */
-export const LEGEND_EVENT_KINDS: readonly EventKindOption[] = getEventKinds("개인");
+/** 캘린더 범례 한 칸 */
+export interface CalendarLegendItem {
+  highlight: DayHighlight;
+  label: string;
+}
 
 /**
- * 그날 일정으로 형광펜 종류를 정한다. 함께 일정이 하나라도 있으면 함께 형광펜이다.
+ * 캘린더 범례의 형광펜. 분홍은 함께 일정과 일정 없이 남긴 기록에 함께 칠하므로 "함께 일정·기록"이다(#461).
+ * 크림색은 두 사람 일정에 모두 칠해지므로 닉네임 대신 종류 이름을 쓰고, 누구 일정인지는 고른 날 목록의 작성자 이름으로 안다.
  *
- * @returns 일정이 없으면 undefined
- * @example getDayHighlight(eventsByDate.get(date) ?? []) // "together"
+ * @example CALENDAR_LEGEND[0].label // "함께 일정·기록"
  */
-export const getDayHighlight = (events: EventKind[]): DayHighlight | undefined => {
-  if (events.length === 0) return undefined;
-  return events.some((event) => event.isTogether) ? "together" : "personal";
+export const CALENDAR_LEGEND: readonly CalendarLegendItem[] = [
+  { highlight: "together", label: "함께 일정·기록" },
+  { highlight: "personal", label: "개인 일정" },
+];
+
+/**
+ * 그날 일정과 기록으로 형광펜 종류를 정한다. 데이트 기록은 언제나 둘이 함께한 일이라, 함께 일정이나 기록이 하나라도 있으면 분홍이다(#461).
+ * 일정에 이어진 기록은 미리 빼고 넘겨도 그 일정이 함께 일정이라 결과가 같다.
+ *
+ * @returns 일정도 기록도 없으면 undefined
+ * @example getDayHighlight({ events: eventsByDate.get(date) ?? [], hasRecord: recordCount > 0 }) // "together"
+ */
+export const getDayHighlight = ({ events, hasRecord }: { events: EventKind[]; hasRecord: boolean }): DayHighlight | undefined => {
+  if (hasRecord || events.some((event) => event.isTogether)) return "together";
+  return events.length > 0 ? "personal" : undefined;
 };
 
 /**
