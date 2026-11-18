@@ -65,9 +65,11 @@ const toHoliday = (item: unknown): Holiday => {
  */
 export const parseRestDeInfo = (body: unknown): Holiday[] => {
   const response = isObject(body) ? body.response : undefined;
-  if (!isObject(response) || !isObject(response.header) || !isObject(response.body)) throw new HolidayLoadError();
+  if (!isObject(response) || !isObject(response.header)) throw new HolidayLoadError();
+  // 오류 답에는 body가 없을 수 있어 결과 코드를 먼저 읽는다. 서버 로그에서 한도 초과(22) 등을 가려낸다
   const resultCode = response.header.resultCode;
   if (resultCode !== "00") throw new HolidayLoadError({ resultCode: typeof resultCode === "string" ? resultCode : undefined });
+  if (!isObject(response.body)) throw new HolidayLoadError();
 
   const { items, totalCount } = response.body;
   if (items !== "" && !isObject(items)) throw new HolidayLoadError();
