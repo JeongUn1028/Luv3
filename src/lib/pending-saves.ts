@@ -88,6 +88,7 @@ export const createPendingSaveStore = <Pending extends PendingSave>(): PendingSa
       const earlier = pendingSaves.find(({ id }) => id === pending.id);
       const previousRevisions = earlier ? [...pending.previousRevisions, earlier.revision, ...earlier.previousRevisions] : pending.previousRevisions;
       // Omit<Pending, "isSaved">에 isSaved를 더하면 Pending이지만 TypeScript는 제네릭이라 알아보지 못한다
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- 위 이유로 단언 말고는 Pending으로 만들 수 없다
       const added = { ...pending, previousRevisions, isSaved: false } as Pending;
       update([...pendingSaves.filter(({ id }) => id !== pending.id), added]);
     },

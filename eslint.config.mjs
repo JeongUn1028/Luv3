@@ -16,6 +16,33 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  {
+    // 팀 규칙(company 컨벤션 typescript.md·react.md)을 린트로 지킨다(#359)
+    files: ["**/*.{ts,tsx,mts}"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-non-null-assertion": "error",
+      // as보다 타입 가드를 쓴다. 객체 리터럴에 붙인 단언은 빠진 칸을 숨기므로 막는다
+      "@typescript-eslint/consistent-type-assertions": ["error", { assertionStyle: "as", objectLiteralTypeAssertions: "never" }],
+      "react/function-component-definition": ["error", { namedComponents: "arrow-function", unnamedComponents: "arrow-function" }],
+      "import/no-default-export": "error",
+    },
+  },
+  {
+    // Next가 default export로 읽는 화면·메타데이터 파일과 도구 설정 파일만 예외다
+    files: [
+      "src/app/**/{page,layout,not-found,forbidden,unauthorized,error,global-error,loading,template,default}.{ts,tsx}",
+      "src/app/**/{manifest,robots,sitemap,icon,apple-icon,opengraph-image,twitter-image}.{ts,tsx}",
+      "*.config.{ts,mts,mjs}",
+      "e2e/global-setup.ts",
+    ],
+    rules: { "import/no-default-export": "off" },
+  },
+  {
+    // 테스트의 가짜 객체는 필요한 칸만 채워 단언한다
+    files: ["**/*.test.{ts,tsx}", "e2e/**/*.ts"],
+    rules: { "@typescript-eslint/consistent-type-assertions": ["error", { assertionStyle: "as", objectLiteralTypeAssertions: "allow" }] },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
