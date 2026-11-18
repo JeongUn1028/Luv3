@@ -4,7 +4,7 @@ import { LoadErrorScreen } from "@/components/LoadErrorScreen";
 import { StatusLink, StatusScreen } from "@/components/StatusScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { TodoForm } from "@/components/todos/TodoForm";
-import { getCurrentMember } from "@/lib/auth/member";
+import { withCurrentMember } from "@/lib/auth/with-member";
 import { catchLoadError } from "@/lib/load";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { getTodo, TodoLoadError } from "@/lib/todos/queries";
@@ -12,11 +12,10 @@ import { getTodo, TodoLoadError } from "@/lib/todos/queries";
 export const metadata: Metadata = { title: "하고 싶은 것 고치기 · Luv3" };
 
 const EditTodoForm = async ({ params }: { params: Promise<{ id: string }> }) => {
-  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  await getCurrentMember();
   const { id } = await params;
 
-  const todo = await catchLoadError(() => getTodo(id), TodoLoadError);
+  // 허용목록 확인과 함께 시작하고, 허용목록 밖 계정은 로그아웃 처리 경로로 보낸다
+  const [, todo] = await withCurrentMember(() => catchLoadError(() => getTodo(id), TodoLoadError));
 
   if (todo instanceof TodoLoadError) {
     return <LoadErrorScreen title="항목을 불러오지 못했어요" backHref={TODOS_PATH} backLabel="목록으로" />;

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { connection } from "next/server";
 import type { ReactElement } from "react";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
@@ -7,7 +8,7 @@ import { PageShell } from "@/components/PageShell";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { SignedPhoto } from "@/components/SignedPhoto";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
-import { getCurrentMember } from "@/lib/auth/member";
+import { withCurrentMember } from "@/lib/auth/with-member";
 import { SETTINGS_PATH } from "@/lib/auth/paths";
 import { catchLoadError } from "@/lib/load";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
@@ -47,9 +48,10 @@ const TrashSectionGrid = ({ section }: { section: TrashSection }): ReactElement 
 );
 
 const TrashList = async () => {
-  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  await getCurrentMember();
-  const sections = await catchLoadError(() => getTrashSections(new Date()), TrashLoadError);
+  // 남은 날을 지금 시각으로 세므로, 시각을 읽기 전에 요청 때 그리는 칸임을 알린다(cacheComponents, #385)
+  await connection();
+  // 허용목록 확인과 함께 시작하고, 허용목록 밖 계정은 로그아웃 처리 경로로 보낸다
+  const [, sections] = await withCurrentMember(() => catchLoadError(() => getTrashSections(new Date()), TrashLoadError));
   if (sections instanceof TrashLoadError) return <LoadErrorMessage message={sections.message} />;
   if (sections.length === 0) {
     return <p className="py-12 text-center text-[15px] text-ink">휴지통이 비어 있어요</p>;

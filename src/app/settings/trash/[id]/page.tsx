@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { connection } from "next/server";
 import type { ReactNode } from "react";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
@@ -8,7 +9,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { SaveTrashPhotoButton } from "@/components/settings/SaveTrashPhotoButton";
 import { SignedPhoto } from "@/components/SignedPhoto";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
-import { getCurrentMember } from "@/lib/auth/member";
+import { withCurrentMember } from "@/lib/auth/with-member";
 import { SETTINGS_TRASH_PATH } from "@/lib/auth/paths";
 import { catchLoadError } from "@/lib/load";
 import { getTrashPhoto, TrashLoadError } from "@/lib/photos/trash-queries";
@@ -22,10 +23,11 @@ const TrashPhotoHeader = ({ center }: { center?: ReactNode }) => (
 );
 
 const TrashPhoto = async ({ params }: Pick<PageProps<"/settings/trash/[id]">, "params">) => {
-  // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다
-  await getCurrentMember();
   const { id } = await params;
-  const photo = await catchLoadError(() => getTrashPhoto(id, new Date()), TrashLoadError);
+  // 허용목록 확인과 함께 시작하고, 허용목록 밖 계정은 로그아웃 처리 경로로 보낸다
+  // 남은 날을 지금 시각으로 세므로, 시각을 읽기 전에 요청 때 그리는 칸임을 알린다(cacheComponents, #385)
+  await connection();
+  const [, photo] = await withCurrentMember(() => catchLoadError(() => getTrashPhoto(id, new Date()), TrashLoadError));
 
   if (photo instanceof TrashLoadError) {
     return (
