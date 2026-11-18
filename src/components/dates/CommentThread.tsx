@@ -1,17 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { startTransition, useOptimistic, useRef, useState, type ReactElement } from "react";
 import { AuthorTag } from "@/components/AuthorTag";
 import { CommentForm } from "@/components/dates/CommentForm";
 import { ModalActions } from "@/components/ModalActions";
 import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
-import { COMMENTS_HEADING_ID } from "@/lib/comments/comment";
-import { applyCommentAction, type ShownComment } from "@/lib/comments/thread";
+import { COMMENTS_HEADING_ID, toRecordComment, type CommentRow } from "@/lib/comments/comment";
+import { readRecordComments } from "@/lib/comments/read";
+import { createLatestReloader } from "@/lib/comments/reload";
+import { applyCommentAction, toShownComments, type CommentAction, type ShownComment } from "@/lib/comments/thread";
 import { deleteRowById } from "@/lib/delete-row";
-import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useLeavableDelete } from "@/lib/navigation/use-leavable-delete";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
+import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
 import { createClient } from "@/lib/supabase/client";
 
 const DELETE_FAILED_MESSAGE = "댓글을 지우지 못했어요. 잠시 후 다시 시도해 주세요.";
@@ -39,17 +40,41 @@ interface CommentThreadProps {
   comments: ShownComment[];
   /** 지금 로그인한 사람. 남기는 댓글에 먼저 붙일 이름표다 */
   memberNickname: string;
+  /** 지금 로그인한 사람의 id. 다시 읽은 댓글 중 지울 수 있는 것을 가린다 */
+  memberId: string;
 }
 
 /**
  * 댓글 제목·목록·입력 칸. 남기기와 지우기는 저장을 기다리지 않고 목록에 먼저 반영하고,
- * 저장이 끝나면 서버 목록으로 다시 맞춘다. 실패하면 먼저 바꾼 목록은 저절로 되돌아간다.
+ * 저장이 끝나면 댓글만 다시 읽어 맞춘다(#355). 실패하면 먼저 바꾼 목록은 저절로 되돌아간다.
  *
- * @example <CommentThread recordId={record.id} comments={shownComments} memberNickname={member.nickname} />
+ * @example <CommentThread recordId={record.id} comments={shownComments} memberNickname={member.nickname} memberId={member.id} />
  */
-export const CommentThread = ({ recordId, comments, memberNickname }: CommentThreadProps): ReactElement => {
-  const router = useRouter();
-  const [shownComments, applyOptimisticAction] = useOptimistic(comments, applyCommentAction);
+export const CommentThread = ({ recordId, comments, memberNickname, memberId }: CommentThreadProps): ReactElement => {
+  // 저장 뒤 다시 읽은 목록. 화면 전체를 새로 받아(다른 화면에서 저장, 알림 열기 등) 서버 목록이 바뀌면 그것으로 다시 시작한다
+  const [loaded, setLoaded] = useState({ from: comments, list: comments });
+  if (loaded.from !== comments) setLoaded({ from: comments, list: comments });
+  const baseComments = loaded.from === comments ? loaded.list : comments;
+  const [shownComments, applyOptimisticAction] = useOptimistic(baseComments, applyCommentAction);
+  // 화면 전체(회원 확인·기록·사진 서명·이을 일정)를 다시 받지 않고 댓글만 읽는다. 상대가 그사이 남긴 댓글도 함께 온다
+  // 요청할 때의 서버 목록을 함께 넘겨, 읽는 사이 화면 전체를 새로 받았으면 늦게 온 목록으로 덮지 않는다
+  const [reloadComments] = useState(() =>
+    createLatestReloader<CommentRow[], ShownComment[]>({
+      read: () => readRecordComments(createClient(), recordId),
+      onLoaded: (rows, from) => {
+        const list = toShownComments(
+          rows.map((row) => toRecordComment(row, memberId)),
+          new Date(),
+        );
+        startTransition(() => setLoaded((previous) => (previous.from === from ? { ...previous, list } : previous)));
+      },
+      // 목록에는 이미 반영해 두었다. 다른 화면에 다녀오면 이 화면도 새로 받아 상대 댓글과 서버 시각으로 맞춘다
+      onFailed: (error) => {
+        console.error(error);
+        markAllScreensStale();
+      },
+    }),
+  );
   const [deleteNotice, setDeleteNotice] = useState<string>();
   useResetOnHide(() => setDeleteNotice(undefined));
   const modalRef = useRef<ModalDialogHandle>(null);
@@ -58,6 +83,14 @@ export const CommentThread = ({ recordId, comments, memberNickname }: CommentThr
   const shouldFocusHeadingRef = useRef(false);
   const { beginDelete, finishDeleted, finishDeleteFailed } = useLeavableDelete({ noticeKey: `delete:comment:${recordId}`, subject: "댓글을" });
   const isSending = shownComments.some((comment) => comment.isSending);
+
+  // 저장이 끝난 동작을 목록에 남기고 댓글만 다시 읽는다. 다시 읽기가 실패해도 바꾼 목록이 되돌아가지 않는다. transition 안에서 부른다
+  const keepAction = (action: CommentAction) => {
+    setLoaded((previous) => ({ ...previous, list: applyCommentAction(previous.list, action) }));
+    void reloadComments(comments);
+  };
+
+  const handleSaved = (comment: ShownComment) => keepAction({ type: "add", comment: { ...comment, isSending: false } });
 
   const handleOpenDelete = (commentId: string) => {
     deletingIdRef.current = commentId;
@@ -85,8 +118,8 @@ export const CommentThread = ({ recordId, comments, memberNickname }: CommentThr
       }
       // 화면을 떠났으면 알림과 새로 받기는 도우미가 맡는다(#261)
       if (!finishDeleted()) return;
-      // await 뒤의 갱신은 다시 transition으로 감싸야 새 목록이 올 때까지 지운 댓글이 다시 보이지 않는다
-      refreshOutsideForm(() => startTransition(() => router.refresh()));
+      // await 뒤의 갱신은 다시 transition으로 감싸야 지운 댓글이 다시 보이지 않고 한 번에 바뀐다
+      startTransition(() => keepAction({ type: "remove", id: commentId }));
     });
     // 목록에서 먼저 빼는 것을 시작한 뒤 닫는다. 움직임 없이 바로 닫혀도 사라질 버튼으로 초점이 돌아가지 않게 한다
     modalRef.current?.close();
@@ -144,7 +177,13 @@ export const CommentThread = ({ recordId, comments, memberNickname }: CommentThr
           ))}
         </ul>
       )}
-      <CommentForm recordId={recordId} memberNickname={memberNickname} isSending={isSending} onOptimisticAction={applyOptimisticAction} />
+      <CommentForm
+        recordId={recordId}
+        memberNickname={memberNickname}
+        isSending={isSending}
+        onOptimisticAction={applyOptimisticAction}
+        onSaved={handleSaved}
+      />
       <ModalDialog ref={modalRef} title="이 댓글을 지울까요?" description="두 사람 화면에서 모두 지워지고 되돌릴 수 없어요." onClose={handleDialogClose}>
         <ModalActions cancelLabel="취소" onCancel={() => modalRef.current?.close()} confirmLabel="삭제" onConfirm={handleConfirmDelete} />
       </ModalDialog>
