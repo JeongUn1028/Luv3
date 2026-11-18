@@ -72,23 +72,30 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 
 지금 버전은 **1.2.0**이다(`package.json`의 `version`, [Releases](https://github.com/JeongUn1028/Luv3/releases)). 버전은 [SemVer](https://semver.org/lang/ko/)를 따르고 태그는 `v1.0.0`처럼 앞에 `v`를 붙인다. 1.0.0은 운영 중이던 `e55ff70`에 붙였다(#330). 그래서 그 커밋의 `package.json`에는 처음 값 `0.1.0`이 남아 있다.
 
-다음 버전은 PR마다 올리지 않고, 여러 PR을 묶어 릴리스할 때만 태그를 붙인다. 앞 태그 뒤로 머지된 PR을 보고 정한다.
+다음 버전은 PR마다 올리지 않고, 여러 PR을 묶어 릴리스할 때만 태그를 붙인다. 버전 계산과 태그·Release 만들기는 [release-please](https://github.com/googleapis/release-please)가 맡는다(#361, `.github/workflows/release-please.yml`, `release-please-config.json`, `.release-please-manifest.json`). PR 제목이 커밋 규칙을 따르고 squash 머지로 그대로 커밋 제목이 되므로 기계가 버전을 셀 수 있다.
 
 - `feat`가 하나라도 있으면 MINOR를 올린다(1.0.0 → 1.1.0)
 - `fix`·`perf`만 있으면 PATCH를 올린다(1.0.0 → 1.0.1)
+- `refactor`·`chore`·`docs`·`test` 같은 사용자에게 보이지 않는 변경만 있으면 릴리스 PR을 만들지 않는다(`revert`와 `!`를 붙인 호환이 깨지는 변경은 만든다). release-please는 노트를 GitHub 자동 목록으로 만들 때 커밋 종류로 거르지 않아, 워크플로가 먼저 앞 태그 뒤 커밋 제목을 보고 정한다(`scripts/release/gate.mts`)
 
 릴리스하는 법:
 
-1. 앞 태그 뒤로 들어간 것을 보고 다음 버전을 정한다: `git fetch --tags && git log --oneline v1.0.0..origin/main`(`v1.0.0` 자리에 마지막 태그)
-2. `package.json`의 `version`만 바꾸는 `chore` PR(예: `chore: 버전 1.1.0으로 올리기`)을 머지한다
-3. 그 머지 커밋이 운영에 배포됐는지 본다(GitHub에서 그 커밋의 `Vercel` 상태가 "Deployment has completed")
-4. 그 머지 커밋에 태그와 Release를 함께 만든다. 노트는 GitHub가 앞 Release 뒤로 머지된 PR 제목으로 만든다(CHANGELOG는 손으로 쓰지 않는다)
+1. main에 머지될 때마다 "릴리스 PR"(`chore: 버전 1.3.0으로 올리기`)이 저절로 만들어지거나 고쳐진다. 본문에 들어갈 PR 목록이 보인다. `package.json`의 `version`과 `.release-please-manifest.json`만 바꾼다
+2. 낼 때가 되면 그 PR을 **관리자 권한으로 머지**한다: `gh pr merge <번호> --squash --admin`(GitHub 화면은 "요건을 기다리지 않고 머지")
+   - 기본 토큰(`GITHUB_TOKEN`)으로 만든 PR에서는 다른 워크플로가 돌지 않아 필수 검사(CI·운영 DB 반영 확인)가 오지 않는다. 버전 숫자와 기록 파일만 바꾸므로 검사 없이 머지한다
+   - 워크플로가 PR을 만들거나 고칠 때마다 `package.json`의 `"version"` 줄과 `.release-please-manifest.json` 말고 바뀐 것이 없는지 확인한다(`scripts/release/check-pr.mts`). 이 확인은 PR의 검사가 아니라 main의 "릴리스 PR" 실행에 남으므로, 머지하기 전에 마지막 실행이 통과했는지와 `gh pr diff <번호> --name-only`가 두 파일뿐인지 본다
+   - main 보호의 "관리자에게도 적용(Do not allow bypassing)"이 꺼져 있어서 된다. 그것을 켜면 관리자 머지가 막히므로, 그때는 개인 토큰(PAT)을 저장소 비밀 값으로 두고 워크플로의 `token`에 넘겨 CI가 돌게 바꿔야 한다
+   - 저장소 설정 Actions > General의 "Allow GitHub Actions to create and approve pull requests"가 켜져 있어야 PR을 만들 수 있다
+3. 머지하면 같은 워크플로가 머지 커밋에 태그(`v1.3.0`)와 GitHub Release를 바로 만든다. 운영 배포가 끝나기를 기다리지 않는다(2026-11-18 결정, Vercel 배포는 보통 몇 분 안에 끝난다). 노트는 버전 제목 + GitHub 자동 목록(`## What's Changed`)이다(CHANGELOG는 만들지 않는다)
+4. 만든 Release의 노트 맨 위에 바뀐 것을 쉬운 글로 요약해 붙인다. 요약을 파일에 적고 아래를 실행하면 버전 제목과 자동 목록 사이에 넣는다(다시 실행하면 새 요약으로 바꾼다)
 
    ```bash
-   gh release create v1.1.0 --target <머지 커밋 전체 SHA> --title v1.1.0 --generate-notes
+   pnpm release:summary v1.3.0 <요약 파일>
    ```
 
-5. 만든 Release의 노트 맨 위(자동 목록 `## What's Changed` 앞)에 바뀐 것을 쉬운 글로 요약해 붙인다. 앱의 설정 > 앱 정보 > 업데이트 기록이 이 요약을 하루에 한 번 읽어 보여 준다(#434). `- **이름**: 글` 줄은 이름을 굵게 보여 주고, `## ` 제목 줄과 이슈 번호가 든 괄호(`(#123)`)는 빼고 보여 준다. 요약이 없으면 "적어 둔 요약이 없어요"로 보인다
+   앱의 설정 > 앱 정보 > 업데이트 기록이 이 요약을 하루에 한 번 읽어 보여 준다(#434). `- **이름**: 글` 줄은 이름을 굵게 보여 주고, `## ` 제목 줄과 이슈 번호가 든 괄호(`(#123)`)는 빼고 보여 준다. 요약이 없으면 "적어 둔 요약이 없어요"로 보인다
+
+1.2.0까지는 손으로 냈다(`package.json` 버전 PR → 운영 배포 확인 → `gh release create --generate-notes` → 요약). release-please는 `.release-please-manifest.json`의 값(1.2.0)과 태그 `v1.2.0`부터 센다.
 
 1.0.0 노트만은 `--generate-notes`를 쓰지 않았다. #295까지의 main 기록이 한 번 다시 쓰여 GitHub가 기억하는 그 PR들의 머지 커밋이 지금 기록에 없으므로, 자동 목록에 최근 17개만 나왔다. 그래서 커밋 제목의 PR 번호로 168개를 모두 뽑아 붙였다. 1.0.0 뒤로는 태그끼리 비교하므로 자동 목록을 그대로 쓰면 된다.
 

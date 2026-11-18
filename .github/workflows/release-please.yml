@@ -1,0 +1,46 @@
+name: 릴리스 PR
+
+# main에 머지될 때마다 "다음 버전 PR"을 만들거나 고치고, 그 PR을 머지하면 태그와 GitHub Release를 바로 만든다(#361, README "버전과 릴리스")
+on:
+  push:
+    branches: [main]
+
+# 머지가 이어져도 앞 실행을 끊지 않고 차례로 돈다. 끊으면 태그를 만들다 멈출 수 있다
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+# 개인 토큰 없이 기본 토큰으로 PR·태그·Release를 만든다. 저장소 설정
+# "Allow GitHub Actions to create and approve pull requests"가 켜져 있어야 PR을 만들 수 있다
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      # 앞 태그 뒤 커밋 제목을 읽으려고 기록과 태그를 모두 받는다
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      # 사용자에게 보이는 변경(feat·fix·perf·revert)이 없으면 릴리스 PR을 만들지 않는다. 머지된 릴리스 PR의 태그는 그대로 만든다
+      - id: gate
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/release/gate.mts
+      # v5.0.0
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7
+        id: release
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          skip-github-pull-request: ${{ steps.gate.outputs.skip-pull-request }}
+      # 기본 토큰으로 만든 PR에서는 CI가 돌지 않아 관리자 권한으로 머지한다. 그 전제(버전 숫자·기록 파일만 바뀜)를 여기서 확인한다
+      - if: steps.release.outputs.prs_created == 'true'
+        run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/release/check-pr.mts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_PR_NUMBER: ${{ fromJSON(steps.release.outputs.pr).number }}
