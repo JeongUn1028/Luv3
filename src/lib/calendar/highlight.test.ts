@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { blendColors, getContrastRatio, parseHexColor } from "@/test-utils/contrast";
 import { readSource } from "@/test-utils/source";
 import {
+  CALENDAR_LEGEND,
   describeDayEvents,
   getDayHighlight,
   getDayNumberClassName,
@@ -11,7 +12,6 @@ import {
   getEventKinds,
   getHighlightClassNames,
   getWeekdayClassName,
-  LEGEND_EVENT_KINDS,
   SELECTED_DAY_CELL_CLASS_NAME,
   type DayHighlight,
   type DayTone,
@@ -22,17 +22,25 @@ const personal = { isTogether: false, authorNickname: "정운" };
 const partnerPersonal = { isTogether: false, authorNickname: "진아" };
 
 describe("getDayHighlight", () => {
-  it("일정이 없으면 형광펜을 칠하지 않는다", () => {
-    expect(getDayHighlight([])).toBeUndefined();
+  it("일정도 기록도 없으면 형광펜을 칠하지 않는다", () => {
+    expect(getDayHighlight({ events: [], hasRecord: false })).toBeUndefined();
   });
 
   it("한 사람 일정만 있으면 크림색 형광펜을 칠한다", () => {
-    expect(getDayHighlight([personal, personal])).toBe("personal");
+    expect(getDayHighlight({ events: [personal, personal], hasRecord: false })).toBe("personal");
   });
 
   it("함께 일정이 하나라도 있으면 한 사람 일정과 겹쳐도 함께 형광펜(분홍)을 칠한다", () => {
-    expect(getDayHighlight([together])).toBe("together");
-    expect(getDayHighlight([personal, together])).toBe("together");
+    expect(getDayHighlight({ events: [together], hasRecord: false })).toBe("together");
+    expect(getDayHighlight({ events: [personal, together], hasRecord: false })).toBe("together");
+  });
+
+  it("일정 없이 남긴 기록만 있어도 함께한 날이라 분홍 형광펜을 칠한다(#461)", () => {
+    expect(getDayHighlight({ events: [], hasRecord: true })).toBe("together");
+  });
+
+  it("기록이 있는 날은 한 사람 일정과 겹쳐도 분홍 형광펜을 칠한다(#461)", () => {
+    expect(getDayHighlight({ events: [personal], hasRecord: true })).toBe("together");
   });
 });
 
@@ -60,15 +68,15 @@ describe("getEventKinds", () => {
       { isTogether: true, highlight: "together", label: "함께" },
       { isTogether: false, highlight: "personal", label: "정운" },
     ]);
-    for (const { isTogether, highlight } of kinds) expect(getDayHighlight([{ isTogether }])).toBe(highlight);
+    for (const { isTogether, highlight } of kinds) expect(getDayHighlight({ events: [{ isTogether }], hasRecord: false })).toBe(highlight);
   });
 });
 
-describe("LEGEND_EVENT_KINDS", () => {
-  it("한 사람 일정의 이름은 닉네임이 아니라 개인이다", () => {
-    expect(LEGEND_EVENT_KINDS).toEqual([
-      { isTogether: true, highlight: "together", label: "함께" },
-      { isTogether: false, highlight: "personal", label: "개인" },
+describe("CALENDAR_LEGEND", () => {
+  it("분홍 띠는 함께 일정과 기록을 함께 뜻하고, 크림색 띠는 닉네임이 아니라 개인 일정이라고 쓴다(#461)", () => {
+    expect(CALENDAR_LEGEND).toEqual([
+      { highlight: "together", label: "함께 일정·기록" },
+      { highlight: "personal", label: "개인 일정" },
     ]);
   });
 });

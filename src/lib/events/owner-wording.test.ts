@@ -8,9 +8,9 @@ describe("일정 주인 표시", () => {
     const wordingLines = sources.flatMap(({ at, lines }) =>
       lines.filter((line) => line.includes("개인")).map((line) => `${at}: ${line.trim()}`),
     );
-    const legendUsers = sources.filter(({ lines }) => lines.some((line) => line.includes("LEGEND_EVENT_KINDS"))).map(({ at }) => at);
+    const legendUsers = sources.filter(({ lines }) => lines.some((line) => line.includes("CALENDAR_LEGEND"))).map(({ at }) => at);
 
-    expect(wordingLines).toEqual(['lib/calendar/highlight.ts: export const LEGEND_EVENT_KINDS: readonly EventKindOption[] = getEventKinds("개인");']);
+    expect(wordingLines).toEqual(['lib/calendar/highlight.ts: { highlight: "personal", label: "개인 일정" },']);
     expect(legendUsers).toEqual(["components/calendar/CalendarView.tsx", "lib/calendar/highlight.ts"]);
   });
 
