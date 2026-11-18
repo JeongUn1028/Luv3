@@ -124,8 +124,10 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
   const deletingKeys = useDeletingKeys();
   const eventsByDate = groupByDate(mergePendingEvents(shownEvents, pendingEvents).filter((event) => !isDeletingEvent(deletingKeys, event)));
   // 일정에 이어진 기록은 일정 줄의 "기록 보기"로 열므로 기록 줄에서 뺀다(#228)
+  const allRecordsByDate = groupByDate(omitDeleting(shownRecords, deletingKeys, DELETING_KEYS.record));
+  const recordedDates = new Set(allRecordsByDate.keys());
   const recordsByDate = new Map(
-    Array.from(groupByDate(omitDeleting(shownRecords, deletingKeys, DELETING_KEYS.record)), ([date, dayRecords]) => [
+    Array.from(allRecordsByDate, ([date, dayRecords]) => [
       date,
       omitLinkedRecords(dayRecords, eventsByDate.get(date) ?? []),
     ]),
@@ -181,6 +183,7 @@ export const CalendarView = ({ month, today, requestedDate, events, records, hol
             selectedDate={selectedDate}
             eventsByDate={eventsByDate}
             recordsByDate={recordsByDate}
+            recordedDates={recordedDates}
             holidayNames={shownHolidayNames}
             onSelectDate={handleSelectDate}
           />

@@ -41,10 +41,10 @@ export const CALENDAR_LEGEND: readonly CalendarLegendItem[] = [
 
 /**
  * 그날 일정과 기록으로 형광펜 종류를 정한다. 데이트 기록은 언제나 둘이 함께한 일이라, 함께 일정이나 기록이 하나라도 있으면 분홍이다(#461).
- * 일정에 이어진 기록은 미리 빼고 넘겨도 그 일정이 함께 일정이라 결과가 같다.
+ * `hasRecord`는 일정에 이어진 기록도 센다. 이어진 일정을 나중에 한 사람 일정으로 바꿔도 기록이 있는 날은 분홍이다.
  *
  * @returns 일정도 기록도 없으면 undefined
- * @example getDayHighlight({ events: eventsByDate.get(date) ?? [], hasRecord: recordCount > 0 }) // "together"
+ * @example getDayHighlight({ events: eventsByDate.get(date) ?? [], hasRecord: recordedDates.has(date) }) // "together"
  */
 export const getDayHighlight = ({ events, hasRecord }: { events: EventKind[]; hasRecord: boolean }): DayHighlight | undefined => {
   if (hasRecord || events.some((event) => event.isTogether)) return "together";
