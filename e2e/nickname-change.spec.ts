@@ -4,7 +4,7 @@ import { SETTINGS_NICKNAME_PATH, SETTINGS_PATH } from "@/lib/auth/paths";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { createDisposableMember, createMemberContent } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
-import { getSaveButton, getTab, signInToHome } from "./support/actions";
+import { getCalendarEventRow, getSaveButton, getTab, signInToHome } from "./support/actions";
 import { createTestName } from "./support/names";
 
 const MEMBERS_URL = "**/rest/v1/members*";
@@ -46,7 +46,7 @@ test.describe("닉네임 변경", () => {
     const { recordId, eventId } = await createMemberContent({ memberId, label });
     await signInToHome(page, email, password);
     await getTab(page, CALENDAR_PATH).click();
-    const eventRow = page.getByRole("link", { name: new RegExp(`${label} 일정`) }).locator("visible=true");
+    const eventRow = getCalendarEventRow(page, `${label} 일정`);
     await expect(eventRow.getByTitle("예전이름")).toBeVisible();
 
     // Act
@@ -67,7 +67,7 @@ test.describe("닉네임 변경", () => {
 
     // 숨겨 둔 화면이 아닌 새로 그린 캘린더도 새 닉네임이다
     await openScreen(page, CALENDAR_PATH, page.getByText(`${label} 일정`));
-    await expect(page.getByRole("link", { name: new RegExp(`${label} 일정.*새이름 일정`) })).toBeVisible();
+    await expect(getCalendarEventRow(page, new RegExp(`${label} 일정.*새이름 일정`))).toBeVisible();
 
     await openScreen(page, `/dates/${recordId}`, page.getByRole("heading", { name: `${label} 기록` }));
     expect(await page.locator("article").ariaSnapshot()).toContain("작성자 새이름");
@@ -264,7 +264,7 @@ test.describe("닉네임 변경", () => {
 
     // 캘린더 일정 줄의 이름표
     await openScreen(page, "/calendar", page.getByText(`${label} 일정`));
-    const eventRow = page.getByRole("link", { name: new RegExp(`${label} 일정`) });
+    const eventRow = getCalendarEventRow(page, `${label} 일정`);
     expect(await isTruncated(eventRow.getByTitle(WIDE_NICKNAME))).toBe(false);
     expect((await getScrollAreaOverflow(page)).horizontal).toBe(0);
 

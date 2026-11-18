@@ -215,3 +215,24 @@ export const pretendOffline = (page: Page): Promise<void> =>
   page.evaluate(() => {
     Object.defineProperty(navigator, "onLine", { configurable: true, get: () => false });
   });
+
+/**
+ * 캘린더의 일정 줄을 눌러 읽기 창을 열고 "고치기"로 고치기 화면을 연다(#352). 일정 줄은 고치기로 바로 가지 않는다.
+ *
+ * @example await openEventEditFromCalendar(page, page.getByRole("button", { name: /저녁/ }))
+ */
+export const openEventEditFromCalendar = async (page: Page, row: Locator, method: "tap" | "click" = "tap"): Promise<void> => {
+  await row[method]();
+  await page.getByRole("dialog").getByRole("link", { name: "고치기" })[method]();
+};
+
+/**
+ * 캘린더 아래 목록의 일정 줄(누르면 읽기 창, #352). 날 칸 이름에도 일정 제목이 들어 있어 목록 안에서만 찾는다.
+ *
+ * @example await getCalendarEventRow(page, "저녁").tap()
+ */
+export const getCalendarEventRow = (page: Page, title: string | RegExp): Locator =>
+  page
+    .locator('main section[aria-labelledby="selected-day"] li')
+    .locator("visible=true")
+    .getByRole("button", { name: typeof title === "string" ? new RegExp(title) : title });

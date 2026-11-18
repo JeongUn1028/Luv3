@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { Locator, Page, Request, TestInfo } from "@playwright/test";
 import { CALENDAR_PATH, formatMonthTitle, shiftMonth } from "@/lib/calendar/month";
 import { toKstDate } from "@/lib/anniversary";
-import { isScreenRequest, returnToApp } from "./support/actions";
+import { isScreenRequest, openEventEditFromCalendar, returnToApp } from "./support/actions";
 import { createTestName } from "./support/names";
 import { createDisposableEvent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
@@ -16,7 +16,8 @@ const FAILED_AFTER_RETRIES_MS = 15_000;
 
 const getMonthTitle = (page: Page, month: string): Locator =>
   page.getByRole("heading", { name: formatMonthTitle(month), exact: true }).locator("visible=true");
-const getEventText = (page: Page, title: string): Locator => page.locator("main").locator("visible=true").getByText(title, { exact: true });
+// 일정을 한 번 열면 닫힌 읽기 창(#352)에도 제목이 남으므로 보이는 것만 고른다
+const getEventText = (page: Page, title: string): Locator => page.locator("main").getByText(title, { exact: true }).locator("visible=true");
 // 날 칸의 이름은 "11월 18일 수요일, ..."처럼 날짜 머리글로 시작한다
 const getDayButton = (page: Page, date: string): Locator =>
   page.locator("main table button").locator("visible=true").filter({ hasText: new RegExp(`^${Number(date.slice(8))}$`) }).and(page.getByRole("button", { name: new RegExp(`^${Number(date.slice(5, 7))}월 ${Number(date.slice(8))}일 `) }));
@@ -93,7 +94,7 @@ test.describe("캘린더 달 넘기기(#348)", () => {
     try {
       await openScreen(page, `${CALENDAR_PATH}?month=${month}`, getMonthTitle(page, month));
       await getNavLink(page, "다음 달").tap();
-      await getEventText(page, title).tap();
+      await openEventEditFromCalendar(page, getEventText(page, title));
       await page.waitForURL((url) => url.pathname.startsWith("/events/"));
 
       // Act

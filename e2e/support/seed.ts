@@ -643,15 +643,23 @@ export const createDisposableEvent = async ({
   isTogether = true,
   date = toKstDate(new Date()),
   memo,
+  place,
+  startTime,
 }: {
   id: string;
   title: string;
   isTogether?: boolean;
   date?: string;
   memo?: string;
+  place?: string;
+  /** HH:MM. 없으면 종일 */
+  startTime?: string;
 }): Promise<() => Promise<void>> => {
   const admin = createAdminClient();
-  assertNoError(await admin.from("events").insert({ id, title, date, memo, is_together: isTogether, author_id: await getMemberId(admin) }), "일정");
+  assertNoError(
+    await admin.from("events").insert({ id, title, date, memo, place, start_time: startTime, is_together: isTogether, author_id: await getMemberId(admin) }),
+    "일정",
+  );
   return async () => assertNoError(await admin.from("events").delete().eq("id", id), "일정 지우기");
 };
 
@@ -663,6 +671,7 @@ interface DisposableRepeatingEvent {
   repeatRule: "weekly" | "monthly" | "yearly";
   repeatUntil?: string;
   exceptionDates?: string[];
+  memo?: string;
 }
 
 /**
@@ -677,6 +686,7 @@ export const createDisposableRepeatingEvent = async ({
   repeatRule,
   repeatUntil,
   exceptionDates = [],
+  memo,
 }: DisposableRepeatingEvent): Promise<() => Promise<void>> => {
   const admin = createAdminClient();
   assertNoError(
@@ -684,6 +694,7 @@ export const createDisposableRepeatingEvent = async ({
       id,
       title,
       date,
+      memo,
       repeat_rule: repeatRule,
       repeat_until: repeatUntil,
       author_id: await getMemberId(admin),

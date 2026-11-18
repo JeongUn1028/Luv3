@@ -28,6 +28,18 @@ describe("toCalendarEvent", () => {
     });
   });
 
+  it("메모를 읽은 행(캘린더)이면 메모를 붙인다(#352)", () => {
+    const event = toCalendarEvent({ id: "e1", date: "2026-11-14", start_time: null, title: "저녁", place: null, memo: "예약 7시", is_together: true, repeat_rule: null, repeat_until: null, end_date: null, created_at: "2026-11-01T00:00:00+00:00", author: null, exceptions: [] });
+    expect(event.memo).toBe("예약 7시");
+  });
+
+  it("메모가 비었거나 읽지 않은 행이면 메모를 두지 않는다", () => {
+    const base = { id: "e1", date: "2026-11-14", start_time: null, title: "저녁", place: null, is_together: true, repeat_rule: null, repeat_until: null, end_date: null, created_at: "2026-11-01T00:00:00+00:00", author: null, exceptions: [] };
+    expect(toCalendarEvent({ ...base, memo: "" })).not.toHaveProperty("memo");
+    expect(toCalendarEvent({ ...base, memo: null })).not.toHaveProperty("memo");
+    expect(toCalendarEvent(base)).not.toHaveProperty("memo");
+  });
+
   it("장소·작성자가 비어 있으면 undefined로 둔다", () => {
     const event = toCalendarEvent({ id: "e1", date: "2026-11-14", start_time: null, title: "저녁", place: null, is_together: true, repeat_rule: null, repeat_until: null, end_date: null, created_at: "2026-11-01T00:00:00+00:00", author: null, exceptions: [] });
     expect(event.place).toBeUndefined();

@@ -5,7 +5,7 @@ import { RECORDS_PATH } from "@/lib/dates/album";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { createDisposableEvent, createDisposableRecord, createDisposableTodo, getRecordIdsByTitle } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
-import { getCouplePhoto, getTab } from "./support/actions";
+import { getCalendarEventRow, getCouplePhoto, getTab, openEventEditFromCalendar } from "./support/actions";
 import { createTestName } from "./support/names";
 
 // 지우는 사이 화면을 벗어났을 때(#261). 기록·하고 싶은 것·일정은 확인하면 바로 목록으로 돌아가고(#346), 그 뒤 다른 화면으로 옮긴다.
@@ -226,9 +226,9 @@ test.describe("지우는 사이 화면을 벗어나면", () => {
     const deleteEvent = await createDisposableEvent({ id, title, date: PAST_EVENT_DATE });
     try {
       const calendarHref = `${CALENDAR_PATH}?month=${PAST_EVENT_DATE.slice(0, 7)}&date=${PAST_EVENT_DATE}`;
-      const row = page.getByRole("link", { name: new RegExp(`^(?!.*기록 남기기).*${title}`) });
+      const row = getCalendarEventRow(page, title);
       await openScreen(page, calendarHref, row);
-      await row.tap();
+      await openEventEditFromCalendar(page, row);
       await page.waitForURL(`**/events/${id}/edit*`);
       const request = await holdRequest(page, { url: "**/rest/v1/events*", method: "DELETE", finish: failRequest });
       await confirmDelete(page);

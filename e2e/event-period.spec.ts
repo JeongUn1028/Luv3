@@ -2,14 +2,14 @@ import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { toKstDate } from "../src/lib/anniversary";
 import { pickDate } from "./support/date-picker";
-import { waitForDeleteResponse } from "./support/actions";
+import { getCalendarEventRow, openEventEditFromCalendar, waitForDeleteResponse } from "./support/actions";
 import { createDisposablePeriodEvent, deleteEventsByTitle } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { createTestName } from "./support/names";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const getRow = (page: Page, title: string) => page.getByRole("link", { name: new RegExp(`^(?!.*기록 남기기).*${title}`) });
+const getRow = (page: Page, title: string) => getCalendarEventRow(page, title);
 const getDayWithEvent = (page: Page, day: string) => page.getByRole("button", { name: new RegExp(`^${day} .*함께 일정 \\d+개`) });
 
 test.describe("기간 일정", () => {
@@ -41,7 +41,7 @@ test.describe("기간 일정", () => {
 
       // Act: 고치기
       await openScreen(page, "/calendar?month=2036-05&date=2036-05-01", getRow(page, title));
-      await getRow(page, title).click();
+      await openEventEditFromCalendar(page, getRow(page, title), "click");
       await expect(page.locator("#event-end-date")).toContainText("2036.05.02");
       await pickDate(page, "#event-end-date", "2036-05-01");
       await page.getByRole("button", { name: "저장" }).click();
@@ -55,7 +55,7 @@ test.describe("기간 일정", () => {
 
       // Act: 지우기
       await openScreen(page, "/calendar?month=2036-05&date=2036-05-01", getRow(page, title));
-      await getRow(page, title).click();
+      await openEventEditFromCalendar(page, getRow(page, title), "click");
       await page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true").click();
       await expect(page.getByRole("dialog").getByRole("heading", { name: "기간 일정을 지울까요?" })).toBeVisible();
       const deleted = waitForDeleteResponse(page, "events");

@@ -3,6 +3,7 @@ import type { Locator, Page, Route } from "@playwright/test";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { TODOS_PATH } from "@/lib/todos/list";
+import { getCalendarEventRow, openEventEditFromCalendar } from "./support/actions";
 import { createDisposableEvent, createDisposableRecord, createDisposableRepeatingEvent, createDisposableTodo, getRecordIdsByTitle } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 import { createTestName } from "./support/names";
@@ -17,7 +18,7 @@ const getNotice = (page: Page, role: "status" | "alert", name: string): Locator 
 
 const getVisibleLink = (page: Page, name: string | RegExp): Locator => page.locator("main").locator("visible=true").getByRole("link", { name });
 
-const getEventRow = (page: Page, title: string): Locator => page.getByRole("link", { name: new RegExp(`^(?!.*기록 (남기기|보기)).*${title}`) }).locator("visible=true");
+const getEventRow = (page: Page, title: string): Locator => getCalendarEventRow(page, title);
 
 const confirmDelete = async (page: Page): Promise<void> => {
   await page.getByRole("button", { name: "삭제", exact: true }).locator("visible=true").tap();
@@ -123,7 +124,7 @@ test.describe("지우기 확인을 누르면", () => {
     try {
       const row = getEventRow(page, title);
       await openScreen(page, `${CALENDAR_PATH}?month=${PAST_EVENT_DATE.slice(0, 7)}&date=${PAST_EVENT_DATE}`, row);
-      await row.tap();
+      await openEventEditFromCalendar(page, row);
       await page.waitForURL(`**/events/${id}/edit*`);
 
       // Act
@@ -151,7 +152,7 @@ test.describe("지우기 확인을 누르면", () => {
     try {
       const row = getEventRow(page, title);
       await openScreen(page, `${CALENDAR_PATH}?month=2047-05&date=2047-05-08`, row);
-      await row.tap();
+      await openEventEditFromCalendar(page, row);
       await page.waitForURL(`**/events/${id}/edit*`);
       await expect(page.getByRole("radio", { name: "이 날만" })).toBeChecked();
 

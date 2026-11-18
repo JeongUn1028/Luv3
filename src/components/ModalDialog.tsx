@@ -4,6 +4,7 @@ import { useId, useImperativeHandle, useLayoutEffect, useRef, type ReactElement,
 import { CloseIcon } from "@/components/icons";
 import { closeWithMotion, isClosingDialog, isOutsideClick, stopClosing } from "@/lib/modal-close";
 import { useCloseDialogOnHide } from "@/lib/navigation/use-close-dialog-on-hide";
+import { useSheetDrag } from "./use-sheet-drag";
 
 /** 칸을 두 번 누르면 두 번째가 칸 자리에 뜬 창에 닿는다. 이 시간 안의 누름은 창이 받지 않는다 */
 const DOUBLE_TAP_GUARD_MS = 300;
@@ -35,6 +36,10 @@ interface ModalDialogProps {
   isFullScreen?: boolean;
   /** 화면 전체 창의 머리글 가운데에 제목 대신 보일 글자(사진 크게 보기의 "1 / 3", #350). 제목은 화면 읽기 프로그램에만 남는다 */
   headerLabel?: ReactNode;
+  /** 아래에서 올라오는 창(일정 읽기, #352). 머리글을 끌어내리거나 닫기 버튼으로 닫는다 */
+  isBottomSheet?: boolean;
+  /** 아래 창 제목 옆에 붙일 것(이름표 등) */
+  titleAccessory?: ReactNode;
   children: ReactNode;
 }
 
@@ -58,6 +63,8 @@ export const ModalDialog = ({
   shouldGuardDoubleTap = false,
   isFullScreen = false,
   headerLabel,
+  isBottomSheet = false,
+  titleAccessory,
   children,
 }: ModalDialogProps): ReactElement => {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -69,6 +76,27 @@ export const ModalDialog = ({
   const descriptionId = useId();
   // 숨겨질 때는 움직임을 기다리지 않고 바로 닫는다. 기다리는 사이 창이 앱 전체를 막는다(#155)
   useCloseDialogOnHide(dialogRef);
+  const sheetDragHandlers = useSheetDrag({
+    sheetRef: dialogRef,
+    onDismiss: () => {
+      // Esc·바깥 누름과 같이 작업 중에는 닫지 않는다
+      if (dialogRef.current && !isBusy) closeWithMotion(dialogRef.current, closeTimerRef);
+    },
+    isLocked: () => dialogRef.current !== null && isClosingDialog(dialogRef.current),
+  });
+  const closeButton = (
+    <button
+      type="button"
+      disabled={isBusy}
+      onClick={() => {
+        if (dialogRef.current) closeWithMotion(dialogRef.current, closeTimerRef);
+      }}
+      className="press-icon flex size-11 shrink-0 items-center justify-center text-ink disabled:opacity-50"
+    >
+      <CloseIcon className="size-[22px]" />
+      <span className="sr-only">닫기</span>
+    </button>
+  );
   useImperativeHandle(
     ref,
     () => ({
@@ -94,12 +122,13 @@ export const ModalDialog = ({
   // 열려 있는 채로 제목이 바뀌면 다음 단계로 넘어간 것이다(커플 사진 메뉴 → 지우기 확인). 처음 열릴 때는 창 전체가 움직이므로 건너뛴다
   useLayoutEffect(() => {
     const content = contentRef.current;
-    if (!content || !dialogRef.current?.open) return;
+    // 아래 창은 다른 일정을 열 때마다 제목이 바뀌지만 단계가 넘어간 것이 아니다. 올라오는 움직임만 준다
+    if (!content || !dialogRef.current?.open || isBottomSheet) return;
     content.classList.remove(STEP_IN_CLASS_NAME);
     // 클래스를 다시 붙여도 움직임이 처음부터 돌도록 스타일을 한 번 계산시킨다
     void content.offsetWidth;
     content.classList.add(STEP_IN_CLASS_NAME);
-  }, [title]);
+  }, [title, isBottomSheet]);
 
   return (
     <dialog
@@ -116,6 +145,8 @@ export const ModalDialog = ({
       }}
       onClose={(event) => {
         stopClosing(event.currentTarget, closeTimerRef);
+        // 끌어내리다 닫은 아래 창은 다음에 열 때 제자리에서 올라오게 한다
+        event.currentTarget.style.translate = "";
         contentRef.current?.classList.remove(STEP_IN_CLASS_NAME);
         onClose?.();
       }}
@@ -131,24 +162,40 @@ export const ModalDialog = ({
         isFullScreen
           ? // 화면 높이는 h-app 하나로 정한다(#51). 위쪽은 다른 화면의 머리글처럼 시스템 흐림 자리를 비운다
             "modal-dialog m-0 h-app max-h-none w-full max-w-none bg-background p-0 text-ink backdrop:bg-background"
-          : "modal-dialog m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
+          : isBottomSheet
+            ? // 화면 아래에 붙인다. 열렸을 때만 세로로 쌓아(닫힌 창은 숨긴 채로 둔다) 내용이 길면 머리글 아래만 스크롤한다
+              "modal-dialog modal-bottom-sheet m-0 mt-auto max-h-[80%] w-full max-w-none flex-col rounded-t-[16px] border-t border-line bg-surface p-0 text-ink backdrop:bg-background/70 open:flex"
+            : "modal-dialog m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
       }
     >
-      {isFullScreen ? (
+      {isBottomSheet ? (
+        <div ref={contentRef} className="flex min-h-0 flex-1 flex-col">
+          {/* 머리글을 끌어내려 닫는다. 끄는 동안 브라우저가 스크롤로 가져가지 않게 막는다 */}
+          <div className="shrink-0 touch-none pl-4" {...sheetDragHandlers}>
+            <span aria-hidden="true" className="mx-auto mt-2 block h-1 w-9 -translate-x-2 rounded-full bg-line" />
+            <div className="flex items-center gap-2">
+              <h2 id={titleId} className="min-w-0 flex-1 font-display text-[17px] break-words">
+                {title}
+              </h2>
+              {titleAccessory}
+              {closeButton}
+            </div>
+          </div>
+          {/* 아래쪽은 홈 표시줄 자리를 비운다 */}
+          <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(20px,var(--bottom-safe-inset))]">
+            {description && (
+              <p id={descriptionId} className="text-[14px] leading-[1.6] break-words break-keep text-ink-sub">
+                {description}
+              </p>
+            )}
+            {children}
+          </div>
+        </div>
+      ) : isFullScreen ? (
         <div ref={contentRef} className="flex h-full flex-col pt-(--screen-top-inset)">
           <div className="flex h-14 shrink-0 items-center justify-between px-2">
             {/* Esc·바깥 누름과 같이 작업 중에는 닫지 않는다 */}
-            <button
-              type="button"
-              disabled={isBusy}
-              onClick={() => {
-                if (dialogRef.current) closeWithMotion(dialogRef.current, closeTimerRef);
-              }}
-              className="press-icon flex size-11 items-center justify-center text-ink disabled:opacity-50"
-            >
-              <CloseIcon className="size-[22px]" />
-              <span className="sr-only">닫기</span>
-            </button>
+            {closeButton}
             <h2 id={titleId} className={headerLabel === undefined ? "min-w-0 truncate font-display text-[19px]" : "sr-only"}>
               {title}
             </h2>

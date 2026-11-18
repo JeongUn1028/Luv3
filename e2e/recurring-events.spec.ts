@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Page } from "@playwright/test";
 import { toKstDate } from "../src/lib/anniversary";
-import { waitForDeleteResponse } from "./support/actions";
+import { getCalendarEventRow, openEventEditFromCalendar, waitForDeleteResponse } from "./support/actions";
 import { pickDate } from "./support/date-picker";
 import { createDisposableRepeatingEvent, deleteEventById, deleteEventsByTitle, skipEventDate, stopEventRepeat } from "./support/seed";
 import { expect, getScrollAreaOverflow, openScreen, test } from "./support/test";
@@ -89,11 +89,12 @@ test.describe("반복 일정", () => {
     try {
       // Act
       await openScreen(page, "/calendar?month=2034-03&date=2034-03-08", page.getByText(title));
-      const row = page.getByRole("link", { name: new RegExp(title) });
-
-      // Assert
+      const row = getCalendarEventRow(page, title);
       await expect(row).toContainText("매주");
-      await expect(row).toHaveAttribute("href", `/events/${id}/edit?date=2034-03-08`);
+      await row.click();
+
+      // Assert: 줄을 누르면 읽기 창이 열리고(#352), 고치기는 그날을 담아 간다
+      await expect(page.getByRole("dialog").getByRole("link", { name: "고치기" })).toHaveAttribute("href", `/events/${id}/edit?date=2034-03-08`);
     } finally {
       await deleteEvent();
     }
@@ -122,7 +123,7 @@ test.describe("반복 일정", () => {
 
 test.describe("반복 일정 폼", () => {
   /** 두 기기가 같은 DB를 나란히 쓰므로 제목에 기기 이름을 붙인다 */
-  const getRow = (page: Page, title: string) => page.getByRole("link", { name: new RegExp(title) });
+  const getRow = (page: Page, title: string) => getCalendarEventRow(page, title);
 
   test("새 일정을 매주로 저장하면 끝나는 날까지 해당 요일마다 나온다", async ({ page }, testInfo) => {
     // Arrange
@@ -205,7 +206,7 @@ test.describe("반복 일정 폼", () => {
       await page.waitForURL(/\/calendar/);
 
       // Act
-      await getRow(page, changedTitle).click();
+      await openEventEditFromCalendar(page, getRow(page, changedTitle), "click");
       await page.locator("#event-title").locator("visible=true").waitFor();
 
       // Assert
@@ -346,7 +347,7 @@ test.describe("반복 일정 폼", () => {
       await openScreen(page, "/calendar?month=2048-03&date=2048-03-12", getRow(page, title));
 
       // Act: 원래 일정을 지워도
-      await getRow(page, title).first().click();
+      await openEventEditFromCalendar(page, getRow(page, title).first(), "click");
       await page.locator("#event-title").locator("visible=true").waitFor();
       await page.getByText("전체", { exact: true }).locator("visible=true").click();
       await page.getByRole("button", { name: "삭제" }).locator("visible=true").click();
