@@ -18,7 +18,8 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { toKstDate } from "@/lib/anniversary";
 import { withCurrentMember } from "@/lib/auth/with-member";
 import { toRecordComment } from "@/lib/comments/comment";
-import { CommentLoadError, getRecordComments } from "@/lib/comments/queries";
+import { getRecordComments } from "@/lib/comments/queries";
+import { CommentLoadError } from "@/lib/comments/read";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { findStartPhotoIndex } from "@/lib/dates/detail";
 import { RECORD_PHOTO_PARAM } from "@/lib/dates/record-href";
@@ -140,7 +141,7 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
           </div>
         </article>
       </FirstPhotoGate>
-      <RecordComments recordId={record.id} comments={comments} memberNickname={member.nickname} />
+      <RecordComments recordId={record.id} comments={comments} memberNickname={member.nickname} memberId={member.id} />
     </>
   );
 };

@@ -183,8 +183,8 @@ test.describe("기록 댓글", () => {
     }
   });
 
-  test("다른 댓글을 지운 뒤 화면을 다시 받는 중에 남기지 못해도 바로 칸에 돌려놓고 다시 남기게 한다", async ({ page }, testInfo) => {
-    // Arrange: 지우기는 성공하고, 그 뒤 화면을 다시 받는 요청이 오래 걸린다
+  test("다른 댓글을 지운 뒤 댓글을 다시 읽는 중에 남기지 못해도 바로 칸에 돌려놓고 다시 남기게 한다", async ({ page }, testInfo) => {
+    // Arrange: 지우기는 성공하고, 그 뒤 댓글을 다시 읽는 요청이 오래 걸린다
     const recordId = randomUUID();
     const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 댓글 겹친 실패 기록", testInfo) });
     let heldRefreshCount = 0;
@@ -196,9 +196,8 @@ test.describe("기록 댓글", () => {
     try {
       await createComment({ recordId, content: "먼저 지울 댓글" });
       await openRecord(page, recordId);
-      await page.route(`**/dates/${recordId}*`, async (route) => {
-        const headers = route.request().headers();
-        if (headers["rsc"] === "1" && headers["next-router-prefetch"] === undefined) {
+      await page.route(COMMENTS_ROUTE, async (route) => {
+        if (route.request().method() === "GET") {
           heldRefreshCount += 1;
           await refreshReleased;
         }
@@ -208,13 +207,13 @@ test.describe("기록 댓글", () => {
       await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "삭제", exact: true }).click();
       await expect(getComments(page)).toHaveCount(0);
       await expect.poll(() => heldRefreshCount).toBeGreaterThan(0);
-      await page.route(COMMENTS_ROUTE, (route) => (route.request().method() === "POST" ? route.abort() : route.continue()));
+      await page.route(COMMENTS_ROUTE, (route) => (route.request().method() === "POST" ? route.abort() : route.fallback()));
 
-      // Act: 다시 받기가 끝나기 전에 남기다가 실패한다
+      // Act: 다시 읽기가 끝나기 전에 남기다가 실패한다
       await getCommentInput(page).fill("겹쳐서 못 남긴 댓글");
       await getSendButton(page).click();
 
-      // Assert: 다시 받기가 끝나기를 기다리지 않고 댓글이 빠지고 칸이 풀린다
+      // Assert: 다시 읽기가 끝나기를 기다리지 않고 댓글이 빠지고 칸이 풀린다
       await expect(page.getByRole("alert").filter({ hasText: "댓글을 남기지 못했어요." })).toBeVisible();
       await expect(getComment(page, "겹쳐서 못 남긴 댓글")).toHaveCount(0);
       await expect(getCommentInput(page)).toHaveValue("겹쳐서 못 남긴 댓글");
@@ -222,6 +221,109 @@ test.describe("기록 댓글", () => {
       await expect(getSendButton(page)).toBeEnabled();
     } finally {
       releaseRefresh();
+      await deleteRecord();
+    }
+  });
+
+  test("댓글을 남기거나 지우면 화면 전체를 다시 받지 않고 댓글만 다시 읽는다(#355)", async ({ page }, testInfo) => {
+    // Arrange
+    const recordId = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 댓글만 다시 읽기 기록", testInfo) });
+    let screenRefreshCount = 0;
+    let commentReadCount = 0;
+
+    try {
+      await openRecord(page, recordId);
+      await page.waitForLoadState("networkidle");
+      page.on("request", (request) => {
+        const headers = request.headers();
+        const isScreenRefresh = new URL(request.url()).pathname === `/dates/${recordId}` && headers["rsc"] === "1" && headers["next-router-prefetch"] === undefined;
+        if (isScreenRefresh) screenRefreshCount += 1;
+        if (request.url().includes("/rest/v1/comments") && request.method() === "GET") commentReadCount += 1;
+      });
+
+      // Act: 남기기
+      await getCommentInput(page).fill("댓글만 다시 읽는 댓글");
+      await getSendButton(page).click();
+
+      // Assert
+      await expect(getComment(page, "댓글만 다시 읽는 댓글").locator("time")).toBeVisible();
+      await expect.poll(() => commentReadCount).toBeGreaterThanOrEqual(1);
+      const readCountAfterAdd = commentReadCount;
+
+      // Act: 지우기
+      await getComment(page, "댓글만 다시 읽는 댓글").getByRole("button", { name: "댓글 삭제" }).click();
+      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "삭제", exact: true }).click();
+
+      // Assert
+      await expect(getComments(page)).toHaveCount(0);
+      await expect.poll(() => commentReadCount).toBeGreaterThan(readCountAfterAdd);
+      await page.waitForLoadState("networkidle");
+      expect(screenRefreshCount).toBe(0);
+    } finally {
+      await deleteRecord();
+    }
+  });
+
+  test("댓글을 남기면 화면을 연 뒤 상대가 남긴 댓글도 함께 보이고, 상대 댓글에는 삭제가 붙지 않는다", async ({ page }, testInfo) => {
+    // Arrange
+    const recordId = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 상대 댓글 함께 읽기 기록", testInfo) });
+    const partnerNickname = getPartnerNickname();
+    const partner = await createDisposableMember(randomUUID(), partnerNickname);
+
+    try {
+      await openRecord(page, recordId);
+      await createComment({ recordId, content: "화면을 연 뒤 상대가 단 댓글", authorId: partner.id });
+
+      // Act
+      await getCommentInput(page).fill("내가 이어서 단 댓글");
+      await getSendButton(page).click();
+
+      // Assert: 남긴 순서대로 상대 댓글 다음에 내 댓글이 온다
+      await expect(getComments(page)).toHaveCount(2);
+      const partnerComment = getComments(page).first();
+      await expect(partnerComment).toContainText("화면을 연 뒤 상대가 단 댓글");
+      await expect(partnerComment.getByRole("img", { name: `작성자 ${partnerNickname}` })).toBeVisible();
+      await expect(partnerComment.getByRole("button", { name: "댓글 삭제" })).toHaveCount(0);
+      const myComment = getComments(page).last();
+      await expect(myComment).toContainText("내가 이어서 단 댓글");
+      await expect(myComment.getByRole("button", { name: "댓글 삭제" })).toBeVisible();
+      await expect(getHeading(page)).toHaveText("댓글2");
+    } finally {
+      await deleteRecord();
+      await partner.remove();
+    }
+  });
+
+  test("댓글을 남기고 지운 뒤 고치기에 갔다 바로 돌아와도 바뀐 댓글 목록이 그대로다", async ({ page }, testInfo) => {
+    // Arrange: 화면 전체를 다시 받지 않으므로, 돌아온 화면이 처음 받은 댓글로 돌아가지 않는지 본다
+    const recordId = randomUUID();
+    const deleteRecord = await createDisposableRecord({ id: recordId, title: createTestName("E2E 댓글 뒤로 기록", testInfo) });
+
+    try {
+      await createComment({ recordId, content: "처음부터 있던 댓글" });
+      await openRecord(page, recordId);
+      await getCommentInput(page).fill("새로 남긴 댓글");
+      await getSendButton(page).click();
+      await expect(getComment(page, "새로 남긴 댓글").locator("time")).toBeVisible();
+      await getComment(page, "처음부터 있던 댓글").getByRole("button", { name: "댓글 삭제" }).click();
+      await page.getByRole("dialog", { name: "이 댓글을 지울까요?" }).getByRole("button", { name: "삭제", exact: true }).click();
+      await expect(getComments(page)).toHaveCount(1);
+      await page.waitForLoadState("networkidle");
+
+      // Act: 받은 지 30초가 안 돼 돌아와도 다시 받지 않는 사이에 다녀온다
+      await page.getByRole("link", { name: "수정" }).locator("visible=true").click();
+      await page.waitForURL(`**/dates/${recordId}/edit`);
+      await page.goBack();
+      await page.waitForURL(`**/dates/${recordId}`);
+      await page.waitForLoadState("networkidle");
+
+      // Assert
+      await expect(getComments(page)).toHaveCount(1);
+      await expect(getComment(page, "새로 남긴 댓글")).toHaveCount(1);
+      await expect(getComment(page, "처음부터 있던 댓글")).toHaveCount(0);
+    } finally {
       await deleteRecord();
     }
   });

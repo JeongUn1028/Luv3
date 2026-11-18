@@ -1,14 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { startTransition, useRef, useState, type ReactElement, type SubmitEvent } from "react";
 import { FieldError } from "@/components/FormField";
 import { OfflineHint } from "@/components/OfflineHint";
 import { COMMENT_MAX_LENGTH, validateComment } from "@/lib/comments/comment";
-import { createSendingComment, type CommentAction } from "@/lib/comments/thread";
+import { createSendingComment, type CommentAction, type ShownComment } from "@/lib/comments/thread";
 import { addComment } from "@/lib/comments/write";
 import { countChars } from "@/lib/form";
-import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { createClient } from "@/lib/supabase/client";
@@ -26,11 +24,12 @@ interface CommentFormProps {
   isSending: boolean;
   /** 목록에 먼저 반영한다. transition 안에서만 부른다 */
   onOptimisticAction: (action: CommentAction) => void;
+  /** 저장이 끝난 댓글. 목록에 남기고 댓글만 다시 읽는다. transition 안에서 부른다 */
+  onSaved: (comment: ShownComment) => void;
 }
 
 /** 기록 상세 아래의 댓글 입력 칸. 남기면 저장을 기다리지 않고 목록 끝에 붙이고 칸을 비운다 */
-export const CommentForm = ({ recordId, memberNickname, isSending, onOptimisticAction }: CommentFormProps): ReactElement => {
-  const router = useRouter();
+export const CommentForm = ({ recordId, memberNickname, isSending, onOptimisticAction, onSaved }: CommentFormProps): ReactElement => {
   const [content, setContent] = useState("");
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
@@ -76,12 +75,12 @@ export const CommentForm = ({ recordId, memberNickname, isSending, onOptimisticA
       failedRef.current = undefined;
       // 응답만 끊겨 같은 id로 다시 남긴 경우(중복 키)도 알린다. 이미 알렸으면 서버가 다시 보내지 않는다
       requestPartnerPush({ kind: "comment", id: comment.id });
-      // await 뒤의 갱신은 다시 transition으로 감싸야 새 목록이 올 때까지 먼저 붙인 댓글이 남는다.
-      // 저장하는 동안 기록 고치기로 옮겼으면 쓰던 폼이 새로 만들어지지 않게 다시 받지 않는다(#164)
+      // await 뒤의 갱신은 다시 transition으로 감싸야 먼저 붙인 댓글이 목록에 남는 것과 한 번에 바뀐다.
+      // 화면 전체를 다시 받지 않으므로 저장하는 동안 기록 고치기로 옮겼어도 쓰던 폼이 새로 만들어지지 않는다(#164)
       startTransition(() => {
         onOptimisticAction({ type: "saved", id: comment.id });
         setAnnouncement("댓글을 남겼어요.");
-        refreshOutsideForm(() => router.refresh());
+        onSaved(comment);
       });
     });
   };
