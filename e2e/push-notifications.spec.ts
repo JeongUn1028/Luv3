@@ -16,8 +16,18 @@ const IPHONE_SAFARI_USER_AGENT =
  * 실제로 보내는 일은 이 테스트가 다루지 않는다. 서비스 워커 등록과 구독 만들기·끊기만 흉내 낸다.
  * `keepsSubscription`이면 실제 기기처럼 화면을 새로 열어도(전체 페이지 이동) 구독이 남는다
  */
-const useFakePushManager = async (page: Page, permission: NotificationPermission = "granted", { keepsSubscription = false } = {}): Promise<void> => {
-  await page.addInitScript(({ initialPermission, shouldKeep }: { initialPermission: NotificationPermission; shouldKeep: boolean }) => {
+interface FakePushManagerOptions {
+  keepsSubscription?: boolean;
+  /** 새 구독 주소의 앞부분. 알림 서비스 목록 밖 브라우저(#432)를 흉내 낼 때 바꾼다 */
+  endpointBase?: string;
+}
+
+const useFakePushManager = async (
+  page: Page,
+  permission: NotificationPermission = "granted",
+  { keepsSubscription = false, endpointBase = "https://web.push.apple.com/" }: FakePushManagerOptions = {},
+): Promise<void> => {
+  await page.addInitScript(({ initialPermission, shouldKeep, base }: { initialPermission: NotificationPermission; shouldKeep: boolean; base: string }) => {
     const STORAGE_KEY = "e2e-push-subscription";
     let current: PushSubscription | null = null;
     let notificationPermission = initialPermission;
@@ -40,7 +50,7 @@ const useFakePushManager = async (page: Page, permission: NotificationPermission
     const pushManager = {
       getSubscription: async () => current,
       subscribe: async ({ applicationServerKey }: PushSubscriptionOptionsInit) => {
-        const endpoint = `https://web.push.apple.com/e2e-${crypto.randomUUID()}`;
+        const endpoint = `${base}e2e-${crypto.randomUUID()}`;
         const key = new Uint8Array(applicationServerKey as ArrayBuffer);
         current = createSubscription(endpoint, key);
         if (shouldKeep) sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ endpoint, key: [...key] }));
@@ -62,10 +72,19 @@ const useFakePushManager = async (page: Page, permission: NotificationPermission
       if (notificationPermission === "default") notificationPermission = "granted";
       return notificationPermission;
     };
-  }, { initialPermission: permission, shouldKeep: keepsSubscription });
+  }, { initialPermission: permission, shouldKeep: keepsSubscription, base: endpointBase });
 };
 
 const getSection = (page: Page) => page.getByRole("region", { name: "알림" });
+
+/** Windows Edge가 돌려주는 알림 서비스 주소. DB가 받는 알림 서비스 목록 밖이다(#432) */
+const UNSUPPORTED_ENDPOINT_BASE = "https://wns2-par02p.notify.windows.com/w/?token=";
+
+const hasBrowserSubscription = (page: Page): Promise<boolean> =>
+  page.evaluate(async () => {
+    const registration = await navigator.serviceWorker.getRegistration();
+    return Boolean(await registration?.pushManager.getSubscription());
+  });
 
 test.describe("설정 알림 칸", () => {
   let memberId: string;
@@ -192,6 +211,53 @@ test.describe("설정 알림 칸", () => {
     await expect(page.getByRole("alert").filter({ hasText: "로그아웃하지 못했어요" })).toBeVisible();
     expect(await getPushSubscriptionEndpoints(memberId)).toHaveLength(1);
     await expect(getSection(page).getByRole("button", { name: "이 기기에서 알림 끄기" })).toBeVisible();
+  });
+
+  test.describe("알림 서비스 목록 밖 브라우저", () => {
+    test("알림을 켜면 브라우저 구독을 끊고 받을 수 없다고 안내하며, 다시 열어도 그대로다", async ({ page }) => {
+      // Arrange
+      await useFakePushManager(page, "default", { keepsSubscription: true, endpointBase: UNSUPPORTED_ENDPOINT_BASE });
+      await signInToHome(page, email, password);
+      await openScreen(page, SETTINGS_PATH, getSection(page).getByRole("button", { name: "알림 켜기" }));
+
+      // Act
+      await getSection(page).getByRole("button", { name: "알림 켜기" }).click();
+
+      // Assert
+      await expect(getSection(page).getByText("이 브라우저에서는 알림을 받을 수 없어요.")).toBeVisible();
+      await expect(getSection(page).getByRole("button")).toHaveCount(0);
+      await expect(getSection(page).getByRole("alert")).toHaveCount(0);
+      expect(await hasBrowserSubscription(page)).toBe(false);
+      expect(await getPushSubscriptionEndpoints(memberId)).toEqual([]);
+
+      // Act: 다시 열기
+      await page.reload();
+
+      // Assert
+      await expect(getSection(page).getByText("이 브라우저에서는 알림을 받을 수 없어요.")).toBeVisible();
+      await expect(getSection(page).getByRole("button")).toHaveCount(0);
+    });
+
+    // 이 수정 전에 켜기를 눌러 브라우저 구독만 남은 기기(#432)
+    test("이미 목록 밖 구독이 남아 있으면 열 때 끊고 받을 수 없다고 안내한다", async ({ page }) => {
+      // Arrange
+      await page.addInitScript((base: string) => {
+        // 처음 문서에만 남겨 둔다. 앱이 끊은 뒤 다른 화면으로 옮겨도 다시 생기지 않는다
+        if (sessionStorage.getItem("e2e-push-seeded")) return;
+        sessionStorage.setItem("e2e-push-seeded", "1");
+        sessionStorage.setItem("e2e-push-subscription", JSON.stringify({ endpoint: `${base}e2e-left`, key: [] }));
+      }, UNSUPPORTED_ENDPOINT_BASE);
+      await useFakePushManager(page, "granted", { keepsSubscription: true, endpointBase: UNSUPPORTED_ENDPOINT_BASE });
+      await signInToHome(page, email, password);
+
+      // Act
+      await openScreen(page, SETTINGS_PATH, getSection(page).getByText("이 브라우저에서는 알림을 받을 수 없어요."));
+
+      // Assert
+      await expect(getSection(page).getByRole("button")).toHaveCount(0);
+      await expect.poll(() => hasBrowserSubscription(page)).toBe(false);
+      expect(await getPushSubscriptionEndpoints(memberId)).toEqual([]);
+    });
   });
 
   test("알림을 거절한 기기에는 켜기 버튼 대신 아이폰 설정에서 허용하라고 안내한다", async ({ page }) => {

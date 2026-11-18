@@ -1,5 +1,18 @@
+import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { isIosDevice, isSameServerKey, isUsableSubscription, toApplicationServerKey, toPushStatus, toPushSupport, toStoredSubscription } from "./subscription";
+import {
+  isIosDevice,
+  isPushServiceEndpoint,
+  isRememberedServiceUnsupported,
+  isSameServerKey,
+  isUsableSubscription,
+  PUSH_SERVICE_HOSTS,
+  toApplicationServerKey,
+  toPushStatus,
+  toPushSupport,
+  toStoredSubscription,
+  toUnsupportedServiceMemory,
+} from "./subscription";
 
 const IPHONE_SAFARI = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
 const MAC_SAFARI = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15";
@@ -44,7 +57,13 @@ describe("toPushStatus", () => {
     ["unsupported", "default", false, "unsupported"],
   ] as const)("켤 수 없는 브라우저(%s)는 허락 상태와 상관없이 그대로 보인다", (support, permission, hasSubscription, expected) => {
     // Act & Assert
-    expect(toPushStatus({ support, permission, hasSubscription })).toBe(expected);
+    expect(toPushStatus({ support, permission, hasSubscription, isServiceUnsupported: false })).toBe(expected);
+  });
+
+  // 알림 서비스 목록 밖 브라우저(#432)는 허락해도 알림이 오지 않아 켜기 버튼 대신 받을 수 없다고 보여 준다
+  it.each(["granted", "default", "denied"] as const)("알림 서비스 목록 밖 브라우저는 허락 상태(%s)와 상관없이 켤 수 없다", (permission) => {
+    // Act & Assert
+    expect(toPushStatus({ support: "supported", permission, hasSubscription: false, isServiceUnsupported: true })).toBe("unsupported");
   });
 
   it.each([
@@ -54,7 +73,7 @@ describe("toPushStatus", () => {
     ["아직 묻지 않았으면", "default", false, "off"],
   ] as const)("%s %s", (_, permission, hasSubscription, expected) => {
     // Act & Assert
-    expect(toPushStatus({ support: "supported", permission, hasSubscription })).toBe(expected);
+    expect(toPushStatus({ support: "supported", permission, hasSubscription, isServiceUnsupported: false })).toBe(expected);
   });
 });
 
@@ -96,6 +115,65 @@ describe("isUsableSubscription", () => {
   ])("%s %s", (_, subscription, result) => {
     // Act & Assert
     expect(isUsableSubscription(subscription, serverKey)).toBe(result);
+  });
+});
+
+describe("isPushServiceEndpoint", () => {
+  it.each([
+    "https://web.push.apple.com/QGuQyavXutnMH",
+    "https://fcm.googleapis.com/fcm/send/abc",
+    "https://updates.push.services.mozilla.com/wpush/v2/abc",
+  ])("알림 서비스 주소(%s)는 받는다", (endpoint) => {
+    // Act & Assert
+    expect(isPushServiceEndpoint(endpoint)).toBe(true);
+  });
+
+  it.each([
+    ["Windows Edge 알림 서비스", "https://wns2-par02p.notify.windows.com/w/?token=abc"],
+    ["호스트 뒤에 다른 이름을 붙인 주소", "https://web.push.apple.com.example/abc"],
+    ["호스트 앞에 다른 이름을 붙인 주소", "https://evil.fcm.googleapis.com/abc"],
+    ["https가 아닌 주소", "http://fcm.googleapis.com/fcm/send/abc"],
+    ["경로가 없는 주소", "https://fcm.googleapis.com"],
+    ["포트를 붙인 주소", "https://fcm.googleapis.com:8443/fcm/send/abc"],
+  ])("%s는 받지 않는다", (_, endpoint) => {
+    // Act & Assert
+    expect(isPushServiceEndpoint(endpoint)).toBe(false);
+  });
+
+  // 앱이 받은 주소를 DB가 거절하면 켜기가 계속 실패한다(#432). 두 목록이 어긋나지 않게, 제약을 마지막으로 정한 마이그레이션과 비교한다
+  it("알림 서비스 목록이 DB의 구독 주소 제약과 같다", () => {
+    // Arrange
+    const directory = "supabase/migrations";
+    const migrations = readdirSync(directory)
+      .filter((name) => name.endsWith(".sql"))
+      .sort()
+      .map((name) => readFileSync(`${directory}/${name}`, "utf8"))
+      .filter((sql) => sql.includes("push_subscriptions_endpoint_service check"));
+    const latest = migrations.at(-1) ?? "";
+
+    // Act
+    const pattern = /push_subscriptions_endpoint_service check \(\s*endpoint ~ '\^https:\/\/\(([^)]+)\)\/'/.exec(latest)?.[1];
+    const hosts = pattern?.split("|").map((host) => host.replaceAll(String.raw`\.`, "."));
+
+    // Assert
+    expect(hosts).toEqual([...PUSH_SERVICE_HOSTS]);
+  });
+});
+
+describe("알림 서비스 목록 밖 기억", () => {
+  it("구독 주소 전체가 아니라 알림 서비스의 출처만 기억한다", () => {
+    // Act & Assert
+    expect(toUnsupportedServiceMemory("https://wns2-par02p.notify.windows.com/w/?token=secret")).toBe("https://wns2-par02p.notify.windows.com/");
+  });
+
+  it.each([
+    ["목록 밖 서비스를 기억했으면", "https://wns2-par02p.notify.windows.com/", true],
+    ["기억한 서비스가 목록에 더해졌으면", "https://fcm.googleapis.com/", false],
+    ["주소를 읽지 못해 기억한 값이면", "unknown", true],
+    ["기억한 것이 없으면", null, false],
+  ])("%s %s", (_, memory, expected) => {
+    // Act & Assert
+    expect(isRememberedServiceUnsupported(memory)).toBe(expected);
   });
 });
 
