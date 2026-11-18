@@ -10,8 +10,8 @@ export interface ScrollRestorer {
   handleScroll: () => void;
   /** 내용이 바뀔 때마다 부른다. 아직 못 되돌렸으면 다시 시도한다 */
   retry: () => void;
-  /** 사용자가 영역을 만졌을 때 부른다. 되돌리기를 그만둔다 */
-  cancel: () => void;
+  /** 사용자가 영역을 만졌을 때 부른다. 되돌리기를 그만두고, 아직 되돌리던 중이었는지 알려 준다 */
+  cancel: () => boolean;
 }
 
 // 앱을 끄면 처음 위치로 돌아가도록 메모리에만 둔다
@@ -27,14 +27,14 @@ export const forgetScrollPosition = (key: string, memory: Map<string, number> = 
 };
 
 // 숨겨진 화면(Activity)은 layout effect가 정리되어 빠지므로, 지금 보이는 스크롤 영역만 들어 있다
-const scrollToTopHandlers = new Map<string, () => void>();
+const scrollToTopHandlers = new Map<string, () => boolean>();
 
 /**
- * 화면 이름으로 맨 위로 올리는 동작을 등록한다. 돌려준 함수는 등록을 지운다.
+ * 화면 이름으로 맨 위로 올리는 동작을 등록한다. 동작은 이미 맨 위였으면 올리지 않고 true를 돌려준다. 돌려준 함수는 등록을 지운다.
  *
- * @example const unregister = registerScrollToTop("records", () => element.scrollTo({ top: 0 }));
+ * @example const unregister = registerScrollToTop("records", () => element.scrollTop <= 0);
  */
-export const registerScrollToTop = (key: string, handler: () => void): (() => void) => {
+export const registerScrollToTop = (key: string, handler: () => boolean): (() => void) => {
   scrollToTopHandlers.set(key, handler);
   return () => {
     if (scrollToTopHandlers.get(key) === handler) scrollToTopHandlers.delete(key);
@@ -44,11 +44,10 @@ export const registerScrollToTop = (key: string, handler: () => void): (() => vo
 /**
  * 지금 보이는 그 화면의 스크롤 영역을 맨 위로 올린다.
  *
- * @example scrollAreaToTop("records");
+ * @returns 이미 맨 위였는지. 보이는 화면이 없으면 false
+ * @example if (scrollAreaToTop("todos")) refreshTab("todos");
  */
-export const scrollAreaToTop = (key: string): void => {
-  scrollToTopHandlers.get(key)?.();
-};
+export const scrollAreaToTop = (key: string): boolean => scrollToTopHandlers.get(key)?.() ?? false;
 
 /**
  * 화면 이름별로 스크롤 위치를 기억하고, 다시 열면 그 위치로 되돌린다.
@@ -86,7 +85,9 @@ export const createScrollRestorer = (
     },
     retry,
     cancel: () => {
+      const wasRestoring = isRestoring;
       isRestoring = false;
+      return wasRestoring;
     },
   };
 };

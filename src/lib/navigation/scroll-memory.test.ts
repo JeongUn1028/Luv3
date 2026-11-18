@@ -73,6 +73,16 @@ describe("createScrollRestorer", () => {
     expect(memory.get("records")).toBe(300);
   });
 
+  // 내용이 늦게 와 아직 되돌리지 못했으면 잠깐 맨 위에 있어도 맨 위에 있던 것이 아니다(#351)
+  it("되돌리기를 그만둘 때 아직 되돌리던 중이었는지 알려 준다", () => {
+    const pending = createScrollRestorer(createScroller(600), "records", new Map([["records", 300]]));
+    const done = createScrollRestorer(createScroller(2000), "records", new Map([["records", 300]]));
+
+    expect(pending.cancel()).toBe(true);
+    expect(pending.cancel()).toBe(false);
+    expect(done.cancel()).toBe(false);
+  });
+
   it("사용자가 먼저 만지면 내용이 늘어나도 위치를 옮기지 않고 그 뒤 위치를 저장한다", () => {
     const memory = new Map([["records", 300]]);
     const scroller = createScroller(600);
@@ -144,6 +154,7 @@ describe("scrollAreaToTop", () => {
     let calls = 0;
     const unregister = registerScrollToTop("records", () => {
       calls += 1;
+      return false;
     });
 
     scrollAreaToTop("records");
@@ -156,6 +167,7 @@ describe("scrollAreaToTop", () => {
     let calls = 0;
     const unregister = registerScrollToTop("records", () => {
       calls += 1;
+      return false;
     });
     unregister();
 
@@ -166,9 +178,10 @@ describe("scrollAreaToTop", () => {
 
   it("예전 화면의 정리가 나중에 돌아도 새로 등록한 화면을 지우지 않는다", () => {
     let calls = 0;
-    const unregisterOld = registerScrollToTop("records", () => undefined);
+    const unregisterOld = registerScrollToTop("records", () => false);
     const unregisterNew = registerScrollToTop("records", () => {
       calls += 1;
+      return false;
     });
 
     unregisterOld();
@@ -176,5 +189,19 @@ describe("scrollAreaToTop", () => {
     unregisterNew();
 
     expect(calls).toBe(1);
+  });
+
+  // 이미 맨 위면 탭을 다시 누른 것을 새로 받기로 쓴다(#351)
+  it("이미 맨 위였는지 알려 준다", () => {
+    const unregister = registerScrollToTop("records", () => true);
+
+    const wasAtTop = scrollAreaToTop("records");
+    unregister();
+
+    expect(wasAtTop).toBe(true);
+  });
+
+  it("보이는 화면이 없으면 맨 위가 아니었다고 알려 준다", () => {
+    expect(scrollAreaToTop("records")).toBe(false);
   });
 });

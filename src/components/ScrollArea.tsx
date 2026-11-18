@@ -35,10 +35,13 @@ export const ScrollArea = ({ scrollKey, className, children }: ScrollAreaProps):
     element.addEventListener("touchstart", restorer.cancel, { passive: true });
     element.addEventListener("wheel", restorer.cancel, { passive: true });
     const unregisterScrollToTop = registerScrollToTop(scrollKey, () => {
-      // 아직 되돌리는 중이면 내용이 늘어날 때 다시 내려가므로 먼저 멈춘다
-      restorer.cancel();
+      // 아직 되돌리는 중이면 내용이 늘어날 때 다시 내려가므로 먼저 멈춘다.
+      // 되돌리던 중이면 기억한 자리가 아래라 잠깐 맨 위에 있어도 맨 위에 있던 것이 아니다(#351)
+      const wasRestoring = restorer.cancel();
+      if (!wasRestoring && element.scrollTop <= 0) return true;
       const isMotionReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       element.scrollTo({ top: 0, behavior: isMotionReduced ? "auto" : "smooth" });
+      return false;
     });
 
     return () => {
