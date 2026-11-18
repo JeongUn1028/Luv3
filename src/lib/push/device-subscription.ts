@@ -1,7 +1,7 @@
 // 이 기기(브라우저)의 알림 구독 다루기. 설정 화면 알림 칸(#363), 로그아웃(#364), 로그인(#409)이 함께 쓴다
 
 import { createClient } from "@/lib/supabase/client";
-import { isUsableSubscription, toApplicationServerKey, toStoredSubscription } from "./subscription";
+import { isPushServiceEndpoint, isUsableSubscription, toApplicationServerKey, toStoredSubscription } from "./subscription";
 
 /** 로그인한 뒤 구독 주인을 맞추기를 기다리는 시간(ms). 신호가 약해도 로그인한 화면으로 옮기는 것을 오래 막지 않는다 */
 const ADOPT_TIMEOUT = 3_000;
@@ -42,8 +42,9 @@ export const getThisDevicePushSubscription = async (): Promise<PushSubscription 
 const adoptIfUsable = async (publicKey: string): Promise<void> => {
   if (!("Notification" in window) || Notification.permission !== "granted") return;
   const subscription = await getThisDevicePushSubscription();
-  // 알림 열쇠를 바꾸기 전의 구독으로는 보낼 수 없다. 설정 화면에서 다시 켤 때 새로 만든다
-  if (!subscription || !isUsableSubscription(subscription, toApplicationServerKey(publicKey))) return;
+  // 알림 열쇠를 바꾸기 전의 구독으로는 보낼 수 없다. 설정 화면에서 다시 켤 때 새로 만든다.
+  // 알림 서비스 목록 밖 구독은 서버가 저장하지 않아 맞출 것이 없다. 설정 화면을 열면 끊는다(#432)
+  if (!subscription || !isUsableSubscription(subscription, toApplicationServerKey(publicKey)) || !isPushServiceEndpoint(subscription.endpoint)) return;
   await savePushSubscriptionRow(subscription);
 };
 
