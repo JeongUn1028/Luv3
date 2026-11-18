@@ -17,12 +17,40 @@ const JUST_ADDED_MS = 1800;
 
 const isMotionReduced = (): boolean => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const without = <Key, Value>(map: ReadonlyMap<Key, Value>, key: Key): ReadonlyMap<Key, Value> => {
+const without = <Value>(map: ReadonlyMap<string, Value>, key: string): ReadonlyMap<string, Value> => {
   if (!map.has(key)) return map;
   const next = new Map(map);
   next.delete(key);
   return next;
 };
+
+const withoutId = (ids: ReadonlySet<string>, id: string): ReadonlySet<string> => {
+  if (!ids.has(id)) return ids;
+  const next = new Set(ids);
+  next.delete(id);
+  return next;
+};
+
+/** 가장 가까운 세로 스크롤 영역(화면 틀의 ScrollArea) */
+const findScrollParent = (element: HTMLElement): HTMLElement | undefined => {
+  for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+    if (/(auto|scroll)/.test(getComputedStyle(parent).overflowY)) return parent;
+  }
+  return undefined;
+};
+
+/** 그 줄이 스크롤 영역 안에 다 보이게 그 영역만 옮긴다. `scrollIntoView`는 문서까지 옮겨 아이폰 홈 화면 앱의 고정된 틀이 밀릴 수 있다(#51) */
+const revealInScrollParent = (row: HTMLElement): void => {
+  const scroller = findScrollParent(row);
+  if (!scroller) return;
+  const rowRect = row.getBoundingClientRect();
+  const scrollerRect = scroller.getBoundingClientRect();
+  const offset = rowRect.top < scrollerRect.top ? rowRect.top - scrollerRect.top : Math.max(0, rowRect.bottom - scrollerRect.bottom);
+  if (offset !== 0) scroller.scrollTo({ top: scroller.scrollTop + offset, behavior: isMotionReduced() ? "auto" : "smooth" });
+};
+
+// 이미 표시한 새 항목. 목록을 다시 만들어도 같은 항목을 또 표시하지 않게 컴포넌트 밖에 둔다
+const revealedTodoIds = new Set<string>();
 
 /** 줄긋기 상태 */
 export interface StrikingTodos {
@@ -30,9 +58,9 @@ export interface StrikingTodos {
   strikePhases: ReadonlyMap<string, StrikePhase>;
   /** 방금 완료 칸으로 옮긴 항목. 나타나는 움직임을 준다 */
   arrivingIds: ReadonlySet<string>;
-  /** 완료를 누르면 부른다. "동작 줄이기"면 아무것도 하지 않아 바로 옮긴다. 줄긋기를 시작했으면 true */
-  startStrike: (id: string) => boolean;
-  /** 줄긋기 중에 완료를 풀었을 때 부른다 */
+  /** 완료를 누르면 부른다. "동작 줄이기"면 아무것도 하지 않아 바로 옮긴다 */
+  startStrike: (id: string) => void;
+  /** 줄긋기 중에 완료를 풀었거나 저장하지 못했을 때 부른다 */
   cancelStrike: (id: string) => void;
   /** 화면을 떠날 때 부른다. 돌아왔을 때 줄긋기에 멈춰 있지 않게 한다 */
   resetStrikes: () => void;
@@ -48,20 +76,22 @@ export const useStrikingTodos = (): StrikingTodos => {
   const [arrivingIds, setArrivingIds] = useState<ReadonlySet<string>>(new Set());
   const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>[]>());
 
+  // 목록이 사라지면 남은 줄긋기 타이머를 멈춘다
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => {
+      for (const ids of timers.values()) ids.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
+
   const clearTimers = (id: string) => {
     timersRef.current.get(id)?.forEach(clearTimeout);
     timersRef.current.delete(id);
   };
 
-  const finishArriving = (id: string) =>
-    setArrivingIds((ids) => {
-      const next = new Set(ids);
-      next.delete(id);
-      return next;
-    });
-
-  const startStrike = (id: string): boolean => {
-    if (isMotionReduced()) return false;
+  const startStrike = (id: string) => {
+    if (isMotionReduced()) return;
     clearTimers(id);
     setStrikePhases((phases) => new Map(phases).set(id, "drawing"));
     timersRef.current.set(id, [
@@ -72,16 +102,15 @@ export const useStrikingTodos = (): StrikingTodos => {
       }, STRIKE_HOLD_MS + STRIKE_LEAVE_MS),
       setTimeout(() => {
         timersRef.current.delete(id);
-        finishArriving(id);
+        setArrivingIds((ids) => withoutId(ids, id));
       }, STRIKE_HOLD_MS + STRIKE_LEAVE_MS + ARRIVE_MS),
     ]);
-    return true;
   };
 
   const cancelStrike = (id: string) => {
     clearTimers(id);
     setStrikePhases((phases) => without(phases, id));
-    finishArriving(id);
+    setArrivingIds((ids) => withoutId(ids, id));
   };
 
   const resetStrikes = () => {
@@ -98,15 +127,14 @@ export const useStrikingTodos = (): StrikingTodos => {
  * 새 항목은 저장을 기다리지 않고 목록으로 돌아올 때 저장 중인 항목(#345)으로 먼저 보이므로, 그때를 "막 더함"으로 본다.
  * 폼은 목록의 기억한 스크롤 자리를 지우고 돌아온다(`TodoForm`). 기억한 자리로 되돌리기가 이 스크롤을 덮지 않게 한다.
  *
- * @example const justAddedId = useJustAddedTodo(pendingTodos);
+ * @example const { justAddedId } = useJustAddedTodo(pendingTodos);
  */
 export const useJustAddedTodo = (pendingTodos: readonly PendingTodo[]): { justAddedId: string | undefined; clearJustAdded: () => void } => {
-  const [revealedIds, setRevealedIds] = useState<ReadonlySet<string>>(new Set());
   const [justAddedId, setJustAddedId] = useState<string>();
   // 새 항목이 처음 보인 그 그림에서 표시를 정한다. 효과에서 정하면 표시 없이 한 번 더 그린다
-  const added = pendingTodos.find(({ id, isNew }) => isNew && !revealedIds.has(id));
+  const added = pendingTodos.find(({ id, isNew }) => isNew && !revealedTodoIds.has(id));
   if (added) {
-    setRevealedIds(new Set(revealedIds).add(added.id));
+    revealedTodoIds.add(added.id);
     setJustAddedId(added.id);
   }
 
@@ -114,10 +142,8 @@ export const useJustAddedTodo = (pendingTodos: readonly PendingTodo[]): { justAd
     if (!justAddedId) return;
     // 그려진 뒤에 옮긴다. 같은 그림의 효과 순서와 상관없이 스크롤 영역의 자리 맞추기가 먼저 끝난다
     const frame = requestAnimationFrame(() => {
-      document
-        .getElementById(toCheckboxId(justAddedId))
-        ?.closest("li")
-        ?.scrollIntoView({ block: "nearest", behavior: isMotionReduced() ? "auto" : "smooth" });
+      const row = document.getElementById(toCheckboxId(justAddedId))?.closest("li");
+      if (row) revealInScrollParent(row);
     });
     const timer = setTimeout(() => setJustAddedId(undefined), JUST_ADDED_MS);
     return () => {

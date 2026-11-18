@@ -148,6 +148,28 @@ describe("createTodoSaveBatch", () => {
     await expect(next).resolves.toBe(true);
   });
 
+  it("기다리는 중에 그만 기다리라고 하면(폼으로 옮기는 중) 바로 묶음을 끝낸다", async () => {
+    // Arrange
+    vi.useFakeTimers();
+    let isLeaving = false;
+    const batch = createTodoSaveBatch({ shouldStopWaiting: () => isLeaving });
+    let isDone = false;
+    const result = batch.run(async () => undefined, vi.fn()).then((shouldRefresh) => {
+      isDone = true;
+      return shouldRefresh;
+    });
+    await vi.advanceTimersByTimeAsync(100);
+
+    // Act
+    isLeaving = true;
+    await vi.advanceTimersByTimeAsync(50);
+
+    // Assert
+    expect(isDone).toBe(true);
+    await expect(result).resolves.toBe(true);
+    vi.useRealTimers();
+  });
+
   it("기다리는 시간을 주지 않으면 0.7초 기다린다", async () => {
     // Arrange
     vi.useFakeTimers();

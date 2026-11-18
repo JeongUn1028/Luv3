@@ -5,7 +5,7 @@ import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, useS
 import { toCheckboxId, TodoItem, TodoMoveButtons } from "@/components/todos/TodoItem";
 import { useJustAddedTodo, useStrikingTodos } from "@/components/todos/use-todo-motion";
 import { DELETING_KEYS, omitDeleting, useDeletingKeys } from "@/lib/deleting";
-import { refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
+import { isWritingNow, refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { createClient } from "@/lib/supabase/client";
 import { saveTodoAction } from "@/lib/todos/actions";
@@ -41,7 +41,7 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
   const router = useRouter();
   const [optimisticTodos, addOptimisticAction] = useOptimistic(todos, applyTodoAction);
   const pendingTodos = useSyncExternalStore(pendingTodoStore.subscribe, pendingTodoStore.getPending, () => NO_PENDING_TODOS);
-  const [saveBatch] = useState(createTodoSaveBatch);
+  const [saveBatch] = useState(() => createTodoSaveBatch({ shouldStopWaiting: isWritingNow }));
   const { strikePhases, arrivingIds, startStrike, cancelStrike, resetStrikes } = useStrikingTodos();
   const { justAddedId, clearJustAdded } = useJustAddedTodo(pendingTodos);
   // 지우기를 확인하고 돌아온 항목은 응답을 기다리지 않고 숨긴다(#346)
@@ -87,6 +87,8 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
         () => saveAction(action),
         (failure) => {
           if (!failure) return;
+          // 완료를 저장하지 못했으면 줄긋기를 멈춘다. 먼저 바꾼 화면은 저절로 되돌아간다
+          if (action.type === "complete") cancelStrike(action.id);
           setNotice(failure);
           // 옮기지 못했으면 "옮겼어요" 안내가 남지 않게 지운다(실패 문구는 alert로 따로 읽힌다)
           setAnnouncement("");

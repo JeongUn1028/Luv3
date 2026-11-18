@@ -16,13 +16,27 @@ export interface TodoSaveBatch {
 }
 
 interface TodoSaveBatchOptions {
+  /**
+   * 기다리는 중에 그만 기다려야 하는지. 폼으로 옮기는 중이면 true를 준다:
+   * 저장하는 동안 누른 링크는 이 저장과 묶여 기다리므로(#164), 묶음을 기다리느라 화면 이동이 늦어지지 않게 한다
+   */
+  shouldStopWaiting?: () => boolean;
   /** 기다리기(테스트용) */
-  wait?: (ms: number) => Promise<void>;
+  wait?: (ms: number, shouldStopWaiting: () => boolean) => Promise<void>;
 }
 
-const waitFor = (ms: number): Promise<void> =>
+/** 그만 기다려야 하는지 이만큼마다 본다 */
+const STOP_CHECK_MS = 50;
+
+const waitFor = (ms: number, shouldStopWaiting: () => boolean): Promise<void> =>
   new Promise((resolve) => {
-    setTimeout(resolve, ms);
+    const startedAt = Date.now();
+    const check = () => {
+      const elapsed = Date.now() - startedAt;
+      if (shouldStopWaiting() || elapsed >= ms) resolve();
+      else setTimeout(check, Math.min(STOP_CHECK_MS, ms - elapsed));
+    };
+    check();
   });
 
 /**
@@ -34,7 +48,7 @@ const waitFor = (ms: number): Promise<void> =>
  * const shouldRefresh = await batch.run(() => saveAction(action), (failure) => setNotice(failure));
  * if (shouldRefresh) router.refresh();
  */
-export const createTodoSaveBatch = ({ wait = waitFor }: TodoSaveBatchOptions = {}): TodoSaveBatch => {
+export const createTodoSaveBatch = ({ shouldStopWaiting = () => false, wait = waitFor }: TodoSaveBatchOptions = {}): TodoSaveBatch => {
   let queue: Promise<unknown> = Promise.resolve();
   let waitingCount = 0;
   let hasSaved = false;
@@ -57,7 +71,7 @@ export const createTodoSaveBatch = ({ wait = waitFor }: TodoSaveBatchOptions = {
         const failure = await result;
         if (failure !== TODO_ACTION_FAILED_MESSAGE) hasSaved = true;
         onSaved(failure);
-        await wait(REFRESH_SETTLE_MS);
+        await wait(REFRESH_SETTLE_MS, shouldStopWaiting);
       } catch (error) {
         finishOne();
         throw error;
