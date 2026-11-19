@@ -14,7 +14,7 @@ import {
   renameEvent,
   renameTodo,
 } from "./support/seed";
-import { expect, openScreen, test } from "./support/test";
+import { expect, getScrollArea, openScreen, test } from "./support/test";
 import { getSubmitButton, returnToFailedEventForm, returnToFailedTodoForm } from "./support/actions";
 import { createTestName } from "./support/names";
 
@@ -70,6 +70,8 @@ test.describe("일정 고치기 화면을 연 사이 상대가 일정을 고치�
       await expect(getFormAlert(page)).toContainText(EVENT_CONFLICT_MESSAGE);
       await expect(getEventTitleField(page)).toHaveValue(`${title} 내 수정`);
       expect(await getEventIdsByTitle(partnerTitle)).toEqual([id]);
+      // 하고 싶은 것 칸(#472)이 보이면 폼이 조금 스크롤된다. 끝까지 내렸을 때 화면 안에 다 보이는지 본다
+      await getScrollArea(page).locator("visible=true").evaluate((element) => element.scrollTo(0, element.scrollHeight));
       const button = await getReloadButton(page).boundingBox();
       expect((button?.y ?? 0) + (button?.height ?? 0)).toBeLessThanOrEqual(viewport?.height ?? 0);
 

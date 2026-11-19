@@ -1,5 +1,7 @@
 import "server-only";
+import type { LinkedTodo } from "@/lib/events/form";
 import { isUuid } from "@/lib/guards";
+import { catchLoadError } from "@/lib/load";
 import { readAllRows } from "@/lib/supabase/read-all-rows";
 import { createClient } from "@/lib/supabase/server";
 import { toTodo, type Todo } from "./list";
@@ -69,4 +71,37 @@ export const getTodo = async (id: string): Promise<Todo | undefined> => {
   const { data, error } = await supabase.from("todos").select(TODO_COLUMNS).eq("id", id).maybeSingle();
   if (error) throw new TodoLoadError({ cause: error });
   return data ? toTodo(data) : undefined;
+};
+
+/** 일정 폼의 고르는 창에 보일 하고 싶은 것 상한. 둘이 쓰는 목록이라 하지 않은 것이 이만큼 쌓일 일은 없다 */
+const LINKABLE_TODO_LIMIT = 200;
+
+/**
+ * 일정 폼에서 이을 수 있는 하고 싶은 것(#472): 아직 일정이 없고 완료하지 않은 것을 목록 순서(`groupTodos`의 open)대로 읽는다.
+ *
+ * @throws {TodoLoadError} 조회가 실패했을 때
+ * @example const todos = await getLinkableTodos()
+ */
+export const getLinkableTodos = async (): Promise<LinkedTodo[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("todos")
+    .select("id, content")
+    .is("completed_at", null)
+    .is("event_id", null)
+    .order("sort_order")
+    .order("id")
+    .limit(LINKABLE_TODO_LIMIT);
+  if (error) throw new TodoLoadError({ cause: error });
+  return data;
+};
+
+/**
+ * 일정 폼이 쓰는 `getLinkableTodos`. 불러오지 못해도 일정은 고칠 수 있어야 하므로 빈 목록을 돌려줘 칸을 숨긴다(원인은 `catchLoadError`가 서버 로그에 남긴다).
+ *
+ * @example <EventForm linkableTodos={await loadLinkableTodos()} />
+ */
+export const loadLinkableTodos = async (): Promise<LinkedTodo[]> => {
+  const todos = await catchLoadError(getLinkableTodos, TodoLoadError);
+  return todos instanceof TodoLoadError ? [] : todos;
 };

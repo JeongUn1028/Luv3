@@ -14,6 +14,7 @@ import { EventLoadError, getEvent } from "@/lib/events/queries";
 import { getEditEventRecordLink } from "@/lib/events/record-link";
 import { findOccurrenceDate } from "@/lib/events/recurrence";
 import { catchLoadError } from "@/lib/load";
+import { loadLinkableTodos } from "@/lib/todos/queries";
 
 export const metadata: Metadata = { title: "일정 고치기 · Luv3" };
 
@@ -22,7 +23,8 @@ const EditEventForm = async ({ params, searchParams }: Pick<PageProps<"/events/[
   const { date } = await searchParams;
 
   // 허용목록 확인과 함께 시작하고, 허용목록 밖 계정은 로그아웃 처리 경로로 보낸다
-  const [, event] = await withCurrentMember(() => catchLoadError(() => getEvent(id), EventLoadError));
+  // 고르는 창의 하고 싶은 것(#472)도 함께 읽는다. 반복 일정이면 칸을 숨기지만 일정을 읽기 전에는 알 수 없다
+  const [, [event, linkableTodos]] = await withCurrentMember(() => Promise.all([catchLoadError(() => getEvent(id), EventLoadError), loadLinkableTodos()]));
 
   if (event instanceof EventLoadError) {
     return <LoadErrorScreen title="일정을 불러오지 못했어요" backHref={CALENDAR_PATH} backLabel="캘린더로" />;
@@ -60,7 +62,7 @@ const EditEventForm = async ({ params, searchParams }: Pick<PageProps<"/events/[
       viewedDate={findViewedPeriodDate(event, date)}
       isDetached={event.repeat_parent_id !== null}
       recordLink={getEditEventRecordLink(event, occurrenceDate, toKstDate(new Date()))}
-      isTodoEvent={event.todos.length > 0}
+      linkableTodos={linkableTodos}
     />
   );
 };

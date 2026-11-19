@@ -11,6 +11,12 @@ export const EVENT_MEMO_MAX_LENGTH = 2000;
 /** 고치는 범위. 반복 중 그날만이거나, 일정 전체다(한 번짜리 일정은 늘 전체) */
 export type EventEditScope = "occurrence" | "all";
 
+/** 일정에 이은 하고 싶은 것(#471·#472) */
+export interface LinkedTodo {
+  id: string;
+  content: string;
+}
+
 /** 일정 입력값. 날짜는 YYYY-MM-DD, 시간은 HH:MM(input 값) */
 export interface EventDraft {
   date: string;
@@ -28,10 +34,14 @@ export interface EventDraft {
   repeatUntil: string;
   /** 기간 일정의 끝 날짜. undefined면 하루 일정, 빈 문자열이면 기간을 켰지만 아직 고르지 않은 상태다 */
   endDate: string | undefined;
+  /** 폼에서 고른 하고 싶은 것(#472). 저장할 때 잇는다. 고치기 화면은 열 때 이어져 있던 것으로 시작한다 */
+  linkedTodo?: LinkedTodo | undefined;
   /** 새 일정을 저장하다 실패했을 때 쓴 id. 다시 저장할 때 같은 값을 써서 앞선 시도가 저장했어도 일정이 둘이 되지 않는다 */
   newEventId?: string;
   /** 저장해도 되는 판 번호: 불러온 판과, 저장됐을 수 있는 내 앞선 시도의 판. 이 밖이면 상대가 고친 것이라 거부된다(#161) */
   expectedRevisions?: string[];
+  /** 하고 싶은 것 잇기를 보냈는데 됐는지 모르는지(#472). 그때는 고른 것을 바꾸지 못하게 해, 다시 저장하면 같은 값을 보내 확실히 끝내게 한다 */
+  isTodoLinkUncertain?: boolean;
   /** 상대가 먼저 고쳐 저장이 거부됐는지. 다시 저장해도 거부되므로 최신 내용을 불러오게 한다 */
   hasConflict?: boolean;
 }
@@ -45,6 +55,7 @@ export const toWrittenFields = (draft: EventDraft): EventDraft => ({
   ...draft,
   newEventId: undefined,
   expectedRevisions: undefined,
+  isTodoLinkUncertain: undefined,
   hasConflict: undefined,
 });
 
@@ -82,7 +93,7 @@ export interface EditableEventRow extends EventRow {
   /** 이 일정에서 남긴 기록(#227) */
   records: LinkedRecordRow[];
   /** 이 일정이 이어진 하고 싶은 것(#471). 많아야 하나지만 표 관계상 목록으로 온다. 있으면 반복으로 바꾸지 않는다 */
-  todos: { id: string }[];
+  todos: LinkedTodo[];
 }
 
 /** 수정 화면에 넘기는 일정. 작성자는 닉네임만 남긴다 */
@@ -175,11 +186,11 @@ export const toEventValues = (draft: EventDraft): EventValues => ({
 
 /**
  * 저장된 일정을 수정 화면 입력값으로 바꾼다. DB의 time(HH:MM:SS)은 input 값(HH:MM)으로 줄인다.
- * 반복 중 오는 날을 주면 그날만 고치는 값으로 시작한다.
+ * 반복 중 오는 날을 주면 그날만 고치는 값으로 시작한다. 이어진 하고 싶은 것이 있으면 그것으로 시작한다(#472).
  *
  * @example toEventDraft(row, "2026-11-13")
  */
-export const toEventDraft = (row: EventRow, occurrenceDate?: string): EventDraft => ({
+export const toEventDraft = (row: EventRow & { todos?: LinkedTodo[] }, occurrenceDate?: string): EventDraft => ({
   date: occurrenceDate ?? row.date,
   isAllDay: row.start_time === null,
   startTime: row.start_time?.slice(0, 5) ?? "",
@@ -191,6 +202,7 @@ export const toEventDraft = (row: EventRow, occurrenceDate?: string): EventDraft
   repeatRule: isRepeatRule(row.repeat_rule) ? row.repeat_rule : undefined,
   repeatUntil: row.repeat_until ?? "",
   endDate: row.end_date ?? undefined,
+  ...(row.todos?.[0] ? { linkedTodo: { id: row.todos[0].id, content: row.todos[0].content } } : {}),
 });
 
 /**

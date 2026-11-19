@@ -360,6 +360,9 @@ isOneToOne: false
 "set_couple_photo":
 { Args: { "p_path": string }; Returns: string
                            },
+"set_event_todo":
+{ Args: { "p_event_id": string,"p_expected_todo_id"?: string,"p_todo_id"?: string }; Returns: undefined
+                           },
 "set_push_notify":
 { Args: { "p_enabled": boolean,"p_kind": string }; Returns: undefined
                            },
