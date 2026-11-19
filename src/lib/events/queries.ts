@@ -22,6 +22,9 @@ export { EventLoadError } from "./load-error";
  */
 export const getCalendarMonth = async (month: string): Promise<CalendarMonth> => readCalendarMonth(await createClient(), month);
 
+// 홈 일정 칸은 하고 싶은 것에서 잡은 일정을 알아보게 이어진 하고 싶은 것도 읽는다(#474)
+const UPCOMING_EVENT_COLUMNS = `${EVENT_COLUMNS}, todos(id, content)` as const;
+
 /**
  * 앞으로의 일정을 하나당 가장 가까운 날 한 줄씩 날짜 → 종일 먼저 → 시간 → 만든 순서로 읽는다(홈).
  * 칸에 넣을 만큼 고르는 일은 `previewUpcomingEvents`가 한다. 그날 못 넣은 수("외 N개")가 맞도록 앞으로의 일정을 끝까지 나눠 읽는다(#272).
@@ -37,7 +40,7 @@ export const getUpcomingEvents = async (now: KstNow): Promise<CalendarEvent[]> =
       fetchPage: (afterId, limit) => {
         const query = supabase
           .from("events")
-          .select(EVENT_COLUMNS)
+          .select(UPCOMING_EVENT_COLUMNS)
           .is("repeat_rule", null)
           // 이미 시작한 기간 일정도 끝나기 전까지 읽는다
           .or(`date.gte.${today},end_date.gte.${today}`);
@@ -49,7 +52,7 @@ export const getUpcomingEvents = async (now: KstNow): Promise<CalendarEvent[]> =
       fetchPage: (afterId, limit) => {
         const query = supabase
           .from("events")
-          .select(EVENT_COLUMNS)
+          .select(UPCOMING_EVENT_COLUMNS)
           .not("repeat_rule", "is", null)
           .or(`repeat_until.is.null,repeat_until.gte.${today}`);
         return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
