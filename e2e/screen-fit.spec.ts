@@ -6,6 +6,8 @@ import { expect, getDocumentOverflow, getScrollArea, getScrollAreaOverflow, open
 const [EVENT] = E2E_EVENTS;
 const [TODO] = E2E_TODOS;
 const MEMO_MIN_HEIGHT = 122;
+// 일정 폼 칸 사이 간격(gap-4)
+const FORM_GAP = 16;
 // 홈 로고는 머리글보다 4px 커서 위로 그만큼 나온다
 const HOME_LOGO_OVERHANG = 4;
 
@@ -382,10 +384,16 @@ test.describe("일정 폼", () => {
     { name: "일정 추가", path: "/events/new" },
     { name: "일정 고치기", path: `/events/${EVENT.id}/edit` },
   ]) {
-    test(`${name} 화면을 열면 넘치지 않고 저장 버튼이 화면 아래에 붙으며 메모 칸이 4줄 높이를 유지한다`, async ({ page, safeArea, viewport }) => {
+    test(`${name} 화면을 열면 하고 싶은 것 칸 말고는 넘치지 않고 끝까지 내리면 저장 버튼이 화면 아래에 붙으며 메모 칸이 4줄 높이를 유지한다`, async ({ page, safeArea, viewport }) => {
       await openScreen(page, path, page.locator("#event-memo"));
 
-      expect((await getScrollAreaOverflow(page)).vertical).toBe(0);
+      // 하고 싶은 것 칸(#472)이 보이면 그 높이만큼은 안쪽이 스크롤돼도 된다(종일을 끌 때와 같다). 그 밖의 칸으로는 넘치지 않는다
+      const todoFieldLocator = page.locator("#event-todo-label").locator("..").locator("visible=true");
+      const todoField = (await todoFieldLocator.count()) > 0 ? await todoFieldLocator.boundingBox() : null;
+      const todoFieldSpace = todoField ? todoField.height + FORM_GAP : 0;
+      expect((await getScrollAreaOverflow(page)).vertical).toBeLessThanOrEqual(todoFieldSpace);
+      // 저장 버튼은 폼 맨 끝에 있어 같이 스크롤된다. 끝까지 내리면 화면 아래에 붙는다
+      await getScrollArea(page).locator("visible=true").evaluate((element) => element.scrollTo(0, element.scrollHeight));
       expect(await getSaveButtonBottom(page)).toBeCloseTo((viewport?.height ?? 0) - safeArea.bottom, 0);
       const memo = await page.locator("#event-memo").boundingBox();
       expect(memo?.height).toBeGreaterThanOrEqual(MEMO_MIN_HEIGHT);

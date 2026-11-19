@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 import { CALENDAR_PATH } from "@/lib/calendar/month";
 import { TODOS_PATH } from "@/lib/todos/list";
 import { deleteEventsByTitle, deleteTodosByContent, getEventIdsByTitle, getTodoIdsByContent } from "./support/seed";
-import { expect, openScreen, test } from "./support/test";
+import { expect, getScrollArea, openScreen, test } from "./support/test";
 import { getKstYesterday, getSubmitButton, returnToFailedEventForm, returnToFailedTodoForm } from "./support/actions";
 import { createTestName } from "./support/names";
 
@@ -103,6 +103,8 @@ test("응답이 끊겼다는 안내가 나와도 일정 추가 폼의 저장 버
     await expect(getFormAlert(page)).toContainText(RESPONSE_LOST_MESSAGE);
 
     // Assert
+    // 하고 싶은 것 칸(#472)이 보이면 폼이 조금 스크롤된다. 끝까지 내렸을 때 화면 안에 다 보이는지 본다
+    await getScrollArea(page).locator("visible=true").evaluate((element) => element.scrollTo(0, element.scrollHeight));
     const button = await getSubmitButton(page).boundingBox();
     expect((button?.y ?? 0) + (button?.height ?? 0)).toBeLessThanOrEqual(viewport?.height ?? 0);
   } finally {

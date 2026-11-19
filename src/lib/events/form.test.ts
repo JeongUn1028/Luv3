@@ -183,6 +183,13 @@ describe("toEventDraft", () => {
   it("오는 날을 받으면 그날만 고치는 값으로 바꾼다", () => {
     expect(toEventDraft(repeatingRow, "2026-11-28")).toMatchObject({ date: "2026-11-28", scope: "occurrence", repeatRule: "weekly" });
   });
+
+  it("이어진 하고 싶은 것이 있으면 그것으로 시작하고, 없으면 두지 않는다(#472)", () => {
+    const row = { ...repeatingRow, repeat_rule: null, repeat_until: null };
+
+    expect(toEventDraft({ ...row, todos: [{ id: "t1", content: "성수 팝업 같이 가기" }] }).linkedTodo).toEqual({ id: "t1", content: "성수 팝업 같이 가기" });
+    expect(toEventDraft({ ...row, todos: [] })).not.toHaveProperty("linkedTodo");
+  });
 });
 
 describe("toEditableEvent", () => {

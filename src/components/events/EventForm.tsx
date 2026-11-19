@@ -19,6 +19,7 @@ import {
   type EventDraft,
   type EventDraftErrors,
   type EventEditScope,
+  type LinkedTodo,
   toWrittenFields,
 } from "@/lib/events/form";
 import type { EventRecordLink } from "@/lib/events/record-link";
@@ -29,6 +30,7 @@ import { toTodoEditHref } from "@/lib/todos/schedule";
 import { EventKindField, EventScopeField } from "./event-form/EventChoiceFields";
 import { EventFormActions } from "./event-form/EventFormActions";
 import { EventSpanFields, type EventTextField } from "./event-form/EventSpanFields";
+import { EventTodoField } from "./event-form/EventTodoField";
 import { useEventSave } from "./event-form/use-event-save";
 
 const failedSaves = new Map<string, FailedSave<EventDraft>>();
@@ -51,9 +53,13 @@ interface EventFormProps {
   recordLink?: EventRecordLink | undefined;
   /** 새 일정을 이 하고 싶은 것에 이어 만든다(#471). 반복 칸을 숨기고, 저장하면 하고 싶은 것 목록으로 돌아간다 */
   todo?: { id: string; content: string } | undefined;
-  /** 고칠 일정이 하고 싶은 것과 이어졌는지. 그러면 반복 칸을 숨긴다(#471) */
-  isTodoEvent?: boolean;
+  /** 폼에서 고를 수 있는 하고 싶은 것(#472). 아직 일정이 없고 완료하지 않은 것, 목록 순서 */
+  linkableTodos?: LinkedTodo[];
 }
+
+/** 고르는 창에 보일 하고 싶은 것. 고치기 화면에서 끊은 것은 다시 고를 수 있게 맨 앞에 둔다 */
+const toTodoOptions = (linkableTodos: LinkedTodo[], initialTodo: LinkedTodo | undefined): LinkedTodo[] =>
+  initialTodo && !linkableTodos.some(({ id }) => id === initialTodo.id) ? [initialTodo, ...linkableTodos] : linkableTodos;
 
 /** 공유 캘린더 일정 추가·수정 폼 */
 export const EventForm = ({
@@ -66,7 +72,7 @@ export const EventForm = ({
   isDetached = false,
   recordLink,
   todo,
-  isTodoEvent = false,
+  linkableTodos = [],
 }: EventFormProps): ReactElement => {
   // 캘린더에서 고른 날마다 다른 폼이다. 다른 날의 실패한 내용이 채워지지 않게 날짜까지 구분한다. 하고 싶은 것에서 연 폼은 그 하고 싶은 것으로 구분한다
   const formKey = `event:${eventId ? `${eventId}:${occurrence?.date ?? ""}` : todo ? `todo:${todo.id}` : `new:${initialDraft.date}`}`;
@@ -100,6 +106,9 @@ export const EventForm = ({
   const isOccurrenceScope = draft.scope === "occurrence";
   const dateLabel = draft.endDate === undefined ? "날짜" : "시작 날짜";
   const deleteOccurrenceDate = isOccurrenceScope ? occurrence?.date : undefined;
+  const todoOptions = toTodoOptions(linkableTodos, initialDraft.linkedTodo).filter(({ id }) => id !== draft.linkedTodo?.id);
+  // 하고 싶은 것에서 연 폼은 이미 그 하고 싶은 것에 잇는다. 반복 일정은 잇지 않는다(#471). 고를 것도 이어진 것도 없으면 칸을 두지 않는다
+  const canPickTodo = !todo && !isOccurrenceScope && !draft.repeatRule && (draft.linkedTodo !== undefined || todoOptions.length > 0);
 
   const updateField = (field: EventTextField, value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -199,8 +208,8 @@ export const EventForm = ({
           isDisabled={isSaving}
           // 이 날만 고칠 때와 따로 나온 일정은 반복과 기간을 바꾸지 않는다
           canEditSpan={!isOccurrenceScope && !isDetached}
-          // 하고 싶은 것과 이어진 일정은 반복하지 않는다(#471)
-          canRepeat={!todo && !isTodoEvent}
+          // 하고 싶은 것과 이어진 일정은 반복하지 않는다(#471). 폼에서 끊어도 저장 전에는 이어진 채라 열 때 이어져 있었으면 그대로 숨긴다
+          canRepeat={!todo && !draft.linkedTodo && !initialDraft.linkedTodo}
           setDraft={setDraft}
           setErrors={setErrors}
           onFieldChange={updateField}
@@ -216,6 +225,16 @@ export const EventForm = ({
           error={errors.place}
           onChange={(value) => updateField("place", value)}
         />
+
+        {canPickTodo && (
+          <EventTodoField
+            linkedTodo={draft.linkedTodo}
+            options={todoOptions}
+            isDisabled={isSaving}
+            isLocked={draft.isTodoLinkUncertain === true}
+            onChange={(linkedTodo) => setDraft((current) => ({ ...current, linkedTodo }))}
+          />
+        )}
 
         <TextAreaField
           id="event-memo"

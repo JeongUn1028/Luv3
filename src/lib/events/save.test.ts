@@ -228,6 +228,145 @@ describe("saveEvent 하고 싶은 것에 일정 잡기(#471)", () => {
   });
 });
 
+describe("saveEvent 일정 폼에서 하고 싶은 것 잇기(#472)", () => {
+  const TODO_ID = "40000000-0000-4000-8000-000000000001";
+  const OTHER_TODO_ID = "40000000-0000-4000-8000-000000000002";
+  const linked = (id: string) => ({ id, content: "성수 팝업 같이 가기" });
+
+  /** 차례로 돌려줄 오류. 다 쓰면 성공한다 */
+  const createRpc = (errors: (SaveErrorCode | null)[] = []) => vi.fn(async () => ({ error: errors.shift() ?? null }));
+
+  const editWith = ({ draft, expectedTodoId, setEventTodo = createRpc(), events = createFakeRevisionedTable<EventValues>().table, occurrenceDate }: {
+    draft: EventDraft;
+    expectedTodoId: string | undefined;
+    setEventTodo?: ReturnType<typeof createRpc>;
+    events?: ReturnType<typeof createFakeRevisionedTable<EventValues>>["table"];
+    occurrenceDate?: string;
+  }) =>
+    saveEvent({
+      events,
+      detachOccurrence: createDetachOccurrence(),
+      todoLink: { expectedTodoId, setEventTodo },
+      draft,
+      eventId: EVENT_ID,
+      occurrenceDate,
+      newEventId: NEW_EVENT_ID,
+      revision: "r2",
+    });
+
+  it("새 일정에서 고른 하고 싶은 것은 schedule_todo로 만들며 잇고, 그사이 다른 일정이 잡혔으면(P0412) 다시 고르라고 알린다", async () => {
+    // Arrange
+    const scheduleTodo = createRpc([null, { code: "P0412" }]);
+    const params = {
+      events: createFakeRevisionedTable<EventValues>().table,
+      detachOccurrence: createDetachOccurrence(),
+      todoSchedule: { todoId: TODO_ID, isPicked: true, scheduleTodo },
+      draft: createDraft({ linkedTodo: linked(TODO_ID) }),
+      eventId: undefined,
+      occurrenceDate: undefined,
+      newEventId: NEW_EVENT_ID,
+      revision: "r2",
+    };
+
+    // Act
+    const saved = await saveEvent(params);
+    const taken = await saveEvent(params);
+
+    // Assert
+    expect(saved).toBeUndefined();
+    expect(scheduleTodo).toHaveBeenCalledWith(expect.objectContaining({ p_todo_id: TODO_ID, p_event_id: NEW_EVENT_ID }));
+    expect(taken).toMatchObject({ hasConflict: false, isGone: false, message: "고른 하고 싶은 것에 그사이 다른 일정이 이어졌어요. 다시 골라 주세요." });
+  });
+
+  it("고칠 때 하고 싶은 것을 바꿨으면 일정을 고친 뒤 고른 것과 폼을 열 때 이어져 있던 것으로 set_event_todo를 부른다", async () => {
+    // Arrange
+    const { table, calls } = createFakeRevisionedTable<EventValues>();
+    const setEventTodo = createRpc();
+
+    // Act
+    const failure = await editWith({ draft: createDraft({ linkedTodo: linked(OTHER_TODO_ID), expectedRevisions: ["r1"] }), expectedTodoId: TODO_ID, setEventTodo, events: table });
+
+    // Assert
+    expect(failure).toBeUndefined();
+    expect(calls.update).toHaveLength(1);
+    expect(setEventTodo).toHaveBeenCalledWith({ p_event_id: EVENT_ID, p_todo_id: OTHER_TODO_ID, p_expected_todo_id: TODO_ID });
+  });
+
+  it("연결을 끊으면 고를 하고 싶은 것 없이 부르고, 바꾸지 않았으면 부르지 않는다", async () => {
+    const unlink = createRpc();
+    const unchanged = createRpc();
+
+    await editWith({ draft: createDraft({ linkedTodo: undefined }), expectedTodoId: TODO_ID, setEventTodo: unlink });
+    await editWith({ draft: createDraft({ linkedTodo: linked(TODO_ID) }), expectedTodoId: TODO_ID, setEventTodo: unchanged });
+
+    expect(unlink).toHaveBeenCalledWith({ p_event_id: EVENT_ID, p_todo_id: undefined, p_expected_todo_id: TODO_ID });
+    expect(unchanged).not.toHaveBeenCalled();
+  });
+
+  it("일정을 고치지 못했으면 연결도 바꾸지 않는다", async () => {
+    const setEventTodo = createRpc();
+    const { table } = createFakeRevisionedTable<EventValues>({ updateResults: NO_UPDATED_ROWS });
+
+    const failure = await editWith({ draft: createDraft({ linkedTodo: linked(TODO_ID) }), expectedTodoId: undefined, setEventTodo, events: table });
+
+    expect(failure).toMatchObject({ hasConflict: true });
+    expect(setEventTodo).not.toHaveBeenCalled();
+  });
+
+  it("응답이 끊기면 한 번 더 보낸다", async () => {
+    const setEventTodo = createRpc([LOST_RESPONSE]);
+
+    const failure = await editWith({ draft: createDraft({ linkedTodo: linked(TODO_ID) }), expectedTodoId: undefined, setEventTodo });
+
+    expect(failure).toBeUndefined();
+    expect(setEventTodo).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["P0409", { hasConflict: true, message: "일정은 저장했지만 그사이 하고 싶은 것 연결이 바뀌었어요. 불러와 확인해 주세요." }],
+    ["P0412", { hasConflict: false, message: "일정은 저장했지만 고른 하고 싶은 것에 그사이 다른 일정이 이어졌어요. 다시 골라 주세요." }],
+    ["P0002", { isGone: false, hasConflict: false, message: "일정은 저장했지만 고른 하고 싶은 것이 그사이 지워졌어요. 다시 골라 주세요." }],
+    ["42501", { hasConflict: false, message: "일정은 저장했지만 하고 싶은 것과 잇지 못했어요. 다시 저장해 주세요." }],
+  ])("연결을 바꾸지 못하면(%s) 일정은 저장됐다고 함께 알리고, 다시 저장할 수 있게 저장됐을 수 있는 판으로 둔다", async (code, expected) => {
+    const failure = await editWith({ draft: createDraft({ linkedTodo: linked(TODO_ID) }), expectedTodoId: undefined, setEventTodo: createRpc([{ code }]) });
+
+    expect(failure).toMatchObject({ ...expected, mayHaveSaved: true, isTodoLinkUncertain: false });
+  });
+
+  it("두 번 다 응답이 끊기면 잇기가 저장됐을 수 있다고 알린다", async () => {
+    const failure = await editWith({ draft: createDraft({ linkedTodo: linked(TODO_ID) }), expectedTodoId: undefined, setEventTodo: createRpc([LOST_RESPONSE, LOST_RESPONSE]) });
+
+    // 됐는지 모르는 잇기는 폼이 고른 것을 잠가, 다시 저장해도 같은 값만 보낸다
+    expect(failure).toMatchObject({ mayHaveSaved: true, isTodoLinkUncertain: true });
+  });
+
+  it("일정을 고치지 못해 잇기를 보내지 않았으면 잇기가 됐는지 모르는지를 적지 않는다", async () => {
+    const { table } = createFakeRevisionedTable<EventValues>({ updateResults: [{ data: null, error: LOST_RESPONSE }] });
+
+    const failure = await editWith({ draft: createDraft({ linkedTodo: linked(TODO_ID) }), expectedTodoId: undefined, events: table });
+
+    expect(failure).toMatchObject({ mayHaveSaved: true });
+    expect(failure).not.toHaveProperty("isTodoLinkUncertain");
+  });
+
+  it("새 일정을 만들며 잇기가 두 번 다 응답이 끊기면 됐는지 모른다고 적고, 다시 고르라는 실패는 모르지 않는다고 적는다", async () => {
+    const create = (errors: (SaveErrorCode | null)[]) =>
+      saveEvent({
+        events: createFakeRevisionedTable<EventValues>().table,
+        detachOccurrence: createDetachOccurrence(),
+        todoSchedule: { todoId: TODO_ID, isPicked: true, scheduleTodo: createRpc(errors) },
+        draft: createDraft({ linkedTodo: linked(TODO_ID) }),
+        eventId: undefined,
+        occurrenceDate: undefined,
+        newEventId: NEW_EVENT_ID,
+        revision: "r2",
+      });
+
+    expect(await create([LOST_RESPONSE, LOST_RESPONSE])).toMatchObject({ mayHaveSaved: true, isTodoLinkUncertain: true });
+    expect(await create([{ code: "P0412" }])).toMatchObject({ isTodoLinkUncertain: false });
+  });
+});
+
 interface FakeDeleteParams {
   deleteError?: { message: string } | null;
   upsertError?: { message: string } | null;

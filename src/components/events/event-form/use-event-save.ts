@@ -7,7 +7,7 @@ import { deletingStore, toEventDayPrefix } from "@/lib/deleting";
 import { getDateAfterSave } from "@/lib/events/edit-scope";
 import type { EventDraft } from "@/lib/events/form";
 import { canShowEventBeforeSave, pendingEventStore, toPendingCalendarEvent } from "@/lib/events/pending";
-import { EVENT_NOT_SENT_FAILURE, saveEvent } from "@/lib/events/save";
+import { EVENT_NOT_SENT_FAILURE, type EventSaveFailure, saveEvent } from "@/lib/events/save";
 import type { LeavableSave } from "@/lib/navigation/use-leavable-save";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
@@ -83,6 +83,8 @@ export const useEventSave = ({
     const savedHref = todoId ? TODOS_PATH : toCalendarHref({ date: dateAfterSave });
     // 하루짜리 일정만 저장을 기다리지 않고 캘린더에 먼저 그린다. 반복·기간·"이 날만 고치기"는 저장이 끝난 뒤 새로 받는다(#345)
     const pendingId = eventId ?? newEventId;
+    // 새 일정은 하고 싶은 것에서 열었거나 폼에서 골랐으면 만들며 잇는다(#471·#472). 고칠 일정은 저장한 뒤 연결을 바꾼다
+    const scheduleTodoId = eventId ? undefined : (todoId ?? draft.linkedTodo?.id);
     const isShownBeforeSave = canShowEventBeforeSave({ draft, initialDraft });
     if (isShownBeforeSave) {
       pendingEventStore.add({
@@ -106,12 +108,17 @@ export const useEventSave = ({
     // 목록으로 돌아갈 때만 그 줄을 남긴다. 폼에 남았는데 남기면 나중에 목록을 열 때 엉뚱하게 그 줄로 간다.
     // 목록은 다음 그림에서 꺼내므로 옮기기를 시작한 뒤에 남겨도 된다
     else if (todoId) requestTodoFocus(todoId);
-    const failure = await withLoadedClient({
+    const failure = await withLoadedClient<EventSaveFailure | undefined>({
       request: (supabase) =>
         saveEvent({
           events: supabase.from("events"),
           detachOccurrence: (args) => supabase.rpc("detach_event_occurrence", args),
-          todoSchedule: todoId ? { todoId, scheduleTodo: (args) => supabase.rpc("schedule_todo", args) } : undefined,
+          todoSchedule: scheduleTodoId
+            ? { todoId: scheduleTodoId, isPicked: !todoId, scheduleTodo: (args) => supabase.rpc("schedule_todo", args) }
+            : undefined,
+          todoLink: eventId
+            ? { expectedTodoId: initialDraft.linkedTodo?.id, setEventTodo: (args) => supabase.rpc("set_event_todo", args) }
+            : undefined,
           draft,
           eventId,
           occurrenceDate: occurrence?.date,
@@ -125,6 +132,8 @@ export const useEventSave = ({
       const failedFields = {
         // 앞선 시도가 저장됐을 수 있으므로 다시 저장할 때 같은 id를 쓴다(이 날만 고치면 따로 나올 일정의 id)
         newEventId,
+        // 이번에 잇기를 보내지 못했으면 앞선 시도의 상태를 그대로 둔다
+        isTodoLinkUncertain: failure.isTodoLinkUncertain ?? draft.isTodoLinkUncertain,
         ...toFailedSaveFields({ failure, expectedRevisions: draft.expectedRevisions, revision }),
       };
       setDraft((current) => ({ ...current, ...failedFields }));
