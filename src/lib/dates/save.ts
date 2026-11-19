@@ -2,6 +2,7 @@ import type { ResizedPhoto } from "@/lib/photos/resize";
 import { removeUploadedPhotos, resizeAndUploadPhotos, type UploadedPhoto } from "@/lib/photos/upload";
 import type { PhotoStorage } from "@/lib/photos/upload-file";
 import { callWithRetry, isDuplicateKey, isOutcomeUnknown } from "@/lib/save-outcome";
+import { DB_ERROR_CODE } from "@/lib/supabase/error-codes";
 import { toCreateRecordArgs, type CreateDateRecordArgs, type DateRecordDraft, type UpdateDateRecordArgs } from "./form";
 import { getDraftPhotos } from "./photo-group-draft";
 import { DateRecordAlreadyLinkedError, DateRecordConflictError, DateRecordGoneError, SaveDateRecordError } from "./save-errors";
@@ -12,15 +13,6 @@ export interface SaveProgress {
   done: number;
   total: number;
 }
-
-/** `update_date_record`가 없는 기록(허용목록 밖이라 보이지 않는 기록 포함)에 내는 오류 코드 */
-const RECORD_NOT_FOUND_CODE = "P0002";
-
-/** 화면을 연 뒤 기록이 바뀌어 `update_date_record`가 저장을 거부했을 때 */
-const RECORD_CONFLICT_CODE = "P0409";
-
-/** 그 일정의 그날에 이미 남긴 기록이 있어 `create_date_record`가 거부했을 때. `details`에 그 기록 id가 온다 */
-const EVENT_LINK_TAKEN_CODE = "P0410";
 
 const UNCERTAIN_SAVE_MESSAGE = "저장됐는지 확인하지 못했어요. 다시 저장해도 기록이 둘이 되지는 않아요.";
 
@@ -89,7 +81,7 @@ export const saveDateRecord = async ({
   if (mayHaveSaved && isDuplicateKey(error)) return "already-saved";
   if (!mayHaveSaved) await discardUploadedPhotos(storage, uploaded);
   // 같은 id가 이미 있으면 DB 함수가 23505를 먼저 알리므로, 이번 id는 저장되지 않았다
-  if (error.code === EVENT_LINK_TAKEN_CODE) throw new DateRecordAlreadyLinkedError(error.details, { cause: error });
+  if (error.code === DB_ERROR_CODE.eventLinkTaken) throw new DateRecordAlreadyLinkedError(error.details, { cause: error });
   throw toSaveError(error, mayHaveSaved);
 };
 
@@ -142,13 +134,13 @@ export const updateDateRecord = async ({
   onProgress?.({ step: "saving", done: photoFiles.length, total: photoFiles.length });
   const { error, mayHaveApplied } = await callWithRetry(() => updateRecord(args));
   if (error) {
-    if (error.code === RECORD_NOT_FOUND_CODE) {
+    if (error.code === DB_ERROR_CODE.notFound) {
       await discardUploadedPhotos(storage, uploaded);
       throw new DateRecordGoneError({ cause: error });
     }
     const mayHaveSaved = mayAlreadyBeSaved || mayHaveApplied || isOutcomeUnknown(error);
     if (!mayHaveSaved) await discardUploadedPhotos(storage, uploaded);
-    if (error.code === RECORD_CONFLICT_CODE) throw new DateRecordConflictError({ cause: error, mayHaveSaved });
+    if (error.code === DB_ERROR_CODE.conflict) throw new DateRecordConflictError({ cause: error, mayHaveSaved });
     throw toSaveError(error, mayHaveSaved);
   }
   // 뺀 사진의 파일은 지우지 않는다. DB가 휴지통에 남기고 매달 정리 작업이 30일 뒤 지운다(#311)

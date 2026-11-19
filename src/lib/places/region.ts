@@ -91,3 +91,17 @@ export const createPlaceRegionNameReader = (
  * @example const name = await readPlaceRegionName({ lat: 37.54, lng: 127.04 })
  */
 export const readPlaceRegionName = createPlaceRegionNameReader();
+
+/**
+ * 동네 이름을 받되, 받지 못하면 그 실패를 기록하고 undefined를 돌려준다. 이름이 없어도 좌표는 "찍은 곳"(`UNKNOWN_PHOTO_PLACE`)으로 쓰는 곳에서 쓴다(#249).
+ *
+ * @example const name = await readPlaceRegionNameOrUndefined(location)
+ */
+export const readPlaceRegionNameOrUndefined = (
+  location: PlaceLocation,
+  readName: (location: PlaceLocation) => Promise<string | undefined> = readPlaceRegionName,
+): Promise<string | undefined> =>
+  readName(location).catch((error: unknown) => {
+    console.error("동네 이름 받기 실패", error);
+    return undefined;
+  });

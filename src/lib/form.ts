@@ -9,6 +9,26 @@ import { isObject, splitIsoDate } from "@/lib/guards";
  */
 export const countChars = (text: string): number => Array.from(text).length;
 
+export interface FindTooLongMessageParams {
+  /** 검사할 글. 앞뒤 공백을 빼고 세려면 다듬어서 넘긴다 */
+  text: string;
+  /** 받을 수 있는 가장 많은 글자 수(`countChars` 기준) */
+  max: number;
+  /** 문구 앞에 붙일 이름. 받침에 맞는 조사까지 적는다. 예: "제목은", "한마디는" */
+  subject?: string;
+}
+
+/**
+ * 글자 수가 제한을 넘으면 안내 문구를, 아니면 undefined를 돌려준다. 문구의 숫자는 제한 값에서 만든다.
+ *
+ * @example findTooLongMessage({ text: title.trim(), max: TITLE_MAX_LENGTH, subject: "제목은" }) // "제목은 100자까지 적을 수 있어요."
+ */
+export const findTooLongMessage = ({ text, max, subject }: FindTooLongMessageParams): string | undefined => {
+  if (countChars(text) <= max) return undefined;
+  const limit = `${max.toLocaleString("ko-KR")}자까지 적을 수 있어요.`;
+  return subject ? `${subject} ${limit}` : limit;
+};
+
 /**
  * 화면에 보이는 글자 수를 센다. 여러 코드 포인트를 합쳐 그리는 이모지도 한 글자다.
  * 이 파일을 불러오는 모든 화면이 Intl.Segmenter에 의존하지 않도록, 부를 때 만든다.

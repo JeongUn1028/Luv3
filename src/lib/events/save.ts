@@ -1,6 +1,7 @@
 import { saveRowAtRevision, type RevisionedTable } from "@/lib/revision";
 import { callWithRetry, toRejectedOutcome, toSaveFailure, type SaveErrorCode, type SaveFailure, type SaveOutcome } from "@/lib/save-outcome";
 import type { Database } from "@/lib/supabase/database.types";
+import { DB_ERROR_CODE } from "@/lib/supabase/error-codes";
 import { toEventValues, type EventDraft, type EventValues } from "./form";
 
 const MESSAGES = {
@@ -10,12 +11,6 @@ const MESSAGES = {
   conflictMessage: "그사이 바뀌어 저장 못 했어요. 불러오면 쓴 내용은 사라져요.",
 };
 const OCCURRENCE_GONE_MESSAGE = "이 날 일정은 이미 고쳤거나 지웠어요. 캘린더에서 다시 확인해 주세요.";
-
-// PostgREST가 함수의 no_data_found를 전달한 코드(마이그레이션 detach_event_occurrence)
-const NO_DATA_FOUND = "P0002";
-
-/** 화면을 연 뒤 반복 일정이 바뀌어 `detach_event_occurrence`가 거부했을 때(마이그레이션 event_todo_revision) */
-const CONFLICT_CODE = "P0409";
 
 /** `detach_event_occurrence` 함수에 넘기는 값 */
 type DetachOccurrenceArgs = Database["public"]["Functions"]["detach_event_occurrence"]["Args"];
@@ -59,8 +54,8 @@ const saveOccurrence = async ({
     }),
   );
   if (!error) return "saved";
-  if (error.code === CONFLICT_CODE) return "conflict";
-  if (error.code === NO_DATA_FOUND) return "gone";
+  if (error.code === DB_ERROR_CODE.conflict) return "conflict";
+  if (error.code === DB_ERROR_CODE.notFound) return "gone";
   return toRejectedOutcome(error, mayHaveApplied);
 };
 

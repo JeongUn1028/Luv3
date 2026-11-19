@@ -1,6 +1,6 @@
 import type { AuthorRow } from "@/lib/author";
 import { toNextDay } from "@/lib/calendar/month";
-import { countChars, isIsoDate } from "@/lib/form";
+import { findTooLongMessage, isIsoDate } from "@/lib/form";
 import { isRepeatRule, type LinkedRecordRow, type RepeatRule } from "./calendar";
 
 // 글자 수 제한은 DB check 제약(마이그레이션)과 같아야 한다
@@ -144,10 +144,12 @@ export const validateEventDraft = (draft: EventDraft): EventDraftErrors => {
   if (!draft.isAllDay && !TIME_PATTERN.test(draft.startTime)) errors.startTime = "시간을 골라 주세요.";
 
   const title = draft.title.trim();
-  if (title === "") errors.title = "제목을 적어 주세요.";
-  else if (countChars(title) > EVENT_TITLE_MAX_LENGTH) errors.title = "제목은 100자까지 적을 수 있어요.";
-  if (countChars(draft.place.trim()) > EVENT_PLACE_MAX_LENGTH) errors.place = "장소는 100자까지 적을 수 있어요.";
-  if (countChars(draft.memo.trim()) > EVENT_MEMO_MAX_LENGTH) errors.memo = "메모는 2,000자까지 적을 수 있어요.";
+  const titleError = title === "" ? "제목을 적어 주세요." : findTooLongMessage({ text: title, max: EVENT_TITLE_MAX_LENGTH, subject: "제목은" });
+  if (titleError) errors.title = titleError;
+  const placeError = findTooLongMessage({ text: draft.place.trim(), max: EVENT_PLACE_MAX_LENGTH, subject: "장소는" });
+  if (placeError) errors.place = placeError;
+  const memoError = findTooLongMessage({ text: draft.memo.trim(), max: EVENT_MEMO_MAX_LENGTH, subject: "메모는" });
+  if (memoError) errors.memo = memoError;
   return errors;
 };
 

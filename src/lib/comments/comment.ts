@@ -1,5 +1,5 @@
 import type { AuthorRow } from "@/lib/author";
-import { countChars } from "@/lib/form";
+import { findTooLongMessage } from "@/lib/form";
 
 /** 기록 상세의 댓글 제목. 댓글을 지워 초점이 갈 곳을 잃으면 이리로 옮긴다 */
 export const COMMENTS_HEADING_ID = "record-comments";
@@ -15,8 +15,7 @@ export const COMMENT_MAX_LENGTH = 200;
 export const validateComment = (content: string): string | undefined => {
   const trimmed = content.trim();
   if (trimmed === "") return "댓글을 적어 주세요.";
-  if (countChars(trimmed) > COMMENT_MAX_LENGTH) return `${COMMENT_MAX_LENGTH}자까지 적을 수 있어요.`;
-  return undefined;
+  return findTooLongMessage({ text: trimmed, max: COMMENT_MAX_LENGTH });
 };
 
 /** 기록 상세에서 읽는 `comments` 행(작성자 포함) */

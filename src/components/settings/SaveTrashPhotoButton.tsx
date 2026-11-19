@@ -42,8 +42,11 @@ export const SaveTrashPhotoButton = ({ url, fileName }: SaveTrashPhotoButtonProp
       (file) => {
         if (isCurrent) setPhotoFile({ status: "ready", file });
       },
-      () => {
-        if (isCurrent) setPhotoFile({ status: "failed" });
+      (error: unknown) => {
+        // 화면을 떠났거나 다시 받기를 누른 뒤의 실패는 보이지 않으므로 기록하지 않는다
+        if (!isCurrent) return;
+        console.error("휴지통 사진 받기 실패", error);
+        setPhotoFile({ status: "failed" });
       },
     );
     return () => {
@@ -68,7 +71,8 @@ export const SaveTrashPhotoButton = ({ url, fileName }: SaveTrashPhotoButtonProp
         download: downloadFile,
       });
       if (outcome === "downloaded") setNotice({ text: "사진을 내려받았어요.", isError: false });
-    } catch {
+    } catch (error) {
+      console.error("휴지통 사진 저장 실패", error);
       setNotice({ text: "사진을 저장하지 못했어요. 다시 눌러 주세요.", isError: true });
     } finally {
       setIsSaving(false);
