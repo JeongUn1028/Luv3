@@ -1,5 +1,5 @@
 import "server-only";
-import { isRecordId } from "@/lib/dates/record-href";
+import { isUuid } from "@/lib/guards";
 import { readAllRows } from "@/lib/supabase/read-all-rows";
 import { createClient } from "@/lib/supabase/server";
 import { toTodo, type Todo } from "./list";
@@ -62,7 +62,7 @@ export const getOpenTodoPreview = async (limit: number): Promise<Todo[]> => {
  * @example const todo = await getTodo(id); if (!todo) notFound()
  */
 export const getTodo = async (id: string): Promise<Todo | undefined> => {
-  if (!isRecordId(id)) return undefined;
+  if (!isUuid(id)) return undefined;
   const supabase = await createClient();
   const { data, error } = await supabase.from("todos").select(TODO_COLUMNS).eq("id", id).maybeSingle();
   if (error) throw new TodoLoadError({ cause: error });

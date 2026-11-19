@@ -1,6 +1,6 @@
 import "server-only";
 import type { KstNow } from "@/lib/anniversary";
-import { isRecordId } from "@/lib/dates/record-href";
+import { isUuid } from "@/lib/guards";
 import { readAllRows } from "@/lib/supabase/read-all-rows";
 import { createClient } from "@/lib/supabase/server";
 import type { CalendarEvent } from "./calendar";
@@ -70,7 +70,7 @@ export const getUpcomingEvents = async (now: KstNow): Promise<CalendarEvent[]> =
  * @example const event = await getEvent(id); if (!event) notFound()
  */
 export const getEvent = async (id: string): Promise<EditableEvent | undefined> => {
-  if (!isRecordId(id)) return undefined;
+  if (!isUuid(id)) return undefined;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")
@@ -94,7 +94,7 @@ export const getEventRecordPrefill = async (
   { eventId, eventDate }: { eventId: string; eventDate: string },
   today: string,
 ): Promise<RecordPrefill | undefined> => {
-  if (!isRecordId(eventId) || !isIsoDate(eventDate)) return undefined;
+  if (!isUuid(eventId) || !isIsoDate(eventDate)) return undefined;
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("events")

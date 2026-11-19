@@ -1,8 +1,7 @@
 import { countChars, isIsoDate } from "@/lib/form";
-import { isObject } from "@/lib/guards";
+import { isObject, isUuid } from "@/lib/guards";
 import { isRememberablePhoto } from "@/lib/photos/remembered-url";
 import type { AlbumTile } from "./album";
-import { isRecordId } from "./record-href";
 
 /** 기록 찾기 API 주소. 화면과 API 경로가 함께 쓴다 */
 export const RECORD_SEARCH_PATH = "/api/records/search";
@@ -82,7 +81,7 @@ const isRecordCursor = (value: unknown): value is RecordCursor =>
   typeof value.createdAt === "string" &&
   isTimestamp(value.createdAt) &&
   typeof value.id === "string" &&
-  isRecordId(value.id);
+  isUuid(value.id);
 
 /**
  * 기록 찾기 API 주소. 빈 검색어·태그는 넣지 않는다.

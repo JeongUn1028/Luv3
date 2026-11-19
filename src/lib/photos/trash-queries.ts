@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
-import { isRecordId } from "@/lib/dates/record-href";
+import { isUuid } from "@/lib/guards";
 import { ALBUM_BUCKET } from "./limits";
 import { getSignedUrls } from "./signed-urls";
 import { toTrashPhotoDetail, toTrashSections, type TrashPhotoDetail, type TrashSection } from "./trash-view";
@@ -49,7 +49,7 @@ export const getTrashSections = async (now: Date): Promise<TrashSection[]> => {
  */
 export const getTrashPhoto = async (id: string, now: Date): Promise<TrashPhotoDetail | undefined> => {
   // uuid 칸에 다른 글자를 넘기면 DB가 오류를 내므로 묻지 않고 없는 사진으로 본다
-  if (!isRecordId(id)) return undefined;
+  if (!isUuid(id)) return undefined;
   const supabase = await createClient();
   const { data: row, error } = await supabase.from("photo_trash").select(TRASH_COLUMNS).eq("id", id).maybeSingle();
   if (error) throw new TrashLoadError({ cause: error });

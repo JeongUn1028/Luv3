@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
+import { isUuid } from "@/lib/guards";
 import { catchLoadError } from "@/lib/load";
 import { createMediumPhotoSigner } from "@/lib/photos/medium-signer";
 import { getHomePhotoSignedUrls, getSignedUrls } from "@/lib/photos/signed-urls";
@@ -9,7 +10,6 @@ import { pickRecordsVersion, type AlbumFirstPage } from "./album-pages";
 import { PHOTO_GROUP_LOCATION_COLUMNS, toPhotoWithGroupLocation } from "./photo-groups";
 import { findStartPhotoRow, toDateRecordDetail, type DateRecordDetail, type DetailRow } from "./detail";
 import { toEditableRecord, type EditableRecord } from "./editable-record";
-import { isRecordId } from "./record-href";
 import { RECORD_PAGE_FETCH_SIZE, toSignedRecordPage } from "./search-queries";
 
 /** 앨범 그리드를 불러오지 못했을 때 */
@@ -103,7 +103,7 @@ const getDetailRow = async (
   supabase: Awaited<ReturnType<typeof createClient>>,
   id: string,
 ): Promise<DetailRow | undefined> => {
-  if (!isRecordId(id)) return undefined;
+  if (!isUuid(id)) return undefined;
   const { data: row, error } = await supabase.from("dates").select(DETAIL_COLUMNS).eq("id", id).maybeSingle();
   if (error) throw new DateRecordLoadError({ cause: error });
   return row ? { ...row, photos: row.photos.map(toPhotoWithGroupLocation) } : undefined;

@@ -3,6 +3,7 @@ import { useId, type ReactElement } from "react";
 import { RememberedPhoto } from "@/components/RememberedPhoto";
 import type { LatestRecord } from "@/lib/dates/album";
 import { formatRecordShortDate } from "@/lib/dates/record-date-format";
+import { toRecordHref } from "@/lib/dates/record-href";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 
 interface LatestRecordCardProps {
@@ -24,7 +25,7 @@ export const LatestRecordCard = ({ record, serverSrc }: LatestRecordCardProps): 
       >
         최근 데이트
       </h2>
-      <Link href={`/dates/${record.id}`} transitionTypes={FORWARD_TRANSITION} className="absolute inset-0 rounded-[16px] -outline-offset-2">
+      <Link href={toRecordHref(record.id)} transitionTypes={FORWARD_TRANSITION} className="absolute inset-0 rounded-[16px] -outline-offset-2">
         {record.thumb && (
           <RememberedPhoto photo={record.thumb} homeSlot="latest" serverSrc={serverSrc} alt="" className="size-full rounded-[16px] object-cover" />
         )}

@@ -5,6 +5,7 @@ import { RECORDS_PATH } from "@/lib/dates/album";
 import type { EditableRecord } from "@/lib/dates/editable-record";
 import { getDraftPhotos } from "@/lib/dates/photo-group-draft";
 import { toFailedRecordFields } from "@/lib/dates/record-form-outcome";
+import { toRecordHref } from "@/lib/dates/record-href";
 import { saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
 import { DateRecordAlreadyLinkedError, toDateRecordSaveFailure } from "@/lib/dates/save-errors";
 import { forgetScrollPosition } from "@/lib/navigation/scroll-memory";
@@ -65,7 +66,7 @@ export const useRecordSave = ({ record, setDraft, setNotice, previews, leavableS
       const supabase = createClient();
       const storage = supabase.storage.from(ALBUM_BUCKET);
       const files = new Map(getDraftPhotos(draft.groups).flatMap(({ id, file }) => (file ? [[id, file] as const] : [])));
-      let savedHref = record ? `/dates/${record.id}` : RECORDS_PATH;
+      let savedHref = record ? toRecordHref(record.id) : RECORDS_PATH;
       if (record) {
         await updateDateRecord({
           recordId,
@@ -87,7 +88,7 @@ export const useRecordSave = ({ record, setDraft, setNotice, previews, leavableS
           onProgress: setProgress,
         });
         // 앞서 저장된 기록이 있어 이번 내용은 반영되지 않았으니, 저장된 내용을 바로 확인하게 한다
-        if (result === "already-saved") savedHref = `/dates/${recordId}`;
+        if (result === "already-saved") savedHref = toRecordHref(recordId);
         // 앞선 시도에서 저장된 기록도 새 기록이라 알린다. 이미 알렸으면 서버가 다시 보내지 않는다
         requestPartnerPush({ kind: "record", id: recordId });
       }

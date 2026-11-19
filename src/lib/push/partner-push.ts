@@ -5,8 +5,8 @@
 
 import { toCalendarHref } from "@/lib/calendar/month";
 import { COMMENTS_HEADING_ID } from "@/lib/comments/comment";
-import { isRecordId, toRecordHref } from "@/lib/dates/record-href";
-import { isObject } from "@/lib/guards";
+import { toRecordHref } from "@/lib/dates/record-href";
+import { isObject, isUuid } from "@/lib/guards";
 import { TODOS_PATH } from "@/lib/todos/list";
 import type { PushMessage } from "./message";
 import type { StoredPushSubscription } from "./send";
@@ -31,8 +31,8 @@ const isPartnerPushKind = (value: unknown): value is PartnerPushKind => typeof v
  */
 export const parsePartnerPushBody = (value: unknown): PartnerPushBody | undefined => {
   if (!isObject(value) || !isPartnerPushKind(value.kind) || typeof value.id !== "string") return undefined;
-  // 기록·댓글·일정·할 일 id는 모두 uuid다(isRecordId가 uuid 모양을 본다)
-  return isRecordId(value.id) ? { kind: value.kind, id: value.id } : undefined;
+  // 기록·댓글·일정·할 일 id는 모두 uuid다
+  return isUuid(value.id) ? { kind: value.kind, id: value.id } : undefined;
 };
 
 /** 받는 사람 한 명. `badge`는 이 알림을 더한 앱 아이콘 숫자다 */

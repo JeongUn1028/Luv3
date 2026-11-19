@@ -11,6 +11,7 @@ import { SkeletonBlock } from "@/components/Skeleton";
 import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
 import { ANNIVERSARY_DATE, countDaysTogether, getAnniversaryLabel } from "@/lib/anniversary";
 import { formatDayHeading, formatEventTime } from "@/lib/calendar/month";
+import { toRecordHref } from "@/lib/dates/record-href";
 import type { CalendarRecord } from "@/lib/events/calendar";
 import { EVENT_LOAD_ERROR_MESSAGE } from "@/lib/events/load-error";
 import type { ShownEvent } from "@/lib/events/pending";
@@ -125,7 +126,7 @@ export const SelectedDayList = ({
           {records.map((record) => (
             <li key={record.id}>
               <Link
-                href={`/dates/${record.id}`}
+                href={toRecordHref(record.id)}
                 transitionTypes={FORWARD_TRANSITION}
                 className="press-card flex min-h-[51px] items-center gap-3 rounded-[10px] bg-surface px-4 py-2"
               >

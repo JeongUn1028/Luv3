@@ -4,6 +4,14 @@
 const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 /**
+ * UUID 한 개를 나타내는 정규식 원문(시작·끝 표시 없음). 다른 정규식 안에 넣어 쓸 때 대소문자 무시(`i`)와 함께 쓴다.
+ *
+ * @example new RegExp(`^${UUID_PATTERN_SOURCE}/${UUID_PATTERN_SOURCE}\\.jpg$`, "i")
+ */
+export const UUID_PATTERN_SOURCE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const UUID_PATTERN = new RegExp(`^${UUID_PATTERN_SOURCE}$`, "i");
+
+/**
  * null도 배열도 아닌 객체인지 확인한다. 통과하면 칸을 하나씩 읽어 검사할 수 있다.
  *
  * @example if (isObject(body) && typeof body.code === "string") console.error(body.code);
@@ -29,3 +37,11 @@ export const splitIsoDate = (value: string): IsoDateParts | undefined => {
   const [, year = "", month = "", day = ""] = match;
   return { year, month, day };
 };
+
+/**
+ * UUID 형식인지 확인한다. 기록·일정·할 일·댓글·사진 id는 모두 uuid 컬럼이라, 형식이 틀리면 DB에 묻지 않고 바로 "없음"으로 처리한다
+ * (uuid 컬럼에 다른 문자열을 넘기면 DB가 22P02 에러를 낸다). id를 파일 경로에 넣기 전에도 쓴다.
+ *
+ * @example isUuid("5a87e560-6a6e-49be-8af3-db196468143c") // true
+ */
+export const isUuid = (value: string): boolean => UUID_PATTERN.test(value);

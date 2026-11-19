@@ -1,3 +1,4 @@
+import { UUID_PATTERN_SOURCE as UUID } from "@/lib/guards";
 import type { AlbumObject } from "./album-files";
 import { getLastCleanupStart } from "./cleanup-schedule";
 import { findMediumPhotoPath, toMediumPhotoPath } from "./paths";
@@ -9,7 +10,6 @@ import { isTrashExpired } from "./trash";
  */
 const MIN_ORPHAN_AGE_MS = 24 * 60 * 60 * 1000;
 
-const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 // 앱이 만드는 이름만 지운다: 기록 사진 `{date_id}/{photo_id}.jpg`·`_medium.jpg`·`_thumb.jpg`, 커플 사진 `couple/{id}.jpg`·`_medium.jpg`
 const APP_FILE_PATH = new RegExp(`^(?:${UUID}/${UUID}(?:_medium|_thumb)?|couple/${UUID}(?:_medium)?)\\.jpg$`, "i");
 

@@ -22,7 +22,7 @@ import { getRecordComments } from "@/lib/comments/queries";
 import { CommentLoadError } from "@/lib/comments/read";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import { findStartPhotoIndex } from "@/lib/dates/detail";
-import { RECORD_PHOTO_PARAM } from "@/lib/dates/record-href";
+import { RECORD_PHOTO_PARAM, toRecordEditHref } from "@/lib/dates/record-href";
 import { formatRecordPeriod } from "@/lib/dates/record-date-format";
 import { DateRecordLoadError, getDateRecordDetail } from "@/lib/dates/queries";
 import { EventLoadError, getLinkableEvents } from "@/lib/events/queries";
@@ -91,7 +91,7 @@ const RecordDetail = async ({ params, searchParams }: Pick<PageProps<"/dates/[id
               </Link>
             )}
             <Link
-              href={`/dates/${record.id}/edit`}
+              href={toRecordEditHref(record.id)}
               transitionTypes={FORWARD_TRANSITION}
               className="press-icon flex h-11 items-center px-3 text-[14px] text-ink-sub hover:text-ink"
             >

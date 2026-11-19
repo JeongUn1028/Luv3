@@ -1,7 +1,6 @@
 import { toKstDate } from "@/lib/anniversary";
-import { isObject } from "@/lib/guards";
+import { isObject, isUuid } from "@/lib/guards";
 import type { SignedUrlWithExpiry } from "@/lib/photos/signed-urls";
-import { isRecordId } from "./record-href";
 
 /** 지도 사진 API 주소. 핀의 썸네일과 아래 칸 사진 줄이 함께 쓴다(#249) */
 export const MAP_PHOTOS_PATH = "/api/records/map-photos";
@@ -57,7 +56,7 @@ export const toMapPhotosHref = (photoIds: string[]): string => `${MAP_PHOTOS_PAT
 export const parseMapPhotoIds = (text: string | null): string[] | undefined => {
   if (!text) return undefined;
   const ids = [...new Set(text.split(","))];
-  return ids.length <= MAP_PHOTOS_MAX_IDS && ids.every(isRecordId) ? ids : undefined;
+  return ids.length <= MAP_PHOTOS_MAX_IDS && ids.every(isUuid) ? ids : undefined;
 };
 
 /** `photos` 조회 결과 한 행 */
