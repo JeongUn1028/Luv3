@@ -253,14 +253,14 @@ isOneToOne: false
                   ]
                 },"todos": {
                   Row: {
-                    "author_id": string,"completed_at": string | null,"content": string,"created_at": string,"event_id": string | null,"id": string,"revision": string,"sort_order": number
+                    "author_id": string,"completed_at": string | null,"content": string,"created_at": string,"event_id": string | null,"event_not_yet_date": string | null,"id": string,"revision": string,"sort_order": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string,"completed_at"?: string | null,"content": string,"created_at"?: string,"event_id"?: string | null,"id"?: string,"revision"?: string,"sort_order"?: number
+                    "author_id"?: string,"completed_at"?: string | null,"content": string,"created_at"?: string,"event_id"?: string | null,"event_not_yet_date"?: string | null,"id"?: string,"revision"?: string,"sort_order"?: number
                   }
                   Update: {
-                    "author_id"?: string,"completed_at"?: string | null,"content"?: string,"created_at"?: string,"event_id"?: string | null,"id"?: string,"revision"?: string,"sort_order"?: number
+                    "author_id"?: string,"completed_at"?: string | null,"content"?: string,"created_at"?: string,"event_id"?: string | null,"event_not_yet_date"?: string | null,"id"?: string,"revision"?: string,"sort_order"?: number
                   }
                   Relationships: [
                     {
