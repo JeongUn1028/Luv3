@@ -299,9 +299,9 @@ test.describe("홈 맨 위", () => {
     expect(readOrder[readOrder.length - 1]).toMatch(/함께한 지/);
   });
 
-  // 숫자마다 글자 높이가 1~2px 달라 날짜에 따라 결과가 바뀌지 않도록, 오늘 숫자 대신 0~9가 모두 나오는 숫자 조합으로 잰다(#476).
+  // 숫자마다 글자 위아래가 1~2px 달라 날짜에 따라 결과가 바뀌지 않도록, 오늘 숫자 대신 0~9가 모두 나오는 숫자 조합으로 잰다(#476).
   // 숫자의 잉크 위아래는 든 글자 전체로 정해지고, 어느 숫자가 높고 낮은지는 OS의 글자 다듬기에 따라서도 다르다(CI의 Linux와 Windows에서 다름)
-  test("하트와 숫자의 높이, 하트·+·숫자의 위아래 가운데가 어느 숫자에서도 맞고 하트는 움직이지 않는다", async ({ page }) => {
+  test("하트·+·숫자의 위아래 가운데가 어느 숫자에서도 맞고, 하트 높이는 숫자 높이에 맞으며 움직이지 않는다", async ({ page }) => {
     await openScreen(page, "/", page.getByText(TODO.content));
     const group = getDdayGroup(page);
     const number = group.locator("p");
@@ -309,18 +309,25 @@ test.describe("홈 맨 위", () => {
     await page.evaluate(() => document.fonts.ready);
 
     const heartTops: number[] = [];
+    const heartHeights: number[] = [];
+    const digitHeights: number[] = [];
     for (const days of ["1", "19", "20", "77", "88", "100", "1208", "3456", "49"]) {
       await number.evaluate((element, text) => {
         element.textContent = text;
       }, days);
       const shapes = await measureDdayShapes(group);
       heartTops.push(shapes.heart.top);
-      expect.soft(Math.abs(shapes.heart.height - shapes.digits.height), `${days}: 하트·숫자 높이`).toBeLessThanOrEqual(1.5);
+      heartHeights.push(shapes.heart.height);
+      digitHeights.push(shapes.digits.height);
       expect.soft(Math.abs(shapes.heart.middle - shapes.digits.middle), `${days}: 하트·숫자 가운데`).toBeLessThanOrEqual(DDAY_MIDDLE_TOLERANCE);
       expect.soft(Math.abs(shapes.plus.middle - shapes.digits.middle), `${days}: +·숫자 가운데`).toBeLessThanOrEqual(DDAY_MIDDLE_TOLERANCE);
     }
-    // 숫자가 바뀌어도(네 자리 포함) 하트가 위아래로 움직이지 않는다
+    // 숫자 높이는 숫자에 따라 3px까지 달라서, 하트 높이는 그 범위의 가운데와 맞춘다
+    const digitsMiddleHeight = (Math.max(...digitHeights) + Math.min(...digitHeights)) / 2;
+    expect(Math.abs((heartHeights[0] ?? 0) - digitsMiddleHeight)).toBeLessThanOrEqual(1.5);
+    // 숫자가 바뀌어도(네 자리 포함) 하트가 위아래로 움직이거나 커지지 않는다
     expect(Math.max(...heartTops) - Math.min(...heartTops)).toBeLessThan(0.1);
+    expect(Math.max(...heartHeights) - Math.min(...heartHeights)).toBeLessThan(0.1);
 
     // 네 자리여도 설정 버튼과 겹치지 않는다
     const groupBox = await group.boundingBox();
