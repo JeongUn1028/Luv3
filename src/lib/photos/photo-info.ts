@@ -1,5 +1,5 @@
 import type { PhotoLocation } from "@/lib/dates/form";
-import { readPlaceRegionName, UNKNOWN_PHOTO_PLACE } from "@/lib/places/region";
+import { readPlaceRegionNameOrUndefined, UNKNOWN_PHOTO_PLACE } from "@/lib/places/region";
 import type { PlaceLocation } from "@/lib/places/location";
 import { readPhotoExif, type PhotoExif } from "./exif";
 
@@ -30,13 +30,14 @@ export const readPhotoInfo = async ({
   file,
   isGroupLocation,
   readExif = readPhotoExif,
-  fetchRegionName = readPlaceRegionName,
+  fetchRegionName,
 }: ReadPhotoInfoParams): Promise<PhotoInfo> => {
-  const { coordinates, takenAt } = await readExif(file).catch((): PhotoExif => ({ coordinates: undefined, takenAt: undefined }));
-  if (!coordinates || !isGroupLocation) return { location: undefined, takenAt };
-  const name = await fetchRegionName(coordinates).catch((error: unknown) => {
-    console.error("사진 동네 이름 받기 실패", error);
-    return undefined;
+  // readPhotoExif는 모르는 형식·깨진 정보를 빈 값으로 돌려주므로, 여기까지 온 실패는 예상 못 한 것이라 기록한다
+  const { coordinates, takenAt } = await readExif(file).catch((error: unknown): PhotoExif => {
+    console.error("사진 정보 읽기 실패", error);
+    return { coordinates: undefined, takenAt: undefined };
   });
+  if (!coordinates || !isGroupLocation) return { location: undefined, takenAt };
+  const name = await readPlaceRegionNameOrUndefined(coordinates, fetchRegionName);
   return { location: { place: name ?? UNKNOWN_PHOTO_PLACE, ...coordinates }, takenAt };
 };

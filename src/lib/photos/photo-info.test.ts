@@ -83,11 +83,20 @@ describe("readPhotoInfo", () => {
     expect(fetchRegionName).not.toHaveBeenCalled();
   });
 
-  it("사진 정보를 읽다 실패해도 던지지 않는다", async () => {
-    // Act & Assert
-    await expect(readPhotoInfo({ file, isGroupLocation: true, readExif: vi.fn().mockRejectedValue(new Error("깨짐")) })).resolves.toEqual({
-      location: undefined,
-      takenAt: undefined,
-    });
+  it("사진 정보를 읽다 실패해도 던지지 않고 그 실패를 기록한다", async () => {
+    // Arrange
+    const error = new Error("깨짐");
+    const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      // Act & Assert
+      await expect(readPhotoInfo({ file, isGroupLocation: true, readExif: vi.fn().mockRejectedValue(error) })).resolves.toEqual({
+        location: undefined,
+        takenAt: undefined,
+      });
+      expect(logError).toHaveBeenCalledWith(expect.any(String), error);
+    } finally {
+      logError.mockRestore();
+    }
   });
 });

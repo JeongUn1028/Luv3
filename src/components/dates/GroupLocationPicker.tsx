@@ -8,7 +8,7 @@ import { useKakaoMap } from "@/components/dates/map/use-kakao-map";
 import type { PhotoLocation } from "@/lib/dates/form";
 import { isSameMapSpot, type OtherGroupLocation } from "@/lib/dates/group-location";
 import type { PlaceLocation } from "@/lib/places/location";
-import { readPlaceRegionName, UNKNOWN_PHOTO_PLACE } from "@/lib/places/region";
+import { readPlaceRegionNameOrUndefined, UNKNOWN_PHOTO_PLACE } from "@/lib/places/region";
 import { formatRegionName } from "@/lib/places/region-name";
 import { toGroupName } from "@/lib/dates/group-name";
 
@@ -52,11 +52,9 @@ export const GroupLocationPicker = ({ appKey, initialLocation, otherLocations, o
     const lookup = (lookupRef.current += 1);
     if (isSameMapSpot(named, location)) return;
     // 이름을 받지 못해도(경계 밖, 실패) 좌표는 쓸 수 있어 사진 정보와 같이 "찍은 곳"으로 둔다(#249)
-    void readPlaceRegionName(location)
-      .catch(() => undefined)
-      .then((name) => {
-        if (lookup === lookupRef.current) setNamed({ place: name ?? UNKNOWN_PHOTO_PLACE, ...location });
-      });
+    void readPlaceRegionNameOrUndefined(location).then((name) => {
+      if (lookup === lookupRef.current) setNamed({ place: name ?? UNKNOWN_PHOTO_PLACE, ...location });
+    });
   };
   // 지도 이벤트는 처음 한 번만 붙이므로, 그때의 상태가 아니라 지금 상태로 견주게 한다
   const handleMapIdle = useEffectEvent(lookUpCenter);

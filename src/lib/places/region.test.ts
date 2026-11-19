@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createPlaceRegionNameReader, fetchPlaceRegionName, PlaceRegionError } from "./region";
+import { createPlaceRegionNameReader, fetchPlaceRegionName, PlaceRegionError, readPlaceRegionNameOrUndefined } from "./region";
 
 const SEONGSU = { lat: 37.5444, lng: 127.0396 };
 
@@ -138,5 +138,30 @@ describe("createPlaceRegionNameReader", () => {
 
     // Assert: 집은 남고 카페만 다시 묻는다
     expect(fetchName.mock.calls.map((call: unknown[]) => call[0])).toEqual([home, cafe, park, cafe]);
+  });
+});
+
+describe("readPlaceRegionNameOrUndefined", () => {
+  it("받은 이름을 그대로 돌려준다", async () => {
+    // Act & Assert
+    await expect(readPlaceRegionNameOrUndefined(SEONGSU, vi.fn().mockResolvedValue("성동구 성수1가1동"))).resolves.toBe("성동구 성수1가1동");
+  });
+
+  // 이름이 없어도 좌표는 "찍은 곳"으로 쓰므로 던지지 않지만, 실패를 모른 채 넘기지 않는다(#357)
+  it("받지 못하면 그 실패를 기록하고 undefined를 돌려준다", async () => {
+    // Arrange
+    const error = new PlaceRegionError({ status: 500 });
+    const logError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      // Act
+      const name = await readPlaceRegionNameOrUndefined(SEONGSU, vi.fn().mockRejectedValue(error));
+
+      // Assert
+      expect(name).toBeUndefined();
+      expect(logError).toHaveBeenCalledWith(expect.any(String), error);
+    } finally {
+      logError.mockRestore();
+    }
   });
 });

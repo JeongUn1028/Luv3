@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clearError, clearFieldError, countChars, countGraphemes, FIX_FIELDS_NOTICE, isIsoDate, isResolvedFieldNotice, isSameFormValue, toPeriodEndDate } from "@/lib/form";
+import { clearError, clearFieldError, countChars, countGraphemes, findTooLongMessage, FIX_FIELDS_NOTICE, isIsoDate, isResolvedFieldNotice, isSameFormValue, toPeriodEndDate } from "@/lib/form";
 
 describe("countChars", () => {
   it("DB(char_length)처럼 이모지 하나를 한 글자로 센다", () => {
@@ -102,5 +102,24 @@ describe("isSameFormValue", () => {
   it("배열과 객체를 견주거나 배열 순서가 다르면 다르다고 본다", () => {
     expect(isSameFormValue([], {})).toBe(false);
     expect(isSameFormValue(["a", "b"], ["b", "a"])).toBe(false);
+  });
+});
+
+describe("findTooLongMessage", () => {
+  it("제한 글자 수까지는 문구가 없다", () => {
+    expect(findTooLongMessage({ text: "가".repeat(100), max: 100, subject: "제목은" })).toBeUndefined();
+  });
+
+  // 문구의 숫자를 제한 값에서 만들어, 제한을 바꾸면 안내도 함께 바뀐다(#357)
+  it("넘으면 제한 값을 천 단위 쉼표와 함께 적은 문구를 돌려준다", () => {
+    expect(findTooLongMessage({ text: "가".repeat(10_001), max: 10_000, subject: "정리 글은" })).toBe("정리 글은 10,000자까지 적을 수 있어요.");
+  });
+
+  it("이모지 하나를 한 글자로 센다", () => {
+    expect(findTooLongMessage({ text: "😀".repeat(30), max: 30, subject: "장소 이름은" })).toBeUndefined();
+  });
+
+  it("주어가 없으면 숫자부터 알린다", () => {
+    expect(findTooLongMessage({ text: "가".repeat(101), max: 100 })).toBe("100자까지 적을 수 있어요.");
   });
 });

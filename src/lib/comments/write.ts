@@ -1,7 +1,5 @@
 import { isDuplicateKey, type SaveErrorCode, type SaveOutcome } from "@/lib/save-outcome";
-
-// 쓰는 사이 상대가 기록을 지우면 없는 기록을 가리켜 외래 키 위반이 난다
-const FOREIGN_KEY_VIOLATION = "23503";
+import { DB_ERROR_CODE } from "@/lib/supabase/error-codes";
 
 /** 댓글 남기기 결과. `gone`은 기록이 지워져 남길 수 없다는 뜻이다. 응답이 끊겨도 같은 id로 다시 남기면 되므로 `failed`로 둔다 */
 export type AddCommentOutcome = Extract<SaveOutcome, "saved" | "gone" | "failed">;
@@ -25,5 +23,6 @@ interface AddCommentParams {
 export const addComment = async ({ comment, comments }: AddCommentParams): Promise<AddCommentOutcome> => {
   const { error } = await comments.insert({ id: comment.id, date_id: comment.recordId, content: comment.content });
   if (!error || isDuplicateKey(error)) return "saved";
-  return error.code === FOREIGN_KEY_VIOLATION ? "gone" : "failed";
+  // 쓰는 사이 상대가 기록을 지우면 없는 기록을 가리켜 외래 키 위반이 난다
+  return error.code === DB_ERROR_CODE.foreignKeyViolation ? "gone" : "failed";
 };

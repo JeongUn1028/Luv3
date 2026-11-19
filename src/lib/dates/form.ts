@@ -1,6 +1,6 @@
 import type { PlaceLocation } from "@/lib/places/location";
 import { toNextDay } from "@/lib/calendar/month";
-import { countChars, isIsoDate } from "@/lib/form";
+import { findTooLongMessage, isIsoDate } from "@/lib/form";
 import type { Database } from "@/lib/supabase/database.types";
 
 // 글자 수 제한은 DB check 제약(마이그레이션)과 같아야 한다
@@ -96,8 +96,6 @@ export type CreateDateRecordArgs = Database["public"]["Functions"]["create_date_
  */
 export type UpdateDateRecordArgs = Database["public"]["Functions"]["update_date_record"]["Args"];
 
-const tooLong = (text: string, max: number): boolean => countChars(text) > max;
-
 /**
  * 저장 전에 입력값을 확인해 칸마다 에러 문구를 돌려준다. 문제가 없으면 빈 객체다.
  * 다녀온 데이트를 남기는 화면이라 오늘(한국 날짜)보다 뒤의 날짜는 받지 않는다.
@@ -116,16 +114,20 @@ export const validateDraft = (draft: DateRecordDraft, today: string): DraftError
     else if (draft.endDate > today) errors.endDate = "끝 날짜는 오늘까지 고를 수 있어요.";
   }
 
-  if (draft.title.trim() === "") errors.title = "제목을 적어 주세요.";
-  else if (tooLong(draft.title.trim(), TITLE_MAX_LENGTH)) errors.title = "제목은 100자까지 적을 수 있어요.";
+  const title = draft.title.trim();
+  const titleError = title === "" ? "제목을 적어 주세요." : findTooLongMessage({ text: title, max: TITLE_MAX_LENGTH, subject: "제목은" });
+  if (titleError) errors.title = titleError;
 
-  if (tooLong(draft.memo.trim(), MEMO_MAX_LENGTH)) errors.memo = "정리 글은 10,000자까지 적을 수 있어요.";
+  const memoError = findTooLongMessage({ text: draft.memo.trim(), max: MEMO_MAX_LENGTH, subject: "정리 글은" });
+  if (memoError) errors.memo = memoError;
 
   if (draft.groups.length === 0) errors.photos = "사진을 한 장 이상 골라 주세요.";
   for (const group of draft.groups) {
     if (!group.location) errors[`group:${group.id}`] = "위치를 골라야 저장할 수 있어요.";
-    if (tooLong(group.placeName.trim(), PLACE_NAME_MAX_LENGTH)) errors[`placeName:${group.id}`] = "장소 이름은 30자까지 적을 수 있어요.";
-    if (tooLong(group.caption.trim(), CAPTION_MAX_LENGTH)) errors[`caption:${group.id}`] = "한마디는 100자까지 적을 수 있어요.";
+    const placeNameError = findTooLongMessage({ text: group.placeName.trim(), max: PLACE_NAME_MAX_LENGTH, subject: "장소 이름은" });
+    if (placeNameError) errors[`placeName:${group.id}`] = placeNameError;
+    const captionError = findTooLongMessage({ text: group.caption.trim(), max: CAPTION_MAX_LENGTH, subject: "한마디는" });
+    if (captionError) errors[`caption:${group.id}`] = captionError;
   }
 
   return errors;

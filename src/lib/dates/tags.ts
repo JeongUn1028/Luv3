@@ -1,4 +1,4 @@
-import { countChars } from "@/lib/form";
+import { findTooLongMessage } from "@/lib/form";
 
 /** 태그 하나의 글자 수 제한. DB check 제약(마이그레이션)과 같아야 한다 */
 export const TAG_MAX_LENGTH = 10;
@@ -18,7 +18,8 @@ const addOneTag = (tags: string[], text: string): { tags: string[]; error?: stri
   const tag = normalizeTag(text);
   const isSameTag = (existing: string): boolean => existing.toLowerCase() === tag.toLowerCase();
   if (tag === "" || tags.some(isSameTag)) return { tags };
-  if (countChars(tag) > TAG_MAX_LENGTH) return { tags, error: `태그는 ${TAG_MAX_LENGTH}자까지 적을 수 있어요.` };
+  const tooLongMessage = findTooLongMessage({ text: tag, max: TAG_MAX_LENGTH, subject: "태그는" });
+  if (tooLongMessage) return { tags, error: tooLongMessage };
   if (tags.length >= MAX_TAGS) return { tags, error: `태그는 ${MAX_TAGS}개까지 붙일 수 있어요.` };
   return { tags: [...tags, tag] };
 };

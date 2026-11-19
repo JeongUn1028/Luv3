@@ -1,6 +1,7 @@
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { createSignedUrlCache, type SignedUrl } from "@/lib/photos/signed-urls";
 import { createClient } from "@/lib/supabase/client";
+import { DB_ERROR_CODE } from "@/lib/supabase/error-codes";
 
 /** 일정에 이을 수 있는 이미 쓴 기록(#237). "기록 남기기" 창의 후보 */
 export interface LinkableRecord {
@@ -47,11 +48,11 @@ export class EventLinkError extends Error {
 
 const LINK_FAILURE_MESSAGES: Record<string, string> = {
   // 낡은 화면에서 누르는 사이 상대가 그날 기록을 남기거나 이은 경우
-  P0410: "이 일정의 그날에는 이미 이어진 기록이 있어요.",
-  P0411: "이미 다른 일정과 이어진 기록이에요.",
-  P0002: "기록이나 일정이 지워졌어요. 화면을 새로 고쳐 주세요.",
+  [DB_ERROR_CODE.eventLinkTaken]: "이 일정의 그날에는 이미 이어진 기록이 있어요.",
+  [DB_ERROR_CODE.recordLinkedElsewhere]: "이미 다른 일정과 이어진 기록이에요.",
+  [DB_ERROR_CODE.notFound]: "기록이나 일정이 지워졌어요. 화면을 새로 고쳐 주세요.",
   // 그사이 일정을 한 사람 일정으로 바꾸거나 날짜를 옮긴 경우
-  "22023": "이 일정과 이을 수 없는 기록이에요.",
+  [DB_ERROR_CODE.invalidParameter]: "이 일정과 이을 수 없는 기록이에요.",
 };
 
 const UNKNOWN_FAILURE_MESSAGE = "잇지 못했어요. 잠시 후 다시 시도해 주세요.";
@@ -137,7 +138,7 @@ export const unlinkRecordFromEvent = async ({ recordId, eventId }: { recordId: s
   const { error } = await createClient().rpc("unlink_date_record", { p_date_id: recordId, p_event_id: eventId });
   if (error) {
     throw new EventLinkError(
-      error.code === "P0002" ? "기록이 지워졌어요. 화면을 새로 고쳐 주세요." : "연결을 끊지 못했어요. 잠시 후 다시 시도해 주세요.",
+      error.code === DB_ERROR_CODE.notFound ? "기록이 지워졌어요. 화면을 새로 고쳐 주세요." : "연결을 끊지 못했어요. 잠시 후 다시 시도해 주세요.",
       { cause: error },
     );
   }
