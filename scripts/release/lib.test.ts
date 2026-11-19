@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toReleaseNotes } from "@/lib/app-info/releases";
-import { addReleaseSummary, findUnexpectedReleaseChanges, hasUserFacingCommits, readReleasePullRequestNumber } from "./lib.mts";
+import { addReleaseSummary, decideReleaseGate, findUnexpectedReleaseChanges, hasUserFacingCommits, readReleasePullRequestNumber } from "./lib.mts";
 
 // release-please가 만드는 노트(changelog-type: github): 버전 제목 + GitHub 자동 목록
 const GENERATED_BODY = [
@@ -161,5 +161,39 @@ describe("hasUserFacingCommits", () => {
   it("앞 태그 뒤에 커밋이 없으면 거짓이다", () => {
     // Act & Assert
     expect(hasUserFacingCommits([])).toBe(false);
+  });
+});
+
+describe("decideReleaseGate", () => {
+  // 릴리스 PR을 머지한 직후에는 기록 파일이 이미 새 버전인데 그 태그는 바로 다음 단계(release-please)가 만든다(#469)
+  it("릴리스 PR을 머지한 커밋이라 태그가 아직 없으면 실패하지 않고 새 릴리스 PR만 건너뛴다", () => {
+    // Act
+    const decision = decideReleaseGate({ tag: "v1.3.0", subjects: undefined, isReleaseCommit: true });
+
+    // Assert
+    expect(decision.shouldSkipPullRequest).toBe(true);
+    expect(decision.message).toContain("v1.3.0 태그가 아직 없음");
+  });
+
+  // 앞 실행이 태그를 못 만든 채 다른 PR이 머지되면, 조용히 건너뛸 경우 릴리스 PR이 계속 안 생긴다
+  it("릴리스 커밋이 아닌데 태그가 없으면 복구법을 알리며 실패한다", () => {
+    // Act & Assert
+    expect(() => decideReleaseGate({ tag: "v1.3.0", subjects: undefined, isReleaseCommit: false })).toThrow("v1.3.0 태그가 없습니다");
+  });
+
+  it("태그가 있고 그 뒤에 사용자에게 보이는 변경이 있으면 릴리스 PR을 만든다", () => {
+    // Act
+    const decision = decideReleaseGate({ tag: "v1.3.0", subjects: ["chore: 정리", "feat: 새 기능"], isReleaseCommit: false });
+
+    // Assert
+    expect(decision).toEqual({ shouldSkipPullRequest: false, message: "v1.3.0 뒤 커밋 2개, 사용자에게 보이는 변경 있음" });
+  });
+
+  it("태그가 있고 그 뒤에 사용자에게 보이는 변경이 없으면 릴리스 PR을 만들지 않는다", () => {
+    // Act
+    const decision = decideReleaseGate({ tag: "v1.3.0", subjects: ["chore: 정리"], isReleaseCommit: false });
+
+    // Assert
+    expect(decision).toEqual({ shouldSkipPullRequest: true, message: "v1.3.0 뒤 커밋 1개, 사용자에게 보이는 변경 없음 → 릴리스 PR을 만들지 않는다" });
   });
 });

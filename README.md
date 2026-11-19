@@ -70,7 +70,7 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
 
 ## 버전과 릴리스
 
-지금 버전은 **1.2.0**이다(`package.json`의 `version`, [Releases](https://github.com/JeongUn1028/Luv3/releases)). 버전은 [SemVer](https://semver.org/lang/ko/)를 따르고 태그는 `v1.0.0`처럼 앞에 `v`를 붙인다. 1.0.0은 운영 중이던 `e55ff70`에 붙였다(#330). 그래서 그 커밋의 `package.json`에는 처음 값 `0.1.0`이 남아 있다.
+지금 버전은 **1.3.0**이다(`package.json`의 `version`, [Releases](https://github.com/JeongUn1028/Luv3/releases)). 버전은 [SemVer](https://semver.org/lang/ko/)를 따르고 태그는 `v1.0.0`처럼 앞에 `v`를 붙인다. 1.0.0은 운영 중이던 `e55ff70`에 붙였다(#330). 그래서 그 커밋의 `package.json`에는 처음 값 `0.1.0`이 남아 있다.
 
 다음 버전은 PR마다 올리지 않고, 여러 PR을 묶어 릴리스할 때만 태그를 붙인다. 버전 계산과 태그·Release 만들기는 [release-please](https://github.com/googleapis/release-please)가 맡는다(#361, `.github/workflows/release-please.yml`, `release-please-config.json`, `.release-please-manifest.json`). PR 제목이 커밋 규칙을 따르고 squash 머지로 그대로 커밋 제목이 되므로 기계가 버전을 셀 수 있다.
 
@@ -87,6 +87,8 @@ main은 이 검사들을 통과해야 머지할 수 있다(GitHub 브랜치 보�
    - main 보호의 "관리자에게도 적용(Do not allow bypassing)"이 꺼져 있어서 된다. 그것을 켜면 관리자 머지가 막히므로, 그때는 개인 토큰(PAT)을 저장소 비밀 값으로 두고 워크플로의 `token`에 넘겨 CI가 돌게 바꿔야 한다
    - 저장소 설정 Actions > General의 "Allow GitHub Actions to create and approve pull requests"가 켜져 있어야 PR을 만들 수 있다
 3. 머지하면 같은 워크플로가 머지 커밋에 태그(`v1.3.0`)와 GitHub Release를 바로 만든다. 운영 배포가 끝나기를 기다리지 않는다(2026-11-18 결정, Vercel 배포는 보통 몇 분 안에 끝난다). 노트는 버전 제목 + GitHub 자동 목록(`## What's Changed`)이다(CHANGELOG는 만들지 않는다)
+   - 이 실행에서는 기록 파일이 이미 새 버전인데 태그는 아직 없으므로, `gate.mts`는 HEAD가 기록 파일을 바꾼 커밋인지 보고 커밋을 세지 않은 채 새 릴리스 PR만 건너뛴다(#469). 다음 PR은 그 뒤 main 머지 때 새 태그부터 세어 만든다
+   - 실행이 실패해 태그·Release가 없으면 다음 main 머지의 실행도 "태그가 없습니다"로 실패한다. 그때는 머지 커밋에 태그를 손으로 붙이고(`git tag v1.3.0 <머지 커밋> && git push origin v1.3.0`) Actions에서 그 "릴리스 PR" 실행을 다시 돌린다. release-please가 태그를 보고 Release만 만든다(1.3.0 때 이렇게 복구했다)
 4. 만든 Release의 노트 맨 위에 바뀐 것을 쉬운 글로 요약해 붙인다. 요약을 파일에 적고 아래를 실행하면 버전 제목과 자동 목록 사이에 넣는다(다시 실행하면 새 요약으로 바꾼다)
 
    ```bash
