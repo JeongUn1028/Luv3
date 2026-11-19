@@ -1,5 +1,3 @@
-import { isAuthApiError, isAuthSessionMissingError } from "@supabase/supabase-js";
-
 /** 저장·조회 요청이 로그인 문제로 거절됐을 때 `window`에 알리는 이벤트 */
 export const SESSION_LOST_EVENT = "luv3:session-lost";
 
@@ -39,5 +37,11 @@ export const createSessionAwareFetch =
  *
  * @example isSessionLostError(new AuthSessionMissingError()) // true
  */
-export const isSessionLostError = (error: unknown): boolean =>
-  isAuthSessionMissingError(error) || (isAuthApiError(error) && error.status >= 400 && error.status < 500 && error.status !== 429);
+export const isSessionLostError = (error: unknown): boolean => {
+  // 라이브러리의 판별 함수를 불러오면 모든 화면의 첫 묶음에 라이브러리 일부가 실려 오류 이름으로 가른다(#486). 이름이 바뀌면 테스트가 알린다
+  // 라이브러리도 Error인지가 아니라 표시 칸으로 가르므로 객체인지만 본다
+  if (typeof error !== "object" || error === null || !("name" in error)) return false;
+  if (error.name === "AuthSessionMissingError") return true;
+  if (error.name !== "AuthApiError" || !("status" in error) || typeof error.status !== "number") return false;
+  return error.status >= 400 && error.status < 500 && error.status !== 429;
+};

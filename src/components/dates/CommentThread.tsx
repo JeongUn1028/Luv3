@@ -13,7 +13,7 @@ import { deleteRowById } from "@/lib/delete-row";
 import { useLeavableDelete } from "@/lib/navigation/use-leavable-delete";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { markAllScreensStale } from "@/lib/navigation/screen-freshness";
-import { createClient } from "@/lib/supabase/client";
+import { loadClient } from "@/lib/supabase/load-client";
 
 const DELETE_FAILED_MESSAGE = "댓글을 지우지 못했어요. 잠시 후 다시 시도해 주세요.";
 
@@ -60,7 +60,7 @@ export const CommentThread = ({ recordId, comments, memberNickname, memberId }: 
   // 요청할 때의 서버 목록을 함께 넘겨, 읽는 사이 화면 전체를 새로 받았으면 늦게 온 목록으로 덮지 않는다
   const [reloadComments] = useState(() =>
     createLatestReloader<CommentRow[], ShownComment[]>({
-      read: () => readRecordComments(createClient(), recordId),
+      read: async () => readRecordComments(await loadClient(), recordId),
       onLoaded: (rows, from) => {
         const list = toShownComments(
           rows.map((row) => toRecordComment(row, memberId)),
@@ -108,7 +108,7 @@ export const CommentThread = ({ recordId, comments, memberNickname, memberId }: 
       applyOptimisticAction({ type: "remove", id: commentId });
       // 다른 기기에서 이미 지운 댓글이면 0행이 지워진다. 목록을 새로 받으면 사라지므로 실패로 보지 않는다
       try {
-        await deleteRowById({ table: createClient().from("comments"), id: commentId, subject: "댓글을" });
+        await deleteRowById({ table: (await loadClient()).from("comments"), id: commentId, subject: "댓글을" });
       } catch (error) {
         // 사용자에게는 다시 시도할 수 있다는 문구만 보여 주고, 원인은 개발자 도구에서 볼 수 있게 남긴다
         console.error(error);

@@ -6,7 +6,7 @@ import { RECORDS_PATH } from "@/lib/dates/album";
 import { deleteDateRecord } from "@/lib/dates/delete";
 import { DELETING_KEYS } from "@/lib/deleting";
 import { TRASH_RETENTION_DAYS } from "@/lib/photos/trash";
-import { createClient } from "@/lib/supabase/client";
+import { loadClient } from "@/lib/supabase/load-client";
 
 interface DeleteRecordButtonProps {
   recordId: string;
@@ -16,7 +16,7 @@ interface DeleteRecordButtonProps {
 /** 기록 삭제 버튼과 확인 창. 확인하면 기다리지 않고 기록 탭으로 돌아가 기록을 지운다(사진은 휴지통에 남는다) */
 export const DeleteRecordButton = ({ recordId, photoCount }: DeleteRecordButtonProps): ReactElement => {
   const handleConfirm = async () => {
-    const supabase = createClient();
+    const supabase = await loadClient();
     await deleteDateRecord({ recordId, deleteRecord: (id) => supabase.from("dates").delete().eq("id", id) });
   };
 

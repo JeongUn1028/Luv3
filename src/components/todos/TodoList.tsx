@@ -7,8 +7,8 @@ import { useJustAddedTodo, useStrikingTodos } from "@/components/todos/use-todo-
 import { DELETING_KEYS, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { isWritingNow, refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
-import { createClient } from "@/lib/supabase/client";
-import { saveTodoAction } from "@/lib/todos/actions";
+import { withLoadedClient } from "@/lib/supabase/load-client";
+import { saveTodoAction, TODO_ACTION_FAILED_MESSAGE } from "@/lib/todos/actions";
 import { applyTodoAction, groupTodos, type Todo, type TodoAction } from "@/lib/todos/list";
 import { findSettledPendingIds, mergePendingTodos, pendingTodoStore, type PendingTodo, type ShownTodo } from "@/lib/todos/pending";
 import { createTodoSaveBatch } from "@/lib/todos/save-batch";
@@ -24,10 +24,11 @@ interface TodoListProps {
 }
 
 /** 동작을 DB에 저장한다. 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
-const saveAction = async (action: TodoAction): Promise<string | undefined> => {
-  const supabase = createClient();
-  return saveTodoAction({ action, todos: supabase.from("todos"), moveTodo: (args) => supabase.rpc("move_todo", args) });
-};
+const saveAction = (action: TodoAction): Promise<string | undefined> =>
+  withLoadedClient({
+    request: (supabase) => saveTodoAction({ action, todos: supabase.from("todos"), moveTodo: (args) => supabase.rpc("move_todo", args) }),
+    onLoadFailed: () => TODO_ACTION_FAILED_MESSAGE,
+  });
 
 /**
  * 둘이 함께 쓰는 하고 싶은 것 목록. 하지 않은 항목은 정한 순서대로, 완료한 항목은 아래에 따로 그린다.

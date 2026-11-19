@@ -66,6 +66,8 @@ describe("isSessionLostError", () => {
     { name: "요청 제한", error: new AuthApiError("x", 429, "over_request_rate_limit"), expected: false },
     { name: "서버 오류", error: new AuthApiError("x", 500, undefined), expected: false },
     { name: "인터넷 끊김", error: new AuthRetryableFetchError("x", 0), expected: false },
+    { name: "Error가 아닌 세션 없음 객체", error: { name: "AuthSessionMissingError", __isAuthError: true }, expected: true },
+    { name: "Supabase가 아닌 오류", error: new Error("bad_jwt"), expected: false },
     { name: "오류 없음", error: undefined, expected: false },
   ])("$name 이면 $expected 를 돌려준다", ({ error, expected }) => {
     expect(isSessionLostError(error)).toBe(expected);

@@ -15,7 +15,7 @@ import { PhotoError } from "@/lib/photos/errors";
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import type { RememberablePhoto } from "@/lib/photos/remembered-url";
 import { isAcceptedPhoto, PHOTO_INPUT_ACCEPT } from "@/lib/photos/accepted";
-import { createClient } from "@/lib/supabase/client";
+import { loadClient } from "@/lib/supabase/load-client";
 
 type Task = "upload" | "clear";
 
@@ -113,7 +113,7 @@ export const CouplePhoto = ({ photo, serverSrc }: CouplePhotoProps): ReactElemen
       const { original, medium } = await resizeCouplePhoto(file);
       // 고른 원본(수십 MB일 수 있음)보다 가볍고, 브라우저가 못 그린 HEIC도 변환된 사진으로 그린다
       if (isCurrentPreview(photoId)) showPreview({ photoId, url: URL.createObjectURL(medium), replacedPath });
-      const supabase = createClient();
+      const supabase = await loadClient();
       await replaceCouplePhoto({
         storage: supabase.storage.from(ALBUM_BUCKET),
         photoId,
@@ -156,7 +156,7 @@ export const CouplePhoto = ({ photo, serverSrc }: CouplePhotoProps): ReactElemen
     shouldMoveFocusRef.current = true;
     modalRef.current?.closeImmediately();
     try {
-      const supabase = createClient();
+      const supabase = await loadClient();
       await clearCouplePhoto({
         storage: supabase.storage.from(ALBUM_BUCKET),
         clearPath: () => supabase.rpc("clear_couple_photo"),

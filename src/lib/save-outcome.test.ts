@@ -6,6 +6,7 @@ import {
   isScreenOutdatedAfterFailure,
   isOutcomeUnknown,
   toRejectedOutcome,
+  toNotSentFailure,
   toSaveFailure,
   UNCERTAIN_SAVE_MESSAGE,
   updateRowWithRetry,
@@ -216,6 +217,12 @@ describe("createRowWithRetry", () => {
     const outcome = await createRowWithRetry({ insert: respondWith({ error: LOST }), update: respondWith<RowsResult>({ data: [], error: null }), readRow: rowDeleted() });
 
     expect(outcome).toBe("uncertain");
+  });
+});
+
+describe("toNotSentFailure", () => {
+  it("요청을 보내지 못했으면 실패 문구를 보여 주고 저장되지 않은 것이다", () => {
+    expect(toNotSentFailure("저장 실패")).toEqual({ message: "저장 실패", isGone: false, hasConflict: false, mayHaveSaved: false });
   });
 });
 

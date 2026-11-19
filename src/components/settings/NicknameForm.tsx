@@ -11,7 +11,7 @@ import { showInvalidFields } from "@/lib/focus-invalid-field";
 import { clearError, countGraphemes } from "@/lib/form";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
-import { createClient } from "@/lib/supabase/client";
+import { withLoadedClient } from "@/lib/supabase/load-client";
 import { SaveButton } from "@/components/SaveButton";
 
 const FORM_KEY = "nickname";
@@ -20,8 +20,8 @@ const SAVE_FAILED_MESSAGE = "저장하지 못했어요. 잠시 후 다시 시도
 const failedSaves = new Map<string, FailedSave<string>>();
 
 /** 자기 닉네임을 저장한다. 저장에 실패하면 false를 돌려준다 */
-const saveOwnNickname = async (memberId: string, nickname: string): Promise<boolean> =>
-  saveNickname({ memberId, nickname, members: createClient().from("members") });
+const saveOwnNickname = (memberId: string, nickname: string): Promise<boolean> =>
+  withLoadedClient({ request: (supabase) => saveNickname({ memberId, nickname, members: supabase.from("members") }), onLoadFailed: () => false });
 
 interface NicknameFormProps {
   memberId: string;

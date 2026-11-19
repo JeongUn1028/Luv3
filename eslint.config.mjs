@@ -17,6 +17,26 @@ const eslintConfig = defineConfig([
     },
   },
   {
+    // 브라우저용 Supabase는 쓰는 순간에 불러온다. 바로 불러오면 그 화면의 첫 묶음에 라이브러리가 실린다(#457, #486)
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/lib/supabase/load-client.ts", "**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              // 별칭과 상대 경로를 모두 막는다
+              group: ["**/supabase/client"],
+              allowTypeImports: true,
+              message: "loadClient 또는 withLoadedClient(@/lib/supabase/load-client)를 쓰세요.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // 팀 규칙(company 컨벤션 typescript.md·react.md)을 린트로 지킨다(#359)
     files: ["**/*.{ts,tsx,mts}"],
     rules: {

@@ -1,6 +1,6 @@
 // 이 기기(브라우저)의 알림 구독 다루기. 설정 화면 알림 칸(#363), 로그아웃(#364), 로그인(#409)이 함께 쓴다
 
-import { createClient } from "@/lib/supabase/client";
+import { loadClient } from "@/lib/supabase/load-client";
 import { ADOPT_TIMEOUT } from "./adopt-later";
 import { isPushServiceEndpoint, isUsableSubscription, toApplicationServerKey, toStoredSubscription } from "./subscription";
 
@@ -11,7 +11,7 @@ import { isPushServiceEndpoint, isUsableSubscription, toApplicationServerKey, to
  */
 export const savePushSubscriptionRow = async (subscription: PushSubscription): Promise<void> => {
   const { endpoint, p256dh, auth } = toStoredSubscription(subscription.toJSON());
-  const { error } = await createClient().rpc("save_push_subscription", { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth });
+  const { error } = await (await loadClient()).rpc("save_push_subscription", { p_endpoint: endpoint, p_p256dh: p256dh, p_auth: auth });
   if (error) throw new Error(`알림 구독을 저장하지 못했습니다: ${error.message}`, { cause: error });
 };
 
@@ -21,7 +21,7 @@ export const savePushSubscriptionRow = async (subscription: PushSubscription): P
  * @example await deletePushSubscriptionRow(subscription.endpoint);
  */
 export const deletePushSubscriptionRow = async (endpoint: string): Promise<void> => {
-  const { error } = await createClient().from("push_subscriptions").delete().eq("endpoint", endpoint);
+  const { error } = await (await loadClient()).from("push_subscriptions").delete().eq("endpoint", endpoint);
   if (error) throw new Error(`알림 구독을 지우지 못했습니다: ${error.message}`, { cause: error });
 };
 

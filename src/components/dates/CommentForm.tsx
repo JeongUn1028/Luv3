@@ -9,7 +9,7 @@ import { addComment } from "@/lib/comments/write";
 import { countChars } from "@/lib/form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
-import { createClient } from "@/lib/supabase/client";
+import { withLoadedClient } from "@/lib/supabase/load-client";
 import { useOfflineBlock } from "@/lib/use-offline-block";
 
 const SAVE_FAILED_MESSAGE = "댓글을 남기지 못했어요. 잠시 후 다시 시도해 주세요.";
@@ -63,7 +63,10 @@ export const CommentForm = ({ recordId, memberNickname, isSending, onOptimisticA
     startTransition(async () => {
       onOptimisticAction({ type: "add", comment });
       // 먼저 붙인 댓글과 같은 id로 저장해, 다시 받은 목록에서도 같은 줄로 이어진다
-      const outcome = await addComment({ comment: { id: comment.id, recordId, content: comment.content }, comments: createClient().from("comments") });
+      const outcome = await withLoadedClient({
+        request: (supabase) => addComment({ comment: { id: comment.id, recordId, content: comment.content }, comments: supabase.from("comments") }),
+        onLoadFailed: () => "failed" as const,
+      });
       if (outcome !== "saved") {
         // 먼저 붙인 댓글은 저절로 빠진다. 쓴 글은 칸에 돌려놓아 다시 남기게 한다.
         // 세션이 끊겼을 때 새로 받으면 로그인 화면으로 넘어가 다시 로그인 창이 소용없어지므로(#102) 새로 받지 않는다
