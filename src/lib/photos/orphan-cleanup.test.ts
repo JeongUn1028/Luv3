@@ -25,7 +25,7 @@ const createFakeStorage = (initial: Record<string, string | undefined>, removeEr
       for (const [filePath, createdAt] of files) {
         const rest = prefix ? (filePath.startsWith(`${prefix}/`) ? filePath.slice(prefix.length + 1) : undefined) : filePath;
         if (rest === undefined) continue;
-        const [name, ...deeper] = rest.split("/");
+        const [name = "", ...deeper] = rest.split("/");
         items.set(name, deeper.length > 0 ? { name, id: null } : { name, id: filePath, created_at: createdAt, metadata: { size: 1 } });
       }
       return { data: [...items.values()], error: null };

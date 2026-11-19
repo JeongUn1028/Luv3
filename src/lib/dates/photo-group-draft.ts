@@ -97,9 +97,8 @@ export const removeGroupPhoto = <Photo extends DraftPhoto>(draft: DateRecordDraf
 export const moveItem = <Item>(items: Item[], index: number, offset: -1 | 1): Item[] => {
   const target = index + offset;
   if (index < 0 || index >= items.length || target < 0 || target >= items.length) return items;
-  const moved = [...items];
-  [moved[index], moved[target]] = [moved[target], moved[index]];
-  return moved;
+  // 이웃한 둘이라 빼서 옆에 다시 넣으면 맞바꾼 것과 같다. slice는 꺼낸 값이 없을 수 있다는 타입을 만들지 않는다
+  return items.toSpliced(index, 1).toSpliced(target, 0, ...items.slice(index, index + 1));
 };
 
 /**

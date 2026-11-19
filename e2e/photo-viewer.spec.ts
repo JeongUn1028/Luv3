@@ -30,7 +30,11 @@ const dragTouches = async (page: Page, from: TouchPoint[], to: TouchPoint[]): Pr
     await sendTouch(
       session,
       "touchMove",
-      from.map((point, index) => ({ x: point.x + ((to[index].x - point.x) * step) / STEPS, y: point.y + ((to[index].y - point.y) * step) / STEPS })),
+      from.map((point, index) => {
+        const target = to[index];
+        if (!target) throw new Error("시작점과 끝점의 손가락 수가 다르다");
+        return { x: point.x + ((target.x - point.x) * step) / STEPS, y: point.y + ((target.y - point.y) * step) / STEPS };
+      }),
     );
   }
   await sendTouch(session, "touchEnd", []);

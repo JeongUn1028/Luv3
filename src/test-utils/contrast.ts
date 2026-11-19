@@ -36,6 +36,8 @@ const toRelativeLuminance = (color: Rgb): number => {
  * @example getContrastRatio(parseHexColor("#0a0a0a"), parseHexColor("#f5cfd9")) // 13.96…
  */
 export const getContrastRatio = (first: Rgb, second: Rgb): number => {
-  const [lighter, darker] = [toRelativeLuminance(first), toRelativeLuminance(second)].sort((a, b) => b - a);
+  const luminances = [toRelativeLuminance(first), toRelativeLuminance(second)];
+  const lighter = Math.max(...luminances);
+  const darker = Math.min(...luminances);
   return (lighter + 0.05) / (darker + 0.05);
 };

@@ -22,8 +22,8 @@ describe("FILE_PATH_COLUMNS", () => {
     // 휴지통(photo_trash)은 기록이 가리키는 파일이 아니라 정리 경로가 따로 읽는다(src/app/api/photo-cleanup/route.ts)
     const pathColumns = [...types.matchAll(/"(\w+)": \{\s*Row: \{([^}]*)\}/g)]
       .filter(([, table]) => table !== "photo_trash")
-      .flatMap(([, table, row]) =>
-      [...row.matchAll(/"(\w+)":/g)].map(([, column]) => column).filter((column) => column.includes("path")).map((column) => `public.${table}.${column}`),
+      .flatMap(([, table, row = ""]) =>
+      [...row.matchAll(/"(\w+)":/g)].map(([, column = ""]) => column).filter((column) => column.includes("path")).map((column) => `public.${table}.${column}`),
     );
 
     // Act
@@ -42,7 +42,7 @@ describe("listAlbumObjects", () => {
       "": [folder("couple"), file(".emptyFolderPlaceholder")],
       couple: [file("c1.jpg", 30)],
     };
-    const storage: AlbumListStorage = { list: vi.fn(async (prefix: string) => ({ data: pages[prefix], error: null })) };
+    const storage: AlbumListStorage = { list: vi.fn(async (prefix: string) => ({ data: pages[prefix] ?? [], error: null })) };
 
     // Act
     const files = await listAlbumObjects(storage);

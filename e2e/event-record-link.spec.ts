@@ -39,6 +39,7 @@ test.describe("일정과 기록 연결", () => {
       await getSubmitButton(page).click();
       await page.waitForURL("**/records");
       const [recordId] = await getRecordIdsByTitle(title);
+      if (recordId === undefined) throw new Error("저장한 기록을 찾지 못했다");
       await renameRecord(recordId, `${title} 바꿈`);
 
       // Assert

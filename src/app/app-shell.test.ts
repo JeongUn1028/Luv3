@@ -42,7 +42,7 @@ describe("화면 틀", () => {
 
   it("html·body와 안쪽 스크롤 영역은 튕김을 막되, html·body에 overflow: hidden은 걸지 않는다", () => {
     const css = readSource("app/globals.css");
-    const rootRules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter(([, selector]) =>
+    const rootRules = [...css.matchAll(/([^{}]+)\{([^}]*)\}/g)].filter(([, selector = ""]) =>
       /(?:^|[\s,])(?:html|body)(?=[\s,:]|$)/.test(selector.trim()),
     );
     const rootTags = readSource("app/layout.tsx").match(/<(?:html|body)\b[^>]*>/g) ?? [];
@@ -51,7 +51,7 @@ describe("화면 틀", () => {
     // 안쪽 스크롤 영역도 끝에서 튕기지 않게 한다. 튕김은 iOS에서만 나 E2E로 잴 수 없다
     expect(readSource(SHELL)).toMatch(/"[^"]*\boverflow-y-auto\b[^"]*\boverscroll-contain\b[^"]*"/);
     // 첫 실행 때 html·body 높이가 793이라, overflow를 막으면 852 높이의 틀 아래(하단 탭)가 잘린다
-    expect(rootRules.filter(([, , body]) => /overflow(?:-[xy])?:\s*hidden/.test(body))).toEqual([]);
+    expect(rootRules.filter(([, , body = ""]) => /overflow(?:-[xy])?:\s*hidden/.test(body))).toEqual([]);
     expect(rootTags).toHaveLength(2);
     expect(rootTags.filter((tag) => /\boverflow(?:-[xy])?-hidden\b/.test(tag))).toEqual([]);
   });
@@ -93,7 +93,7 @@ describe("입력 칸", () => {
       if (!at.endsWith(".tsx")) return [];
       const source = readSource(at);
       const classNames = [
-        ...[...source.matchAll(/const inputClassName =\s*"([^"]*)"/g)].map((match) => match[1]),
+        ...[...source.matchAll(/const inputClassName =\s*"([^"]*)"/g)].map(([, className = ""]) => className),
         ...[...source.matchAll(/<(?:input|textarea|select)\b[\s\S]*?\/>/g)].flatMap((match) => match[0].match(/className="[^"]*"/g) ?? []),
       ];
       return classNames.filter((className) => /text-\[(?:\d|1[0-5])px\]/.test(className)).map((className) => `${at}: ${className.slice(0, 60)}`);

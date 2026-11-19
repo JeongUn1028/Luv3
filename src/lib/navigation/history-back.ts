@@ -37,7 +37,7 @@ export const getBackSteps = (entryUrls: ReadonlyArray<string | null>, currentInd
   for (let index = currentIndex - 1; index >= 0; index -= 1) {
     const entryUrl = entryUrls[index];
     if (entryUrl === currentUrl) continue;
-    if (entryUrl === null) return undefined;
+    if (entryUrl === null || entryUrl === undefined) return undefined;
     return new URL(entryUrl).pathname === LOGIN_PATH ? undefined : currentIndex - index;
   }
   return undefined;

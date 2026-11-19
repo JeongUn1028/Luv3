@@ -93,7 +93,8 @@ export const sendPushMessage = async ({ subscriptions, message, send }: SendPush
   results.forEach((result, index) => {
     if (result.status === "fulfilled") return;
     const statusCode = toStatusCode(result.reason);
-    if (statusCode !== undefined && EXPIRED_STATUS_CODES.has(statusCode)) expiredEndpoints.push(subscriptions[index].endpoint);
+    const endpoint = subscriptions[index]?.endpoint;
+    if (endpoint !== undefined && statusCode !== undefined && EXPIRED_STATUS_CODES.has(statusCode)) expiredEndpoints.push(endpoint);
     else failureReasons.push(toPushFailureReason(result.reason));
   });
   const sentCount = results.length - expiredEndpoints.length - failureReasons.length;
