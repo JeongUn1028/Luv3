@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, useSyncExternalStore, type ReactElement } from "react";
-import { toCheckboxId, TodoItem, TodoMoveButtons } from "@/components/todos/TodoItem";
+import { toCheckboxId, TodoItem, TodoMoveButtons, type TodoAskAnswer } from "@/components/todos/TodoItem";
 import { useJustAddedTodo, useStrikingTodos } from "@/components/todos/use-todo-motion";
 import { DELETING_KEYS, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { isWritingNow, refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
@@ -115,12 +115,28 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
     runAction({ type: "move", id: todo.id, offset });
   };
 
-  const handleToggle = (todo: Todo, isCompleted: boolean) => {
-    // 화면을 눌러 초점이 없던 경우(아이폰)는 초점을 만들지 않는다
-    focusedToggleIdRef.current = document.activeElement?.id === toCheckboxId(todo.id) ? todo.id : undefined;
+  const completeTodo = (todo: Todo, isCompleted: boolean) => {
     if (isCompleted) startStrike(todo.id);
     else cancelStrike(todo.id);
     runAction({ type: "complete", id: todo.id, completedAt: isCompleted ? new Date().toISOString() : undefined });
+  };
+
+  const handleToggle = (todo: Todo, isCompleted: boolean) => {
+    // 화면을 눌러 초점이 없던 경우(아이폰)는 초점을 만들지 않는다
+    focusedToggleIdRef.current = document.activeElement?.id === toCheckboxId(todo.id) ? todo.id : undefined;
+    completeTodo(todo, isCompleted);
+  };
+
+  // 지난 일정 묻기(#471): [완료]는 체크와 같이 줄을 긋고 완료 칸으로 옮기고, [아직]은 묻는 칸만 없앤다(칩은 남는다)
+  const handleAnswerAsk = (todo: Todo, answer: TodoAskAnswer) => {
+    // 누른 버튼이 묻는 칸과 함께 사라져 초점이 문서 처음으로 빠지므로 그 항목의 체크로 옮긴다.
+    // 화면을 눌러 버튼에 초점이 없던 경우(아이폰)는 체크와 같이 초점을 만들지 않는다
+    focusedToggleIdRef.current = document.activeElement instanceof HTMLButtonElement ? todo.id : undefined;
+    if (answer.type === "done") {
+      completeTodo(todo, true);
+      return;
+    }
+    runAction({ type: "notYet", id: todo.id, eventId: answer.eventId, date: answer.lastDay });
   };
 
   // 마지막 항목이 상대에게 지워졌다는 안내도 빈 목록과 함께 보여야 하므로, 안내는 목록이 비었는지와 상관없이 그린다
@@ -166,6 +182,7 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
                 isJustAdded={todo.id === justAddedId}
                 strikePhase={strikePhases.get(todo.id)}
                 today={today}
+                onAnswerAsk={handleAnswerAsk}
               >
                 <TodoMoveButtons
                   content={todo.content}

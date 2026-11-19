@@ -8,7 +8,7 @@ import { toTodoEditHref } from "@/lib/todos/schedule";
 import { getCalendarEventRow, getSubmitButton } from "./support/actions";
 import { pickDate } from "./support/date-picker";
 import { createTestName } from "./support/names";
-import { createDisposableEvent, createDisposableTodo, deleteEventById, getTodoEventId, linkTodoEvent } from "./support/seed";
+import { createDisposableEvent, createDisposableTodo, deleteEventById, getTodoEventId, linkTodoEvent, moveEventDate } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
 // 하고 싶은 것에 일정 잡기(#471): 고치기 화면의 "일정 잡기" → 새 일정 폼 → 저장하면 이어지고 칩이 붙는다
@@ -47,7 +47,7 @@ test.describe("하고 싶은 것에 일정 잡기(#471)", () => {
 
       // Assert: 목록으로 돌아와 그 줄을 표시하고, 저장이 끝나면 날짜 칩이 붙는다
       await page.waitForURL(`**${TODOS_PATH}`);
-      const chipLabel = formatTodoEventChip({ id: "", date, endDate: undefined, isTogether: true, authorNickname: undefined }, toKstDate(new Date())).label;
+      const chipLabel = formatTodoEventChip({ id: "", date, endDate: undefined, isTogether: true, authorNickname: undefined, notYetDate: undefined }, toKstDate(new Date())).label;
       const row = getListRow(page, content);
       await expect(row).toHaveClass(/todo-just-added/);
       await expect(row).toContainText(chipLabel);
@@ -119,6 +119,127 @@ test.describe("하고 싶은 것에 일정 잡기(#471)", () => {
       await expect(page.getByRole("dialog")).toHaveCount(0);
     } finally {
       await deleteEvent();
+      await deleteTodo();
+    }
+  });
+
+  test("이어진 일정 날짜가 지난 줄에 다녀왔는지 묻고, [아직]은 새로 불러와도 묻지 않다가 일정을 미뤄 그 날짜도 지나면 다시 묻는다", async ({ page }, testInfo) => {
+    // Arrange: 이미 지난 날짜의 일정을 잇는다
+    const todoId = randomUUID();
+    const eventId = randomUUID();
+    const content = createTestName("E2E 지난 일정 아직", testInfo);
+    const deleteTodo = await createDisposableTodo({ id: todoId, content });
+    const deleteEvent = await createDisposableEvent({ id: eventId, title: content, date: "2020-01-10" });
+    try {
+      await linkTodoEvent(todoId, eventId);
+      await openScreen(page, TODOS_PATH, getListRow(page, content));
+      const row = getListRow(page, content);
+      const ask = row.getByRole("group", { name: `${content}, 다녀오셨나요? 완료로 옮길까요?` });
+      await expect(row).toContainText("1월 10일 지남");
+      await expect(ask).toBeVisible();
+
+      // Act
+      await ask.getByRole("button", { name: "아직" }).tap();
+
+      // Assert: 묻는 칸만 사라지고 칩은 남으며, 저장돼 새로 불러와도 묻지 않는다
+      await expect(ask).toHaveCount(0);
+      await expect(row).toContainText("1월 10일 지남");
+      await expect.poll(async () => {
+        await page.reload();
+        await expect(row).toBeVisible();
+        return ask.count();
+      }).toBe(0);
+
+      // Act: 상대가 일정을 미뤘는데 그 날짜도 지났다
+      await moveEventDate(eventId, "2020-01-20");
+      await page.reload();
+
+      // Assert
+      await expect(row).toContainText("1월 20일 지남");
+      await expect(ask).toBeVisible();
+    } finally {
+      await deleteEvent();
+      await deleteTodo();
+    }
+  });
+
+  test("지난 일정 묻기에서 [완료]를 누르면 체크한 것처럼 완료 칸으로 옮긴다", async ({ page }, testInfo) => {
+    // Arrange
+    const todoId = randomUUID();
+    const eventId = randomUUID();
+    const content = createTestName("E2E 지난 일정 완료", testInfo);
+    const deleteTodo = await createDisposableTodo({ id: todoId, content });
+    const deleteEvent = await createDisposableEvent({ id: eventId, title: content, date: "2020-01-10" });
+    try {
+      await linkTodoEvent(todoId, eventId);
+      await openScreen(page, TODOS_PATH, getListRow(page, content));
+      const ask = getMain(page).getByRole("group", { name: `${content}, 다녀오셨나요? 완료로 옮길까요?` });
+
+      // Act
+      await ask.getByRole("button", { name: "완료" }).tap();
+
+      // Assert
+      const doneSection = getMain(page).getByRole("region", { name: /^완료/ });
+      await expect(doneSection.getByRole("checkbox", { name: `${content} 완료` })).toBeChecked();
+      await expect(ask).toHaveCount(0);
+    } finally {
+      await deleteEvent();
+      await deleteTodo();
+    }
+  });
+
+  test("지난 일정 묻기의 버튼을 키보드로 누르면 묻는 칸이 사라져도 초점이 그 항목의 체크로 간다", async ({ page }, testInfo) => {
+    // Arrange
+    const todoId = randomUUID();
+    const eventId = randomUUID();
+    const content = createTestName("E2E 지난 일정 초점", testInfo);
+    const deleteTodo = await createDisposableTodo({ id: todoId, content });
+    const deleteEvent = await createDisposableEvent({ id: eventId, title: content, date: "2020-01-10" });
+    try {
+      await linkTodoEvent(todoId, eventId);
+      await openScreen(page, TODOS_PATH, getListRow(page, content));
+      const ask = getMain(page).getByRole("group", { name: `${content}, 다녀오셨나요? 완료로 옮길까요?` });
+
+      // Act
+      await ask.getByRole("button", { name: "아직" }).focus();
+      await page.keyboard.press("Enter");
+
+      // Assert
+      await expect(ask).toHaveCount(0);
+      await expect(getMain(page).getByRole("checkbox", { name: `${content} 완료` })).toBeFocused();
+    } finally {
+      await deleteEvent();
+      await deleteTodo();
+    }
+  });
+
+  test("목록을 연 뒤 상대가 같은 날짜로 일정을 다시 잡았으면 [아직]은 새 일정에 붙지 않고, 새로 불러온 목록이 다시 묻는다", async ({ page }, testInfo) => {
+    // Arrange
+    const todoId = randomUUID();
+    const oldEventId = randomUUID();
+    const newEventId = randomUUID();
+    const content = createTestName("E2E 지난 일정 바뀜", testInfo);
+    const deleteTodo = await createDisposableTodo({ id: todoId, content });
+    const deleteOldEvent = await createDisposableEvent({ id: oldEventId, title: content, date: "2020-01-10" });
+    const deleteNewEvent = await createDisposableEvent({ id: newEventId, title: content, date: "2020-01-10" });
+    try {
+      await linkTodoEvent(todoId, oldEventId);
+      await openScreen(page, TODOS_PATH, getListRow(page, content));
+      const ask = getMain(page).getByRole("group", { name: `${content}, 다녀오셨나요? 완료로 옮길까요?` });
+      await expect(ask).toBeVisible();
+      // 상대가 앞 일정을 지우고 같은 날짜의 새 일정을 잇는다
+      await deleteOldEvent();
+      await linkTodoEvent(todoId, newEventId);
+
+      // Act
+      await ask.getByRole("button", { name: "아직" }).tap();
+
+      // Assert
+      await expect(getMain(page).getByRole("alert")).toHaveText("그사이 바뀐 항목이에요. 목록을 새로 불러왔어요.");
+      await expect(ask).toBeVisible();
+    } finally {
+      await deleteOldEvent().catch(() => undefined);
+      await deleteNewEvent();
       await deleteTodo();
     }
   });

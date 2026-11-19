@@ -50,8 +50,22 @@ describe("toTodo", () => {
     const unlinked = toTodo({ ...base, event: null });
 
     // Assert
-    expect(linked.event).toEqual({ id: "e1", date: "2026-11-23", endDate: undefined, isTogether: false, authorNickname: "정운" });
+    expect(linked.event).toEqual({ id: "e1", date: "2026-11-23", endDate: undefined, isTogether: false, authorNickname: "정운", notYetDate: undefined });
     expect(unlinked).not.toHaveProperty("event");
+  });
+
+  it("[아직]을 누른 일정 날짜는 이어진 일정에 붙인다(#471)", () => {
+    const todo = toTodo({
+      id: "t1",
+      content: "바다",
+      sort_order: 1,
+      completed_at: null,
+      revision: "r1",
+      event_not_yet_date: "2026-11-23",
+      event: { id: "e1", date: "2026-11-23", end_date: null, is_together: true, author: null },
+    });
+
+    expect(todo.event?.notYetDate).toBe("2026-11-23");
   });
 });
 
@@ -124,6 +138,19 @@ describe("applyTodoAction", () => {
 
     expect(toIds(open)).toEqual(["a", "b", "c", "d"]);
     expect(done).toEqual([]);
+  });
+
+  it("[아직]을 누르면 이어진 일정에 그 날짜를 적고, 일정이 없는 항목은 그대로 둔다(#471)", () => {
+    // Arrange
+    const event = { id: "e1", date: "2026-11-23", endDate: undefined, isTogether: true, authorNickname: undefined, notYetDate: undefined };
+    const linked = [createTodo({ id: "a", event }), createTodo({ id: "b" })];
+
+    // Act
+    const dismissed = applyTodoAction(linked, { type: "notYet", id: "a", eventId: "e1", date: "2026-11-23" });
+
+    // Assert
+    expect(dismissed[0]?.event?.notYetDate).toBe("2026-11-23");
+    expect(applyTodoAction(linked, { type: "notYet", id: "b", eventId: "e1", date: "2026-11-23" })).toEqual(linked);
   });
 
   it("없는 항목에 대한 동작은 목록을 바꾸지 않는다", () => {
