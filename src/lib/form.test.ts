@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clearError, clearFieldError, countChars, countGraphemes, findTooLongMessage, FIX_FIELDS_NOTICE, isIsoDate, isResolvedFieldNotice, isSameFormValue, toPeriodEndDate } from "@/lib/form";
+import { clearError, clearErrors, clearFieldError, countChars, countGraphemes, findTooLongMessage, FIX_FIELDS_NOTICE, isIsoDate, isResolvedFieldNotice, isSameFormValue, toPeriodEndDate } from "@/lib/form";
 
 describe("countChars", () => {
   it("DB(char_length)처럼 이모지 하나를 한 글자로 센다", () => {
@@ -31,6 +31,18 @@ describe("isIsoDate", () => {
     expect(isIsoDate("2026-02-29")).toBe(false);
     expect(isIsoDate("2026-13-01")).toBe(false);
     expect(isIsoDate("2026-11-00")).toBe(false);
+  });
+});
+
+describe("clearErrors", () => {
+  it("여러 칸의 에러를 한 번에 지운다", () => {
+    const errors: Partial<Record<string, string>> = { "group:g1": "위치를 골라야 저장할 수 있어요.", "caption:g1": "한마디는 100자까지 적을 수 있어요.", title: "제목을 적어 주세요." };
+    expect(clearErrors(errors, ["group:g1", "caption:g1", "placeName:g1"])).toEqual({ title: "제목을 적어 주세요." });
+  });
+
+  it("지울 에러가 없으면 같은 객체를 돌려준다", () => {
+    const errors: Partial<Record<string, string>> = { title: "제목을 적어 주세요." };
+    expect(clearErrors(errors, ["memo"])).toBe(errors);
   });
 });
 

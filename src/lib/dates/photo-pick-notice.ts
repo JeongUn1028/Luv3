@@ -1,3 +1,4 @@
+import { FIX_FIELDS_NOTICE } from "@/lib/form";
 import { MAX_GROUP_PHOTOS } from "./photo-group-draft";
 
 /** 사진을 고른 결과 중 알릴 것 */
@@ -22,3 +23,12 @@ export const toPickNotice = ({ skippedCount, droppedCount, isNewGroup }: PickNot
   ].filter(Boolean);
   return messages.length > 0 ? messages.join(" ") : undefined;
 };
+
+/**
+ * 사진을 고른 뒤 폼 아래 안내. 뺀 것이 있으면 그 안내로 바꾸고, 없으면 칸 오류 안내(`FIX_FIELDS_NOTICE`)만 남긴다.
+ * 사진을 골라도 다른 칸의 오류는 그대로이기 때문이다.
+ *
+ * @example setNotice((current) => toNoticeAfterPick({ current, pickNotice }))
+ */
+export const toNoticeAfterPick = ({ current, pickNotice }: { current: string | undefined; pickNotice: string | undefined }): string | undefined =>
+  pickNotice ?? (current === FIX_FIELDS_NOTICE ? current : undefined);

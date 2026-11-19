@@ -10,10 +10,11 @@ import { RECORDS_PATH } from "@/lib/dates/album";
 import { hasRecordDraftChanges, isSameExceptReadingPhotoInfo } from "@/lib/dates/draft-changes";
 import { TITLE_MAX_LENGTH, validateDraft, type DraftErrors, type RecordPrefill } from "@/lib/dates/form";
 import { getDraftPhotos } from "@/lib/dates/photo-group-draft";
+import { toNoticeAfterPick } from "@/lib/dates/photo-pick-notice";
 import { toRecordHref } from "@/lib/dates/record-href";
 import { addTag } from "@/lib/dates/tags";
 import { showInvalidFields } from "@/lib/focus-invalid-field";
-import { clearError, clearFieldError, isResolvedFieldNotice, toPeriodEndDate } from "@/lib/form";
+import { clearError, clearErrors, clearFieldError, isResolvedFieldNotice, toPeriodEndDate } from "@/lib/form";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { useDiscardOnLeave } from "@/lib/navigation/use-discard-on-leave";
@@ -24,7 +25,7 @@ import { createEmptyRecordDraft, toEditRecordDraft, withNewPreviews, type Record
 import { RecordDateFields } from "./record-form/RecordDateFields";
 import { RecordFormFooter } from "./record-form/RecordFormFooter";
 import { RecordMemoField } from "./record-form/RecordMemoField";
-import { usePhotoGroupEditing } from "./record-form/use-photo-group-editing";
+import { usePhotoGroupEditing, type PhotoGroupEditFeedback } from "./record-form/use-photo-group-editing";
 import { useRecordSave } from "./record-form/use-record-save";
 import { useRecordTags } from "./record-form/use-record-tags";
 import { useUntouchedDateToday } from "./record-form/use-untouched-date-today";
@@ -58,8 +59,8 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
   const [notice, setNotice] = useState(failedSave?.message);
   const recordTags = useRecordTags({ draft, setDraft, setErrors });
   const { tagInput, setTagInput, isTagFieldOpen } = recordTags;
-  const photoGroups = usePhotoGroupEditing({ draft, setDraft, setErrors, setNotice, previews });
-  const recordSave = useRecordSave({ record, setDraft, setNotice, previews, leavableSave });
+  const photoGroups = usePhotoGroupEditing({ draft, setDraft, previews });
+  const recordSave = useRecordSave({ record, previews, leavableSave });
   const { isSaving, isRecordGone } = recordSave;
   // 칸 오류를 모두 고치면 저장을 다시 누르기 전이라도 안내를 지운다. 효과로 지우면 한 번 더 그려지므로 그리는 중에 맞춘다
   if (isResolvedFieldNotice(notice, errors)) setNotice(undefined);
@@ -91,6 +92,25 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
     isSameContent: isSameExceptReadingPhotoInfo,
   });
 
+  // 모음을 고친 뒤의 칸 오류와 안내는 모음 편집 훅이 돌려준 대로 폼이 바꾼다(#357)
+  const applyGroupFeedback = ({ clearedErrors, picked }: PhotoGroupEditFeedback) => {
+    setErrors((current) => clearErrors(current, clearedErrors));
+    if (picked) setNotice((current) => toNoticeAfterPick({ current, pickNotice: picked.notice }));
+  };
+  const withGroupFeedback =
+    <Args extends unknown[]>(edit: (...args: Args) => PhotoGroupEditFeedback) =>
+    (...args: Args) =>
+      applyGroupFeedback(edit(...args));
+  const { actions: groupEdits } = photoGroups;
+  const groupActions = {
+    ...groupEdits,
+    onAddPhotos: withGroupFeedback(groupEdits.onAddPhotos),
+    onRemoveGroup: withGroupFeedback(groupEdits.onRemoveGroup),
+    onRemovePhoto: withGroupFeedback(groupEdits.onRemovePhoto),
+    onCaptionChange: withGroupFeedback(groupEdits.onCaptionChange),
+    onPlaceNameChange: withGroupFeedback(groupEdits.onPlaceNameChange),
+  };
+
   const updateField = (field: "date" | "endDate" | "title" | "memo", value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
     setErrors((current) => clearFieldError(current, field));
@@ -118,7 +138,11 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
     if (showInvalidFields({ form, errors: nextErrors, setErrors, setNotice })) return;
 
     const recordId = record?.id ?? nextDraft.uncertainSaveRecordId ?? crypto.randomUUID();
-    await recordSave.save({ draft: nextDraft, recordId, reset: () => resetForm(record ? toEditRecordDraft(record) : createEmptyRecordDraft()) });
+    setNotice(undefined);
+    const failure = await recordSave.save({ draft: nextDraft, recordId, reset: () => resetForm(record ? toEditRecordDraft(record) : createEmptyRecordDraft()) });
+    if (!failure) return;
+    setDraft((current) => ({ ...current, ...failure.failedFields }));
+    setNotice(failure.message);
   };
 
   // 기록을 지웠을 때(DeleteRecordButton)와 같이 옮기면서 다시 불러온다
@@ -155,9 +179,9 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
           errors={errors}
           isDisabled={isSaving}
           mapKey={mapKey}
-          onAddGroup={photoGroups.handleAddGroup}
-          onLocationChange={photoGroups.handleLocationChange}
-          actions={photoGroups.actions}
+          onAddGroup={withGroupFeedback(photoGroups.handleAddGroup)}
+          onLocationChange={withGroupFeedback(photoGroups.handleLocationChange)}
+          actions={groupActions}
         />
 
         <RecordDateFields
