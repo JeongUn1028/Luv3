@@ -7,16 +7,16 @@ import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import { SIGN_IN_UNAVAILABLE_MESSAGE } from "@/lib/auth/login-messages";
 import { isSessionLostError, SESSION_LOST_EVENT } from "@/lib/auth/session-lost";
 import { signInAgain } from "@/lib/auth/sign-in-again";
-import { adoptThisDevicePushSubscription } from "@/lib/push/device-subscription";
-import { createClient } from "@/lib/supabase/client";
+import { adoptThisDevicePushSubscriptionLater } from "@/lib/push/adopt-later";
+import { loadClient, preloadClient } from "@/lib/supabase/load-client";
 
 /** 로그인에 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
 // async: 클라이언트를 만들다 던져도 거절된 약속이 되어 부르는 쪽의 catch가 받는다
 const signInHere = async (email: string, password: string): Promise<string | undefined> => {
-  const supabase = createClient();
+  const supabase = await loadClient();
   const failure = await signInAgain({ email, password, auth: supabase.auth, members: supabase.from("members") });
   // 다른 사람이 이 자리에서 로그인했을 수 있어 이 기기 구독의 주인을 맞춘다(#409)
-  if (!failure) await adoptThisDevicePushSubscription();
+  if (!failure) await adoptThisDevicePushSubscriptionLater();
   return failure;
 };
 
@@ -82,16 +82,22 @@ export const SessionLostDialog = (): ReactElement => {
   const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
+    // 끊긴 순간 라이브러리를 받느라 창이 늦게 뜨지 않게 그린 뒤 미리 받는다
+    preloadClient();
     const handleSessionLost = async () => {
       // 거절 응답만으로 단정하지 않고 세션이 정말 사라졌는지 확인해, 다시 로그인해도 풀리지 않는 문제에는 창을 띄우지 않는다
-      const { data, error } = await createClient().auth.getUser();
+      const { data, error } = await (await loadClient()).auth.getUser();
       const modal = modalRef.current;
       if (data.user || !isSessionLostError(error) || !modal || modal.isOpen()) return;
       setIsOpen(true);
       modal.open();
     };
-    window.addEventListener(SESSION_LOST_EVENT, handleSessionLost);
-    return () => window.removeEventListener(SESSION_LOST_EVENT, handleSessionLost);
+    // 라이브러리 파일을 받지 못하면 확인할 수 없어 창을 띄우지 않는다. 다시 로그인할 수도 없어서다
+    const handleEvent = () => {
+      handleSessionLost().catch((error: unknown) => console.error(new Error("로그인 끊김을 확인하지 못했습니다.", { cause: error })));
+    };
+    window.addEventListener(SESSION_LOST_EVENT, handleEvent);
+    return () => window.removeEventListener(SESSION_LOST_EVENT, handleEvent);
   }, []);
 
   return (

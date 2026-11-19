@@ -4,10 +4,10 @@ import { useEffect, useState, type SubmitEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { TextField } from "@/components/FormField";
 import { forgetAllPhotoUrls } from "@/components/RememberedPhoto";
-import { createClient } from "@/lib/supabase/client";
+import { loadClient } from "@/lib/supabase/load-client";
 import { getSafeNextPath } from "@/lib/auth/paths";
-import { getLoginErrorMessage, getSignInErrorMessage } from "@/lib/auth/login-messages";
-import { adoptThisDevicePushSubscription } from "@/lib/push/device-subscription";
+import { getLoginErrorMessage, getSignInErrorMessage, SIGN_IN_UNAVAILABLE_MESSAGE } from "@/lib/auth/login-messages";
+import { adoptThisDevicePushSubscriptionLater } from "@/lib/push/adopt-later";
 
 /**
  * 로그인 화면의 쿼리(next, error)가 바뀌면 폼을 새로 마운트해 입력값과 안내 문구를 초기화한다.
@@ -47,16 +47,22 @@ const PasswordLoginForm = ({ nextPath, initialMessage }: PasswordLoginFormProps)
     setMessage(undefined);
 
     // 비밀번호는 앞뒤 공백도 그대로 보낸다(공백이 들어간 비밀번호를 바꾸지 않기 위해)
-    const { error } = await createClient().auth.signInWithPassword({ email: email.trim(), password });
+    const result = await loadClient()
+      .then((supabase) => supabase.auth.signInWithPassword({ email: email.trim(), password }))
+      .catch((error: unknown) => {
+        // 라이브러리 파일을 받지 못하거나(끊김 등) 요청이 던지면 누른 채로 멈추지 않게 다시 시도하라고 알린다
+        console.error(new Error("로그인 요청을 보내지 못했습니다.", { cause: error }));
+        return undefined;
+      });
 
-    if (error) {
+    if (!result || result.error) {
       setIsPending(false);
       setPassword("");
-      setMessage(getSignInErrorMessage(error));
+      setMessage(result ? getSignInErrorMessage(result.error) : SIGN_IN_UNAVAILABLE_MESSAGE);
       return;
     }
     // 로그아웃 없이 사람이 바뀐 기기면 상대 알림이 앞 사람 기준으로 오므로, 옮기기 전에 이 기기 구독의 주인을 맞춘다(#409)
-    await adoptThisDevicePushSubscription();
+    await adoptThisDevicePushSubscriptionLater();
     // 전체 페이지 이동으로 브라우저 클라이언트의 메모리 세션을 버린다. SPA 이동으로 두면 허용목록 밖 계정을
     // 서버가 로그아웃시킨 뒤에도 브라우저 클라이언트가 쿠키를 다시 써 넣어 로그인 화면과 홈 사이를 오간다.
     window.location.assign(nextPath);

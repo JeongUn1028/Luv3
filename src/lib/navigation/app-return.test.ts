@@ -103,9 +103,9 @@ describe("앱 복귀 연결", () => {
     const source = readSource("lib/navigation/refresh-signed-in.ts");
 
     // 폼이면 서버에 묻기 전에 미룬다(#164)
-    expect(source).toMatch(/if \(isWritingNow\(\)\) \{\s*markAllScreensStale\(\);\s*return false;\s*\}\s*const \{ href \} = window\.location;\s*if \(!\(await isSignedInHere\(createClient\(\)\.auth\)\)/);
+    expect(source).toMatch(/if \(isWritingNow\(\)\) \{\s*markAllScreensStale\(\);\s*return false;\s*\}\s*const \{ href \} = window\.location;\s*if \(!\(await isSignedInNow\(\)\)/);
     // 로그인이 풀렸으면 서버가 로그인 화면으로 보내 숨겨 둔 폼까지 잃는다(#102). 확인은 서버와 같이 기기에서 한다(#344)
-    expect(source).toContain("if (!(await isSignedInHere(createClient().auth)) || window.location.href !== href) return false;");
+    expect(source).toContain("if (!(await isSignedInNow()) || window.location.href !== href) return false;");
     // 적힌 적 없는 화면은 앱에 돌아올 때마다 새로 받게 된다
     expect(source).toContain("markScreenLoaded(href, href);");
     expect(readSource("components/SignedPhoto.tsx")).toContain("refreshSignedInScreen(");

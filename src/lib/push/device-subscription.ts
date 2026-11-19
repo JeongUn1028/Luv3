@@ -1,10 +1,8 @@
 // 이 기기(브라우저)의 알림 구독 다루기. 설정 화면 알림 칸(#363), 로그아웃(#364), 로그인(#409)이 함께 쓴다
 
 import { createClient } from "@/lib/supabase/client";
+import { ADOPT_TIMEOUT } from "./adopt-later";
 import { isPushServiceEndpoint, isUsableSubscription, toApplicationServerKey, toStoredSubscription } from "./subscription";
-
-/** 로그인한 뒤 구독 주인을 맞추기를 기다리는 시간(ms). 신호가 약해도 로그인한 화면으로 옮기는 것을 오래 막지 않는다 */
-const ADOPT_TIMEOUT = 3_000;
 
 /**
  * 이 기기의 구독을 로그인한 사람 것으로 저장한다. 같은 기기를 다른 사람이 쓰던 행이면 주인을 바꾼다(`save_push_subscription`).
