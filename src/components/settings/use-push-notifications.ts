@@ -1,5 +1,6 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
+import { registerServiceWorker } from "@/lib/pwa/service-worker";
 import { deletePushSubscriptionRow, savePushSubscriptionRow } from "@/lib/push/device-subscription";
 import {
   isIosDevice,
@@ -15,7 +16,6 @@ import {
   type PushSupport,
 } from "@/lib/push/subscription";
 
-const SERVICE_WORKER_PATH = "/sw.js";
 /** 서비스 워커가 켜지기를 기다리는 시간(ms). 설치가 멈추면 "켜는 중"에서 영영 벗어나지 못한다 */
 const READY_TIMEOUT = 10_000;
 
@@ -43,9 +43,6 @@ const readPushSupport = (): PushSupport =>
     isStandalone: window.matchMedia("(display-mode: standalone)").matches,
   });
 const readServerPushSupport = (): undefined => undefined;
-
-// 이미 등록돼 있으면 같은 등록을 돌려준다. 고친 서비스 워커가 바로 퍼지게 HTTP 저장본을 쓰지 않는다
-const registerServiceWorker = () => navigator.serviceWorker.register(SERVICE_WORKER_PATH, { scope: "/", updateViaCache: "none" });
 
 // 사생활 보호 모드 등에서는 저장소 접근이 막혀 예외가 난다. 그때는 기억하지 못한 것으로 보고, 켜기를 누르면 다시 확인한다
 const readServiceUnsupported = (): boolean => {
@@ -114,7 +111,7 @@ export const usePushNotifications = (publicKey: string): PushNotificationsState 
     if (support !== "supported") return;
     let isCancelled = false;
     const check = async () => {
-      const registration = await registerServiceWorker();
+      const registration = await registerServiceWorker(navigator.serviceWorker);
       const found = await registration.pushManager.getSubscription();
       const subscription = (await dropUnsupportedSubscription(found)) ? null : found;
       const isUsable = isUsableSubscription(subscription, toApplicationServerKey(publicKey));
@@ -151,7 +148,7 @@ export const usePushNotifications = (publicKey: string): PushNotificationsState 
         setCheckedStatus(permission === "denied" ? "denied" : "off");
         return;
       }
-      await registerServiceWorker();
+      await registerServiceWorker(navigator.serviceWorker);
       const registration = await waitForServiceWorker();
       const serverKey = toApplicationServerKey(publicKey);
       const existing = await registration.pushManager.getSubscription();

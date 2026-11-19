@@ -21,6 +21,7 @@ describe("proxy matcher", () => {
     "/vendor",
     "/sw.js/x",
     "/xsw.js",
+    "/offline.html/x",
   ])("페이지 %s는 세션 확인을 거친다", (pathname) => {
     expect(matchesProxy(pathname)).toBe(true);
   });
@@ -40,6 +41,8 @@ describe("proxy matcher", () => {
     "/vendor/browser-image-compression-2.0.2.js",
     // 알림을 받는 서비스 워커(#363). 브라우저가 로그인 여부와 상관없이 새 버전을 확인한다
     "/sw.js",
+    // 끊긴 채 켤 때의 안내 화면(#365). 로그인 전에 설치돼도 로그인 화면으로 넘겨지지 않은 안내 화면 자체를 저장해야 한다
+    "/offline.html",
   ])("공개 파일 %s는 세션 확인 없이 보낸다", (pathname) => {
     expect(matchesProxy(pathname)).toBe(false);
   });

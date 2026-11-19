@@ -6,6 +6,7 @@ import { OfflineNotice } from "@/components/OfflineNotice";
 import { PushBadgeReset } from "@/components/PushBadgeReset";
 import { PushOpenListener } from "@/components/PushOpenListener";
 import { SaveNotices } from "@/components/SaveNotices";
+import { ServiceWorkerSetup } from "@/components/ServiceWorkerSetup";
 import { SessionLostDialog } from "@/components/SessionLostDialog";
 import { StartupSplash } from "@/components/StartupSplash";
 import { SKIP_STARTUP_SPLASH_SCRIPT } from "@/lib/pwa/startup-splash";
@@ -94,6 +95,7 @@ const RootLayout = ({ children }: LayoutProps<"/">) => (
       <AppReturn />
       <PushBadgeReset />
       <PushOpenListener />
+      <ServiceWorkerSetup />
     </body>
   </html>
 );

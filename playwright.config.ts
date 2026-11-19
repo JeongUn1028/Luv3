@@ -40,6 +40,9 @@ export default defineConfig<DeviceOptions>({
     // GitHub Actions 러너에 이미 있는 Chrome을 쓰면 브라우저를 따로 받지 않아도 된다
     channel: "chrome",
     storageState: MEMBER_STATE_PATH,
+    // 앱이 열 때마다 서비스 워커를 등록하고 그 서비스 워커가 화면 열기를 맡는다(#365). 서비스 워커가 맡은 요청은 page.route가 보지 못해
+    // 화면 요청을 가로채는 스펙이 흔들리므로 기본은 막는다. 실제 서비스 워커를 확인하는 스펙만 `test.use({ serviceWorkers: "allow" })`로 연다
+    serviceWorkers: "block",
     // 화면 전환 움직임이 끝나기를 기다리지 않고 잰다
     contextOptions: { reducedMotion: "reduce" },
     // 실패한 첫 시도의 기록을 남긴다. 다시 돌 때(on-first-retry)만 기록하면, 다시 돌아 통과한 테스트는 실패한 모습이 남지 않는다

@@ -1,17 +1,81 @@
 // Luv3 서비스 워커(#363). 알림을 받아 보여 주고, 알림을 누르면 앱을 연다.
-// 화면·파일을 저장하지 않는다(오프라인 캐시 없음, docs/plan.md "홈 화면 웹앱"). 그래서 fetch 처리를 두지 않는다.
+// 앱 화면은 저장하지 않는다(오프라인 캐시 없음, docs/plan.md "홈 화면 웹앱"). 저장하는 것은 끊긴 채 켤 때의 안내 화면 한 장뿐이다(#365).
 // 서버가 보내는 내용의 모양은 src/lib/push/message.ts의 PushMessage다. 테스트: src/lib/push/service-worker.test.ts
 
 const DEFAULT_TITLE = "Luv3";
 const HOME_PATH = "/";
 
-// 새 버전이 오면 기다리지 않고 바로 바꾼다. 저장해 둔 화면이 없어 예전 버전과 섞일 것이 없다
-self.addEventListener("install", () => {
+// 끊긴 채 앱을 켜거나 새로 고칠 때 브라우저 오류 화면 대신 보여 줄 안내 화면(#365). 다른 파일을 부르지 않는 한 장짜리 HTML이다
+const OFFLINE_PAGE_PATH = "/offline.html";
+const OFFLINE_CACHE = "luv3-offline";
+// 안내 화면 내용의 SHA-256 앞 8글자. 안내 화면을 고치면 이 값이 바뀌어 이 파일도 바뀌므로, 브라우저가 새 서비스 워커를 설치하며
+// 새 안내 화면을 받아 같은 자리에 덮어쓴다. 새로 받지 못하면 예전 안내 화면이 그대로 남는다. 값이 내용과 다르면 테스트가 실패한다
+const OFFLINE_PAGE_VERSION = "49bef79f";
+// 안내 화면을 받는 데 기다리는 시간. 설치가 이것을 기다리므로, 알림 켜기가 서비스 워커를 기다리는 시간(10초)보다 짧게 둔다
+const OFFLINE_PAGE_TIMEOUT_MS = 5000;
+
+// 이 서비스 워커가 깨어 있는 동안 안내 화면을 저장했는지. 화면을 열 때마다 저장소를 다시 들여다보지 않게 한다
+let isOfflinePageSaved = false;
+
+/** 정한 시간이 지나면 요청을 끊는 신호. 지원하지 않는 브라우저는 끊지 않는다 */
+const timeoutSignal = () => (typeof AbortSignal.timeout === "function" ? AbortSignal.timeout(OFFLINE_PAGE_TIMEOUT_MS) : undefined);
+
+/** 안내 화면을 서버에서 새로 받아(브라우저 HTTP 저장본을 거치지 않고) 저장한다 */
+const saveOfflinePage = async () => {
+  const response = await fetch(new Request(`${OFFLINE_PAGE_PATH}?v=${OFFLINE_PAGE_VERSION}`, { cache: "reload", signal: timeoutSignal() }));
+  if (!response.ok) throw new Error(`안내 화면을 받지 못했습니다: ${response.status}`);
+  const cache = await self.caches.open(OFFLINE_CACHE);
+  await cache.put(OFFLINE_PAGE_PATH, response);
+  isOfflinePageSaved = true;
+};
+
+/** 저장해 둔 안내 화면이 없으면 저장한다. 설치할 때 받지 못한 경우(끊긴 채 설치 등)를 다음 화면 열기에서 채운다 */
+const ensureOfflinePage = async () => {
+  if (isOfflinePageSaved) return;
+  const cache = await self.caches.open(OFFLINE_CACHE);
+  if (await cache.match(OFFLINE_PAGE_PATH)) {
+    isOfflinePageSaved = true;
+    return;
+  }
+  await saveOfflinePage();
+};
+
+// 새 버전이 오면 기다리지 않고 바로 바꾼다. 저장하는 것은 안내 화면뿐이라 예전 버전 화면과 섞일 것이 없다.
+// 안내 화면을 받지 못해도 설치는 마친다. 설치가 실패하거나 멈추면 알림도 받지 못한다
+self.addEventListener("install", (event) => {
   self.skipWaiting();
+  event.waitUntil(saveOfflinePage().catch(() => undefined));
 });
 
+// 화면 요청이 서비스 워커를 거치는 동안 서버 요청을 함께 시작해, 서비스 워커가 깨어나는 시간만큼 늦어지지 않게 한다
+const enableNavigationPreload = async () => {
+  const preload = self.registration.navigationPreload;
+  if (preload) await preload.enable();
+};
+
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(Promise.all([self.clients.claim(), enableNavigationPreload().catch(() => undefined)]));
+});
+
+/**
+ * 화면 열기(navigation)는 서버 응답을 그대로 돌려주고, 연결 자체가 실패할 때만 저장해 둔 안내 화면을 돌려준다.
+ * 서버 오류(500 등)는 그대로 둔다. 안내 화면이 없으면 지금처럼 브라우저 오류 화면이 나온다
+ */
+const openPage = async (event) => {
+  try {
+    const preloaded = await event.preloadResponse;
+    return preloaded || (await fetch(event.request));
+  } catch {
+    const offlinePage = await self.caches.match(OFFLINE_PAGE_PATH, { cacheName: OFFLINE_CACHE });
+    return offlinePage || Response.error();
+  }
+};
+
+// 화면 열기만 맡는다. 데이터·파일·화면 조각 요청과 Next의 연결 확인(HEAD)에는 끼어들지 않는다
+self.addEventListener("fetch", (event) => {
+  if (event.request.mode !== "navigate" || event.request.method !== "GET") return;
+  event.respondWith(openPage(event));
+  event.waitUntil(ensureOfflinePage().catch(() => undefined));
 });
 
 /** 받은 내용을 읽는다. 모양이 다르거나 비어 있어도 알림은 꼭 보여 준다(아이폰은 알림 없이 받기만 하면 구독을 끊는다) */

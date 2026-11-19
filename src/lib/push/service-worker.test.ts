@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { describe, expect, it, vi } from "vitest";
@@ -5,7 +6,9 @@ import { PUSH_OPEN_MESSAGE, PUSH_RECEIVED_MESSAGE } from "./message";
 
 // public/sw.js는 번들을 거치지 않는 그냥 스크립트라, 가짜 서비스 워커 전역(self)을 만들어 그 안에서 실행해 본다
 const SOURCE = readFileSync(new URL("../../../public/sw.js", import.meta.url), "utf8");
+const OFFLINE_PAGE = readFileSync(new URL("../../../public/offline.html", import.meta.url));
 const ORIGIN = "https://luv3.vercel.app";
+const OFFLINE_PAGE_PATH = "/offline.html";
 
 interface FakeWindow {
   url: string;
@@ -21,18 +24,65 @@ interface LoadOptions {
   windows?: FakeWindow[];
   /** 서비스 워커의 navigator. 앱 아이콘 숫자(setAppBadge)를 지원하지 않는 브라우저는 `{}` */
   navigator?: { setAppBadge?: (count: number) => Promise<void> };
+  /** 서버 요청. 끊긴 상태는 거절로 흉내 낸다 */
+  fetch?: (request: Request) => Promise<Response>;
+  /** 미리 들어 있는 저장소. 이름 → (경로 → 응답 본문) */
+  cached?: Record<string, Record<string, string>>;
+  /** 화면 요청 미리 시작하기를 지원하지 않는 브라우저는 false */
+  hasNavigationPreload?: boolean;
 }
 
-const loadServiceWorker = ({ windows = [], navigator = {} }: LoadOptions = {}) => {
+/** 브라우저 저장소(CacheStorage)를 흉내 낸다. 경로만으로 찾는다 */
+const createFakeCaches = (initial: Record<string, Record<string, string>>) => {
+  const stores = new Map(Object.entries(initial).map(([name, entries]) => [name, new Map(Object.entries(entries))]));
+  const toPath = (request: Request | string): string => new URL(typeof request === "string" ? request : request.url, ORIGIN).pathname;
+  const open = (name: string) => {
+    const store = stores.get(name) ?? new Map<string, string>();
+    stores.set(name, store);
+    return Promise.resolve({
+      match: (request: Request | string) => {
+        const body = store.get(toPath(request));
+        return Promise.resolve(body === undefined ? undefined : new Response(body));
+      },
+      put: async (request: Request | string, response: Response) => {
+        store.set(toPath(request), await response.text());
+      },
+    });
+  };
+  return {
+    stores,
+    caches: {
+      open,
+      keys: () => Promise.resolve([...stores.keys()]),
+      delete: (name: string) => Promise.resolve(stores.delete(name)),
+      match: (request: Request | string, options: { cacheName: string }) => open(options.cacheName).then((cache) => cache.match(request)),
+    },
+  };
+};
+
+const offline = (): Promise<Response> => Promise.reject(new TypeError("Failed to fetch"));
+
+/** 서비스 워커 안의 상대 주소는 서비스 워커 출처를 기준으로 푼다 */
+class WorkerRequest extends Request {
+  constructor(input: string, init?: RequestInit) {
+    super(new URL(input, ORIGIN), init);
+  }
+}
+
+const loadServiceWorker = ({ windows = [], navigator = {}, fetch = offline, cached = {}, hasNavigationPreload = true }: LoadOptions = {}) => {
   const listeners = new Map<string, Listener>();
   const showNotification = vi.fn(() => Promise.resolve());
   const openWindow = vi.fn(() => Promise.resolve(undefined));
+  const fetchRequest = vi.fn(fetch);
+  const enablePreload = vi.fn(() => Promise.resolve());
+  const { stores, caches } = createFakeCaches(cached);
   const self = {
     navigator,
     addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),
     skipWaiting: vi.fn(),
-    registration: { showNotification },
+    registration: { showNotification, navigationPreload: hasNavigationPreload ? { enable: enablePreload } : undefined },
     clients: { claim: vi.fn(() => Promise.resolve()), matchAll: vi.fn(() => Promise.resolve(windows)), openWindow },
+    caches,
     location: { origin: ORIGIN },
   };
   // 타이머는 부를 때의 전역을 써서, 테스트가 가짜 타이머로 바꿔도 따라가게 한다
@@ -40,6 +90,17 @@ const loadServiceWorker = ({ windows = [], navigator = {} }: LoadOptions = {}) =
     self,
     URL,
     MessageChannel,
+    fetch: fetchRequest,
+    Request: WorkerRequest,
+    Response,
+    // 정한 시간이 지나면 끊는 신호. 테스트가 가짜 타이머로 시간을 돌릴 수 있게 부를 때의 setTimeout을 쓴다
+    AbortSignal: {
+      timeout: (delay: number) => {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(new DOMException("시간 초과", "TimeoutError")), delay);
+        return controller.signal;
+      },
+    },
     setTimeout: (callback: () => void, delay: number) => setTimeout(callback, delay),
     clearTimeout: (timer: ReturnType<typeof setTimeout>) => clearTimeout(timer),
   });
@@ -51,8 +112,43 @@ const loadServiceWorker = ({ windows = [], navigator = {} }: LoadOptions = {}) =
     await Promise.all(pending);
   };
 
-  return { listeners, showNotification, openWindow, dispatch };
+  /** 요청을 보내고, 서비스 워커가 맡으면 돌려준 응답을, 맡지 않으면 undefined를 준다. 응답 뒤에 waitUntil로 넘긴 뒷일까지 기다린다 */
+  const request = async (event: { request: Request; preloadResponse?: Promise<Response | undefined> }): Promise<Response | undefined> => {
+    const pending: Promise<unknown>[] = [];
+    let responded: Promise<Response> | undefined;
+    listeners.get("fetch")?.({
+      preloadResponse: Promise.resolve(undefined),
+      ...event,
+      respondWith: (promise: Promise<Response>) => {
+        responded = promise;
+      },
+      waitUntil: (promise: Promise<unknown>) => pending.push(promise),
+    });
+    const response = await responded;
+    await Promise.all(pending);
+    return response;
+  };
+
+  return { listeners, showNotification, openWindow, dispatch, request, fetchRequest, enablePreload, stores, self };
 };
+
+/** 안내 화면 내용의 SHA-256 앞 8글자. sw.js의 OFFLINE_PAGE_VERSION과 같아야 한다 */
+const OFFLINE_PAGE_HASH = createHash("sha256").update(OFFLINE_PAGE).digest("hex").slice(0, 8);
+const OFFLINE_CACHE = "luv3-offline";
+
+/** 화면 열기 요청. 브라우저는 주소창·링크로 문서를 열 때 mode를 navigate로 보낸다 */
+const navigation = (path: string, method = "GET"): Request => {
+  const request = new Request(new URL(path, ORIGIN), { method });
+  Object.defineProperty(request, "mode", { value: "navigate" });
+  return request;
+};
+
+const served =
+  (body: string, status = 200) =>
+  (): Promise<Response> =>
+    Promise.resolve(new Response(body, { status }));
+
+const withOfflinePage = { [OFFLINE_CACHE]: { [OFFLINE_PAGE_PATH]: "안내 화면" } };
 
 const pushData = (text: string) => ({ json: () => JSON.parse(text) as unknown });
 
@@ -95,13 +191,222 @@ describe("서비스 워커 알림 받기", () => {
     expect(worker.showNotification).toHaveBeenCalledWith("Luv3", { body: "", icon: "/icon-192.png", data: { url: "/" } });
   });
 
-  // 화면을 저장해 두지 않는다(오프라인 캐시 없음, #29 정한 것 1번)
-  it("화면 요청(fetch)에는 끼어들지 않는다", () => {
+});
+
+// 앱 화면은 저장하지 않고 끊긴 채 켤 때의 안내 화면 한 장만 저장한다(#29 정한 것 1번, #365)
+describe("서비스 워커 끊긴 채 켤 때 안내 화면", () => {
+  it("안내 화면 버전이 안내 화면 내용과 맞는다(안내 화면을 고치면 sw.js의 OFFLINE_PAGE_VERSION도 바꿔야 새로 저장된다)", () => {
+    expect(SOURCE).toContain(`const OFFLINE_PAGE_VERSION = "${OFFLINE_PAGE_HASH}";`);
+  });
+
+  it("설치하면 안내 화면을 HTTP 저장본을 거치지 않고 새로 받아 저장하고, 기다리지 않고 바로 바꾼다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: served("안내 화면") });
+
     // Act
-    const worker = loadServiceWorker();
+    await worker.dispatch("install", {});
 
     // Assert
-    expect([...worker.listeners.keys()].sort()).toEqual(["activate", "install", "notificationclick", "push"]);
+    expect(worker.self.skipWaiting).toHaveBeenCalled();
+    const [request] = worker.fetchRequest.mock.calls[0] ?? [];
+    const url = new URL(request?.url ?? "");
+    expect(url.pathname).toBe(OFFLINE_PAGE_PATH);
+    // 주소에 버전을 붙여, 중간 저장소가 예전 안내 화면을 돌려주지 않게 한다
+    expect(url.search).toBe(`?v=${OFFLINE_PAGE_HASH}`);
+    expect(request?.cache).toBe("reload");
+    expect(worker.stores.get(OFFLINE_CACHE)?.get(OFFLINE_PAGE_PATH)).toBe("안내 화면");
+  });
+
+  it("설치할 때 안내 화면을 받지 못해도 설치는 마친다(알림은 받아야 한다)", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: offline });
+
+    // Act
+    const install = worker.dispatch("install", {});
+
+    // Assert
+    await expect(install).resolves.toBeUndefined();
+    expect(worker.self.skipWaiting).toHaveBeenCalled();
+  });
+
+  it("안내 화면 응답이 성공이 아니면 저장하지 않는다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: served("로그인 화면", 404) });
+
+    // Act
+    await worker.dispatch("install", {});
+
+    // Assert
+    expect(worker.stores.get(OFFLINE_CACHE)?.get(OFFLINE_PAGE_PATH)).toBeUndefined();
+  });
+
+  it("안내 화면 받기가 멈추면 정한 시간 뒤 끊고 설치를 마친다(알림 켜기가 서비스 워커를 기다리다 실패하지 않게)", async () => {
+    vi.useFakeTimers();
+    try {
+      // Arrange: 답하지 않다가 끊기면 거절하는 서버
+      const hanging = (request: Request) =>
+        new Promise<Response>((_, reject) => request.signal.addEventListener("abort", () => reject(request.signal.reason)));
+      const worker = loadServiceWorker({ fetch: hanging });
+      let isInstalled = false;
+
+      // Act
+      const install = worker.dispatch("install", {}).then(() => {
+        isInstalled = true;
+      });
+      await vi.advanceTimersByTimeAsync(4999);
+      const isInstalledEarly = isInstalled;
+      await vi.advanceTimersByTimeAsync(1);
+      await install;
+
+      // Assert
+      expect(isInstalledEarly).toBe(false);
+      expect(isInstalled).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("새 버전이 켜져도 저장해 둔 안내 화면을 지우지 않고, 화면 요청 미리 시작하기를 켠다", async () => {
+    // Arrange: 새 버전 설치 때 새 안내 화면을 받지 못해 예전 안내 화면만 남은 경우
+    const worker = loadServiceWorker({ cached: { [OFFLINE_CACHE]: { [OFFLINE_PAGE_PATH]: "예전 안내 화면" } } });
+
+    // Act
+    await worker.dispatch("activate", {});
+
+    // Assert
+    expect(worker.stores.get(OFFLINE_CACHE)?.get(OFFLINE_PAGE_PATH)).toBe("예전 안내 화면");
+    expect(worker.enablePreload).toHaveBeenCalled();
+    expect(worker.self.clients.claim).toHaveBeenCalled();
+  });
+
+  it("화면 요청 미리 시작하기를 지원하지 않는 브라우저에서도 켜진다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ hasNavigationPreload: false });
+
+    // Act
+    const activate = worker.dispatch("activate", {});
+
+    // Assert
+    await expect(activate).resolves.toBeUndefined();
+    expect(worker.self.clients.claim).toHaveBeenCalled();
+  });
+
+  it("연결되어 있으면 화면 열기에 서버 응답을 그대로 돌려준다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: served("기록 화면"), cached: withOfflinePage });
+
+    // Act
+    const response = await worker.request({ request: navigation("/records") });
+
+    // Assert
+    expect(await response?.text()).toBe("기록 화면");
+  });
+
+  it("미리 시작한 서버 응답이 있으면 다시 요청하지 않고 그 응답을 돌려준다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: served("다시 받은 화면"), cached: withOfflinePage });
+
+    // Act
+    const response = await worker.request({ request: navigation("/records"), preloadResponse: Promise.resolve(new Response("미리 받은 화면")) });
+
+    // Assert
+    expect(await response?.text()).toBe("미리 받은 화면");
+    expect(worker.fetchRequest).not.toHaveBeenCalled();
+  });
+
+  it("서버 오류는 안내 화면으로 바꾸지 않고 그대로 돌려준다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: served("서버 오류", 500), cached: withOfflinePage });
+
+    // Act
+    const response = await worker.request({ request: navigation("/records") });
+
+    // Assert
+    expect(response?.status).toBe(500);
+    expect(await response?.text()).toBe("서버 오류");
+  });
+
+  it("연결이 끊겨 화면을 열지 못하면 저장해 둔 안내 화면을 돌려준다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: offline, cached: withOfflinePage });
+
+    // Act
+    const response = await worker.request({ request: navigation("/records") });
+
+    // Assert
+    expect(await response?.text()).toBe("안내 화면");
+  });
+
+  it("미리 시작한 서버 요청이 끊겨 실패해도 안내 화면을 돌려준다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: offline, cached: withOfflinePage });
+
+    // Act
+    const response = await worker.request({ request: navigation("/"), preloadResponse: Promise.reject(new TypeError("Failed to fetch")) });
+
+    // Assert
+    expect(await response?.text()).toBe("안내 화면");
+  });
+
+  it("끊겼는데 저장해 둔 안내 화면도 없으면 오류 응답을 돌려줘 지금처럼 브라우저 오류 화면이 나온다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: offline });
+
+    // Act
+    const response = await worker.request({ request: navigation("/records") });
+
+    // Assert
+    expect(response?.type).toBe("error");
+  });
+
+  it("설치 때 안내 화면을 받지 못했으면 다음에 화면을 열 때 저장한다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: served("받은 내용") });
+
+    // Act
+    await worker.request({ request: navigation("/records") });
+
+    // Assert
+    expect(worker.stores.get(OFFLINE_CACHE)?.get(OFFLINE_PAGE_PATH)).toBe("받은 내용");
+  });
+
+  it("안내 화면이 이미 저장돼 있으면 화면을 열 때 다시 받지 않는다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: served("기록 화면"), cached: withOfflinePage });
+
+    // Act
+    await worker.request({ request: navigation("/records") });
+
+    // Assert
+    expect(worker.fetchRequest).toHaveBeenCalledTimes(1);
+  });
+
+  it("한 번 저장했으면 다음 화면 열기부터는 저장소를 다시 보지 않는다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: served("화면") });
+    await worker.dispatch("install", {});
+    worker.stores.clear();
+
+    // Act
+    await worker.request({ request: navigation("/records") });
+
+    // Assert: 저장소를 비워 둬도 다시 받지 않는다(설치 한 번 + 화면 열기 한 번)
+    expect(worker.fetchRequest).toHaveBeenCalledTimes(2);
+    expect(worker.stores.get(OFFLINE_CACHE)?.get(OFFLINE_PAGE_PATH)).toBeUndefined();
+  });
+
+  it("화면 열기가 아닌 요청(데이터·화면 조각·연결 확인)에는 끼어들지 않는다", async () => {
+    // Arrange
+    const worker = loadServiceWorker({ fetch: served("데이터") });
+
+    // Act
+    const data = await worker.request({ request: new Request(`${ORIGIN}/records?_rsc=1`) });
+    const head = await worker.request({ request: navigation("/", "HEAD") });
+
+    // Assert
+    expect(data).toBeUndefined();
+    expect(head).toBeUndefined();
+    expect(worker.fetchRequest).not.toHaveBeenCalled();
   });
 });
 
