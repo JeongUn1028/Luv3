@@ -23,15 +23,15 @@ const PlusLine = (): ReactElement => (
 
 /**
  * 홈 머리글 가운데의 D-day 한 줄: 하트 + 큰 숫자(#208). 셋의 그려진 모양을 머리글 가운데(설정 아이콘과 같은 높이)에 맞춘다.
- * 상자끼리 가운데를 맞추면 어긋나서 그만큼 내린다: 주아 숫자는 글자 칸 위쪽에 치우쳐 그려지고(가운데보다 약 2.75px 위),
- * 하트는 보이는 모양이 상자 가운데보다 약 0.5px 위에 있다. 도형만 보면 1px 위지만 아래 끝의 둥근 이음이 더 내려와 보여서,
- * 두 값 모두 대상 기기 크기 캡처의 픽셀로 쟀다(#208)
+ * 상자끼리 가운데를 맞추면 어긋나서 그만큼 내린다: 주아 숫자는 글자 칸 위쪽에 치우쳐 그려지고(가운데보다 약 2.75px 위, #208),
+ * 하트는 1px 내린다. 숫자는 글자마다 잉크 높이가 1~2px 달라(어느 숫자가 들었는지와 글자 다듬기에 따라 다르다) 날짜에 따라 가운데가 움직이므로,
+ * 그 범위의 가운데에 하트를 맞췄다(#476, `e2e/screen-fit.spec.ts`가 여러 숫자로 잰다)
  */
 export const DdayHeader = ({ days }: DdayHeaderProps): ReactElement => (
   <section>
     <h2 className="sr-only">함께한 지 {days}일째</h2>
     <div aria-hidden="true" className="flex items-center justify-center">
-      <HeartLogo className="size-[51px] shrink-0 translate-y-[0.5px] text-highlight" strokeWidth={HEART_STROKE} />
+      <HeartLogo className="size-[51px] shrink-0 translate-y-[1px] text-highlight" strokeWidth={HEART_STROKE} />
       <PlusLine />
       <p className="translate-y-[2.75px] font-display text-[52px] leading-none text-highlight">{days}</p>
     </div>

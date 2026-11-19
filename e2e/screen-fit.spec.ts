@@ -299,22 +299,28 @@ test.describe("홈 맨 위", () => {
     expect(readOrder[readOrder.length - 1]).toMatch(/함께한 지/);
   });
 
-  test("하트와 숫자의 높이, 하트·+·숫자의 위아래 가운데가 맞고 숫자가 네 자리가 되어도 그대로다", async ({ page }) => {
+  // 숫자마다 글자 높이가 1~2px 달라 날짜에 따라 결과가 바뀌지 않도록, 오늘 숫자 대신 0~9가 모두 나오는 숫자 조합으로 잰다(#476).
+  // 숫자의 잉크 위아래는 든 글자 전체로 정해지고, 어느 숫자가 높고 낮은지는 OS의 글자 다듬기에 따라서도 다르다(CI의 Linux와 Windows에서 다름)
+  test("하트와 숫자의 높이, 하트·+·숫자의 위아래 가운데가 어느 숫자에서도 맞고 하트는 움직이지 않는다", async ({ page }) => {
     await openScreen(page, "/", page.getByText(TODO.content));
     const group = getDdayGroup(page);
+    const number = group.locator("p");
+    // 글꼴(주아)이 오기 전에 재면 대신 쓴 글꼴의 높이를 잰다
+    await page.evaluate(() => document.fonts.ready);
 
-    const before = await measureDdayShapes(group);
-    expect(Math.abs(before.heart.height - before.digits.height)).toBeLessThanOrEqual(1.5);
-    expect(Math.abs(before.heart.middle - before.digits.middle)).toBeLessThanOrEqual(DDAY_MIDDLE_TOLERANCE);
-    expect(Math.abs(before.plus.middle - before.digits.middle)).toBeLessThanOrEqual(DDAY_MIDDLE_TOLERANCE);
-
-    // 숫자마다 높이가 다른 글꼴이라, 네 자리로 바꿔도 하트가 위아래로 움직이지 않고 가운데가 맞는지 본다
-    await group.locator("p").evaluate((number) => {
-      number.textContent = "1208";
-    });
-    const after = await measureDdayShapes(group);
-    expect(after.heart.top).toBeCloseTo(before.heart.top, 1);
-    expect(Math.abs(after.heart.middle - after.digits.middle)).toBeLessThanOrEqual(DDAY_MIDDLE_TOLERANCE);
+    const heartTops: number[] = [];
+    for (const days of ["1", "19", "20", "77", "88", "100", "1208", "3456", "49"]) {
+      await number.evaluate((element, text) => {
+        element.textContent = text;
+      }, days);
+      const shapes = await measureDdayShapes(group);
+      heartTops.push(shapes.heart.top);
+      expect.soft(Math.abs(shapes.heart.height - shapes.digits.height), `${days}: 하트·숫자 높이`).toBeLessThanOrEqual(1.5);
+      expect.soft(Math.abs(shapes.heart.middle - shapes.digits.middle), `${days}: 하트·숫자 가운데`).toBeLessThanOrEqual(DDAY_MIDDLE_TOLERANCE);
+      expect.soft(Math.abs(shapes.plus.middle - shapes.digits.middle), `${days}: +·숫자 가운데`).toBeLessThanOrEqual(DDAY_MIDDLE_TOLERANCE);
+    }
+    // 숫자가 바뀌어도(네 자리 포함) 하트가 위아래로 움직이지 않는다
+    expect(Math.max(...heartTops) - Math.min(...heartTops)).toBeLessThan(0.1);
 
     // 네 자리여도 설정 버튼과 겹치지 않는다
     const groupBox = await group.boundingBox();
