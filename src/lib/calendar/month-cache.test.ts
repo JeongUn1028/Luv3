@@ -63,6 +63,7 @@ describe("createMonthCache", () => {
   it("받지 못한 달은 실패로 알리고, 다시 받으면 또 묻는다", async () => {
     // Arrange
     const load = vi.fn<(month: string) => Promise<CalendarMonth>>().mockRejectedValueOnce(new Error("끊김")).mockResolvedValueOnce(EMPTY_MONTH);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const cache = createMonthCache({ load, initial: { month: "2026-11", data: EMPTY_MONTH } });
 
     // Act
@@ -73,6 +74,22 @@ describe("createMonthCache", () => {
 
     // Assert
     expect(load).toHaveBeenCalledTimes(2);
+    consoleError.mockRestore();
+  });
+
+  // 라이브러리 파일을 받지 못한 실패는 조회 오류에 담기지 않아, 여기서 남기지 않으면 원인을 알 수 없다(#486)
+  it("받지 못하면 원인을 개발자 도구에 남긴다", async () => {
+    // Arrange
+    const cause = new Error("파일을 받지 못함");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const cache = createMonthCache({ load: () => Promise.reject(cause), initial: { month: "2026-11", data: EMPTY_MONTH } });
+
+    // Act
+    cache.load("2026-12");
+
+    // Assert
+    await vi.waitFor(() => expect(consoleError).toHaveBeenCalledWith(cause));
+    consoleError.mockRestore();
   });
 
   it("구독을 풀면 더는 알리지 않는다", async () => {

@@ -1,6 +1,6 @@
 import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import { createSignedUrlCache, type SignedUrl } from "@/lib/photos/signed-urls";
-import { createClient } from "@/lib/supabase/client";
+import { loadClient } from "@/lib/supabase/load-client";
 import { DB_ERROR_CODE } from "@/lib/supabase/error-codes";
 
 /** 일정에 이을 수 있는 이미 쓴 기록(#237). "기록 남기기" 창의 후보 */
@@ -98,7 +98,7 @@ const getThumbUrls = createSignedUrlCache();
  * @example const records = await fetchLinkableRecords({ start: "2026-11-01", end: "2026-11-01" })
  */
 export const fetchLinkableRecords = async ({ start, end }: EventDaySpan): Promise<LinkableRecord[]> => {
-  const supabase = createClient();
+  const supabase = await loadClient();
   const { data, error } = await supabase
     .from("dates")
     .select("id, date, end_date, title, cover:photos!dates_cover_photo_id_fkey(thumb_path)")
@@ -124,7 +124,7 @@ export const fetchLinkableRecords = async ({ start, end }: EventDaySpan): Promis
  * @example await linkRecordToEvent({ recordId, eventId, eventDate: "2026-11-01" })
  */
 export const linkRecordToEvent = async ({ recordId, eventId, eventDate }: { recordId: string; eventId: string; eventDate: string }): Promise<void> => {
-  const { error } = await createClient().rpc("link_date_record", { p_date_id: recordId, p_event_id: eventId, p_event_date: eventDate });
+  const { error } = await (await loadClient()).rpc("link_date_record", { p_date_id: recordId, p_event_id: eventId, p_event_date: eventDate });
   if (error) throw new EventLinkError(toLinkFailureMessage(error.code), { cause: error });
 };
 
@@ -135,7 +135,7 @@ export const linkRecordToEvent = async ({ recordId, eventId, eventDate }: { reco
  * @example await unlinkRecordFromEvent({ recordId, eventId })
  */
 export const unlinkRecordFromEvent = async ({ recordId, eventId }: { recordId: string; eventId: string }): Promise<void> => {
-  const { error } = await createClient().rpc("unlink_date_record", { p_date_id: recordId, p_event_id: eventId });
+  const { error } = await (await loadClient()).rpc("unlink_date_record", { p_date_id: recordId, p_event_id: eventId });
   if (error) {
     throw new EventLinkError(
       error.code === DB_ERROR_CODE.notFound ? "기록이 지워졌어요. 화면을 새로 고쳐 주세요." : "연결을 끊지 못했어요. 잠시 후 다시 시도해 주세요.",

@@ -136,6 +136,13 @@ interface SaveFailureMessages {
 const NO_FAILURE_FLAGS = { isGone: false, hasConflict: false, mayHaveSaved: false };
 
 /**
+ * 요청을 보내지 못한 실패(라이브러리 파일을 받지 못함 등). 보내기 전이라 저장되지 않은 것이 분명하다.
+ *
+ * @example export const TODO_NOT_SENT_FAILURE = toNotSentFailure("저장하지 못했어요.");
+ */
+export const toNotSentFailure = (failedMessage: string): SaveFailure => ({ ...NO_FAILURE_FLAGS, message: failedMessage });
+
+/**
  * 저장 결과를 폼이 보여 줄 실패로 바꾼다. 저장했으면 undefined.
  *
  * @example const failure = toSaveFailure(outcome, { failedMessage: "저장하지 못했어요.", goneMessage: "이미 지워졌어요.", conflictMessage: "그사이 바뀌었어요." })
@@ -151,7 +158,7 @@ export const toSaveFailure = (outcome: SaveOutcome, { failedMessage, goneMessage
     case "conflict":
       return { ...NO_FAILURE_FLAGS, message: conflictMessage, hasConflict: true };
     case "failed":
-      return { ...NO_FAILURE_FLAGS, message: failedMessage };
+      return toNotSentFailure(failedMessage);
   }
 };
 

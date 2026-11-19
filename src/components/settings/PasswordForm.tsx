@@ -20,14 +20,14 @@ import { showInvalidFields } from "@/lib/focus-invalid-field";
 import { clearError } from "@/lib/form";
 import { saveNoticeStore } from "@/lib/navigation/save-notices";
 import { BACK_TRANSITION } from "@/lib/navigation/transition";
-import { createClient } from "@/lib/supabase/client";
+import { loadClient } from "@/lib/supabase/load-client";
 
 const NOTICE_FORM_KEY = "password";
 const SAVED_TITLE = "비밀번호를 바꿨어요";
 
 // async: 클라이언트를 만들다 던져도 거절된 약속이 되어 부르는 쪽의 catch가 받는다
 const changeOwnPassword = async (passwords: { email: string; currentPassword: string; newPassword: string }): Promise<string | undefined> =>
-  changePassword({ auth: createClient().auth, ...passwords });
+  changePassword({ auth: (await loadClient()).auth, ...passwords });
 
 interface PasswordFieldProps {
   id: string;

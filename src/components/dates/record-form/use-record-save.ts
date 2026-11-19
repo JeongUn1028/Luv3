@@ -14,7 +14,7 @@ import { ALBUM_BUCKET } from "@/lib/photos/limits";
 import type { PreviewUrls } from "@/lib/photos/preview-urls";
 import { resizePhoto } from "@/lib/photos/resize";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
-import { createClient } from "@/lib/supabase/client";
+import { loadClient } from "@/lib/supabase/load-client";
 import type { RecordDraft } from "./record-draft";
 
 interface UseRecordSaveParams {
@@ -68,7 +68,7 @@ export const useRecordSave = ({ record, previews, leavableSave }: UseRecordSaveP
     beginSave();
     setIsSaving(true);
     try {
-      const supabase = createClient();
+      const supabase = await loadClient();
       const storage = supabase.storage.from(ALBUM_BUCKET);
       const files = new Map(getDraftPhotos(draft.groups).flatMap(({ id, file }) => (file ? [[id, file] as const] : [])));
       let savedHref = record ? toRecordHref(record.id) : RECORDS_PATH;

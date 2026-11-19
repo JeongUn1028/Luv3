@@ -4,7 +4,7 @@ import { useState, type ReactElement } from "react";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { PUSH_NOTIFY_SWITCHES, type PushNotifySettings } from "@/lib/push/notify-settings";
 import type { PartnerPushKind } from "@/lib/push/partner-push";
-import { createClient } from "@/lib/supabase/client";
+import { withLoadedClient } from "@/lib/supabase/load-client";
 
 const SAVE_FAILED_MESSAGE = "알림 종류를 바꾸지 못했어요. 잠시 후 다시 시도해 주세요.";
 
@@ -32,7 +32,10 @@ export const PushTypeSwitches = ({ initialSettings }: PushTypeSwitchesProps): Re
     setSettings((current) => ({ ...current, [kind]: isEnabled }));
     setPendingKinds((current) => new Set(current).add(kind));
     setErrorMessage(undefined);
-    const { error } = await createClient().rpc("set_push_notify", { p_kind: kind, p_enabled: isEnabled });
+    const { error } = await withLoadedClient<{ error: unknown }>({
+      request: async (supabase) => supabase.rpc("set_push_notify", { p_kind: kind, p_enabled: isEnabled }),
+      onLoadFailed: () => ({ error: new Error("Supabase 라이브러리를 받지 못했습니다.") }),
+    });
     setPendingKinds((current) => {
       const next = new Set(current);
       next.delete(kind);

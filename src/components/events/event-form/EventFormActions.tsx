@@ -10,7 +10,7 @@ import { toEventDeleteDialog } from "@/lib/events/delete-dialog";
 import type { EventDraft } from "@/lib/events/form";
 import type { EventRecordLink } from "@/lib/events/record-link";
 import { deleteEvent } from "@/lib/events/save";
-import { createClient } from "@/lib/supabase/client";
+import { loadClient } from "@/lib/supabase/load-client";
 
 interface EventFormActionsProps {
   eventId: string;
@@ -46,7 +46,7 @@ export const EventFormActions = ({
   const backHref = toCalendarHref({ date: backDate });
 
   const handleDelete = async () => {
-    const supabase = createClient();
+    const supabase = await loadClient();
     await deleteEvent({ events: supabase.from("events"), exceptions: supabase.from("event_exceptions"), eventId, occurrenceDate: deleteOccurrenceDate });
   };
 

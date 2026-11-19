@@ -1,5 +1,5 @@
 import { saveRowAtRevision, type RevisionedTable } from "@/lib/revision";
-import { callWithRetry, toRejectedOutcome, toSaveFailure, type SaveErrorCode, type SaveFailure, type SaveOutcome } from "@/lib/save-outcome";
+import { callWithRetry, toNotSentFailure, toRejectedOutcome, toSaveFailure, type SaveErrorCode, type SaveFailure, type SaveOutcome } from "@/lib/save-outcome";
 import type { Database } from "@/lib/supabase/database.types";
 import { DB_ERROR_CODE } from "@/lib/supabase/error-codes";
 import { toEventValues, type EventDraft, type EventValues } from "./form";
@@ -10,6 +10,9 @@ const MESSAGES = {
   // 일정 폼은 높이 여유가 없어 한 줄로 둔다(#57). 저장 버튼 자리의 "최신 내용 불러오기"가 할 일을 알려 준다
   conflictMessage: "그사이 바뀌어 저장 못 했어요. 불러오면 쓴 내용은 사라져요.",
 };
+/** 저장 요청을 보내지 못했을 때(라이브러리 파일을 받지 못함 등) 폼이 보여 줄 실패 */
+export const EVENT_NOT_SENT_FAILURE: SaveFailure = toNotSentFailure(MESSAGES.failedMessage);
+
 const OCCURRENCE_GONE_MESSAGE = "이 날 일정은 이미 고쳤거나 지웠어요. 캘린더에서 다시 확인해 주세요.";
 
 const TODO_SCHEDULE_MESSAGES = {

@@ -46,8 +46,11 @@ export const createMonthCache = ({ load, initial }: CreateMonthCacheParams): Mon
       setState(month, LOADING);
       load(month).then(
         (data) => setState(month, { status: "loaded", data }),
-        // 원인은 조회가 Supabase 오류로 담아 두었다. 화면은 다시 시도만 보여 준다
-        () => setState(month, FAILED),
+        // 화면은 다시 시도만 보여 주고, 원인(조회 오류, 라이브러리 파일을 받지 못함)은 개발자 도구에 남긴다
+        (error: unknown) => {
+          console.error(error);
+          setState(month, FAILED);
+        },
       );
     },
     subscribe: (listener) => {

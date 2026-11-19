@@ -7,11 +7,11 @@ import { deletingStore, toEventDayPrefix } from "@/lib/deleting";
 import { getDateAfterSave } from "@/lib/events/edit-scope";
 import type { EventDraft } from "@/lib/events/form";
 import { canShowEventBeforeSave, pendingEventStore, toPendingCalendarEvent } from "@/lib/events/pending";
-import { saveEvent } from "@/lib/events/save";
+import { EVENT_NOT_SENT_FAILURE, saveEvent } from "@/lib/events/save";
 import type { LeavableSave } from "@/lib/navigation/use-leavable-save";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
-import { createClient } from "@/lib/supabase/client";
+import { withLoadedClient } from "@/lib/supabase/load-client";
 import { requestTodoFocus } from "@/lib/todos/focus";
 import { TODOS_PATH } from "@/lib/todos/list";
 
@@ -106,16 +106,19 @@ export const useEventSave = ({
     // 목록으로 돌아갈 때만 그 줄을 남긴다. 폼에 남았는데 남기면 나중에 목록을 열 때 엉뚱하게 그 줄로 간다.
     // 목록은 다음 그림에서 꺼내므로 옮기기를 시작한 뒤에 남겨도 된다
     else if (todoId) requestTodoFocus(todoId);
-    const supabase = createClient();
-    const failure = await saveEvent({
-      events: supabase.from("events"),
-      detachOccurrence: (args) => supabase.rpc("detach_event_occurrence", args),
-      todoSchedule: todoId ? { todoId, scheduleTodo: (args) => supabase.rpc("schedule_todo", args) } : undefined,
-      draft,
-      eventId,
-      occurrenceDate: occurrence?.date,
-      newEventId,
-      revision,
+    const failure = await withLoadedClient({
+      request: (supabase) =>
+        saveEvent({
+          events: supabase.from("events"),
+          detachOccurrence: (args) => supabase.rpc("detach_event_occurrence", args),
+          todoSchedule: todoId ? { todoId, scheduleTodo: (args) => supabase.rpc("schedule_todo", args) } : undefined,
+          draft,
+          eventId,
+          occurrenceDate: occurrence?.date,
+          newEventId,
+          revision,
+        }),
+      onLoadFailed: () => EVENT_NOT_SENT_FAILURE,
     });
     if (failure) {
       pendingEventStore.discard(pendingId, revision);

@@ -1,11 +1,14 @@
 import { saveRowAtRevision, type RevisionedTable } from "@/lib/revision";
-import { toSaveFailure, type SaveFailure } from "@/lib/save-outcome";
+import { toNotSentFailure, toSaveFailure, type SaveFailure } from "@/lib/save-outcome";
 
 const MESSAGES = {
   failedMessage: "저장하지 못했어요. 잠시 후 다시 시도해 주세요.",
   goneMessage: "이 항목은 이미 지워졌어요. 목록에서 다시 확인해 주세요.",
   conflictMessage: "그사이 이 항목이 바뀌어 저장하지 않았어요. 최신 내용을 불러와 다시 고쳐 주세요. 지금 쓴 내용은 사라져요.",
 };
+
+/** 저장 요청을 보내지 못했을 때(라이브러리 파일을 받지 못함 등) 폼이 보여 줄 실패 */
+export const TODO_NOT_SENT_FAILURE: SaveFailure = toNotSentFailure(MESSAGES.failedMessage);
 
 interface SaveTodoParams {
   /** `supabase.from("todos")` */

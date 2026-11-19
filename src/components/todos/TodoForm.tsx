@@ -15,11 +15,11 @@ import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
 import { deleteRowById } from "@/lib/delete-row";
-import { createClient } from "@/lib/supabase/client";
+import { loadClient, withLoadedClient } from "@/lib/supabase/load-client";
 import { TODO_CONTENT_MAX_LENGTH, validateTodoContent } from "@/lib/todos/form";
 import { TODOS_PATH, type TodoEvent } from "@/lib/todos/list";
 import { pendingTodoStore } from "@/lib/todos/pending";
-import { saveTodo } from "@/lib/todos/save";
+import { saveTodo, TODO_NOT_SENT_FAILURE } from "@/lib/todos/save";
 import { SaveButton } from "@/components/SaveButton";
 import { TodoEventField } from "@/components/todos/TodoEventField";
 
@@ -88,7 +88,10 @@ export const TodoForm = ({ initialContent, todoId, initialRevision, schedule }: 
     if (!beginSave({ returnTo: TODOS_PATH })) pendingTodoStore.discard(pendingId, revision);
     // 새 항목은 목록이 그 줄로 스크롤해 보여 준다(#347). 기억한 자리로 되돌리기가 그 스크롤을 덮지 않게 지운다
     else if (!todoId) forgetScrollPosition("todos");
-    const failure = await saveTodo({ todos: createClient().from("todos"), content: savedContent, todoId, newTodoId: saveId, expectedRevisions, revision });
+    const failure = await withLoadedClient({
+      request: (supabase) => saveTodo({ todos: supabase.from("todos"), content: savedContent, todoId, newTodoId: saveId, expectedRevisions, revision }),
+      onLoadFailed: () => TODO_NOT_SENT_FAILURE,
+    });
     if (failure) {
       pendingTodoStore.discard(pendingId, revision);
       const failedDraft: TodoDraft = {
@@ -123,7 +126,7 @@ export const TodoForm = ({ initialContent, todoId, initialRevision, schedule }: 
 
   const handleDelete = async () => {
     if (!todoId) return;
-    await deleteRowById({ table: createClient().from("todos"), id: todoId, subject: "하고 싶은 것을" });
+    await deleteRowById({ table: (await loadClient()).from("todos"), id: todoId, subject: "하고 싶은 것을" });
   };
 
   return (
