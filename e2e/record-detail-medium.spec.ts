@@ -30,7 +30,7 @@ const getViewerPhoto = (page: Page, title: string): Locator =>
 /** 휴대폰 사진처럼 줄이기 기준보다 큰 JPEG을 브라우저 canvas로 만들고, 고른 사진에 위치가 붙도록 EXIF를 넣는다 */
 const createLargePhoto = async (page: Page): Promise<Buffer> => {
   const dataUrl = await page.evaluate(
-    ([width, height]) => {
+    ({ width, height }) => {
       const canvas = document.createElement("canvas");
       canvas.width = width;
       canvas.height = height;
@@ -43,7 +43,7 @@ const createLargePhoto = async (page: Page): Promise<Buffer> => {
       context.fillRect(0, 0, width, height);
       return canvas.toDataURL("image/jpeg", 0.9);
     },
-    [LARGE_WIDTH, LARGE_HEIGHT],
+    { width: LARGE_WIDTH, height: LARGE_HEIGHT },
   );
   return Buffer.from(withJpegExif(PICKED_PHOTO_LOCATION, Buffer.from(dataUrl.split(",")[1] ?? "", "base64")));
 };

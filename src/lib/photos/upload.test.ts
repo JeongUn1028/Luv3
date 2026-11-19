@@ -29,8 +29,9 @@ const createFakeStorage = ({ failures = {}, failWith, removeError }: FakeStorage
 
   const storage: PhotoStorage = {
     upload: vi.fn(async (path: string, body: Blob) => {
-      if ((remaining[path] ?? 0) > 0) {
-        remaining[path] -= 1;
+      const left = remaining[path] ?? 0;
+      if (left > 0) {
+        remaining[path] = left - 1;
         return { error: failWith ?? { message: "network error" } };
       }
       files.set(path, body);

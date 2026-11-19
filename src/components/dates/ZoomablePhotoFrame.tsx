@@ -31,10 +31,11 @@ type Gesture =
 const TAP_MOVE_PX = 10;
 const MAX_DRAG_SAMPLES = 20;
 
-const toCenterAndDistance = ([first, second]: Point[]): { center: Point; distance: number } => ({
-  center: { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 },
-  distance: Math.hypot(first.x - second.x, first.y - second.y),
-});
+// 손가락이 둘보다 적으면 벌린 거리가 없어 undefined다
+const toCenterAndDistance = ([first, second]: Point[]): { center: Point; distance: number } | undefined =>
+  first && second
+    ? { center: { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 }, distance: Math.hypot(first.x - second.x, first.y - second.y) }
+    : undefined;
 
 /**
  * 크게 보기 사진 칸(#350). 두 손가락으로 벌리고 오므려 키우고 줄이고, 두 번 누르면 확대·원래 크기를 오가며, 확대한 동안 한 손가락으로 옮긴다.
@@ -82,11 +83,12 @@ export const ZoomablePhotoFrame = ({ isSelected, onZoomedChange, onPinchingChang
 
   const startGesture = (current: PhotoZoom) => {
     const points = [...pointersRef.current.values()];
-    if (points.length >= 2) {
-      const { center, distance } = toCenterAndDistance(points);
-      setGesture({ kind: "pinch", start: current, startCenter: center, startDistance: distance });
-    } else if (points.length === 1 && current.scale > 1) {
-      setGesture({ kind: "pan", start: current, startPoint: points[0] });
+    const pinch = toCenterAndDistance(points);
+    const [onlyPoint] = points;
+    if (pinch) {
+      setGesture({ kind: "pinch", start: current, startCenter: pinch.center, startDistance: pinch.distance });
+    } else if (onlyPoint && current.scale > 1) {
+      setGesture({ kind: "pan", start: current, startPoint: onlyPoint });
     } else {
       setGesture({ kind: "none" });
     }
@@ -149,8 +151,8 @@ export const ZoomablePhotoFrame = ({ isSelected, onZoomedChange, onPinchingChang
       if (gesture.samples.length > MAX_DRAG_SAMPLES) gesture.samples.shift();
       changeZoom(toDismissZoom({ x: point.x - gesture.startPoint.x, y: point.y - gesture.startPoint.y }));
     } else if (gesture.kind === "pinch") {
-      const { center, distance } = toCenterAndDistance([...pointersRef.current.values()]);
-      changeZoom(toPinchZoom({ start: gesture.start, startCenter: gesture.startCenter, startDistance: gesture.startDistance, center, distance }));
+      const pinch = toCenterAndDistance([...pointersRef.current.values()]);
+      if (pinch) changeZoom(toPinchZoom({ start: gesture.start, startCenter: gesture.startCenter, startDistance: gesture.startDistance, ...pinch }));
     } else if (gesture.kind === "pan") {
       changeZoom(clampToFrame({ ...gesture.start, x: gesture.start.x + point.x - gesture.startPoint.x, y: gesture.start.y + point.y - gesture.startPoint.y }));
     }

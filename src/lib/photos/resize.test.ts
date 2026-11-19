@@ -111,9 +111,16 @@ describe("resizePhoto", () => {
     await resizePhoto(new File([new Uint8Array(5)], "IMG_0001.HEIC", { type: "image/heic" }));
 
     expect(heicMock).toHaveBeenCalledWith(expect.objectContaining({ toType: "image/jpeg" }));
-    const converted = compressMock.mock.calls[0][0];
-    expect(converted.type).toBe("image/jpeg");
-    expect(converted.name).toBe("IMG_0001.jpg");
+    const converted = compressMock.mock.calls[0]?.[0];
+    expect(converted?.type).toBe("image/jpeg");
+    expect(converted?.name).toBe("IMG_0001.jpg");
+  });
+
+  it("HEIC를 바꾼 결과가 비어 있으면 읽지 못한 사진으로 알린다", async () => {
+    heicMock.mockResolvedValue([]);
+
+    await expect(resizePhoto(new File([], "empty.heic", { type: "image/heic" }))).rejects.toMatchObject({ reason: "decode-failed" });
+    expect(compressMock).not.toHaveBeenCalled();
   });
 
   it("HEIC 안에 사진이 여러 장이면 첫 장을 쓴다", async () => {
@@ -122,7 +129,7 @@ describe("resizePhoto", () => {
 
     await resizePhoto(new File([], "live.heic", { type: "image/heic" }));
 
-    expect(compressMock.mock.calls[0][0].size).toBe(3);
+    expect(compressMock.mock.calls[0]?.[0].size).toBe(3);
   });
 
   it("HEIC 변환에 실패하면 사진을 열 수 없다는 에러를 낸다", async () => {

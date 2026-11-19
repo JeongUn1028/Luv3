@@ -199,6 +199,13 @@ describe("listReferencedPaths", () => {
 
     expect(listReferencedPaths(dump)).toEqual([]);
   });
+
+  // 칸 이름이 바뀌었는데 목록을 고치지 않으면 그 사진이 백업에서 조용히 빠진다
+  it("사진 경로 칸이 덤프에 없으면 어떤 칸인지 알려 주는 에러를 낸다", () => {
+    const dump = 'COPY "public"."couple_photo" ("id", "storage_path") FROM stdin;\nt\tcouple/c1.jpg\n\\.\n';
+
+    expect(() => listReferencedPaths(dump)).toThrow("public.couple_photo에 사진 경로 칸 path이 없습니다");
+  });
 });
 
 describe("pickServiceKey", () => {

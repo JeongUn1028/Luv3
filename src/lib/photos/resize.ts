@@ -63,6 +63,7 @@ const convertHeicToJpeg = async (file: File): Promise<File> => {
     const converted = await heic2any({ blob: file, toType: UPLOAD_CONTENT_TYPE, quality: 0.92 });
     // 라이브 포토처럼 여러 장이 든 HEIC는 첫 장을 쓴다
     const first = Array.isArray(converted) ? converted[0] : converted;
+    if (!first) throw new Error("변환한 사진이 비어 있습니다");
     return new File([first], file.name.replace(HEIC_EXTENSION, ".jpg"), { type: UPLOAD_CONTENT_TYPE });
   } catch (error) {
     throw new PhotoError("decode-failed", { cause: error });

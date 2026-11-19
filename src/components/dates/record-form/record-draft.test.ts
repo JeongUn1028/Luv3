@@ -99,12 +99,13 @@ describe("withNewPreviews", () => {
       groups: [{ id: "g1", location, caption: "", placeName: "", photos: [{ id: "p1", takenAt: undefined, previewUrl: "https://thumb/p1" }] }],
     });
     const [group] = draft.groups;
+    if (!group) throw new Error("모음이 없다");
     const withPicked = { ...draft, groups: [{ ...group, photos: [...group.photos, { id: "p2", file, previewUrl: "blob:old", isReadingInfo: false }] }] };
 
     // Act
     const restored = withNewPreviews(withPicked, () => "blob:new");
 
     // Assert
-    expect(restored.groups[0].photos.map(({ previewUrl }) => previewUrl)).toEqual(["https://thumb/p1", "blob:new"]);
+    expect(restored.groups[0]?.photos.map(({ previewUrl }) => previewUrl)).toEqual(["https://thumb/p1", "blob:new"]);
   });
 });

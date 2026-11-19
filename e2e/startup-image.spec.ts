@@ -24,7 +24,7 @@ test.describe("아이폰 앱 시작 화면", () => {
       context?.drawImage(element, 0, 0);
       const pixels = context?.getImageData(0, 0, canvas.width, canvas.height).data ?? new Uint8ClampedArray(4);
       const colors = new Set<string>();
-      for (let offset = 0; offset < pixels.length; offset += 4) colors.add(`#${[pixels[offset], pixels[offset + 1], pixels[offset + 2]].map((value) => value.toString(16).padStart(2, "0")).join("")}`);
+      for (let offset = 0; offset < pixels.length; offset += 4) colors.add(`#${[pixels[offset], pixels[offset + 1], pixels[offset + 2]].map((value = 0) => value.toString(16).padStart(2, "0")).join("")}`);
       // 이미지 색과 앱 배경색을 같은 방법으로 읽어 비교한다
       const body = document.createElement("canvas").getContext("2d");
       if (body) body.fillStyle = getComputedStyle(document.body).backgroundColor;

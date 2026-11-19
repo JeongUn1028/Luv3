@@ -44,14 +44,21 @@ const readJobs = (fileName: string): Record<string, WorkflowJob> => {
 
 const jobs = readJobs("ci.yml");
 
+/** 아이디로 잡을 꺼낸다. 없으면 찾는 잡 이름이 틀린 것이라 바로 실패한다 */
+const getJob = (id: string | undefined): WorkflowJob => {
+  const job = id === undefined ? undefined : jobs[id];
+  if (!job) throw new Error(`ci.yml에 잡이 없습니다: ${String(id)}`);
+  return job;
+};
+
 const toList = (value: string | string[] | undefined): string[] => (value === undefined ? [] : [value].flat());
 
 /** E2E를 나눠 돌리는 잡. `pnpm test:e2e --shard=`를 실행하는 잡이다 */
 const shardJobIds = Object.keys(jobs).filter((id) =>
-  (jobs[id].steps ?? []).some((step) => step.run?.includes("pnpm test:e2e --shard=")),
+  (getJob(id).steps ?? []).some((step) => step.run?.includes("pnpm test:e2e --shard=")),
 );
 
-const finalJobIds = Object.keys(jobs).filter((id) => jobs[id].name === REQUIRED_E2E_CHECK);
+const finalJobIds = Object.keys(jobs).filter((id) => getJob(id).name === REQUIRED_E2E_CHECK);
 
 describe("CI의 E2E 나눠 돌리기", () => {
   it("E2E를 나눠 돌리면 필수 검사 이름의 마무리 잡 하나가 나눈 잡을 모두 기다린다", () => {
@@ -60,13 +67,13 @@ describe("CI의 E2E 나눠 돌리기", () => {
     expect(finalJobIds).toHaveLength(1);
     const [finalJobId] = finalJobIds;
     expect(shardJobIds).not.toContain(finalJobId);
-    expect(toList(jobs[finalJobId].needs)).toEqual(expect.arrayContaining(shardJobIds));
+    expect(toList(getJob(finalJobId).needs)).toEqual(expect.arrayContaining(shardJobIds));
   });
 
   it("나눈 잡이 실패하거나 취소되면 마무리 잡은 건너뛰지 않고 실패로 끝난다", () => {
     // 건너뛴 잡은 필수 검사에서 통과로 쳐져, 마무리 잡이 건너뛰거나 늘 성공하면 E2E가 실패한 PR도 머지된다
     const [finalJobId] = finalJobIds;
-    const finalJob = jobs[finalJobId];
+    const finalJob = getJob(finalJobId);
     expect(finalJob.if).toMatch(/\balways\(\)/);
 
     for (const shardJobId of shardJobIds) {
@@ -88,7 +95,7 @@ describe("CI의 E2E 나눠 돌리기", () => {
   it("대 수를 정하면 나눈 잡은 1번부터 마지막 번호까지 모두 matrix 값으로 돌리고 한 대가 실패해도 나머지를 끝까지 돌린다", () => {
     // 번호를 빠뜨리거나 실행 줄에 번호를 고정하면 일부 테스트가 어느 대에서도 돌지 않고 검사는 통과한다
     for (const id of shardJobIds) {
-      const { strategy, steps } = jobs[id];
+      const { strategy, steps } = getJob(id);
       const matrix = strategy?.matrix ?? {};
       const { shardIndex, shardTotal } = matrix;
 
@@ -96,7 +103,7 @@ describe("CI의 E2E 나눠 돌리기", () => {
       expect(isNumberList(shardTotal) && isNumberList(shardIndex)).toBe(true);
       if (!isNumberList(shardTotal) || !isNumberList(shardIndex)) continue;
       expect(shardTotal).toHaveLength(1);
-      expect(shardIndex).toEqual(Array.from({ length: shardTotal[0] }, (_, index) => index + 1));
+      expect(shardIndex).toEqual(Array.from({ length: shardTotal[0] ?? 0 }, (_, index) => index + 1));
       expect((steps ?? []).some((step) => step.run?.includes(SHARD_ARGUMENT))).toBe(true);
     }
   });

@@ -142,12 +142,11 @@ export const runWithLimit = async <Item,>(
   task: (item: Item) => Promise<void>,
 ): Promise<string[]> => {
   const failures: string[] = [];
-  let next = 0;
+  // 일꾼들이 한 반복자를 같이 써서 각 항목을 한 번씩만 꺼낸다
+  const queue = items.values();
 
   const work = async (): Promise<void> => {
-    while (next < items.length) {
-      const item = items[next];
-      next += 1;
+    for (const item of queue) {
       await task(item).catch((error: unknown) => {
         failures.push(error instanceof Error ? error.message : String(error));
       });

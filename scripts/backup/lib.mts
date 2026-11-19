@@ -79,7 +79,7 @@ export const filterDump = (dump: string): string => {
     const copy = COPY_START.exec(line);
     if (copy) {
       isInsideCopy = true;
-      isSkipping = copy[1] === "auth" && !KEPT_AUTH_TABLES.has(copy[2]);
+      isSkipping = copy[1] === "auth" && !KEPT_AUTH_TABLES.has(copy[2] ?? "");
       if (!isSkipping) kept.push(line);
       continue;
     }
@@ -110,7 +110,7 @@ export const countRowsByTable = (dump: string): Record<string, number> => {
     }
 
     if (line === COPY_END) current = undefined;
-    else counts[current] += 1;
+    else counts[current] = (counts[current] ?? 0) + 1;
   }
 
   return counts;
@@ -194,7 +194,11 @@ export const listReferencedPaths = (dump: string): string[] => {
         columnIndexes = undefined;
       } else if (columnIndexes) {
         const values = line.split("\t");
-        for (const index of columnIndexes) if (values[index] !== COPY_NULL) paths.push(values[index]);
+        for (const index of columnIndexes) {
+          const value = values[index];
+          if (value === undefined) throw new Error(`COPY 줄의 칸 수가 머리줄보다 적습니다: ${line.slice(0, 80)}`);
+          if (value !== COPY_NULL) paths.push(value);
+        }
       }
       continue;
     }
@@ -205,8 +209,13 @@ export const listReferencedPaths = (dump: string): string[] => {
 
     const pathColumns = FILE_PATH_COLUMNS[`${copy[1]}.${copy[2]}`];
     if (pathColumns) {
-      const columns = /\(([^)]*)\)/.exec(line)?.[1].split(", ").map((column) => column.replaceAll('"', "")) ?? [];
-      columnIndexes = pathColumns.map((column) => columns.indexOf(column));
+      const columns = /\(([^)]*)\)/.exec(line)?.[1]?.split(", ").map((column) => column.replaceAll('"', "")) ?? [];
+      columnIndexes = pathColumns.map((column) => {
+        const index = columns.indexOf(column);
+        // 칸 이름이 바뀌었는데 FILE_PATH_COLUMNS를 고치지 않으면 그 사진을 백업에서 조용히 빠뜨리므로 멈춘다
+        if (index < 0) throw new Error(`${copy[1]}.${copy[2]}에 사진 경로 칸 ${column}이 없습니다. FILE_PATH_COLUMNS를 고쳐 주세요`);
+        return index;
+      });
     }
   }
 
