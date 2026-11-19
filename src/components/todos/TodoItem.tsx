@@ -5,7 +5,7 @@ import type { MouseEvent, ReactElement } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
 import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
-import { formatTodoEventChip } from "@/lib/todos/event-chip";
+import { formatTodoEventChip, getTodoEventLastDay, shouldAskTodoEventDone } from "@/lib/todos/event-chip";
 import type { Todo } from "@/lib/todos/list";
 import type { ShownTodo } from "@/lib/todos/pending";
 import { toTodoEditHref } from "@/lib/todos/schedule";
@@ -56,6 +56,8 @@ interface TodoItemProps {
   isArriving?: boolean;
   /** 오늘(한국 날짜). 주면 하지 않은 항목에 이어진 일정 칩을 붙인다(#471) */
   today?: string | undefined;
+  /** 주면 이어진 일정이 지났을 때 줄 아래에 "다녀오셨나요?"를 묻는다(#471). 일정의 마지막 날을 함께 넘긴다 */
+  onAnswerAsk?: ((todo: Todo, answer: TodoAskAnswer) => void) | undefined;
   /** 오른쪽 끝 버튼(순서 바꾸기). 완료한 항목에는 없다 */
   children?: ReactElement;
 }
@@ -66,25 +68,65 @@ const toMotionClassName = ({ isJustAdded, strikePhase, isArriving }: Pick<TodoIt
   return isJustAdded ? "todo-just-added" : "";
 };
 
+/** 지난 일정 묻기의 대답. [아직]은 누를 때 본 일정의 마지막 날을 기억한다 */
+export type TodoAskAnswer = { type: "done" } | { type: "notYet"; lastDay: string };
+
+const ASK_BUTTON_CLASS_NAME = `press-wide h-10 flex-1 rounded-[10px] text-[13px] ${SETTLE_TRANSITION_CLASS_NAME}`;
+
+interface TodoDoneAskProps {
+  todo: Todo;
+  lastDay: string;
+  onAnswer: (todo: Todo, answer: TodoAskAnswer) => void;
+}
+
+/** 이어진 일정 날짜가 지난 줄 아래의 묻는 칸(#471). 두 사람이 같이 보는 목록이라 [아직]도 DB에 저장한다 */
+const TodoDoneAsk = ({ todo, lastDay, onAnswer }: TodoDoneAskProps): ReactElement => {
+  const questionId = `todo-${todo.id}-ask`;
+  return (
+    <div role="group" aria-labelledby={questionId} className="mb-2.5 flex w-full flex-col gap-2 rounded-xl border border-line bg-surface px-3 py-2.5">
+      <p id={questionId} className="text-[13px] leading-[1.5] text-ink">
+        {/* 버튼만 따로 읽어도 어느 항목을 묻는지 알 수 있게 내용을 앞에 붙인다 */}
+        <span className="sr-only">{todo.content}, </span>
+        다녀오셨나요? 완료로 옮길까요?
+      </p>
+      <div className="flex gap-2">
+        <button type="button" onClick={() => onAnswer(todo, { type: "done" })} className={`${ASK_BUTTON_CLASS_NAME} bg-accent font-display text-background`}>
+          완료
+        </button>
+        <button type="button" onClick={() => onAnswer(todo, { type: "notYet", lastDay })} className={`${ASK_BUTTON_CLASS_NAME} border border-line text-ink`}>
+          아직
+        </button>
+      </div>
+    </div>
+  );
+};
+
 /** 저장 중인 항목은 고치기 화면을 열지 않는다. 새 항목은 아직 서버에 없어 찾을 수 없다고 나온다 */
 const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDefault();
 
 /**
  * 목록 한 줄: 완료 체크 + 내용(누르면 고치기 화면, 이어진 일정이 있으면 날짜 칩) + 순서 버튼. 저장 중이면 흐리게 그리고 누를 수 없게 한다.
+ * 이어진 일정이 지났으면 줄 아래에 완료로 옮길지 묻는 칸을 붙인다(#471).
  * 움직임(막 더함 표시·줄긋기·나타남)은 `globals.css`의 `todo-*` 클래스다.
  *
  * @example <TodoItem todo={todo} onToggle={handleToggle} />
  */
-export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isArriving = false, today, children }: TodoItemProps): ReactElement => {
+export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isArriving = false, today, onAnswerAsk, children }: TodoItemProps): ReactElement => {
   const isCompleted = todo.completedAt !== undefined;
   const isStriking = strikePhase !== undefined;
   const eventChip = todo.event && today && !isCompleted ? formatTodoEventChip(todo.event, today) : undefined;
   const { isPending } = todo;
+  // 줄을 긋는 중이거나 저장 중인 항목에는 묻지 않는다. 완료로 옮기는 중에 다시 누를 수 없게 한다
+  const askLastDay =
+    todo.event && today && onAnswerAsk && !isCompleted && !isStriking && !isPending && shouldAskTodoEventDone(todo.event, today)
+      ? getTodoEventLastDay(todo.event)
+      : undefined;
   const textColorClassName = isCompleted || isPending || isStriking ? "text-ink-sub" : "text-ink";
   return (
     <li
       data-just-added={isJustAdded || undefined}
-      className={`flex min-h-[60px] items-center border-b border-line ${toMotionClassName({ isJustAdded, strikePhase, isArriving })}`}
+      // 묻는 칸은 줄을 꽉 채워 다음 줄로 내려간다
+      className={`flex min-h-[60px] flex-wrap items-center border-b border-line ${toMotionClassName({ isJustAdded, strikePhase, isArriving })}`}
     >
       <label className="flex size-11 shrink-0 cursor-pointer items-center justify-center">
         <input
@@ -115,6 +157,7 @@ export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isA
         )}
       </Link>
       {children}
+      {askLastDay && onAnswerAsk && <TodoDoneAsk todo={todo} lastDay={askLastDay} onAnswer={onAnswerAsk} />}
     </li>
   );
 };

@@ -13,6 +13,13 @@ export interface TodoEventChip {
 const formatMonthDay = (isoDate: string): string => `${Number(isoDate.slice(5, 7))}월 ${Number(isoDate.slice(8, 10))}일`;
 
 /**
+ * 이어진 일정의 마지막 날(YYYY-MM-DD). 하루 일정은 그날, 기간 일정은 끝 날짜다. 이날이 지나야 지난 일정으로 본다.
+ *
+ * @example getTodoEventLastDay({ ...event, date: "2026-11-23", endDate: "2026-11-25" }) // "2026-11-25"
+ */
+export const getTodoEventLastDay = (event: TodoEvent): string => event.endDate ?? event.date;
+
+/**
  * 하고 싶은 것에 이어진 일정 칩(#471). 오늘이거나 앞으로의 일정은 "11월 23일 토 · 함께", 지난 일정은 "11월 23일 지남".
  * 기간 일정은 시작일로 쓰고, 끝 날짜가 지나야 지난 것으로 본다. 날짜를 미루면 새 날짜로 다시 계산한다.
  *
@@ -20,7 +27,20 @@ const formatMonthDay = (isoDate: string): string => `${Number(isoDate.slice(5, 7
  * @example formatTodoEventChip({ id, date: "2026-11-23", endDate: undefined, isTogether: true, authorNickname: "정운" }, "2026-11-19") // { label: "11월 23일 월 · 함께", isPast: false }
  */
 export const formatTodoEventChip = (event: TodoEvent, today: string): TodoEventChip => {
-  const isPast = (event.endDate ?? event.date) < today;
+  const isPast = getTodoEventLastDay(event) < today;
   if (isPast) return { label: `${formatMonthDay(event.date)} 지남`, isPast };
   return { label: `${formatMonthDay(event.date)} ${WEEKDAYS[getWeekday(event.date)]} · ${formatEventOwner(event)}`, isPast };
+};
+
+/**
+ * 지난 일정 묻기(#471): 이어진 일정의 마지막 날이 지났고, 그 마지막 날에 [아직]을 누르지 않았으면 "다녀오셨나요?"를 묻는다.
+ * [아직]은 누를 때의 마지막 날만 기억해, 일정을 미뤄 마지막 날이 달라지면 미룬 날짜가 지났을 때 다시 묻는다.
+ * 하지 않은 항목인지는 부르는 쪽이 본다.
+ *
+ * @param today 오늘(한국 날짜, YYYY-MM-DD)
+ * @example shouldAskTodoEventDone({ ...event, date: "2026-11-23", notYetDate: undefined }, "2026-11-24") // true
+ */
+export const shouldAskTodoEventDone = (event: TodoEvent, today: string): boolean => {
+  const lastDay = getTodoEventLastDay(event);
+  return lastDay < today && event.notYetDate !== lastDay;
 };

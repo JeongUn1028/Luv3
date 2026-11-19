@@ -77,4 +77,19 @@ describe("saveTodoAction", () => {
 
     expect(await saveTodoAction({ action: { type: "complete", id: TODO_ID, completedAt: undefined }, todos, moveTodo })).toBe(TODO_ACTION_FAILED_MESSAGE);
   });
+
+  it("[아직]을 누르면 그 일정 날짜를 저장하고, 상대가 지운 항목이면 이미 지워졌다고 알린다(#471)", async () => {
+    // Arrange
+    const saved = createFakes();
+    const deleted = createFakes({ updatedRows: [] });
+    const action = { type: "notYet", id: TODO_ID, date: "2026-11-23" } as const;
+
+    // Act
+    const message = await saveTodoAction({ action, todos: saved.todos, moveTodo: saved.moveTodo });
+
+    // Assert
+    expect(message).toBeUndefined();
+    expect(saved.updates).toEqual([{ values: { event_not_yet_date: "2026-11-23" }, id: TODO_ID, columns: "id" }]);
+    expect(await saveTodoAction({ action, todos: deleted.todos, moveTodo: deleted.moveTodo })).toBe(TODO_ALREADY_DELETED_MESSAGE);
+  });
 });

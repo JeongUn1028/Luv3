@@ -1005,3 +1005,12 @@ export const getTodoEventId = async (todoId: string): Promise<string | undefined
 export const linkTodoEvent = async (todoId: string, eventId: string): Promise<void> => {
   assertNoError(await createAdminClient().from("todos").update({ event_id: eventId }).eq("id", todoId), "하고 싶은 것에 일정 잇기");
 };
+
+/**
+ * 상대가 미룬 것처럼 일정 날짜를 바꾼다(#471 지난 일정 묻기).
+ *
+ * @example await moveEventDate(eventId, "2020-01-20")
+ */
+export const moveEventDate = async (id: string, date: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("events").update({ date }).eq("id", id), "일정 날짜 바꾸기");
+};
