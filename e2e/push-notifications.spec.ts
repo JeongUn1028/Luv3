@@ -291,21 +291,26 @@ test.describe("설정 알림 칸", () => {
     });
   });
 
-  test("실제 서비스 워커가 앱 전체 범위로 등록되고, 저장해 두지 않게 받는다", async ({ page, request }) => {
-    // Arrange
-    await signInToHome(page, email, password);
+  test.describe("실제 서비스 워커", () => {
+    // 다른 테스트는 서비스 워커를 막아 둔다(playwright.config.ts)
+    test.use({ serviceWorkers: "allow" });
 
-    // Act
-    await openScreen(page, SETTINGS_PATH, getSection(page).getByRole("button", { name: "알림 켜기" }));
-    const registration = await page.evaluate(async () => {
-      const ready = await navigator.serviceWorker.ready;
-      return { scope: ready.scope, script: ready.active?.scriptURL };
+    test("실제 서비스 워커가 앱 전체 범위로 등록되고, 저장해 두지 않게 받는다", async ({ page, request }) => {
+      // Arrange
+      await signInToHome(page, email, password);
+
+      // Act
+      await openScreen(page, SETTINGS_PATH, getSection(page).getByRole("button", { name: "알림 켜기" }));
+      const registration = await page.evaluate(async () => {
+        const ready = await navigator.serviceWorker.ready;
+        return { scope: ready.scope, script: ready.active?.scriptURL };
+      });
+      const response = await request.get("/sw.js");
+
+      // Assert
+      expect(new URL(registration.scope).pathname).toBe("/");
+      expect(new URL(registration.script ?? "").pathname).toBe("/sw.js");
+      expect(response.headers()["cache-control"]).toBe("no-cache");
     });
-    const response = await request.get("/sw.js");
-
-    // Assert
-    expect(new URL(registration.scope).pathname).toBe("/");
-    expect(new URL(registration.script ?? "").pathname).toBe("/sw.js");
-    expect(response.headers()["cache-control"]).toBe("no-cache");
   });
 });

@@ -1,0 +1,100 @@
+<!doctype html>
+<!--
+  끊긴 채 앱을 켜거나 새로 고칠 때 서비스 워커(public/sw.js)가 브라우저 오류 화면 대신 보여 주는 안내 화면(#365).
+  끊긴 동안에는 다른 파일을 받을 수 없어 글꼴·스타일·로고를 모두 이 파일 안에 둔다(앱 글꼴 대신 기기 글꼴).
+  고치면 sw.js의 OFFLINE_PAGE_VERSION을 이 파일의 새 SHA-256 앞 8글자로 바꾼다(테스트가 알려 준다).
+-->
+<html lang="ko" style="background-color: #0a0a0a">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0A0A0A" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Luv3</title>
+    <style>
+      /* 값은 src/app/globals.css의 색과 StatusScreen·RetryButton 모양을 따른다 */
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+      }
+      body {
+        background: #0a0a0a;
+        color: #f2f2f2;
+        font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      main {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        max-width: 430px;
+        min-height: 100%;
+        margin: 0 auto;
+        padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+        text-align: center;
+      }
+      svg {
+        width: 72px;
+        color: #f5cfd9;
+      }
+      h1 {
+        margin: 8px 0 0;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      p {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #8a8a8a;
+      }
+      a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        height: 51px;
+        margin-top: 8px;
+        border-radius: 10px;
+        background: #f2d2da;
+        color: #0a0a0a;
+        font-size: 15px;
+        font-weight: 600;
+        text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      a:active {
+        transform: scale(0.98);
+      }
+      a:focus-visible {
+        outline: 2px solid #f5cfd9;
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+        <path
+          d="M50 23 C46 15 39 10 30 10 C18 10 8 19 8 32 C8 50 23 67 50 86 M50 23 C54 15 61 10 70 10 C82 10 92 19 92 32 C92 50 77 67 50 86"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <h1>인터넷에 연결되어 있지 않아요</h1>
+      <p>연결되면 다시 시도해 주세요.</p>
+      <!-- 빈 주소는 지금 주소를 다시 연다. 서비스 워커가 이 화면을 원래 주소에 돌려주므로 연결되면 열려던 화면이 열린다. 스크립트 없이 동작한다 -->
+      <a href="">다시 시도</a>
+    </main>
+  </body>
+</html>
