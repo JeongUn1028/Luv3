@@ -19,6 +19,8 @@ const NO_PENDING_TODOS: readonly PendingTodo[] = [];
 interface TodoListProps {
   /** 서버에서 읽은 전체 목록(하지 않은 것·완료한 것 모두) */
   todos: Todo[];
+  /** 오늘(한국 날짜). 이어진 일정이 지났는지 가른다(#471) */
+  today: string;
 }
 
 /** 동작을 DB에 저장한다. 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
@@ -37,7 +39,7 @@ const saveAction = async (action: TodoAction): Promise<string | undefined> => {
  *
  * @example <TodoList todos={await getTodos()} />
  */
-export const TodoList = ({ todos }: TodoListProps): ReactElement => {
+export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
   const router = useRouter();
   const [optimisticTodos, addOptimisticAction] = useOptimistic(todos, applyTodoAction);
   const pendingTodos = useSyncExternalStore(pendingTodoStore.subscribe, pendingTodoStore.getPending, () => NO_PENDING_TODOS);
@@ -156,7 +158,14 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
           {open.map((todo) => {
             const index = todo.isPending ? -1 : (movableIndexById.get(todo.id) ?? -1);
             return (
-              <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} isJustAdded={todo.id === justAddedId} strikePhase={strikePhases.get(todo.id)}>
+              <TodoItem
+                key={todo.id}
+                todo={todo}
+                onToggle={handleToggle}
+                isJustAdded={todo.id === justAddedId}
+                strikePhase={strikePhases.get(todo.id)}
+                today={today}
+              >
                 <TodoMoveButtons
                   content={todo.content}
                   isFirst={index <= 0}
@@ -176,7 +185,7 @@ export const TodoList = ({ todos }: TodoListProps): ReactElement => {
           </h2>
           <ul className="mt-1 flex flex-col">
             {done.map((todo) => (
-              <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} isArriving={arrivingIds.has(todo.id)} />
+              <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} isJustAdded={todo.id === justAddedId} isArriving={arrivingIds.has(todo.id)} />
             ))}
           </ul>
         </section>

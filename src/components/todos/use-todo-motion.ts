@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { toCheckboxId } from "@/components/todos/TodoItem";
+import { takeTodoFocus } from "@/lib/todos/focus";
 import type { PendingTodo } from "@/lib/todos/pending";
 
 /** 완료 줄긋기 단계: 그 자리에서 선을 긋고 머무는 중 → 사라지는 중 */
@@ -126,6 +127,7 @@ export const useStrikingTodos = (): StrikingTodos => {
  * 폼에서 막 저장한 새 항목의 id. 목록에 처음 보이면 그 줄이 보이게 스크롤하고 잠깐 표시한다(#347).
  * 새 항목은 저장을 기다리지 않고 목록으로 돌아올 때 저장 중인 항목(#345)으로 먼저 보이므로, 그때를 "막 더함"으로 본다.
  * 폼은 목록의 기억한 스크롤 자리를 지우고 돌아온다(`TodoForm`). 기억한 자리로 되돌리기가 이 스크롤을 덮지 않게 한다.
+ * 캘린더 일정 읽기 창에서 이어진 하고 싶은 것을 눌러 왔을 때(#471, `requestTodoFocus`)도 그 줄을 같은 방법으로 보여 준다.
  *
  * @example const { justAddedId } = useJustAddedTodo(pendingTodos);
  */
@@ -137,6 +139,15 @@ export const useJustAddedTodo = (pendingTodos: readonly PendingTodo[]): { justAd
     revealedTodoIds.add(added.id);
     setJustAddedId(added.id);
   }
+  useEffect(() => {
+    // 다른 화면이 남긴 줄은 바깥 값이라 그린 뒤에 꺼낸다. 다녀온 목록은 숨겨 둔 채 남아 있다가 다시 보일 때 효과가 다시 돈다.
+    // 다음 그림에서 꺼내, 효과가 곧바로 정리되면(개발 모드의 두 번 실행) 꺼내지 않고 다음 실행이 꺼낸다
+    const frame = requestAnimationFrame(() => {
+      const todoId = takeTodoFocus();
+      if (todoId) setJustAddedId(todoId);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     if (!justAddedId) return;

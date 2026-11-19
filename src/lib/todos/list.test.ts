@@ -40,6 +40,19 @@ describe("toTodo", () => {
 
     expect(todo.completedAt).toBe("2026-11-03T10:00:00+00:00");
   });
+
+  it("이어진 일정이 있으면 화면용 값으로 바꾸고, 없으면 두지 않는다(#471)", () => {
+    // Arrange
+    const base = { id: "t1", content: "바다", sort_order: 1, completed_at: null, revision: "r1" };
+
+    // Act
+    const linked = toTodo({ ...base, event: { id: "e1", date: "2026-11-23", end_date: null, is_together: false, author: { nickname: "정운" } } });
+    const unlinked = toTodo({ ...base, event: null });
+
+    // Assert
+    expect(linked.event).toEqual({ id: "e1", date: "2026-11-23", endDate: undefined, isTogether: false, authorNickname: "정운" });
+    expect(unlinked).not.toHaveProperty("event");
+  });
 });
 
 describe("groupTodos", () => {

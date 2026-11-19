@@ -12,8 +12,24 @@ const MESSAGES = {
 };
 const OCCURRENCE_GONE_MESSAGE = "이 날 일정은 이미 고쳤거나 지웠어요. 캘린더에서 다시 확인해 주세요.";
 
+const TODO_SCHEDULE_MESSAGES = {
+  failedMessage: MESSAGES.failedMessage,
+  goneMessage: "이 하고 싶은 것은 이미 지워졌어요. 목록에서 다시 확인해 주세요.",
+  conflictMessage: "그사이 일정이 바뀌어 저장 못 했어요. 불러와 확인해 주세요.",
+};
+
 /** `detach_event_occurrence` 함수에 넘기는 값 */
 type DetachOccurrenceArgs = Database["public"]["Functions"]["detach_event_occurrence"]["Args"];
+
+/** `schedule_todo` 함수에 넘기는 값 */
+type ScheduleTodoArgs = Database["public"]["Functions"]["schedule_todo"]["Args"];
+
+/** 새 일정을 하고 싶은 것에 이어 만들 때(#471) */
+interface TodoSchedule {
+  todoId: string;
+  /** `(args) => supabase.rpc("schedule_todo", args)` */
+  scheduleTodo: (args: ScheduleTodoArgs) => PromiseLike<{ error: SaveErrorCode | null }>;
+}
 
 interface SaveEventParams {
   /** `supabase.from("events")` */
@@ -29,6 +45,8 @@ interface SaveEventParams {
   newEventId: string;
   /** 이번 저장으로 바뀔 판 번호. 시도마다 새로 만든다 */
   revision: string;
+  /** 새 일정을 하고 싶은 것에 이어 만든다. 고칠 때는 쓰지 않는다 */
+  todoSchedule?: TodoSchedule | undefined;
 }
 
 const saveOccurrence = async ({
@@ -59,6 +77,33 @@ const saveOccurrence = async ({
   return toRejectedOutcome(error, mayHaveApplied);
 };
 
+const saveTodoSchedule = async ({ draft, newEventId, revision }: SaveEventParams, { todoId, scheduleTodo }: TodoSchedule): Promise<SaveOutcome> => {
+  // 폼이 반복 칸을 숨겨 반복은 보내지 않는다(반복 일정은 하고 싶은 것과 잇지 않는다)
+  const { date, start_time, end_date, title, place, memo, is_together } = toEventValues({ ...draft, repeatRule: undefined });
+  // 같은 일정 id로 다시 보내면 함수가 이미 이어진 일정을 이번 값으로 고치므로 응답만 끊겼을 때 다시 보내도 된다
+  const { error, mayHaveApplied } = await callWithRetry(() =>
+    scheduleTodo({
+      p_todo_id: todoId,
+      p_event_id: newEventId,
+      p_revision: revision,
+      p_date: date,
+      p_title: title,
+      p_is_together: is_together,
+      p_start_time: start_time ?? undefined,
+      p_end_date: end_date ?? undefined,
+      p_place: place ?? undefined,
+      p_memo: memo ?? undefined,
+      // 저장됐을 수 있는 앞선 시도의 판. 그사이 상대가 그 일정을 고쳤으면 함수가 덮어쓰지 않고 거부한다
+      p_expected_revisions: draft.expectedRevisions ?? [],
+    }),
+  );
+  if (!error) return "saved";
+  // 그사이 다른 일정이 잡혔거나, 저장됐던 내 일정을 상대가 고쳤다. 어느 쪽이든 불러오면 이미 잡힌 일정이 보인다
+  if (error.code === DB_ERROR_CODE.todoScheduled || error.code === DB_ERROR_CODE.conflict) return "conflict";
+  if (error.code === DB_ERROR_CODE.notFound) return "gone";
+  return toRejectedOutcome(error, mayHaveApplied);
+};
+
 const saveRow = ({ events, draft, eventId, newEventId, revision }: SaveEventParams): Promise<SaveOutcome> =>
   saveRowAtRevision({
     table: events,
@@ -70,7 +115,7 @@ const saveRow = ({ events, draft, eventId, newEventId, revision }: SaveEventPara
   });
 
 /**
- * 일정을 저장한다. 새 일정을 만들거나, 일정 전체를 고치거나, 반복 중 하루만 고친다.
+ * 일정을 저장한다. 새 일정을 만들거나(하고 싶은 것에 이어 만들 수도 있다), 일정 전체를 고치거나, 반복 중 하루만 고친다.
  * 응답만 끊기면 한 번 더 보낸다. 새 일정은 `newEventId`로 만들어 다시 보내도 하나만 생긴다.
  * 화면을 연 뒤 상대가 고쳤으면(판 번호가 `draft.expectedRevisions`에 없으면) 저장하지 않고 `hasConflict`로 알린다.
  *
@@ -82,7 +127,8 @@ const saveRow = ({ events, draft, eventId, newEventId, revision }: SaveEventPara
  * })
  */
 export const saveEvent = async (params: SaveEventParams): Promise<SaveFailure | undefined> => {
-  const { draft, eventId, occurrenceDate } = params;
+  const { draft, eventId, occurrenceDate, todoSchedule } = params;
+  if (!eventId && todoSchedule) return toSaveFailure(await saveTodoSchedule(params, todoSchedule), TODO_SCHEDULE_MESSAGES);
   if (eventId && occurrenceDate && draft.scope === "occurrence") {
     const outcome = await saveOccurrence({ ...params, eventId, occurrenceDate });
     return toSaveFailure(outcome, { ...MESSAGES, goneMessage: OCCURRENCE_GONE_MESSAGE });

@@ -33,6 +33,13 @@ describe("toCalendarEvent", () => {
     expect(event.memo).toBe("예약 7시");
   });
 
+  it("이어진 하고 싶은 것을 읽은 행(캘린더)이면 붙이고, 없으면 두지 않는다(#471)", () => {
+    const row = { id: "e1", date: "2026-11-14", start_time: null, title: "바다", place: null, is_together: true, repeat_rule: null, repeat_until: null, end_date: null, created_at: "2026-11-01T00:00:00+00:00", author: null, exceptions: [] };
+
+    expect(toCalendarEvent({ ...row, todos: [{ id: "t1", content: "바다 보러 가기" }] }).todo).toEqual({ id: "t1", content: "바다 보러 가기" });
+    expect(toCalendarEvent({ ...row, todos: [] })).not.toHaveProperty("todo");
+  });
+
   it("메모가 비었거나 읽지 않은 행이면 메모를 두지 않는다", () => {
     const base = { id: "e1", date: "2026-11-14", start_time: null, title: "저녁", place: null, is_together: true, repeat_rule: null, repeat_until: null, end_date: null, created_at: "2026-11-01T00:00:00+00:00", author: null, exceptions: [] };
     expect(toCalendarEvent({ ...base, memo: "" })).not.toHaveProperty("memo");

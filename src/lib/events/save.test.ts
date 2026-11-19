@@ -135,6 +135,99 @@ describe("saveEvent", () => {
   });
 });
 
+describe("saveEvent 하고 싶은 것에 일정 잡기(#471)", () => {
+  const TODO_ID = "40000000-0000-4000-8000-000000000001";
+
+  /** schedule_todo가 차례로 돌려줄 오류. 다 쓰면 성공한다 */
+  const createScheduleTodo = (errors: (SaveErrorCode | null)[] = []) => vi.fn(async () => ({ error: errors.shift() ?? null }));
+
+  const scheduleWith = ({ draft = createDraft(), scheduleTodo = createScheduleTodo(), events = createFakeRevisionedTable<EventValues>().table }: {
+    draft?: EventDraft;
+    scheduleTodo?: ReturnType<typeof createScheduleTodo>;
+    events?: ReturnType<typeof createFakeRevisionedTable<EventValues>>["table"];
+  } = {}) =>
+    saveEvent({
+      events,
+      detachOccurrence: createDetachOccurrence(),
+      todoSchedule: { todoId: TODO_ID, scheduleTodo },
+      draft,
+      eventId: undefined,
+      occurrenceDate: undefined,
+      newEventId: NEW_EVENT_ID,
+      revision: "r2",
+    });
+
+  it("표에 바로 만들지 않고 정리한 값과 새 id·이번 판 번호로 schedule_todo를 불러 일정을 만들며 잇는다", async () => {
+    // Arrange
+    const { table, calls } = createFakeRevisionedTable<EventValues>();
+    const scheduleTodo = createScheduleTodo();
+    const draft = createDraft({ isAllDay: false, startTime: "19:30", place: " 극장 ", endDate: "2026-11-21" });
+
+    // Act
+    const failure = await scheduleWith({ draft, scheduleTodo, events: table });
+
+    // Assert
+    expect(failure).toBeUndefined();
+    expect(calls.insert).toEqual([]);
+    expect(scheduleTodo).toHaveBeenCalledWith({
+      p_todo_id: TODO_ID,
+      p_event_id: NEW_EVENT_ID,
+      p_revision: "r2",
+      p_date: "2026-11-20",
+      p_title: "영화 보기",
+      p_is_together: true,
+      p_start_time: "19:30",
+      p_end_date: "2026-11-21",
+      p_place: "극장",
+      p_memo: undefined,
+      p_expected_revisions: [],
+    });
+  });
+
+  it("저장됐는지 모른 채 다시 저장하면 앞선 시도의 판을 함께 보내, 그 판일 때만 고치게 한다", async () => {
+    const scheduleTodo = createScheduleTodo();
+
+    await scheduleWith({ scheduleTodo, draft: createDraft({ newEventId: NEW_EVENT_ID, expectedRevisions: ["r1"] }) });
+
+    expect(scheduleTodo).toHaveBeenCalledWith(expect.objectContaining({ p_event_id: NEW_EVENT_ID, p_revision: "r2", p_expected_revisions: ["r1"] }));
+  });
+
+  it("비운 칸(시간·기간·장소·메모)은 보내지 않는다", async () => {
+    const scheduleTodo = createScheduleTodo();
+
+    await scheduleWith({ scheduleTodo });
+
+    expect(scheduleTodo).toHaveBeenCalledWith(expect.objectContaining({ p_start_time: undefined, p_end_date: undefined, p_place: undefined, p_memo: undefined }));
+  });
+
+  it("응답이 끊기면 같은 id로 한 번 더 보내고, 다시 보내 성공하면 실패 내용이 없다", async () => {
+    const scheduleTodo = createScheduleTodo([LOST_RESPONSE]);
+
+    const failure = await scheduleWith({ scheduleTodo });
+
+    expect(failure).toBeUndefined();
+    expect(scheduleTodo).toHaveBeenCalledTimes(2);
+  });
+
+  it("그사이 하고 싶은 것이 지워졌으면(P0002) 목록에서 확인하라고 알린다", async () => {
+    const failure = await scheduleWith({ scheduleTodo: createScheduleTodo([{ code: "P0002" }]) });
+
+    expect(failure).toMatchObject({ isGone: true, message: "이 하고 싶은 것은 이미 지워졌어요. 목록에서 다시 확인해 주세요." });
+  });
+
+  it.each(["P0412", "P0409"])("그사이 다른 일정이 잡혔거나 상대가 고쳤으면(%s) 최신 내용을 불러오게 한다", async (code) => {
+    const failure = await scheduleWith({ scheduleTodo: createScheduleTodo([{ code }]) });
+
+    expect(failure).toMatchObject({ hasConflict: true, message: "그사이 일정이 바뀌어 저장 못 했어요. 불러와 확인해 주세요." });
+  });
+
+  it("두 번 다 응답이 끊기면 저장됐을 수 있다고 알린다", async () => {
+    const failure = await scheduleWith({ scheduleTodo: createScheduleTodo([LOST_RESPONSE, LOST_RESPONSE]) });
+
+    expect(failure).toMatchObject({ mayHaveSaved: true });
+  });
+});
+
 interface FakeDeleteParams {
   deleteError?: { message: string } | null;
   upsertError?: { message: string } | null;

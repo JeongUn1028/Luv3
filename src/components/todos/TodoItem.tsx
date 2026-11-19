@@ -5,8 +5,10 @@ import type { MouseEvent, ReactElement } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
 import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
-import { TODOS_PATH, type Todo } from "@/lib/todos/list";
+import { formatTodoEventChip } from "@/lib/todos/event-chip";
+import type { Todo } from "@/lib/todos/list";
 import type { ShownTodo } from "@/lib/todos/pending";
+import { toTodoEditHref } from "@/lib/todos/schedule";
 import type { StrikePhase } from "@/components/todos/use-todo-motion";
 
 /**
@@ -52,6 +54,8 @@ interface TodoItemProps {
   strikePhase?: StrikePhase | undefined;
   /** 방금 완료 칸으로 옮겨 나타나는 중인지 */
   isArriving?: boolean;
+  /** 오늘(한국 날짜). 주면 하지 않은 항목에 이어진 일정 칩을 붙인다(#471) */
+  today?: string | undefined;
   /** 오른쪽 끝 버튼(순서 바꾸기). 완료한 항목에는 없다 */
   children?: ReactElement;
 }
@@ -66,14 +70,15 @@ const toMotionClassName = ({ isJustAdded, strikePhase, isArriving }: Pick<TodoIt
 const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDefault();
 
 /**
- * 목록 한 줄: 완료 체크 + 내용(누르면 고치기 화면) + 순서 버튼. 저장 중이면 흐리게 그리고 누를 수 없게 한다.
+ * 목록 한 줄: 완료 체크 + 내용(누르면 고치기 화면, 이어진 일정이 있으면 날짜 칩) + 순서 버튼. 저장 중이면 흐리게 그리고 누를 수 없게 한다.
  * 움직임(막 더함 표시·줄긋기·나타남)은 `globals.css`의 `todo-*` 클래스다.
  *
  * @example <TodoItem todo={todo} onToggle={handleToggle} />
  */
-export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isArriving = false, children }: TodoItemProps): ReactElement => {
+export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isArriving = false, today, children }: TodoItemProps): ReactElement => {
   const isCompleted = todo.completedAt !== undefined;
   const isStriking = strikePhase !== undefined;
+  const eventChip = todo.event && today && !isCompleted ? formatTodoEventChip(todo.event, today) : undefined;
   const { isPending } = todo;
   const textColorClassName = isCompleted || isPending || isStriking ? "text-ink-sub" : "text-ink";
   return (
@@ -93,7 +98,7 @@ export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isA
         />
       </label>
       <Link
-        href={`${TODOS_PATH}/${todo.id}/edit`}
+        href={toTodoEditHref(todo.id)}
         transitionTypes={FORWARD_TRANSITION}
         aria-disabled={isPending}
         onClick={isPending ? preventOpening : undefined}
@@ -101,6 +106,13 @@ export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isA
       >
         {isStriking ? <span className="todo-strike">{todo.content}</span> : todo.content}
         {isPending && <span className="sr-only"> (저장 중)</span>}
+        {eventChip && (
+          <span className={`mt-1 block w-fit rounded-full px-2.5 py-0.5 text-[12px] ${eventChip.isPast ? "bg-cream/10 text-cream" : "bg-accent/10 text-accent"}`}>
+            {/* 화면 읽기 프로그램이 내용과 붙여 읽지 않게 띄운다 */}
+            <span className="sr-only">, 일정 </span>
+            {eventChip.label}
+          </span>
+        )}
       </Link>
       {children}
     </li>

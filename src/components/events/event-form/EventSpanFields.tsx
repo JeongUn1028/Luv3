@@ -16,6 +16,8 @@ interface EventSpanFieldsProps {
   isDisabled: boolean;
   /** 반복과 기간을 바꿀 수 있는지. 이 날만 고칠 때와 따로 나온 일정은 바꾸지 않는다 */
   canEditSpan: boolean;
+  /** 반복 칸을 보일지. 하고 싶은 것과 이어진 일정은 반복하지 않는다(#471) */
+  canRepeat?: boolean;
   setDraft: Dispatch<SetStateAction<EventDraft>>;
   setErrors: Dispatch<SetStateAction<EventDraftErrors>>;
   /** 글자 칸을 바꾼다. 그 칸의 오류도 지운다 */
@@ -27,8 +29,9 @@ interface EventSpanFieldsProps {
  *
  * @example <EventSpanFields draft={draft} errors={errors} isDisabled={isSaving} canEditSpan setDraft={setDraft} setErrors={setErrors} onFieldChange={updateField} />
  */
-export const EventSpanFields = ({ draft, errors, isDisabled, canEditSpan, setDraft, setErrors, onFieldChange }: EventSpanFieldsProps): ReactElement => {
+export const EventSpanFields = ({ draft, errors, isDisabled, canEditSpan, canRepeat = true, setDraft, setErrors, onFieldChange }: EventSpanFieldsProps): ReactElement => {
   const isPeriod = draft.endDate !== undefined;
+  const isRepeatShown = canEditSpan && canRepeat;
 
   const handlePeriodChange = (isChecked: boolean) => {
     setDraft((current) => ({ ...current, endDate: toPeriodEndDate(isChecked) }));
@@ -67,7 +70,7 @@ export const EventSpanFields = ({ draft, errors, isDisabled, canEditSpan, setDra
             </label>
           )}
         </div>
-        {canEditSpan && (
+        {isRepeatShown && (
           <label htmlFor="event-repeat" className="flex h-11 min-w-0 items-center gap-2 text-[13px] text-ink-sub has-disabled:opacity-50">
             반복
             <select
@@ -91,7 +94,7 @@ export const EventSpanFields = ({ draft, errors, isDisabled, canEditSpan, setDra
           </label>
         )}
       </div>
-      {canEditSpan && (isPeriod || draft.repeatRule) && <p className={FIELD_LABEL_CLASS_NAME}>기간과 반복은 함께 쓸 수 없어요.</p>}
+      {isRepeatShown && (isPeriod || draft.repeatRule) && <p className={FIELD_LABEL_CLASS_NAME}>기간과 반복은 함께 쓸 수 없어요.</p>}
       {canEditSpan && isPeriod && (
         <DateField
           id="event-end-date"
@@ -117,7 +120,7 @@ export const EventSpanFields = ({ draft, errors, isDisabled, canEditSpan, setDra
           className="mt-3"
         />
       )}
-      {canEditSpan && draft.repeatRule && (
+      {isRepeatShown && draft.repeatRule && (
         <DateField
           id="event-repeat-until"
           label="끝나는 날"

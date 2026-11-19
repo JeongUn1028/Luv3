@@ -202,6 +202,7 @@ describe("toEditableEvent", () => {
       revision: "r1",
       exceptions: [],
       records: [],
+      todos: [],
     };
     expect(toEditableEvent({ ...row, author: { nickname: "정운" } })).toEqual({ ...row, authorNickname: "정운" });
   });
@@ -222,6 +223,7 @@ describe("toEditableEvent", () => {
       revision: "r1",
       exceptions: [],
       records: [],
+      todos: [],
       author: null,
     };
     expect(toEditableEvent(row).authorNickname).toBeUndefined();

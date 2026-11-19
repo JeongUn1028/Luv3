@@ -6,6 +6,7 @@ import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
 import { TodoList } from "@/components/todos/TodoList";
 import { TodoListSkeleton } from "@/components/todos/TodoListSkeleton";
+import { toKstDate } from "@/lib/anniversary";
 import { withCurrentMember } from "@/lib/auth/with-member";
 import { catchLoadError } from "@/lib/load";
 import { TODOS_PATH } from "@/lib/todos/list";
@@ -22,7 +23,8 @@ const TodosContent = async () => {
   const [, todos] = await withCurrentMember(() => catchLoadError(getTodos, TodoLoadError));
 
   if (todos instanceof TodoLoadError) return <LoadErrorMessage message={todos.message} />;
-  return <TodoList todos={todos} />;
+  // 이어진 일정이 지났는지 가르는 오늘. 서버와 브라우저가 같은 값으로 그리게 서버에서 정한다
+  return <TodoList todos={todos} today={toKstDate(new Date())} />;
 };
 
 const TodosPage = () => (

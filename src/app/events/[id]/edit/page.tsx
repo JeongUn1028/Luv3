@@ -60,6 +60,7 @@ const EditEventForm = async ({ params, searchParams }: Pick<PageProps<"/events/[
       viewedDate={findViewedPeriodDate(event, date)}
       isDetached={event.repeat_parent_id !== null}
       recordLink={getEditEventRecordLink(event, occurrenceDate, toKstDate(new Date()))}
+      isTodoEvent={event.todos.length > 0}
     />
   );
 };
