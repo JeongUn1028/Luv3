@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, type Dispatch, type SetStateAction } from "react";
+import { useState } from "react";
 import { RECORDS_PATH } from "@/lib/dates/album";
 import type { EditableRecord } from "@/lib/dates/editable-record";
 import { getDraftPhotos } from "@/lib/dates/photo-group-draft";
-import { toFailedRecordFields } from "@/lib/dates/record-form-outcome";
+import { toFailedRecordFields, type FailedRecordFields } from "@/lib/dates/record-form-outcome";
 import { toRecordHref } from "@/lib/dates/record-href";
 import { saveDateRecord, updateDateRecord, type SaveProgress } from "@/lib/dates/save";
 import { DateRecordAlreadyLinkedError, toDateRecordSaveFailure } from "@/lib/dates/save-errors";
@@ -20,9 +20,6 @@ import type { RecordDraft } from "./record-draft";
 interface UseRecordSaveParams {
   /** 고칠 기록. 없으면 새 기록을 저장한다 */
   record: EditableRecord | undefined;
-  setDraft: Dispatch<SetStateAction<RecordDraft>>;
-  /** 폼 아래 안내. 저장을 시작하면 지우고 실패하면 이유를 적는다 */
-  setNotice: Dispatch<SetStateAction<string | undefined>>;
   previews: PreviewUrls;
   /** 저장하는 동안 폼을 떠나도 결과를 알리는 저장(#104) */
   leavableSave: Pick<LeavableSave<RecordDraft>, "beginSave" | "finishSaved" | "finishFailed">;
@@ -36,31 +33,39 @@ interface SaveRecordParams {
   reset: () => void;
 }
 
+/** 저장에 실패했을 때 폼이 반영할 것 */
+export interface RecordSaveFailure {
+  /** 다음 시도를 위해 입력값에 기억할 칸 */
+  failedFields: FailedRecordFields;
+  /** 폼 아래에 보일 실패 이유 */
+  message: string;
+}
+
 interface RecordSave {
   isSaving: boolean;
   progress: SaveProgress | undefined;
   /** 고치는 사이 기록이 지워져 저장할 곳이 없는지 */
   isRecordGone: boolean;
-  save: (params: SaveRecordParams) => Promise<void>;
+  /** 저장한다. 실패하면 폼이 반영할 것을 돌려준다. 앞선 실패 안내는 부르기 전에 폼이 지운다 */
+  save: (params: SaveRecordParams) => Promise<RecordSaveFailure | undefined>;
   /** 폼을 처음부터 다시 쓸 때 이 훅의 상태를 되돌린다. 지워졌다는 표시만은 되돌려도 저장할 곳이 없어 그대로 둔다(나누기 전과 같다) */
   resetSaveState: () => void;
 }
 
 /**
- * 기록 폼의 저장 흐름(#315): 새로 고른 사진을 줄여 올린 뒤 기록과 사진 행을 한 번에 저장하고, 진행을 알리며, 실패하면 다음 시도에 필요한 칸을 기억한다.
- * 저장하는 동안 폼을 떠나도 저장을 이어 가고 결과를 알린다(`useLeavableSave`).
+ * 기록 폼의 저장 흐름(#315): 새로 고른 사진을 줄여 올린 뒤 기록과 사진 행을 한 번에 저장하고, 진행을 알리며, 실패하면 다음 시도에 필요한 칸을 돌려준다.
+ * 폼의 입력값·안내는 바꾸지 않고, 돌려준 실패를 폼이 반영한다(#357). 저장하는 동안 폼을 떠나도 저장을 이어 가고 결과를 알린다(`useLeavableSave`).
  *
- * @example const recordSave = useRecordSave({ record, setDraft, setNotice, previews, leavableSave }); await recordSave.save({ draft: nextDraft, recordId, reset })
+ * @example const recordSave = useRecordSave({ record, previews, leavableSave }); const failure = await recordSave.save({ draft: nextDraft, recordId, reset })
  */
-export const useRecordSave = ({ record, setDraft, setNotice, previews, leavableSave }: UseRecordSaveParams): RecordSave => {
+export const useRecordSave = ({ record, previews, leavableSave }: UseRecordSaveParams): RecordSave => {
   const { beginSave, finishSaved, finishFailed } = leavableSave;
   const [isRecordGone, setIsRecordGone] = useState(false);
   const [progress, setProgress] = useState<SaveProgress>();
   const [isSaving, setIsSaving] = useState(false);
 
-  const save = async ({ draft, recordId, reset }: SaveRecordParams) => {
+  const save = async ({ draft, recordId, reset }: SaveRecordParams): Promise<RecordSaveFailure | undefined> => {
     beginSave();
-    setNotice(undefined);
     setIsSaving(true);
     try {
       const supabase = createClient();
@@ -99,17 +104,17 @@ export const useRecordSave = ({ record, setDraft, setNotice, previews, leavableS
       // 목록은 날짜 내림차순이라 새 기록은 맨 위에 있다. 보던 위치로 돌아가면 저장되지 않은 것처럼 보인다
       if (!record) forgetScrollPosition("records");
       finishSaved({ href: savedHref, reset });
+      return undefined;
     } catch (error) {
       const failure = toDateRecordSaveFailure(error);
       // 이미 남긴 기록은 실패 내용과 함께 보관해야 폼이 사라진 뒤 돌아와도 안내한다(#410)
       const alreadyLinkedRecordId = error instanceof DateRecordAlreadyLinkedError ? error.recordId : undefined;
       const failedFields = toFailedRecordFields({ failure, draft, recordId, alreadyLinkedRecordId });
-      setDraft((current) => ({ ...current, ...failedFields }));
       setIsRecordGone(failure.isGone);
-      setNotice(failure.message);
       setIsSaving(false);
       setProgress(undefined);
       finishFailed({ draft: { ...draft, ...failedFields }, ...failure });
+      return { failedFields, message: failure.message };
     }
   };
 

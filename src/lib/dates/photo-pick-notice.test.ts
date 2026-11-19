@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { FIX_FIELDS_NOTICE } from "@/lib/form";
 import { MAX_GROUP_PHOTOS } from "./photo-group-draft";
-import { toPickNotice } from "./photo-pick-notice";
+import { toNoticeAfterPick, toPickNotice } from "./photo-pick-notice";
 
 describe("toPickNotice", () => {
   it("뺀 사진이 없으면 알리지 않는다", () => {
@@ -25,5 +26,17 @@ describe("toPickNotice", () => {
     expect(toPickNotice({ skippedCount: 1, droppedCount: 2, isNewGroup: false })).toBe(
       `JPEG·PNG·WebP·HEIC 사진만 올릴 수 있어 1개는 뺐어요. 모음 하나에 사진은 ${MAX_GROUP_PHOTOS}장까지라 2장은 뺐어요.`,
     );
+  });
+});
+
+describe("toNoticeAfterPick", () => {
+  it("고르며 뺀 것이 있으면 그 안내로 바꾼다", () => {
+    expect(toNoticeAfterPick({ current: FIX_FIELDS_NOTICE, pickNotice: "모음 하나에 사진은 10장까지라 1장은 뺐어요." })).toBe("모음 하나에 사진은 10장까지라 1장은 뺐어요.");
+  });
+
+  // 사진을 골라도 다른 칸 오류는 그대로라, 그 칸들을 고치라는 안내는 남긴다
+  it("뺀 것이 없으면 칸 오류 안내는 남기고 다른 안내는 지운다", () => {
+    expect(toNoticeAfterPick({ current: FIX_FIELDS_NOTICE, pickNotice: undefined })).toBe(FIX_FIELDS_NOTICE);
+    expect(toNoticeAfterPick({ current: "JPEG·PNG·WebP·HEIC 사진만 올릴 수 있어 1개는 뺐어요.", pickNotice: undefined })).toBeUndefined();
   });
 });

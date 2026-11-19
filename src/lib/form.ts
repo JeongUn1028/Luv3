@@ -63,6 +63,14 @@ export const clearError = <Errors extends Partial<Record<string, string>>>(error
 };
 
 /**
+ * 여러 칸의 에러를 한 번에 지운다. 지울 에러가 없으면 같은 객체를 돌려준다(`clearError`와 같다).
+ *
+ * @example setErrors((current) => clearErrors(current, [`group:${id}`, `caption:${id}`]))
+ */
+export const clearErrors = <Errors extends Partial<Record<string, string>>>(errors: Errors, keys: readonly (keyof Errors)[]): Errors =>
+  keys.reduce((current, key) => clearError(current, key), errors);
+
+/**
  * 고친 칸의 에러를 지운다. 끝 날짜 에러는 시작 날짜에 따라 달라지므로, 시작 날짜(`date`)를 고치면 함께 지우고 저장할 때 다시 확인한다.
  * 기록·일정 폼이 함께 쓴다.
  *

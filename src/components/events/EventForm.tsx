@@ -22,7 +22,7 @@ import {
 } from "@/lib/events/form";
 import type { EventRecordLink } from "@/lib/events/record-link";
 import { showInvalidFields } from "@/lib/focus-invalid-field";
-import { clearError, clearFieldError, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
+import { clearErrors, clearFieldError, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
 import { EventKindField, EventScopeField } from "./event-form/EventChoiceFields";
 import { EventFormActions } from "./event-form/EventFormActions";
@@ -102,7 +102,7 @@ export const EventForm = ({
     const changed = changeDraftScope({ draft, scope, occurrence, isTogether: initialDraft.isTogether, scopeValues });
     setDraft(changed.draft);
     setScopeValues(changed.scopeValues);
-    setErrors((current) => clearError(clearError(clearError(current, "date"), "repeatUntil"), "endDate"));
+    setErrors((current) => clearErrors(current, ["date", "repeatUntil", "endDate"]));
   };
 
   const handleSubmit = async (event: SubmitEvent<HTMLFormElement>) => {

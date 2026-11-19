@@ -16,7 +16,7 @@ interface ToFailedRecordFieldsParams {
 }
 
 /** 저장에 실패한 기록 폼이 다음 시도를 위해 기억할 칸 */
-type FailedRecordFields = Pick<DateRecordDraft, "hasConflict" | "expectedRevisions" | "uncertainSaveRecordId" | "mayHaveLeftoverPhotos" | "alreadyLinkedRecordId">;
+export type FailedRecordFields = Pick<DateRecordDraft, "hasConflict" | "expectedRevisions" | "uncertainSaveRecordId" | "mayHaveLeftoverPhotos" | "alreadyLinkedRecordId">;
 
 /**
  * 저장에 실패한 기록 폼이 기억할 칸. 일정·할 일과 같은 판 번호·충돌(`toFailedSaveFields`)에 더해,
