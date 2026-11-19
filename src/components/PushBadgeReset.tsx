@@ -4,14 +4,16 @@ import { useEffect } from "react";
 import { isObject } from "@/lib/guards";
 import { subscribeToAppReturn } from "@/lib/navigation/app-return";
 import { PUSH_RECEIVED_MESSAGE } from "@/lib/push/message";
-import { createClient } from "@/lib/supabase/client";
+import { loadClient } from "@/lib/supabase/load-client";
 
 /** 앱 아이콘 숫자와, 서버가 세는 "앱을 연 뒤 받은 알림 수"를 0으로 한다 */
 const clearBadge = async (): Promise<void> => {
   // 숫자를 지원하지 않는 브라우저는 조용히 건너뛴다
   if ("clearAppBadge" in navigator) navigator.clearAppBadge().catch(() => undefined);
 
-  const supabase = createClient();
+  // 끊겼으면 서버 숫자를 지울 수 없어 라이브러리도 받지 않는다. 다음에 앱을 열 때 다시 지운다
+  if (!navigator.onLine) return;
+  const supabase = await loadClient();
   // 로그인 화면처럼 세션이 없으면 묻지 않는다. 물으면 거절돼 "로그인이 끊겼어요" 창(#102)이 뜬다
   const { data } = await supabase.auth.getSession();
   if (!data.session) return;

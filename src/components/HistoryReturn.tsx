@@ -5,8 +5,7 @@ import { startTransition, useEffect, useState } from "react";
 import { isBackMotionPending } from "@/lib/navigation/history-back";
 import { isWritingPath } from "@/lib/navigation/save-notices";
 import { isScreenStale, markAllScreensLoaded, markScreenLoaded, STALE_ARRIVAL_EVENT } from "@/lib/navigation/screen-freshness";
-import { isSignedInHere } from "@/lib/navigation/signed-in";
-import { createClient } from "@/lib/supabase/client";
+import { isSignedInNow } from "@/lib/navigation/signed-in";
 
 /** 뒤로 가는 움직임(260ms)이 끝난 뒤에 불러온다. 움직이는 중에 불러오면 Next의 같은 상태에 묶여 돌아오는 화면까지 응답을 기다린다 */
 const REFRESH_DELAY_MS = 300;
@@ -35,7 +34,7 @@ export const HistoryReturn = (): null => {
         const { href, pathname } = window.location;
         if (isWritingPath(pathname) || !isScreenStale(href, href)) return;
 
-        const isSignedIn = await isSignedInHere(createClient().auth);
+        const isSignedIn = await isSignedInNow();
         // 확인하는 사이 폼으로 옮겼을 수 있어 다시 본다
         if (!isSignedIn || isWritingPath(window.location.pathname)) return;
         markAllScreensLoaded();
