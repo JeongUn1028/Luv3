@@ -4,6 +4,7 @@ import { LoadErrorScreen } from "@/components/LoadErrorScreen";
 import { StatusLink, StatusScreen } from "@/components/StatusScreen";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
 import { TodoForm } from "@/components/todos/TodoForm";
+import { toKstDate } from "@/lib/anniversary";
 import { withCurrentMember } from "@/lib/auth/with-member";
 import { catchLoadError } from "@/lib/load";
 import { TODOS_PATH } from "@/lib/todos/list";
@@ -36,6 +37,8 @@ const EditTodoForm = async ({ params }: { params: Promise<{ id: string }> }) => 
       todoId={todo.id}
       initialContent={todo.content}
       initialRevision={todo.revision}
+      // 완료한 항목에는 새로 일정을 잡지 않는다(목록이 완료한 줄에 날짜 칩을 붙이지 않아 잡아도 보이지 않는다). 이미 이어진 일정은 보여 준다
+      schedule={todo.completedAt !== undefined && !todo.event ? undefined : { event: todo.event, today: toKstDate(new Date()) }}
     />
   );
 };

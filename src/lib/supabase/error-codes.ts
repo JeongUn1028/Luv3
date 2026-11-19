@@ -13,6 +13,8 @@ export const DB_ERROR_CODE = {
   eventLinkTaken: "P0410",
   /** 기록이 이미 다른 일정과 이어져 있다 */
   recordLinkedElsewhere: "P0411",
+  /** 하고 싶은 것에 이미 다른 일정이 이어져 있다(`schedule_todo`, #471). `details`에 그 일정 id가 온다 */
+  todoScheduled: "P0412",
   /** 넘긴 값으로는 할 수 없다(예: 한 사람 일정과 잇기). Postgres의 invalid_parameter_value */
   invalidParameter: "22023",
   /** 같은 키가 이미 있다. Postgres의 unique_violation */

@@ -81,6 +81,8 @@ export interface EditableEventRow extends EventRow {
   exceptions: { date: string }[];
   /** 이 일정에서 남긴 기록(#227) */
   records: LinkedRecordRow[];
+  /** 이 일정이 이어진 하고 싶은 것(#471). 많아야 하나지만 표 관계상 목록으로 온다. 있으면 반복으로 바꾸지 않는다 */
+  todos: { id: string }[];
 }
 
 /** 수정 화면에 넘기는 일정. 작성자는 닉네임만 남긴다 */

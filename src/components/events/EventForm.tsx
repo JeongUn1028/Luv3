@@ -3,6 +3,7 @@
 import { useState, type ReactElement, type SubmitEvent } from "react";
 import { AuthorTag } from "@/components/AuthorTag";
 import { FormFooter } from "@/components/FormFooter";
+import { TodoIcon } from "@/components/icons";
 import { DateField, TextAreaField, TextField } from "@/components/FormField";
 import { PageShell } from "@/components/PageShell";
 import { ReloadLatestButton } from "@/components/ReloadLatestButton";
@@ -24,6 +25,7 @@ import type { EventRecordLink } from "@/lib/events/record-link";
 import { showInvalidFields } from "@/lib/focus-invalid-field";
 import { clearErrors, clearFieldError, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
+import { toTodoEditHref } from "@/lib/todos/schedule";
 import { EventKindField, EventScopeField } from "./event-form/EventChoiceFields";
 import { EventFormActions } from "./event-form/EventFormActions";
 import { EventSpanFields, type EventTextField } from "./event-form/EventSpanFields";
@@ -47,6 +49,10 @@ interface EventFormProps {
   isDetached?: boolean;
   /** 고치는 날에 남긴 기록으로 가거나 그날로 기록을 남기는 버튼(#227). 없으면 버튼을 그리지 않는다 */
   recordLink?: EventRecordLink | undefined;
+  /** 새 일정을 이 하고 싶은 것에 이어 만든다(#471). 반복 칸을 숨기고, 저장하면 하고 싶은 것 목록으로 돌아간다 */
+  todo?: { id: string; content: string } | undefined;
+  /** 고칠 일정이 하고 싶은 것과 이어졌는지. 그러면 반복 칸을 숨긴다(#471) */
+  isTodoEvent?: boolean;
 }
 
 /** 공유 캘린더 일정 추가·수정 폼 */
@@ -59,9 +65,11 @@ export const EventForm = ({
   viewedDate,
   isDetached = false,
   recordLink,
+  todo,
+  isTodoEvent = false,
 }: EventFormProps): ReactElement => {
-  // 캘린더에서 고른 날마다 다른 폼이다. 다른 날의 실패한 내용이 채워지지 않게 날짜까지 구분한다
-  const formKey = `event:${eventId ? `${eventId}:${occurrence?.date ?? ""}` : `new:${initialDraft.date}`}`;
+  // 캘린더에서 고른 날마다 다른 폼이다. 다른 날의 실패한 내용이 채워지지 않게 날짜까지 구분한다. 하고 싶은 것에서 연 폼은 그 하고 싶은 것으로 구분한다
+  const formKey = `event:${eventId ? `${eventId}:${occurrence?.date ?? ""}` : todo ? `todo:${todo.id}` : `new:${initialDraft.date}`}`;
   const { failedSave, ...leavableSave } = useLeavableSave({ formKey, subject: "일정을", failedSaves });
   const [draft, setDraft] = useState(failedSave?.draft ?? initialDraft);
   // 쓴 내용이 있는지 견줄 처음 내용. 상대가 고쳐 화면을 새로 받아도 폼은 처음 내용 그대로라 이 값과 견준다
@@ -74,7 +82,7 @@ export const EventForm = ({
   if (isResolvedFieldNotice(notice, errors)) setNotice(undefined);
   // 캘린더로 돌아가면 일정 날짜가 속한 달을 열고 그날을 고른다
   const backDate = viewedDate ?? initialDraft.date;
-  const backHref = toCalendarHref({ date: backDate });
+  const backHref = todo ? toTodoEditHref(todo.id) : toCalendarHref({ date: backDate });
   const { isSaving, save } = useEventSave({
     initialDraft,
     eventId,
@@ -82,6 +90,7 @@ export const EventForm = ({
     occurrence,
     viewedDate,
     backDate,
+    todoId: todo?.id,
     setDraft,
     setNotice,
     leavableSave,
@@ -145,6 +154,15 @@ export const EventForm = ({
     >
       {/* 칸이 많아 간격을 좁혀야 메모 4줄이 15 Pro 화면에 들어온다. 남은 높이는 메모 칸이 채워 기기마다 저장 버튼이 같은 자리에 온다(#57) */}
       <form onSubmit={handleSubmit} noValidate className="mt-3 flex flex-1 flex-col gap-4">
+        {todo && (
+          <p className="flex items-center gap-2.5 rounded-[10px] border border-line bg-surface px-3 py-2.5 text-[13px] text-ink-sub">
+            <TodoIcon className="size-5 shrink-0" />
+            <span className="min-w-0 break-words">
+              하고 싶은 것 <strong className="font-normal text-ink">{todo.content}</strong>에 이어요
+            </span>
+          </p>
+        )}
+
         {occurrence && <EventScopeField scope={draft.scope} isDisabled={isSaving} onChange={changeScope} />}
 
         <TextField
@@ -181,6 +199,8 @@ export const EventForm = ({
           isDisabled={isSaving}
           // 이 날만 고칠 때와 따로 나온 일정은 반복과 기간을 바꾸지 않는다
           canEditSpan={!isOccurrenceScope && !isDetached}
+          // 하고 싶은 것과 이어진 일정은 반복하지 않는다(#471)
+          canRepeat={!todo && !isTodoEvent}
           setDraft={setDraft}
           setErrors={setErrors}
           onFieldChange={updateField}

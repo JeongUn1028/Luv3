@@ -985,3 +985,23 @@ export const createDisposableAuthorEvent = async ({ id, title, nickname }: { id:
   }
   return remove;
 };
+
+/**
+ * 하고 싶은 것에 이어진 일정 id를 읽는다(#471). 없으면 undefined.
+ *
+ * @example const eventId = await getTodoEventId(todoId)
+ */
+export const getTodoEventId = async (todoId: string): Promise<string | undefined> => {
+  const { data, error } = await createAdminClient().from("todos").select("event_id").eq("id", todoId).maybeSingle();
+  assertNoError({ error }, "하고 싶은 것의 일정 읽기");
+  return data?.event_id ?? undefined;
+};
+
+/**
+ * 하고 싶은 것에 일정을 이어 둔 상황을 만든다(#471). 앱은 `schedule_todo` 함수로만 잇지만, 테스트는 비밀 키로 바로 잇는다.
+ *
+ * @example await linkTodoEvent(todoId, eventId)
+ */
+export const linkTodoEvent = async (todoId: string, eventId: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("todos").update({ event_id: eventId }).eq("id", todoId), "하고 싶은 것에 일정 잇기");
+};

@@ -253,14 +253,14 @@ isOneToOne: false
                   ]
                 },"todos": {
                   Row: {
-                    "author_id": string,"completed_at": string | null,"content": string,"created_at": string,"id": string,"revision": string,"sort_order": number
+                    "author_id": string,"completed_at": string | null,"content": string,"created_at": string,"event_id": string | null,"id": string,"revision": string,"sort_order": number
                   }
                   ComputedFields: never
                   Insert: {
-                    "author_id"?: string,"completed_at"?: string | null,"content": string,"created_at"?: string,"id"?: string,"revision"?: string,"sort_order"?: number
+                    "author_id"?: string,"completed_at"?: string | null,"content": string,"created_at"?: string,"event_id"?: string | null,"id"?: string,"revision"?: string,"sort_order"?: number
                   }
                   Update: {
-                    "author_id"?: string,"completed_at"?: string | null,"content"?: string,"created_at"?: string,"id"?: string,"revision"?: string,"sort_order"?: number
+                    "author_id"?: string,"completed_at"?: string | null,"content"?: string,"created_at"?: string,"event_id"?: string | null,"id"?: string,"revision"?: string,"sort_order"?: number
                   }
                   Relationships: [
                     {
@@ -268,6 +268,12 @@ isOneToOne: false
       columns: ["author_id"]
 isOneToOne: false
       referencedRelation: "members"
+      referencedColumns: ["id"]
+    },{
+      foreignKeyName: "todos_event_id_fkey"
+      columns: ["event_id"]
+isOneToOne: false
+      referencedRelation: "events"
       referencedColumns: ["id"]
     }
                   ]
@@ -342,6 +348,9 @@ isOneToOne: false
                            },
 "save_push_subscription":
 { Args: { "p_auth": string,"p_endpoint": string,"p_p256dh": string }; Returns: undefined
+                           },
+"schedule_todo":
+{ Args: { "p_date": string,"p_end_date"?: string,"p_event_id": string,"p_expected_revisions"?: (string)[],"p_is_together": boolean,"p_memo"?: string,"p_place"?: string,"p_revision": string,"p_start_time"?: string,"p_title": string,"p_todo_id": string }; Returns: undefined
                            },
 "search_date_records":
 { Args: { "p_before_created_at"?: string,"p_before_date"?: string,"p_before_id"?: string,"p_limit"?: number,"p_tag"?: string,"p_words"?: (string)[] }; Returns: {

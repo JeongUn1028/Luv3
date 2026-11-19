@@ -1,6 +1,15 @@
 /** 하고 싶은 것 탭 주소 */
 export const TODOS_PATH = "/todos";
 
+/** 하고 싶은 것에 이어진 일정 행(#471). 일정의 작성자는 한 사람 일정의 주인 이름에 쓴다 */
+export interface TodoEventRow {
+  id: string;
+  date: string;
+  end_date: string | null;
+  is_together: boolean;
+  author: { nickname: string } | null;
+}
+
 /** 목록 조회 때 읽는 `todos` 행. 둘이 함께 쓰는 목록이라 작성자는 읽지 않는다(#204) */
 export interface TodoRow {
   id: string;
@@ -8,6 +17,19 @@ export interface TodoRow {
   sort_order: number;
   completed_at: string | null;
   revision: string;
+  /** 이어진 일정. 없으면 null, 읽지 않은 조회는 빈다 */
+  event?: TodoEventRow | null;
+}
+
+/** 하고 싶은 것에 이어진 일정(#471) */
+export interface TodoEvent {
+  id: string;
+  /** 시작일(YYYY-MM-DD) */
+  date: string;
+  /** 기간 일정의 끝 날짜. 하루 일정이면 undefined */
+  endDate: string | undefined;
+  isTogether: boolean;
+  authorNickname: string | undefined;
 }
 
 /** 화면에 그리는 하고 싶은 것 하나 */
@@ -20,6 +42,8 @@ export interface Todo {
   completedAt: string | undefined;
   /** 판 번호(#161). 목록에 먼저 보여 준 저장 중인 내용을 서버 목록이 따라잡았는지 견준다(#345) */
   revision: string;
+  /** 이어진 일정(#471). 없으면 undefined */
+  event?: TodoEvent | undefined;
 }
 
 /** 목록에서 하는 동작. 저장이 끝나기 전에 화면에 먼저 반영할 때 쓴다 */
@@ -27,17 +51,26 @@ export type TodoAction =
   | { type: "move"; id: string; offset: -1 | 1 }
   | { type: "complete"; id: string; completedAt: string | undefined };
 
+const toTodoEvent = ({ id, date, end_date, is_together, author }: TodoEventRow): TodoEvent => ({
+  id,
+  date,
+  endDate: end_date ?? undefined,
+  isTogether: is_together,
+  authorNickname: author?.nickname,
+});
+
 /**
  * 조회한 행을 화면용 값으로 바꾼다. DB의 null은 undefined로 바꾼다.
  *
  * @example const todos = data.map(toTodo)
  */
-export const toTodo = ({ id, content, sort_order, completed_at, revision }: TodoRow): Todo => ({
+export const toTodo = ({ id, content, sort_order, completed_at, revision, event }: TodoRow): Todo => ({
   id,
   content,
   sortOrder: sort_order,
   completedAt: completed_at ?? undefined,
   revision,
+  ...(event ? { event: toTodoEvent(event) } : {}),
 });
 
 const isOpen = (todo: Todo): boolean => todo.completedAt === undefined;

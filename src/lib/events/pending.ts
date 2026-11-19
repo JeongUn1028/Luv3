@@ -80,8 +80,10 @@ export const mergePendingEvents = (events: CalendarEvent[], pendingEvents: reado
   const shown: ShownEvent[] = events.map((event) => {
     serverIds.add(event.id);
     const pending = pendingById.get(event.id);
-    // 하루짜리만 먼저 그리므로 서버의 줄도 하나다. 이어진 기록은 서버 값을 지킨다
-    return pending && isBeforeSave(event.revision, pending) ? { ...pending.event, recordId: event.recordId, isPending: true } : event;
+    // 하루짜리만 먼저 그리므로 서버의 줄도 하나다. 이어진 기록과 하고 싶은 것(#471)은 폼이 바꾸지 않아 서버 값을 지킨다
+    return pending && isBeforeSave(event.revision, pending)
+      ? { ...pending.event, recordId: event.recordId, ...(event.todo ? { todo: event.todo } : {}), isPending: true }
+      : event;
   });
   for (const pending of pendingEvents) {
     // 서버에 없는 고치기는 다른 달에 있던 일정을 이 달로 옮기는 중일 수 있다. 저장이 끝났는데도 없으면 그사이 지워진 것이다

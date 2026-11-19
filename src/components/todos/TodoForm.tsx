@@ -17,10 +17,11 @@ import { toFailedSaveFields } from "@/lib/revision";
 import { deleteRowById } from "@/lib/delete-row";
 import { createClient } from "@/lib/supabase/client";
 import { TODO_CONTENT_MAX_LENGTH, validateTodoContent } from "@/lib/todos/form";
-import { TODOS_PATH } from "@/lib/todos/list";
+import { TODOS_PATH, type TodoEvent } from "@/lib/todos/list";
 import { pendingTodoStore } from "@/lib/todos/pending";
 import { saveTodo } from "@/lib/todos/save";
 import { SaveButton } from "@/components/SaveButton";
+import { TodoEventField } from "@/components/todos/TodoEventField";
 
 /** 저장에 실패해 보관하는 폼 내용 */
 interface TodoDraft {
@@ -45,10 +46,12 @@ interface TodoFormProps {
   todoId?: string;
   /** 고칠 항목의 판 번호. 화면을 연 뒤 상대가 내용을 고쳤는지 알아본다(#161) */
   initialRevision?: string;
+  /** 고칠 항목에 이어진 일정과 오늘(한국 날짜). 고칠 때만 "일정" 칸을 그린다(#471) */
+  schedule?: { event: TodoEvent | undefined; today: string };
 }
 
 /** 하고 싶은 것 추가·고치기 폼. 고칠 때는 머리글에서 지울 수도 있다 */
-export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormProps): ReactElement => {
+export const TodoForm = ({ initialContent, todoId, initialRevision, schedule }: TodoFormProps): ReactElement => {
   const formKey = `todo:${todoId ?? "new"}`;
   const { failedSave, beginSave, finishSaved, finishFailed } = useLeavableSave({ formKey, subject: "하고 싶은 것을", failedSaves });
   const [content, setContent] = useState(failedSave?.draft.content ?? initialContent);
@@ -164,6 +167,8 @@ export const TodoForm = ({ initialContent, todoId, initialRevision }: TodoFormPr
             setErrors((current) => clearError(current, "content"));
           }}
         />
+
+        {todoId && schedule && <TodoEventField todoId={todoId} event={schedule.event} today={schedule.today} shouldConfirmLeave={shouldConfirmLeave} />}
 
         <FormFooter notice={notice}>
           {hasConflict ? <ReloadLatestButton /> : <SaveButton isDisabled={isSaving}>{isSaving ? "저장 중…" : "저장"}</SaveButton>}

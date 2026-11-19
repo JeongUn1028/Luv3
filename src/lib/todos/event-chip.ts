@@ -1,0 +1,26 @@
+import { getWeekday, WEEKDAYS } from "@/lib/calendar/month";
+import { formatEventOwner } from "@/lib/events/calendar";
+import type { TodoEvent } from "./list";
+
+/** 하고 싶은 것에 이어진 일정 칩의 글자와, 일정 날짜가 지났는지 */
+export interface TodoEventChip {
+  label: string;
+  /** 지났으면 크림색으로 그린다 */
+  isPast: boolean;
+}
+
+/** "11월 23일". 날짜 글자(YYYY-MM-DD)만 보고 만들어 시간대와 상관없다 */
+const formatMonthDay = (isoDate: string): string => `${Number(isoDate.slice(5, 7))}월 ${Number(isoDate.slice(8, 10))}일`;
+
+/**
+ * 하고 싶은 것에 이어진 일정 칩(#471). 오늘이거나 앞으로의 일정은 "11월 23일 토 · 함께", 지난 일정은 "11월 23일 지남".
+ * 기간 일정은 시작일로 쓰고, 끝 날짜가 지나야 지난 것으로 본다. 날짜를 미루면 새 날짜로 다시 계산한다.
+ *
+ * @param today 오늘(한국 날짜, YYYY-MM-DD)
+ * @example formatTodoEventChip({ id, date: "2026-11-23", endDate: undefined, isTogether: true, authorNickname: "정운" }, "2026-11-19") // { label: "11월 23일 월 · 함께", isPast: false }
+ */
+export const formatTodoEventChip = (event: TodoEvent, today: string): TodoEventChip => {
+  const isPast = (event.endDate ?? event.date) < today;
+  if (isPast) return { label: `${formatMonthDay(event.date)} 지남`, isPast };
+  return { label: `${formatMonthDay(event.date)} ${WEEKDAYS[getWeekday(event.date)]} · ${formatEventOwner(event)}`, isPast };
+};

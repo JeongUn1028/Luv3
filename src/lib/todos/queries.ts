@@ -13,7 +13,9 @@ export class TodoLoadError extends Error {
 }
 
 // 작성자를 읽지 않는 이유는 `TodoRow` 주석에 있다
-const TODO_COLUMNS = "id, content, sort_order, completed_at, revision";
+const TODO_BASE_COLUMNS = "id, content, sort_order, completed_at, revision";
+// 목록과 고치기 화면은 이어진 일정(#471)도 읽어 칩에 날짜와 누구 일정인지를 쓴다
+const TODO_COLUMNS = `${TODO_BASE_COLUMNS}, event:events!todos_event_id_fkey(id, date, end_date, is_together, author:members!events_author_id_fkey(nickname))` as const;
 
 /**
  * 둘이 함께 쓰는 하고 싶은 것 목록 전체를 정한 순서대로 읽는다. 1000개가 넘어도 잘리지 않게 끝까지 나눠 읽는다(#272).
@@ -45,7 +47,7 @@ export const getOpenTodoPreview = async (limit: number): Promise<Todo[]> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("todos")
-    .select(TODO_COLUMNS)
+    .select(TODO_BASE_COLUMNS)
     .is("completed_at", null)
     .order("sort_order")
     .order("id")

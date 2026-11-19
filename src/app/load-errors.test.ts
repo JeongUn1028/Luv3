@@ -19,6 +19,7 @@ const LOAD_CALLS = [
   { at: "app/dates/[id]/page.tsx", query: "getLinkableEvents", errorClass: "EventLoadError" },
   { at: "app/dates/[id]/edit/page.tsx", query: "getEditableRecord", errorClass: "DateRecordLoadError" },
   { at: "app/events/[id]/edit/page.tsx", query: "getEvent", errorClass: "EventLoadError" },
+  { at: "app/events/new/page.tsx", query: "getTodo", errorClass: "TodoLoadError" },
   { at: "app/todos/[id]/edit/page.tsx", query: "getTodo", errorClass: "TodoLoadError" },
   { at: "app/settings/page.tsx", query: "getPushNotifySettings", errorClass: "PushSettingsLoadError" },
   { at: "app/settings/trash/page.tsx", query: "getTrashSections", errorClass: "TrashLoadError" },

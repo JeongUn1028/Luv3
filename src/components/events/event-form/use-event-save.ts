@@ -12,6 +12,8 @@ import type { LeavableSave } from "@/lib/navigation/use-leavable-save";
 import { requestPartnerPush } from "@/lib/push/request-partner-push";
 import { toFailedSaveFields } from "@/lib/revision";
 import { createClient } from "@/lib/supabase/client";
+import { requestTodoFocus } from "@/lib/todos/focus";
+import { TODOS_PATH } from "@/lib/todos/list";
 
 interface UseEventSaveParams {
   initialDraft: EventDraft;
@@ -25,6 +27,8 @@ interface UseEventSaveParams {
   viewedDate: string | undefined;
   /** 뒤로 가면 고를 날. 저장할 날이 이 날이면 뒤로 가서 숨겨 둔 캘린더를 그대로 보여 준다 */
   backDate: string;
+  /** 새 일정을 이 하고 싶은 것에 이어 만든다(#471). 저장하면 하고 싶은 것 목록으로 돌아가 그 줄을 보여 준다 */
+  todoId: string | undefined;
   setDraft: Dispatch<SetStateAction<EventDraft>>;
   /** 폼 아래 안내. 저장을 시작하면 지우고 실패하면 이유를 적는다 */
   setNotice: Dispatch<SetStateAction<string | undefined>>;
@@ -57,6 +61,7 @@ export const useEventSave = ({
   occurrence,
   viewedDate,
   backDate,
+  todoId,
   setDraft,
   setNotice,
   leavableSave,
@@ -73,7 +78,9 @@ export const useEventSave = ({
     // 시도마다 새 판 번호를 쓴다. 내용이 바뀌면 판 번호도 바뀌어야 열어 둔 상대의 화면이 알아챈다
     const revision = crypto.randomUUID();
     const dateAfterSave = getDateAfterSave(draft, { occurrenceDate: occurrence?.date, viewedDate });
-    const savedHref = toCalendarHref({ date: dateAfterSave });
+    // 하고 싶은 것에서 연 폼은 목록으로 돌아가 그 줄을 보여 주고, 저장이 끝나면 그 줄에 날짜 칩이 붙는다.
+    // 고치기 화면(폼)으로 돌아가면 쓰던 내용을 지키려고 새로 받지 않아 "일정 잡기"가 그대로 남는다
+    const savedHref = todoId ? TODOS_PATH : toCalendarHref({ date: dateAfterSave });
     // 하루짜리 일정만 저장을 기다리지 않고 캘린더에 먼저 그린다. 반복·기간·"이 날만 고치기"는 저장이 끝난 뒤 새로 받는다(#345)
     const pendingId = eventId ?? newEventId;
     const isShownBeforeSave = canShowEventBeforeSave({ draft, initialDraft });
@@ -91,14 +98,19 @@ export const useEventSave = ({
     // 저장할 날이 다른 날·다른 달이면 그날을 고른 캘린더 주소로 옮긴다
     const hasReturned = beginSave({
       returnTo: savedHref,
-      canGoBackTo: (url) => dateAfterSave === backDate && isCalendarMonthUrl(url, dateAfterSave.slice(0, 7), toKstDate(new Date())),
+      canGoBackTo: (url) =>
+        todoId ? url.pathname === savedHref : dateAfterSave === backDate && isCalendarMonthUrl(url, dateAfterSave.slice(0, 7), toKstDate(new Date())),
     });
     // 인터넷이 끊겨 폼에 남으면 캘린더에 먼저 그릴 일이 없다(저장은 실패한다)
     if (!hasReturned) pendingEventStore.discard(pendingId, revision);
+    // 목록으로 돌아갈 때만 그 줄을 남긴다. 폼에 남았는데 남기면 나중에 목록을 열 때 엉뚱하게 그 줄로 간다.
+    // 목록은 다음 그림에서 꺼내므로 옮기기를 시작한 뒤에 남겨도 된다
+    else if (todoId) requestTodoFocus(todoId);
     const supabase = createClient();
     const failure = await saveEvent({
       events: supabase.from("events"),
       detachOccurrence: (args) => supabase.rpc("detach_event_occurrence", args),
+      todoSchedule: todoId ? { todoId, scheduleTodo: (args) => supabase.rpc("schedule_todo", args) } : undefined,
       draft,
       eventId,
       occurrenceDate: occurrence?.date,
