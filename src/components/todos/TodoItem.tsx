@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { MouseEvent, ReactElement } from "react";
 import { ChevronDownIcon, ChevronUpIcon } from "@/components/icons";
 import { SETTLE_TRANSITION_CLASS_NAME } from "@/components/settle-transition";
+import { toRecordHref } from "@/lib/dates/record-href";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { formatTodoEventChip, getTodoEventLastDay, shouldAskTodoEventDone } from "@/lib/todos/event-chip";
 import type { Todo } from "@/lib/todos/list";
@@ -107,7 +108,7 @@ const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDe
 
 /**
  * 목록 한 줄: 완료 체크 + 내용(누르면 고치기 화면, 이어진 일정이 있으면 날짜 칩) + 순서 버튼. 저장 중이면 흐리게 그리고 누를 수 없게 한다.
- * 이어진 일정이 지났으면 줄 아래에 완료로 옮길지 묻는 칸을 붙인다(#471).
+ * 이어진 일정이 지났으면 줄 아래에 완료로 옮길지 묻는 칸을 붙이고, 그 일정으로 남긴 기록이 있으면 완료 줄에 "기록 보기"를 둔다(#471·#473).
  * 움직임(막 더함 표시·줄긋기·나타남)은 `globals.css`의 `todo-*` 클래스다.
  *
  * @example <TodoItem todo={todo} onToggle={handleToggle} />
@@ -117,8 +118,11 @@ export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isA
   const isStriking = strikePhase !== undefined;
   const eventChip = todo.event && today && !isCompleted ? formatTodoEventChip(todo.event, today) : undefined;
   const { isPending } = todo;
-  // 줄을 긋는 중이거나 저장 중인 항목에는 묻지 않는다. 완료로 옮기는 중에 다시 누를 수 없게 한다
-  const askEvent = todo.event && today && onAnswerAsk && !isCompleted && !isStriking && !isPending && shouldAskTodoEventDone(todo.event, today) ? todo.event : undefined;
+  // 줄을 긋는 중이거나 저장 중인 항목에는 묻지 않는다. 완료로 옮기는 중에 다시 누를 수 없게 한다.
+  // 그 일정으로 남긴 기록이 있으면 다녀온 것이 분명하므로 묻지 않는다(완료를 손으로 푼 경우, #473)
+  const askEvent = todo.event && today && onAnswerAsk && !isCompleted && !isStriking && !isPending && !todo.event.recordId && shouldAskTodoEventDone(todo.event, today) ? todo.event : undefined;
+  // 이어진 일정으로 남긴 기록이 있으면 완료 줄에서 그 기록으로 간다(#473). 저장 중이거나 줄을 긋는 중에는 두지 않는다
+  const recordId = isCompleted && !isPending && !isStriking ? todo.event?.recordId : undefined;
   const textColorClassName = isCompleted || isPending || isStriking ? "text-ink-sub" : "text-ink";
   return (
     <li
@@ -154,6 +158,16 @@ export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isA
           </span>
         )}
       </Link>
+      {recordId && (
+        <Link
+          href={toRecordHref(recordId)}
+          transitionTypes={FORWARD_TRANSITION}
+          aria-label={`${todo.content} 기록 보기`}
+          className="press-icon flex h-11 shrink-0 items-center pr-3 pl-1"
+        >
+          <span className="rounded-full bg-accent/10 px-2.5 py-0.5 text-[12px] text-accent">기록 보기</span>
+        </Link>
+      )}
       {children}
       {askEvent && onAnswerAsk && <TodoDoneAsk todo={todo} eventId={askEvent.id} lastDay={getTodoEventLastDay(askEvent)} onAnswer={onAnswerAsk} />}
     </li>

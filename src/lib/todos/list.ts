@@ -8,6 +8,8 @@ export interface TodoEventRow {
   end_date: string | null;
   is_together: boolean;
   author: { nickname: string } | null;
+  /** 이 일정으로 남긴 기록(#473). 반복하지 않는 일정이라 많아야 하나다. 읽지 않은 조회는 빈다 */
+  records?: { id: string }[];
 }
 
 /** 목록 조회 때 읽는 `todos` 행. 둘이 함께 쓰는 목록이라 작성자는 읽지 않는다(#204) */
@@ -32,6 +34,8 @@ export interface TodoEvent {
   endDate: string | undefined;
   isTogether: boolean;
   authorNickname: string | undefined;
+  /** 이 일정으로 남긴 기록(#473). 완료 줄의 "기록 보기"가 연다. 없으면 두지 않는다 */
+  recordId?: string;
   /** 날짜가 지나 묻는 칸에서 [아직]을 누른 일정의 마지막 날. 일정을 미뤄 마지막 날이 달라지면 다시 묻는다 */
   notYetDate: string | undefined;
 }
@@ -57,8 +61,9 @@ export type TodoAction =
   /** 지난 일정 묻기의 [아직](#471). eventId·date는 누를 때 본 일정과 그 마지막 날 */
   | { type: "notYet"; id: string; eventId: string; date: string };
 
-const toTodoEvent = ({ id, date, end_date, is_together, author }: TodoEventRow, notYetDate: string | null | undefined): TodoEvent => ({
+const toTodoEvent = ({ id, date, end_date, is_together, author, records }: TodoEventRow, notYetDate: string | null | undefined): TodoEvent => ({
   id,
+  ...(records?.[0] ? { recordId: records[0].id } : {}),
   date,
   endDate: end_date ?? undefined,
   isTogether: is_together,
