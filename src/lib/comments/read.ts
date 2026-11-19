@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isRecordId } from "@/lib/dates/record-href";
+import { isUuid } from "@/lib/guards";
 import type { Database } from "@/lib/supabase/database.types";
 import type { CommentRow } from "./comment";
 
@@ -20,7 +20,7 @@ export class CommentLoadError extends Error {
  * @example const rows = await readRecordComments(createClient(), recordId)
  */
 export const readRecordComments = async (supabase: SupabaseClient<Database>, recordId: string): Promise<CommentRow[]> => {
-  if (!isRecordId(recordId)) return [];
+  if (!isUuid(recordId)) return [];
   const { data, error } = await supabase
     .from("comments")
     .select("id, content, created_at, author_id, author:members!comments_author_id_fkey(nickname)")

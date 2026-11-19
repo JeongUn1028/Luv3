@@ -1,8 +1,8 @@
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { isUuid } from "@/lib/guards";
 
 // id가 경로에 그대로 들어가므로, UUID가 아니면 다른 폴더(../)에 파일이 생길 수 있다
 const assertUuid = (id: string): void => {
-  if (!UUID_PATTERN.test(id)) throw new Error(`사진 경로의 id는 UUID여야 합니다: ${id}`);
+  if (!isUuid(id)) throw new Error(`사진 경로의 id는 UUID여야 합니다: ${id}`);
 };
 
 export interface PhotoPaths {

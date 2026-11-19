@@ -1,4 +1,5 @@
 import { TITLE_MAX_LENGTH, takeChars, type RecordPrefill } from "@/lib/dates/form";
+import { toRecordHref } from "@/lib/dates/record-href";
 import { findLinkedRecordId, isRepeatRule, type CalendarEvent, type CalendarEventRow } from "./calendar";
 import { findOccurrenceDate } from "./recurrence";
 
@@ -84,7 +85,7 @@ export const listLinkableEvents = (events: CalendarEvent[], today: string): Link
  * @example toEventRecordHref("e1", { kind: "leave", eventDate: "2026-11-01", lastDate: "2026-11-01" }) // "/dates/new?event=e1&eventDate=2026-11-01"
  */
 export const toEventRecordHref = (eventId: string, link: EventRecordLink): string =>
-  link.kind === "view" ? `/dates/${link.recordId}` : `/dates/new?${new URLSearchParams({ event: eventId, eventDate: link.eventDate }).toString()}`;
+  link.kind === "view" ? toRecordHref(link.recordId) : `/dates/new?${new URLSearchParams({ event: eventId, eventDate: link.eventDate }).toString()}`;
 
 /** 기록 작성 화면에 채울 일정 한 행 */
 export interface EventRecordPrefillRow extends Pick<CalendarEventRow, "id" | "date" | "title" | "is_together" | "repeat_rule" | "repeat_until" | "end_date" | "exceptions"> {

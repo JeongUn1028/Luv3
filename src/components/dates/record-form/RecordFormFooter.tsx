@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import { FormFooter } from "@/components/FormFooter";
 import { ReloadLatestButton } from "@/components/ReloadLatestButton";
 import { toRecordFormEnding } from "@/lib/dates/record-form-outcome";
+import { toRecordHref } from "@/lib/dates/record-href";
 import type { SaveProgress } from "@/lib/dates/save";
 import { toSaveProgressLabel } from "@/lib/dates/save-progress";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
@@ -50,7 +51,7 @@ export const RecordFormFooter = ({
       {ending.kind === "open-linked-record" && (
         // 다시 저장해도 거부되므로 저장 버튼 대신 남긴 기록으로 가는 길을 준다
         <Link
-          href={`/dates/${ending.recordId}`}
+          href={toRecordHref(ending.recordId)}
           transitionTypes={FORWARD_TRANSITION}
           className="press-wide flex h-[52px] w-full items-center justify-center rounded-[10px] bg-accent font-display text-[15px] text-background"
         >

@@ -10,6 +10,7 @@ import { RECORDS_PATH } from "@/lib/dates/album";
 import { hasRecordDraftChanges, isSameExceptReadingPhotoInfo } from "@/lib/dates/draft-changes";
 import { TITLE_MAX_LENGTH, validateDraft, type DraftErrors, type RecordPrefill } from "@/lib/dates/form";
 import { getDraftPhotos } from "@/lib/dates/photo-group-draft";
+import { toRecordHref } from "@/lib/dates/record-href";
 import { addTag } from "@/lib/dates/tags";
 import { showInvalidFields } from "@/lib/focus-invalid-field";
 import { clearError, clearFieldError, isResolvedFieldNotice, toPeriodEndDate } from "@/lib/form";
@@ -138,7 +139,7 @@ export const DateRecordForm = ({ record, prefill, tagSuggestions, mapKey }: Date
           // 지워진 기록의 상세는 찾을 수 없음 화면이라 기록을 되돌아가지 않고 목록으로 간다
           back={
             record && !isRecordGone
-              ? { href: `/dates/${record.id}`, shouldConfirmLeave }
+              ? { href: toRecordHref(record.id), shouldConfirmLeave }
               : { href: RECORDS_PATH, skipsHistory: isRecordGone, shouldConfirmLeave, onConfirmLeave: record ? undefined : discardOnLeave }
           }
           title={record ? "기록 고치기" : "기록 남기기"}

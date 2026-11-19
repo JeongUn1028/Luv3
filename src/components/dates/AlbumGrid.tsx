@@ -3,6 +3,7 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
 import { RememberedPhoto } from "@/components/RememberedPhoto";
+import { toRecordHref } from "@/lib/dates/record-href";
 import { DELETING_KEYS, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { formatPeriodMonthDay, groupByMonth, type AlbumTile } from "@/lib/dates/album";
 import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
@@ -36,7 +37,7 @@ export const AlbumGrid = ({ tiles: allTiles }: AlbumGridProps): ReactElement => 
             {monthTiles.map((tile) => (
               <li key={tile.id}>
                 <Link
-                  href={`/dates/${tile.id}`}
+                  href={toRecordHref(tile.id)}
                   transitionTypes={FORWARD_TRANSITION}
                   className="press-card relative block aspect-[4/5] rounded-[8px] bg-surface"
                 >

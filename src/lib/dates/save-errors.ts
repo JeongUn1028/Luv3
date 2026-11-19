@@ -16,7 +16,7 @@ export class SaveDateRecordError extends Error {
 /**
  * 일정에서 남기려는데 그 일정의 그날에 이미 기록이 있을 때(#227). 다시 저장해도 거부되므로 남긴 기록으로 안내한다.
  *
- * @example if (error instanceof DateRecordAlreadyLinkedError && error.recordId) router.push(`/dates/${error.recordId}`)
+ * @example if (error instanceof DateRecordAlreadyLinkedError && error.recordId) router.push(toRecordHref(error.recordId))
  */
 export class DateRecordAlreadyLinkedError extends SaveDateRecordError {
   /** 이미 남긴 기록의 id. 그사이 지워졌으면 undefined */
