@@ -20,16 +20,18 @@ const formatMonthDay = (isoDate: string): string => `${Number(isoDate.slice(5, 7
 export const getTodoEventLastDay = (event: TodoEvent): string => event.endDate ?? event.date;
 
 /**
- * 하고 싶은 것에 이어진 일정 칩(#471). 오늘이거나 앞으로의 일정은 "11월 23일 토 · 함께", 지난 일정은 "11월 23일 지남".
+ * 하고 싶은 것에 이어진 일정 칩(#471). 오늘이거나 앞으로의 일정은 "11월 23일 월", 지난 일정은 "11월 23일 지남".
+ * 하고 싶은 것은 둘이 함께 하는 것이 기본이라 함께 일정에는 "함께"를 쓰지 않고, 한 사람 일정만 "11월 23일 월 · 정운"처럼 누구 일정인지 붙인다.
  * 기간 일정은 시작일로 쓰고, 끝 날짜가 지나야 지난 것으로 본다. 날짜를 미루면 새 날짜로 다시 계산한다.
  *
  * @param today 오늘(한국 날짜, YYYY-MM-DD)
- * @example formatTodoEventChip({ id, date: "2026-11-23", endDate: undefined, isTogether: true, authorNickname: "정운" }, "2026-11-19") // { label: "11월 23일 월 · 함께", isPast: false }
+ * @example formatTodoEventChip({ id, date: "2026-11-23", endDate: undefined, isTogether: true, authorNickname: "정운" }, "2026-11-19") // { label: "11월 23일 월", isPast: false }
  */
 export const formatTodoEventChip = (event: TodoEvent, today: string): TodoEventChip => {
   const isPast = getTodoEventLastDay(event) < today;
   if (isPast) return { label: `${formatMonthDay(event.date)} 지남`, isPast };
-  return { label: `${formatMonthDay(event.date)} ${WEEKDAYS[getWeekday(event.date)]} · ${formatEventOwner(event)}`, isPast };
+  const dayLabel = `${formatMonthDay(event.date)} ${WEEKDAYS[getWeekday(event.date)]}`;
+  return { label: event.isTogether ? dayLabel : `${dayLabel} · ${formatEventOwner(event)}`, isPast };
 };
 
 /**
