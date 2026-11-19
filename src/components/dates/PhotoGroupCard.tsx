@@ -5,6 +5,7 @@ import { FieldError, FieldLabel } from "@/components/FormField";
 import { CAPTION_MAX_LENGTH, PLACE_NAME_MAX_LENGTH, type DraftErrors, type DraftPhoto, type DraftPhotoGroup } from "@/lib/dates/form";
 import { toGroupName } from "@/lib/dates/group-name";
 import { countChars } from "@/lib/form";
+import type { FocusFallback } from "@/lib/keep-focus";
 import { GroupHeader } from "./photo-group/GroupHeader";
 import { GroupLocationRow } from "./photo-group/GroupLocationRow";
 import { GroupPhotos } from "./photo-group/GroupPhotos";
@@ -43,8 +44,7 @@ interface PhotoGroupCardProps {
   errors: DraftErrors;
   isDisabled: boolean;
   actions: PhotoGroupActions;
-  /** 모음이 빠져 이웃 모음도 없을 때 초점을 받을 곳(새 모음 만들기) */
-  focusFallback: () => HTMLElement | null;
+  focusFallback: FocusFallback;
 }
 
 /**

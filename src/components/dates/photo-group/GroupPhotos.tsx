@@ -3,6 +3,7 @@
 import { useRef, useState, type ReactElement } from "react";
 import { MAX_GROUP_PHOTOS } from "@/lib/dates/photo-group-draft";
 import { PHOTO_INPUT_ACCEPT } from "@/lib/photos/accepted";
+import { SMALL_BUTTON_CLASS_NAME } from "./small-button";
 
 interface PhotoThumbProps {
   src: string | undefined;
@@ -91,7 +92,7 @@ export const GroupPhotos = ({ groupName, photos, coverPhotoId, selectedPhotoId, 
         type="button"
         disabled={isDisabled || room <= 0}
         onClick={() => inputRef.current?.click()}
-        className="press-icon relative h-9 self-start rounded-[8px] border border-dashed border-line px-3 text-[12px] text-ink-sub after:absolute after:-inset-[5px] hover:text-ink disabled:opacity-40"
+        className={`${SMALL_BUTTON_CLASS_NAME} self-start border border-dashed border-line px-3 text-[12px] text-ink-sub hover:text-ink disabled:opacity-40`}
       >
         {room > 0 ? `+ 이 모음에 사진 더하기 (${room}장 남음)` : `모음 하나에 ${MAX_GROUP_PHOTOS}장까지예요`}
       </button>

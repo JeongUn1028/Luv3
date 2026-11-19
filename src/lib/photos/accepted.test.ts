@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isAcceptedPhoto, isHeic, PHOTO_INPUT_ACCEPT } from "./accepted";
+import { ACCEPTED_PHOTO_FORMATS_LABEL, isAcceptedPhoto, isHeic, PHOTO_INPUT_ACCEPT } from "./accepted";
 
 describe("isAcceptedPhoto", () => {
   it("JPEG·PNG·WebP·HEIC는 받는다", () => {
@@ -47,5 +47,34 @@ describe("isHeic", () => {
 
   it("JPEG는 false다", () => {
     expect(isHeic(new File([], "a.jpg", { type: "image/jpeg" }))).toBe(false);
+  });
+});
+
+describe("ACCEPTED_PHOTO_FORMATS_LABEL", () => {
+  it("받는 형식 이름을 가운뎃점으로 잇는다", () => {
+    expect(ACCEPTED_PHOTO_FORMATS_LABEL).toBe("JPEG·PNG·WebP·HEIC");
+  });
+});
+
+describe("PHOTO_INPUT_ACCEPT", () => {
+  it("사진 고르기 칸에 알리는 형식을 바꾸지 않는다", () => {
+    expect(PHOTO_INPUT_ACCEPT).toBe("image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif");
+  });
+
+  // 칸에서 고를 수 있는데 고른 뒤 빠지면 사용자는 이유를 모른다
+  it("알리는 MIME 타입과 확장자는 모두 받는다", () => {
+    // Arrange
+    const files = PHOTO_INPUT_ACCEPT.split(",").map((item) =>
+      item.startsWith(".") ? new File([], `a${item}`) : new File([], "a", { type: item }),
+    );
+
+    // Assert
+    expect(files.every(isAcceptedPhoto)).toBe(true);
+  });
+});
+
+describe("확장자로 판단할 때", () => {
+  it("JPEG·PNG·WebP 확장자는 받고 다른 확장자는 받지 않는다", () => {
+    expect(["a.jpg", "a.JPEG", "a.png", "a.webp", "a.gif"].map((name) => isAcceptedPhoto(new File([], name)))).toEqual([true, true, true, true, false]);
   });
 });

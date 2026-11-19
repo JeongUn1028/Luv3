@@ -3,6 +3,7 @@ import { FieldError } from "@/components/FormField";
 import { MapPinIcon } from "@/components/icons";
 import type { GroupLocationSource, PhotoLocation } from "@/lib/dates/form";
 import { toGroupLocationText } from "@/lib/dates/group-location";
+import { SMALL_BUTTON_CLASS_NAME } from "./small-button";
 
 interface GroupLocationRowProps {
   /** 화면 읽기 프로그램에 읽어 줄 모음 이름(모음 1) */
@@ -60,8 +61,8 @@ export const GroupLocationRow = ({
           onClick={onOpenLocation}
           className={
             isChangeMode
-              ? "press-icon relative h-9 shrink-0 rounded-[8px] border border-line px-2.5 text-[12px] text-ink-sub after:absolute after:-inset-[5px] disabled:opacity-50"
-              : "press-icon relative h-9 shrink-0 rounded-[8px] bg-accent px-3 text-[13px] text-background after:absolute after:-inset-[5px] disabled:opacity-50"
+              ? `${SMALL_BUTTON_CLASS_NAME} shrink-0 border border-line px-2.5 text-[12px] text-ink-sub disabled:opacity-50`
+              : `${SMALL_BUTTON_CLASS_NAME} shrink-0 bg-accent px-3 text-[13px] text-background disabled:opacity-50`
           }
         >
           {isChangeMode ? "위치 바꾸기" : "지도에서 고르기"}
