@@ -1,5 +1,13 @@
 import { flushSync } from "react-dom";
 
+/**
+ * 누른 버튼이 항목과 함께 사라지고 이웃 항목도 없을 때 초점을 받을 곳을 찾는 함수(예: 모음이 모두 빠지면 새 모음 만들기 버튼).
+ * 그릴 때가 아니라 누를 때 찾아야 ref가 가리키는 지금의 노드를 받으므로 함수로 넘긴다.
+ *
+ * @example const focusFallback: FocusFallback = () => pickRef.current;
+ */
+export type FocusFallback = () => HTMLElement | null;
+
 interface RunKeepingFocusParams {
   /** 누른 버튼 */
   button: HTMLElement;

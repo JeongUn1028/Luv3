@@ -1,10 +1,8 @@
 import type { ReactElement } from "react";
-import { runKeepingFocus } from "@/lib/keep-focus";
+import { type FocusFallback, runKeepingFocus } from "@/lib/keep-focus";
+import { SMALL_BUTTON_CLASS_NAME } from "./small-button";
 
-// 보이는 크기는 36px로 두고 누르는 영역만 44px로 넓힌다. 버튼 사이 간격(8px)을 반씩 나눠 가져 서로 겹치지 않는다(#105).
-// 가상 요소는 테두리 안쪽을 기준으로 놓이므로 테두리 1px을 더해 5px 넓힌다
-const smallButtonClassName =
-  "press-icon relative h-9 min-w-9 rounded-[8px] border border-line px-2 text-[12px] text-ink-sub after:absolute after:-inset-[5px] hover:text-ink disabled:opacity-30 aria-disabled:opacity-30";
+const smallButtonClassName = `${SMALL_BUTTON_CLASS_NAME} min-w-9 border border-line px-2 text-[12px] text-ink-sub hover:text-ink disabled:opacity-30 aria-disabled:opacity-30`;
 
 interface SelectedPhotoActionsProps {
   /** 화면 읽기 프로그램에 읽어 줄 모음 이름(모음 1) */
@@ -18,8 +16,7 @@ interface SelectedPhotoActionsProps {
   onCoverChange: (photoId: string) => void;
   onMovePhoto: (photoId: string, offset: -1 | 1) => void;
   onRemovePhoto: (photoId: string) => void;
-  /** 모음이 빠져 이웃 모음도 없을 때 초점을 받을 곳(새 모음 만들기) */
-  focusFallback: () => HTMLElement | null;
+  focusFallback: FocusFallback;
 }
 
 /**

@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { ChevronDownIcon, ChevronUpIcon, CloseIcon } from "@/components/icons";
-import { runKeepingFocus } from "@/lib/keep-focus";
+import { type FocusFallback, runKeepingFocus } from "@/lib/keep-focus";
 
 // 머리글의 아이콘 버튼은 테두리가 없어 보이는 크기 그대로 44px로 둔다
 const iconButtonClassName =
@@ -17,8 +17,7 @@ interface GroupHeaderProps {
   isDisabled: boolean;
   onMove: (offset: -1 | 1) => void;
   onRemove: () => void;
-  /** 모음이 빠져 이웃 모음도 없을 때 초점을 받을 곳(새 모음 만들기) */
-  focusFallback: () => HTMLElement | null;
+  focusFallback: FocusFallback;
 }
 
 /**

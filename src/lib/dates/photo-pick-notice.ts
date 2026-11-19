@@ -1,4 +1,5 @@
 import { FIX_FIELDS_NOTICE } from "@/lib/form";
+import { ACCEPTED_PHOTO_FORMATS_LABEL } from "@/lib/photos/accepted";
 import { MAX_GROUP_PHOTOS } from "./photo-group-draft";
 
 /** 사진을 고른 결과 중 알릴 것 */
@@ -18,7 +19,7 @@ interface PickNoticeParams {
  */
 export const toPickNotice = ({ skippedCount, droppedCount, isNewGroup }: PickNoticeParams): string | undefined => {
   const messages = [
-    skippedCount > 0 && `JPEG·PNG·WebP·HEIC 사진만 올릴 수 있어 ${skippedCount}개는 뺐어요.`,
+    skippedCount > 0 && `${ACCEPTED_PHOTO_FORMATS_LABEL} 사진만 올릴 수 있어 ${skippedCount}개는 뺐어요.`,
     droppedCount > 0 && `모음 하나에 사진은 ${MAX_GROUP_PHOTOS}장까지라 ${droppedCount}장은 뺐어요.${isNewGroup ? " 남은 사진은 새 모음으로 골라 주세요." : ""}`,
   ].filter(Boolean);
   return messages.length > 0 ? messages.join(" ") : undefined;
