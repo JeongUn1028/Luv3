@@ -212,4 +212,35 @@ test.describe("하고 싶은 것에 일정 잡기(#471)", () => {
       await deleteTodo();
     }
   });
+
+  test("목록을 연 뒤 상대가 같은 날짜로 일정을 다시 잡았으면 [아직]은 새 일정에 붙지 않고, 새로 불러온 목록이 다시 묻는다", async ({ page }, testInfo) => {
+    // Arrange
+    const todoId = randomUUID();
+    const oldEventId = randomUUID();
+    const newEventId = randomUUID();
+    const content = createTestName("E2E 지난 일정 바뀜", testInfo);
+    const deleteTodo = await createDisposableTodo({ id: todoId, content });
+    const deleteOldEvent = await createDisposableEvent({ id: oldEventId, title: content, date: "2020-01-10" });
+    const deleteNewEvent = await createDisposableEvent({ id: newEventId, title: content, date: "2020-01-10" });
+    try {
+      await linkTodoEvent(todoId, oldEventId);
+      await openScreen(page, TODOS_PATH, getListRow(page, content));
+      const ask = getMain(page).getByRole("group", { name: `${content}, 다녀오셨나요? 완료로 옮길까요?` });
+      await expect(ask).toBeVisible();
+      // 상대가 앞 일정을 지우고 같은 날짜의 새 일정을 잇는다
+      await deleteOldEvent();
+      await linkTodoEvent(todoId, newEventId);
+
+      // Act
+      await ask.getByRole("button", { name: "아직" }).tap();
+
+      // Assert
+      await expect(getMain(page).getByRole("alert")).toHaveText("그사이 바뀐 항목이에요. 목록을 새로 불러왔어요.");
+      await expect(ask).toBeVisible();
+    } finally {
+      await deleteOldEvent().catch(() => undefined);
+      await deleteNewEvent();
+      await deleteTodo();
+    }
+  });
 });

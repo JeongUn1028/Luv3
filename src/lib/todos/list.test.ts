@@ -146,11 +146,11 @@ describe("applyTodoAction", () => {
     const linked = [createTodo({ id: "a", event }), createTodo({ id: "b" })];
 
     // Act
-    const dismissed = applyTodoAction(linked, { type: "notYet", id: "a", date: "2026-11-23" });
+    const dismissed = applyTodoAction(linked, { type: "notYet", id: "a", eventId: "e1", date: "2026-11-23" });
 
     // Assert
     expect(dismissed[0]?.event?.notYetDate).toBe("2026-11-23");
-    expect(applyTodoAction(linked, { type: "notYet", id: "b", date: "2026-11-23" })).toEqual(linked);
+    expect(applyTodoAction(linked, { type: "notYet", id: "b", eventId: "e1", date: "2026-11-23" })).toEqual(linked);
   });
 
   it("없는 항목에 대한 동작은 목록을 바꾸지 않는다", () => {

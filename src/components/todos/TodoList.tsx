@@ -135,7 +135,7 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
       completeTodo(todo, true);
       return;
     }
-    runAction({ type: "notYet", id: todo.id, date: answer.lastDay });
+    runAction({ type: "notYet", id: todo.id, eventId: answer.eventId, date: answer.lastDay });
   };
 
   // 마지막 항목이 상대에게 지워졌다는 안내도 빈 목록과 함께 보여야 하므로, 안내는 목록이 비었는지와 상관없이 그린다

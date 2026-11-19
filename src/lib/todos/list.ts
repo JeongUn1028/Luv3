@@ -54,8 +54,8 @@ export interface Todo {
 export type TodoAction =
   | { type: "move"; id: string; offset: -1 | 1 }
   | { type: "complete"; id: string; completedAt: string | undefined }
-  /** 지난 일정 묻기의 [아직](#471). date는 누를 때 본 일정의 마지막 날 */
-  | { type: "notYet"; id: string; date: string };
+  /** 지난 일정 묻기의 [아직](#471). eventId·date는 누를 때 본 일정과 그 마지막 날 */
+  | { type: "notYet"; id: string; eventId: string; date: string };
 
 const toTodoEvent = ({ id, date, end_date, is_together, author }: TodoEventRow, notYetDate: string | null | undefined): TodoEvent => ({
   id,

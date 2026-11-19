@@ -69,18 +69,19 @@ const toMotionClassName = ({ isJustAdded, strikePhase, isArriving }: Pick<TodoIt
 };
 
 /** 지난 일정 묻기의 대답. [아직]은 누를 때 본 일정의 마지막 날을 기억한다 */
-export type TodoAskAnswer = { type: "done" } | { type: "notYet"; lastDay: string };
+export type TodoAskAnswer = { type: "done" } | { type: "notYet"; eventId: string; lastDay: string };
 
 const ASK_BUTTON_CLASS_NAME = `press-wide h-10 flex-1 rounded-[10px] text-[13px] ${SETTLE_TRANSITION_CLASS_NAME}`;
 
 interface TodoDoneAskProps {
   todo: Todo;
+  eventId: string;
   lastDay: string;
   onAnswer: (todo: Todo, answer: TodoAskAnswer) => void;
 }
 
 /** 이어진 일정 날짜가 지난 줄 아래의 묻는 칸(#471). 두 사람이 같이 보는 목록이라 [아직]도 DB에 저장한다 */
-const TodoDoneAsk = ({ todo, lastDay, onAnswer }: TodoDoneAskProps): ReactElement => {
+const TodoDoneAsk = ({ todo, eventId, lastDay, onAnswer }: TodoDoneAskProps): ReactElement => {
   const questionId = `todo-${todo.id}-ask`;
   return (
     <div role="group" aria-labelledby={questionId} className="mb-2.5 flex w-full flex-col gap-2 rounded-xl border border-line bg-surface px-3 py-2.5">
@@ -93,7 +94,7 @@ const TodoDoneAsk = ({ todo, lastDay, onAnswer }: TodoDoneAskProps): ReactElemen
         <button type="button" onClick={() => onAnswer(todo, { type: "done" })} className={`${ASK_BUTTON_CLASS_NAME} bg-accent font-display text-background`}>
           완료
         </button>
-        <button type="button" onClick={() => onAnswer(todo, { type: "notYet", lastDay })} className={`${ASK_BUTTON_CLASS_NAME} border border-line text-ink`}>
+        <button type="button" onClick={() => onAnswer(todo, { type: "notYet", eventId, lastDay })} className={`${ASK_BUTTON_CLASS_NAME} border border-line text-ink`}>
           아직
         </button>
       </div>
@@ -117,10 +118,7 @@ export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isA
   const eventChip = todo.event && today && !isCompleted ? formatTodoEventChip(todo.event, today) : undefined;
   const { isPending } = todo;
   // 줄을 긋는 중이거나 저장 중인 항목에는 묻지 않는다. 완료로 옮기는 중에 다시 누를 수 없게 한다
-  const askLastDay =
-    todo.event && today && onAnswerAsk && !isCompleted && !isStriking && !isPending && shouldAskTodoEventDone(todo.event, today)
-      ? getTodoEventLastDay(todo.event)
-      : undefined;
+  const askEvent = todo.event && today && onAnswerAsk && !isCompleted && !isStriking && !isPending && shouldAskTodoEventDone(todo.event, today) ? todo.event : undefined;
   const textColorClassName = isCompleted || isPending || isStriking ? "text-ink-sub" : "text-ink";
   return (
     <li
@@ -157,7 +155,7 @@ export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isA
         )}
       </Link>
       {children}
-      {askLastDay && onAnswerAsk && <TodoDoneAsk todo={todo} lastDay={askLastDay} onAnswer={onAnswerAsk} />}
+      {askEvent && onAnswerAsk && <TodoDoneAsk todo={todo} eventId={askEvent.id} lastDay={getTodoEventLastDay(askEvent)} onAnswer={onAnswerAsk} />}
     </li>
   );
 };

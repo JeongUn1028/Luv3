@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { saveTodoAction, TODO_ACTION_FAILED_MESSAGE, TODO_ALREADY_DELETED_MESSAGE, type CompletableTodos } from "./actions";
+import { saveTodoAction, TODO_ACTION_FAILED_MESSAGE, TODO_ALREADY_DELETED_MESSAGE, TODO_EVENT_CHANGED_MESSAGE, type CompletableTodos } from "./actions";
 
 const TODO_ID = "10000000-0000-4000-8000-000000000001";
 
@@ -11,16 +11,26 @@ interface FakeParams {
 
 /** 부른 값을 기록하고 정해 둔 결과를 돌려주는 가짜 표와 move_todo */
 const createFakes = ({ moveError = null, updatedRows = [{ id: TODO_ID }], updateError = null }: FakeParams = {}) => {
-  const updates: { values: unknown; id: string; columns: string }[] = [];
+  const updates: { values: unknown; filters: [string, string | null][]; columns: string }[] = [];
   const todos: CompletableTodos = {
-    update: (values) => ({
-      eq: (_column, id) => ({
+    update: (values) => {
+      const filters: [string, string | null][] = [];
+      const filtered: ReturnType<CompletableTodos["update"]> = {
+        eq: (column, value) => {
+          filters.push([column, value]);
+          return filtered;
+        },
+        is: (column, value) => {
+          filters.push([column, value]);
+          return filtered;
+        },
         select: async (columns) => {
-          updates.push({ values, id, columns });
+          updates.push({ values, filters, columns });
           return { data: updateError ? null : updatedRows, error: updateError };
         },
-      }),
-    }),
+      };
+      return filtered;
+    },
   };
   const moveTodo = vi.fn(async () => ({ error: moveError }));
   return { todos, moveTodo, updates };
@@ -61,8 +71,8 @@ describe("saveTodoAction", () => {
 
     // Assert
     expect(updates).toEqual([
-      { values: { completed_at: "2026-11-16T03:00:00.000Z" }, id: TODO_ID, columns: "id" },
-      { values: { completed_at: null }, id: TODO_ID, columns: "id" },
+      { values: { completed_at: "2026-11-16T03:00:00.000Z" }, filters: [["id", TODO_ID]], columns: "id" },
+      { values: { completed_at: null }, filters: [["id", TODO_ID]], columns: "id" },
     ]);
   });
 
@@ -78,18 +88,26 @@ describe("saveTodoAction", () => {
     expect(await saveTodoAction({ action: { type: "complete", id: TODO_ID, completedAt: undefined }, todos, moveTodo })).toBe(TODO_ACTION_FAILED_MESSAGE);
   });
 
-  it("[아직]을 누르면 그 일정 날짜를 저장하고, 상대가 지운 항목이면 이미 지워졌다고 알린다(#471)", async () => {
+  it("[아직]을 누르면 화면에서 본 일정에 이어진 하지 않은 항목에만 그 일정 날짜를 저장하고, 그사이 바뀌었으면 알린다(#471)", async () => {
     // Arrange
     const saved = createFakes();
-    const deleted = createFakes({ updatedRows: [] });
-    const action = { type: "notYet", id: TODO_ID, date: "2026-11-23" } as const;
+    const changed = createFakes({ updatedRows: [] });
+    const action = { type: "notYet", id: TODO_ID, eventId: "e1", date: "2026-11-23" } as const;
 
     // Act
     const message = await saveTodoAction({ action, todos: saved.todos, moveTodo: saved.moveTodo });
 
     // Assert
     expect(message).toBeUndefined();
-    expect(saved.updates).toEqual([{ values: { event_not_yet_date: "2026-11-23" }, id: TODO_ID, columns: "id" }]);
-    expect(await saveTodoAction({ action, todos: deleted.todos, moveTodo: deleted.moveTodo })).toBe(TODO_ALREADY_DELETED_MESSAGE);
+    expect(saved.updates).toEqual([
+      { values: { event_not_yet_date: "2026-11-23" }, filters: [["id", TODO_ID], ["event_id", "e1"], ["completed_at", null]], columns: "id" },
+    ]);
+    expect(await saveTodoAction({ action, todos: changed.todos, moveTodo: changed.moveTodo })).toBe(TODO_EVENT_CHANGED_MESSAGE);
+  });
+
+  it("[아직]을 저장하지 못하면 다시 시도하라고 알린다", async () => {
+    const { todos, moveTodo } = createFakes({ updateError: { code: "42501" } });
+
+    expect(await saveTodoAction({ action: { type: "notYet", id: TODO_ID, eventId: "e1", date: "2026-11-23" }, todos, moveTodo })).toBe(TODO_ACTION_FAILED_MESSAGE);
   });
 });
