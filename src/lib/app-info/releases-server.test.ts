@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fetchReleases, isCurrentReleaseReady, loadReleases, ReleaseLoadError, RELEASES_URL } from "./releases-server";
+import { fetchReleases, isCurrentReleaseReady, loadReleases, ReleaseLoadError, RELEASES_URL, toReleasesCacheLife } from "./releases-server";
 
 vi.mock("server-only", () => ({}));
 
@@ -77,5 +77,22 @@ describe("loadReleases", () => {
     // Assert
     expect(releases).toBeUndefined();
     expect(console.error).toHaveBeenCalledWith("업데이트 기록 조회 실패", expect.objectContaining({ status: 502 }));
+  });
+});
+
+describe("toReleasesCacheLife", () => {
+  const READY = { version: "1.3.0", publishedOn: "2026-11-18", notes: [{ kind: "item" as const, label: "지도", text: "숫자를 고쳤어요" }] };
+
+  it("지금 버전의 요약까지 받았으면 하루 기억한다", () => {
+    expect(toReleasesCacheLife([READY], "1.3.0")).toBe("days");
+  });
+
+  // 릴리스 PR을 머지하면 배포가 Release·요약보다 먼저 끝나, 오래 기억하면 새 버전이 늦게 보인다(#470)
+  it("지금 버전의 Release나 요약이 아직 없으면 몇 분만 기억해 곧 다시 묻는다", () => {
+    expect([toReleasesCacheLife([READY], "1.4.0"), toReleasesCacheLife([{ ...READY, notes: [] }], "1.3.0")]).toEqual(["minutes", "minutes"]);
+  });
+
+  it("받지 못했으면 몇 분만 기억한다", () => {
+    expect(toReleasesCacheLife(undefined, "1.3.0")).toBe("minutes");
   });
 });

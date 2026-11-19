@@ -64,17 +64,27 @@ export const isCurrentReleaseReady = (releases: AppRelease[], currentVersion: st
   releases.some(({ version, notes }) => version === currentVersion && notes.length > 0);
 
 /**
- * 앱 정보 화면이 쓰는 업데이트 기록. 화면을 열 때마다 GitHub를 부르지 않게 하루 동안 기억하고,
- * 받지 못했으면 몇 분만 기억해 곧 다시 묻는다. 오류를 던지면 화면 오류로 번지므로 `undefined`로 돌려받는다.
- * 버전을 올려 배포한 직후에는 아직 Release나 그 요약이 없으므로(README "버전과 릴리스" 3~4번), 지금 버전의 요약이 없으면 한 시간만 기억한다
+ * 업데이트 기록을 얼마나 기억할지. 지금 버전의 요약까지 받았으면 하루, 아니면 몇 분이다.
+ * 받지 못했으면 곧 다시 묻는다. 버전을 올려 배포한 직후에는 아직 Release나 그 요약이 없으므로(README "버전과 릴리스" 3~4번),
+ * 오래 기억하면 요약을 넣은 뒤에도 새 버전이 늦게 보인다(#470). 그동안은 화면을 열 때 1분이 지났으면 뒤에서 다시 받는다.
+ * 요청 한도(주소마다 시간당 60번)는 Vercel이 주소를 다른 프로젝트와 같이 써 넘을 수 있지만, 넘으면 받지 못한 것으로 보고 몇 분 뒤 다시 묻는다.
+ *
+ * @example toReleasesCacheLife(releases) // "days" | "minutes"
+ */
+export const toReleasesCacheLife = (releases: AppRelease[] | undefined, currentVersion: string = APP_VERSION): "days" | "minutes" =>
+  releases && isCurrentReleaseReady(releases, currentVersion) ? "days" : "minutes";
+
+/**
+ * 앱 정보 화면이 쓰는 업데이트 기록. 화면을 열 때마다 GitHub를 부르지 않게 기억하고, 기억 시간은 `toReleasesCacheLife`가 정한다.
+ * 오류를 던지면 화면 오류로 번지므로 `undefined`로 돌려받는다.
  *
  * @example const releases = await getReleases()
  */
 export const getReleases = async (): Promise<AppRelease[] | undefined> => {
   "use cache";
   const releases = await loadReleases();
-  if (!releases) cacheLife("minutes");
-  else if (isCurrentReleaseReady(releases)) cacheLife("days");
-  else cacheLife("hours");
+  // cacheLife는 프로필 이름을 하나씩 받는 겹친 선언이라 유니온을 그대로 넘길 수 없다
+  if (toReleasesCacheLife(releases) === "days") cacheLife("days");
+  else cacheLife("minutes");
   return releases;
 };
