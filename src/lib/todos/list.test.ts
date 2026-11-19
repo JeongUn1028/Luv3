@@ -67,6 +67,17 @@ describe("toTodo", () => {
 
     expect(todo.event?.notYetDate).toBe("2026-11-23");
   });
+
+  it("이어진 일정에 기록이 있으면 그 기록 id를 붙이고, 없으면 두지 않는다(#473)", () => {
+    const event = { id: "e1", date: "2026-11-23", end_date: null, is_together: true, author: null };
+    const base = { id: "t1", content: "바다", sort_order: 1, completed_at: "2026-11-24T10:00:00+00:00", revision: "r1" };
+
+    const recorded = toTodo({ ...base, event: { ...event, records: [{ id: "d1" }] } });
+    const notRecorded = toTodo({ ...base, event: { ...event, records: [] } });
+
+    expect(recorded.event?.recordId).toBe("d1");
+    expect(notRecorded.event).not.toHaveProperty("recordId");
+  });
 });
 
 describe("groupTodos", () => {

@@ -998,6 +998,26 @@ export const getTodoEventId = async (todoId: string): Promise<string | undefined
 };
 
 /**
+ * 손으로 완료를 푼 것처럼 하고 싶은 것의 완료를 비운다(#473).
+ *
+ * @example await uncompleteTodo(todoId)
+ */
+export const uncompleteTodo = async (todoId: string): Promise<void> => {
+  assertNoError(await createAdminClient().from("todos").update({ completed_at: null }).eq("id", todoId), "하고 싶은 것 완료 풀기");
+};
+
+/**
+ * 하고 싶은 것을 완료했는지 읽는다(#473 기록 남기면 완료).
+ *
+ * @example await expect.poll(() => isTodoCompleted(todoId)).toBe(true)
+ */
+export const isTodoCompleted = async (todoId: string): Promise<boolean> => {
+  const { data, error } = await createAdminClient().from("todos").select("completed_at").eq("id", todoId).maybeSingle();
+  assertNoError({ error }, "하고 싶은 것의 완료 읽기");
+  return Boolean(data?.completed_at);
+};
+
+/**
  * 하고 싶은 것에 일정을 이어 둔 상황을 만든다(#471). 앱은 `schedule_todo` 함수로만 잇지만, 테스트는 비밀 키로 바로 잇는다.
  *
  * @example await linkTodoEvent(todoId, eventId)
