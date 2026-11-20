@@ -12,6 +12,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { toCalendarHref } from "@/lib/calendar/month";
 import { changeDraftScope, type ScopeValues } from "@/lib/events/edit-scope";
 import {
+  orderLinkedTodos,
   EVENT_MEMO_MAX_LENGTH,
   EVENT_PLACE_MAX_LENGTH,
   EVENT_TITLE_MAX_LENGTH,
@@ -57,9 +58,12 @@ interface EventFormProps {
   linkableTodos?: LinkedTodo[];
 }
 
-/** 고르는 창에 보일 하고 싶은 것. 고치기 화면에서 끊은 것은 다시 고를 수 있게 맨 앞에 둔다 */
-const toTodoOptions = (linkableTodos: LinkedTodo[], initialTodo: LinkedTodo | undefined): LinkedTodo[] =>
-  initialTodo && !linkableTodos.some(({ id }) => id === initialTodo.id) ? [initialTodo, ...linkableTodos] : linkableTodos;
+/** 고르는 창에 보일 하고 싶은 것. 고치기 화면에서 끊은 것은 다시 고를 수 있게 맨 앞에 두고, 지금 이어 둔 것은 뺀다 */
+const toTodoOptions = ({ linkableTodos, initialTodos = [], linkedTodos = [] }: { linkableTodos: LinkedTodo[]; initialTodos: LinkedTodo[] | undefined; linkedTodos: LinkedTodo[] | undefined }): LinkedTodo[] => {
+  const linkableIds = new Set(linkableTodos.map(({ id }) => id));
+  const linkedIds = new Set(linkedTodos.map(({ id }) => id));
+  return [...initialTodos.filter(({ id }) => !linkableIds.has(id)), ...linkableTodos].filter(({ id }) => !linkedIds.has(id));
+};
 
 /** 공유 캘린더 일정 추가·수정 폼 */
 export const EventForm = ({
@@ -106,9 +110,9 @@ export const EventForm = ({
   const isOccurrenceScope = draft.scope === "occurrence";
   const dateLabel = draft.endDate === undefined ? "날짜" : "시작 날짜";
   const deleteOccurrenceDate = isOccurrenceScope ? occurrence?.date : undefined;
-  const todoOptions = toTodoOptions(linkableTodos, initialDraft.linkedTodo).filter(({ id }) => id !== draft.linkedTodo?.id);
+  const todoOptions = toTodoOptions({ linkableTodos, initialTodos: initialDraft.linkedTodos, linkedTodos: draft.linkedTodos });
   // 하고 싶은 것에서 연 폼은 이미 그 하고 싶은 것에 잇는다. 반복 일정은 잇지 않는다(#471). 고를 것도 이어진 것도 없으면 칸을 두지 않는다
-  const canPickTodo = !todo && !isOccurrenceScope && !draft.repeatRule && (draft.linkedTodo !== undefined || todoOptions.length > 0);
+  const canPickTodo = !todo && !isOccurrenceScope && !draft.repeatRule && (draft.linkedTodos !== undefined || todoOptions.length > 0);
 
   const updateField = (field: EventTextField, value: string) => {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -209,7 +213,7 @@ export const EventForm = ({
           // 이 날만 고칠 때와 따로 나온 일정은 반복과 기간을 바꾸지 않는다
           canEditSpan={!isOccurrenceScope && !isDetached}
           // 하고 싶은 것과 이어진 일정은 반복하지 않는다(#471). 폼에서 끊어도 저장 전에는 이어진 채라 열 때 이어져 있었으면 그대로 숨긴다
-          canRepeat={!todo && !draft.linkedTodo && !initialDraft.linkedTodo}
+          canRepeat={!todo && !draft.linkedTodos && !initialDraft.linkedTodos}
           setDraft={setDraft}
           setErrors={setErrors}
           onFieldChange={updateField}
@@ -228,11 +232,14 @@ export const EventForm = ({
 
         {canPickTodo && (
           <EventTodoField
-            linkedTodo={draft.linkedTodo}
+            linkedTodos={draft.linkedTodos ?? []}
             options={todoOptions}
             isDisabled={isSaving}
             isLocked={draft.isTodoLinkUncertain === true}
-            onChange={(linkedTodo) => setDraft((current) => ({ ...current, linkedTodo }))}
+            // 모두 끊으면 처음(이어진 것 없음)과 같게 칸을 비운다. 빈 배열로 두면 쓴 내용이 있다고 보고 떠날 때 묻는다
+            onChange={(linkedTodos) =>
+              setDraft((current) => ({ ...current, linkedTodos: linkedTodos.length > 0 ? orderLinkedTodos(linkedTodos, initialDraft.linkedTodos) : undefined }))
+            }
           />
         )}
 

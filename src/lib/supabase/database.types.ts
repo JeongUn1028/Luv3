@@ -352,6 +352,9 @@ isOneToOne: false
 "schedule_todo":
 { Args: { "p_date": string,"p_end_date"?: string,"p_event_id": string,"p_expected_revisions"?: (string)[],"p_is_together": boolean,"p_memo"?: string,"p_place"?: string,"p_revision": string,"p_start_time"?: string,"p_title": string,"p_todo_id": string }; Returns: undefined
                            },
+"schedule_todos":
+{ Args: { "p_date": string,"p_end_date"?: string,"p_event_id": string,"p_expected_revisions"?: (string)[],"p_is_together": boolean,"p_memo"?: string,"p_place"?: string,"p_revision": string,"p_start_time"?: string,"p_title": string,"p_todo_ids": (string)[] }; Returns: undefined
+                           },
 "search_date_records":
 { Args: { "p_before_created_at"?: string,"p_before_date"?: string,"p_before_id"?: string,"p_limit"?: number,"p_tag"?: string,"p_words"?: (string)[] }; Returns: {
               "created_at": string,"date": string,"end_date": string,"id": string,"tags": (string)[],"thumb_path": string,"title": string,"total_count": number
@@ -362,6 +365,9 @@ isOneToOne: false
                            },
 "set_event_todo":
 { Args: { "p_event_id": string,"p_expected_todo_id"?: string,"p_todo_id"?: string }; Returns: undefined
+                           },
+"set_event_todos":
+{ Args: { "p_event_id": string,"p_expected_todo_ids": (string)[],"p_todo_ids": (string)[] }; Returns: undefined
                            },
 "set_push_notify":
 { Args: { "p_enabled": boolean,"p_kind": string }; Returns: undefined

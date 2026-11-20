@@ -145,11 +145,11 @@ describe("mergePendingEvents", () => {
   });
 
   it("고치는 일정이 저장 중이어도 이어진 하고 싶은 것은 서버 값을 지킨다(#471)", () => {
-    const todo = { id: "t1", content: "바다 보러 가기" };
-    const events = [createEvent({ id: "e1", date: "2026-11-20", revision: "r1", todo })];
+    const todos = [{ id: "t1", content: "회 먹기" }, { id: "t2", content: "요트 타기" }];
+    const events = [createEvent({ id: "e1", date: "2026-11-20", revision: "r1", todos })];
     const pending = createPending({ id: "e1", isNew: false, previousRevisions: ["r1"], event: createEvent({ id: "e1", date: "2026-11-20", title: "고친 일정" }) });
 
-    expect(mergePendingEvents(events, [pending])[0]?.todo).toEqual(todo);
+    expect(mergePendingEvents(events, [pending])[0]?.todos).toEqual(todos);
   });
 
   it("고치기 저장이 끝나고 서버 목록이 새 판이면 서버 값만 그린다", () => {

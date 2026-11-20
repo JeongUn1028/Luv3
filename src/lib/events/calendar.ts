@@ -30,8 +30,8 @@ export interface CalendarEvent {
   recordId?: string | undefined;
   /** 판 번호. 캘린더만 읽는다(#345). 저장 중인 일정을 먼저 그린 뒤 서버 값이 따라잡았는지 견준다 */
   revision?: string | undefined;
-  /** 이 일정이 이어진 하고 싶은 것(#471). 캘린더와 홈 일정 칸(#474)만 읽고, 없으면 두지 않는다 */
-  todo?: { id: string; content: string } | undefined;
+  /** 이 일정에 이어진 하고 싶은 것(#471·#495), 하고 싶은 것 목록 순서. 캘린더와 홈 일정 칸(#474)만 읽고, 없으면 두지 않는다 */
+  todos?: { id: string; content: string }[] | undefined;
 }
 
 /** 달력에 표시하는 데이트 기록(누르면 기록 상세) */
@@ -87,7 +87,7 @@ export interface CalendarEventRow {
   records?: LinkedRecordRow[];
   /** 판 번호(캘린더만 읽는다) */
   revision?: string;
-  /** 이어진 하고 싶은 것(캘린더와 홈 일정 칸이 읽는다, #474). 많아야 하나지만 표 관계상 목록으로 온다 */
+  /** 이어진 하고 싶은 것(캘린더와 홈 일정 칸이 읽는다, #474·#495). 조회가 하고 싶은 것 목록 순서로 정렬한다 */
   todos?: { id: string; content: string }[];
 }
 
@@ -163,7 +163,7 @@ export const toCalendarEvent = ({
   isTogether: is_together,
   authorNickname: author?.nickname,
   ...(revision === undefined ? {} : { revision }),
-  ...(todos?.[0] ? { todo: { id: todos[0].id, content: todos[0].content } } : {}),
+  ...(todos?.length ? { todos: todos.map((todo) => ({ id: todo.id, content: todo.content })) } : {}),
 });
 
 /**

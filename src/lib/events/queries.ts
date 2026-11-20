@@ -22,7 +22,7 @@ export { EventLoadError } from "./load-error";
  */
 export const getCalendarMonth = async (month: string): Promise<CalendarMonth> => readCalendarMonth(await createClient(), month);
 
-// 홈 일정 칸은 하고 싶은 것에서 잡은 일정을 알아보게 이어진 하고 싶은 것도 읽는다(#474)
+// 홈 일정 칸은 하고 싶은 것에서 잡은 일정을 알아보게 이어진 하고 싶은 것도 하고 싶은 것 목록 순서로 읽는다(#474·#495)
 const UPCOMING_EVENT_COLUMNS = `${EVENT_COLUMNS}, todos(id, content)` as const;
 
 /**
@@ -42,6 +42,8 @@ export const getUpcomingEvents = async (now: KstNow): Promise<CalendarEvent[]> =
           .from("events")
           .select(UPCOMING_EVENT_COLUMNS)
           .is("repeat_rule", null)
+          .order("sort_order", { referencedTable: "todos" })
+          .order("id", { referencedTable: "todos" })
           // 이미 시작한 기간 일정도 끝나기 전까지 읽는다
           .or(`date.gte.${today},end_date.gte.${today}`);
         return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
@@ -54,6 +56,8 @@ export const getUpcomingEvents = async (now: KstNow): Promise<CalendarEvent[]> =
           .from("events")
           .select(UPCOMING_EVENT_COLUMNS)
           .not("repeat_rule", "is", null)
+          .order("sort_order", { referencedTable: "todos" })
+          .order("id", { referencedTable: "todos" })
           .or(`repeat_until.is.null,repeat_until.gte.${today}`);
         return (afterId ? query.gt("id", afterId) : query).order("id").limit(limit);
       },
@@ -81,6 +85,8 @@ export const getEvent = async (id: string): Promise<EditableEvent | undefined> =
       "id, date, start_time, title, place, memo, is_together, repeat_rule, repeat_until, end_date, repeat_parent_id, revision, author:members!events_author_id_fkey(nickname), exceptions:event_exceptions(date), records:dates(id, event_date), todos(id, content)",
     )
     .eq("id", id)
+    .order("sort_order", { referencedTable: "todos" })
+    .order("id", { referencedTable: "todos" })
     .maybeSingle();
   if (error) throw new EventLoadError({ cause: error });
   return data ? toEditableEvent(data) : undefined;

@@ -17,6 +17,35 @@ export interface LinkedTodo {
   content: string;
 }
 
+/**
+ * 이은 하고 싶은 것의 id 목록. 없으면 빈 배열이다.
+ *
+ * @example toTodoIds(draft.linkedTodos) // ["t1", "t2"]
+ */
+export const toTodoIds = (todos: readonly LinkedTodo[] | undefined): string[] => (todos ?? []).map(({ id }) => id);
+
+/**
+ * 폼에서 고친 하고 싶은 것 목록을 처음 순서에 맞춘다. 처음부터 이어져 있던 것은 처음 순서대로 앞에, 새로 고른 것은 고른 순서대로 뒤에 둔다.
+ * 끊었다 다시 고르면 처음 목록과 같아져, 떠날 때 쓴 내용이 있다고 묻지 않는다.
+ *
+ * @example orderLinkedTodos([b, a], [a, b]) // [a, b]
+ */
+export const orderLinkedTodos = (todos: readonly LinkedTodo[], initialTodos: readonly LinkedTodo[] = []): LinkedTodo[] => {
+  const initialOrder = new Map(initialTodos.map(({ id }, index) => [id, index]));
+  const toOrder = ({ id }: LinkedTodo): number => initialOrder.get(id) ?? initialTodos.length;
+  return todos.toSorted((left, right) => toOrder(left) - toOrder(right));
+};
+
+/**
+ * 두 id 목록이 순서와 상관없이 같은 하고 싶은 것들인지. 일정 폼은 이 결과로 저장할 때 연결을 바꿀지 정한다(#495).
+ *
+ * @example isSameTodoIds(["t1", "t2"], ["t2", "t1"]) // true
+ */
+export const isSameTodoIds = (left: readonly string[], right: readonly string[]): boolean => {
+  const rightIds = new Set(right);
+  return new Set(left).size === rightIds.size && left.every((id) => rightIds.has(id));
+};
+
 /** 일정 입력값. 날짜는 YYYY-MM-DD, 시간은 HH:MM(input 값) */
 export interface EventDraft {
   date: string;
@@ -34,8 +63,8 @@ export interface EventDraft {
   repeatUntil: string;
   /** 기간 일정의 끝 날짜. undefined면 하루 일정, 빈 문자열이면 기간을 켰지만 아직 고르지 않은 상태다 */
   endDate: string | undefined;
-  /** 폼에서 고른 하고 싶은 것(#472). 저장할 때 잇는다. 고치기 화면은 열 때 이어져 있던 것으로 시작한다 */
-  linkedTodo?: LinkedTodo | undefined;
+  /** 폼에서 고른 하고 싶은 것(#472·#495), 고른 순서. 저장할 때 잇는다. 고치기 화면은 열 때 이어져 있던 것으로 시작한다. 없으면 두지 않는다(빈 배열로 두지 않는다) */
+  linkedTodos?: LinkedTodo[] | undefined;
   /** 새 일정을 저장하다 실패했을 때 쓴 id. 다시 저장할 때 같은 값을 써서 앞선 시도가 저장했어도 일정이 둘이 되지 않는다 */
   newEventId?: string;
   /** 저장해도 되는 판 번호: 불러온 판과, 저장됐을 수 있는 내 앞선 시도의 판. 이 밖이면 상대가 고친 것이라 거부된다(#161) */
@@ -92,7 +121,7 @@ export interface EditableEventRow extends EventRow {
   exceptions: { date: string }[];
   /** 이 일정에서 남긴 기록(#227) */
   records: LinkedRecordRow[];
-  /** 이 일정이 이어진 하고 싶은 것(#471). 많아야 하나지만 표 관계상 목록으로 온다. 있으면 반복으로 바꾸지 않는다 */
+  /** 이 일정에 이어진 하고 싶은 것(#471·#495), 하고 싶은 것 목록 순서. 있으면 반복으로 바꾸지 않는다 */
   todos: LinkedTodo[];
 }
 
@@ -186,7 +215,7 @@ export const toEventValues = (draft: EventDraft): EventValues => ({
 
 /**
  * 저장된 일정을 수정 화면 입력값으로 바꾼다. DB의 time(HH:MM:SS)은 input 값(HH:MM)으로 줄인다.
- * 반복 중 오는 날을 주면 그날만 고치는 값으로 시작한다. 이어진 하고 싶은 것이 있으면 그것으로 시작한다(#472).
+ * 반복 중 오는 날을 주면 그날만 고치는 값으로 시작한다. 이어진 하고 싶은 것이 있으면 그것들로 시작한다(#472·#495).
  *
  * @example toEventDraft(row, "2026-11-13")
  */
@@ -202,7 +231,7 @@ export const toEventDraft = (row: EventRow & { todos?: LinkedTodo[] }, occurrenc
   repeatRule: isRepeatRule(row.repeat_rule) ? row.repeat_rule : undefined,
   repeatUntil: row.repeat_until ?? "",
   endDate: row.end_date ?? undefined,
-  ...(row.todos?.[0] ? { linkedTodo: { id: row.todos[0].id, content: row.todos[0].content } } : {}),
+  ...(row.todos?.length ? { linkedTodos: row.todos.map((todo) => ({ id: todo.id, content: todo.content })) } : {}),
 });
 
 /**

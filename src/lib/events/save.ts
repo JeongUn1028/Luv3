@@ -2,7 +2,7 @@ import { saveRowAtRevision, type RevisionedTable } from "@/lib/revision";
 import { callWithRetry, toNotSentFailure, toRejectedOutcome, toSaveFailure, type SaveErrorCode, type SaveFailure, type SaveOutcome } from "@/lib/save-outcome";
 import type { Database } from "@/lib/supabase/database.types";
 import { DB_ERROR_CODE } from "@/lib/supabase/error-codes";
-import { toEventValues, type EventDraft, type EventValues } from "./form";
+import { isSameTodoIds, toEventValues, toTodoIds, type EventDraft, type EventValues } from "./form";
 
 const MESSAGES = {
   failedMessage: "일정을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.",
@@ -24,19 +24,25 @@ const TODO_SCHEDULE_MESSAGES = {
 /** `detach_event_occurrence` 함수에 넘기는 값 */
 type DetachOccurrenceArgs = Database["public"]["Functions"]["detach_event_occurrence"]["Args"];
 
-/** `schedule_todo` 함수에 넘기는 값 */
-type ScheduleTodoArgs = Database["public"]["Functions"]["schedule_todo"]["Args"];
+/** `schedule_todos` 함수에 넘기는 값 */
+type ScheduleTodosArgs = Database["public"]["Functions"]["schedule_todos"]["Args"];
 
-/** `set_event_todo` 함수에 넘기는 값 */
-type SetEventTodoArgs = Database["public"]["Functions"]["set_event_todo"]["Args"];
+/** `set_event_todos` 함수에 넘기는 값 */
+type SetEventTodosArgs = Database["public"]["Functions"]["set_event_todos"]["Args"];
 
-/** 새 일정을 하고 싶은 것에 이어 만들 때(#471) */
+/** 잇기 함수의 오류. 이미 일정이 있는 하고 싶은 것(P0412)이면 `hint`에 그 하고 싶은 것의 id가 온다(#495) */
+interface TodoLinkError extends SaveErrorCode {
+  hint?: string;
+}
+
+/** 새 일정을 하고 싶은 것에 이어 만들 때(#471·#495) */
 interface TodoSchedule {
-  todoId: string;
+  /** 이을 하고 싶은 것. 하나 이상이다 */
+  todoIds: string[];
   /** 일정 폼에서 고른 하고 싶은 것인지(#472). 그사이 다른 일정이 잡혔으면 불러오기 대신 다시 고르게 한다 */
   isPicked?: boolean;
-  /** `(args) => supabase.rpc("schedule_todo", args)` */
-  scheduleTodo: (args: ScheduleTodoArgs) => PromiseLike<{ error: SaveErrorCode | null }>;
+  /** `(args) => supabase.rpc("schedule_todos", args)` */
+  scheduleTodos: (args: ScheduleTodosArgs) => PromiseLike<{ error: TodoLinkError | null }>;
 }
 
 interface SaveEventParams {
@@ -59,12 +65,12 @@ interface SaveEventParams {
   todoLink?: TodoLink | undefined;
 }
 
-/** 일정 폼에서 하고 싶은 것 연결을 바꿀 때(#472) */
+/** 일정 폼에서 하고 싶은 것 연결을 바꿀 때(#472·#495) */
 interface TodoLink {
-  /** 폼을 열 때 이어져 있던 하고 싶은 것. 그사이 상대가 바꿨으면 함수가 거부한다 */
-  expectedTodoId: string | undefined;
-  /** `(args) => supabase.rpc("set_event_todo", args)` */
-  setEventTodo: (args: SetEventTodoArgs) => PromiseLike<{ error: SaveErrorCode | null }>;
+  /** 폼을 열 때 이어져 있던 하고 싶은 것 전부. 그사이 상대가 바꿨으면 함수가 거부한다 */
+  expectedTodoIds: string[];
+  /** `(args) => supabase.rpc("set_event_todos", args)` */
+  setEventTodos: (args: SetEventTodosArgs) => PromiseLike<{ error: TodoLinkError | null }>;
 }
 
 /** 일정 저장 실패(#472) */
@@ -75,6 +81,12 @@ export interface EventSaveFailure extends SaveFailure {
 
 /** 고른 하고 싶은 것에 그사이 다른 일정이 이어졌을 때 */
 const TODO_TAKEN_MESSAGE = "고른 하고 싶은 것에 그사이 다른 일정이 이어졌어요. 다시 골라 주세요.";
+
+/** 여러 개를 골랐을 때 어느 것이 막혔는지 알린다(#495). 함수가 알려 준 id가 고른 것 중에 없으면 어느 것인지 말하지 않는다 */
+const toTodoTakenMessage = (draft: EventDraft, error: TodoLinkError): string => {
+  const taken = draft.linkedTodos?.find(({ id }) => id === error.hint);
+  return taken ? `‘${taken.content}’에 그사이 다른 일정이 이어졌어요. 연결을 끊고 다시 저장해 주세요.` : TODO_TAKEN_MESSAGE;
+};
 
 const saveOccurrence = async ({
   detachOccurrence,
@@ -104,15 +116,13 @@ const saveOccurrence = async ({
   return toRejectedOutcome(error, mayHaveApplied);
 };
 
-const TODO_TAKEN_FAILURE = toNotSentFailure(TODO_TAKEN_MESSAGE);
-
-const saveTodoSchedule = async ({ draft, newEventId, revision }: SaveEventParams, { todoId, isPicked = false, scheduleTodo }: TodoSchedule): Promise<SaveOutcome | SaveFailure> => {
+const saveTodoSchedule = async ({ draft, newEventId, revision }: SaveEventParams, { todoIds, isPicked = false, scheduleTodos }: TodoSchedule): Promise<SaveOutcome | SaveFailure> => {
   // 폼이 반복 칸을 숨겨 반복은 보내지 않는다(반복 일정은 하고 싶은 것과 잇지 않는다)
   const { date, start_time, end_date, title, place, memo, is_together } = toEventValues({ ...draft, repeatRule: undefined });
   // 같은 일정 id로 다시 보내면 함수가 이미 이어진 일정을 이번 값으로 고치므로 응답만 끊겼을 때 다시 보내도 된다
   const { error, mayHaveApplied } = await callWithRetry(() =>
-    scheduleTodo({
-      p_todo_id: todoId,
+    scheduleTodos({
+      p_todo_ids: todoIds,
       p_event_id: newEventId,
       p_revision: revision,
       p_date: date,
@@ -128,7 +138,7 @@ const saveTodoSchedule = async ({ draft, newEventId, revision }: SaveEventParams
   );
   if (!error) return "saved";
   // 폼에서 고른 것이면 불러와도 쓴 새 일정이 사라질 뿐이라, 다른 하고 싶은 것을 고르게 한다
-  if (isPicked && error.code === DB_ERROR_CODE.todoScheduled) return TODO_TAKEN_FAILURE;
+  if (isPicked && error.code === DB_ERROR_CODE.todoScheduled) return toNotSentFailure(toTodoTakenMessage(draft, error));
   // 그사이 다른 일정이 잡혔거나, 저장됐던 내 일정을 상대가 고쳤다. 어느 쪽이든 불러오면 이미 잡힌 일정이 보인다
   if (error.code === DB_ERROR_CODE.todoScheduled || error.code === DB_ERROR_CODE.conflict) return "conflict";
   if (error.code === DB_ERROR_CODE.notFound) return "gone";
@@ -145,14 +155,14 @@ const toLinkFailure = (message: string, flags: Partial<Omit<EventSaveFailure, "m
   ...flags,
 });
 
-const saveTodoLink = async (eventId: string, todoId: string | undefined, { expectedTodoId, setEventTodo }: TodoLink): Promise<EventSaveFailure | undefined> => {
+const saveTodoLink = async ({ eventId, draft, todoIds }: { eventId: string; draft: EventDraft; todoIds: string[] }, { expectedTodoIds, setEventTodos }: TodoLink): Promise<EventSaveFailure | undefined> => {
   // 바라는 연결이 이미 되어 있으면 함수가 성공으로 끝나므로 응답만 끊겼을 때 다시 보내도 된다
   const { error, mayHaveApplied } = await callWithRetry(() =>
-    setEventTodo({ p_event_id: eventId, p_todo_id: todoId, p_expected_todo_id: expectedTodoId }),
+    setEventTodos({ p_event_id: eventId, p_todo_ids: todoIds, p_expected_todo_ids: expectedTodoIds }),
   );
   if (!error) return undefined;
   if (error.code === DB_ERROR_CODE.conflict) return toLinkFailure("그사이 하고 싶은 것 연결이 바뀌었어요. 불러와 확인해 주세요.", { hasConflict: true });
-  if (error.code === DB_ERROR_CODE.todoScheduled) return toLinkFailure(TODO_TAKEN_MESSAGE);
+  if (error.code === DB_ERROR_CODE.todoScheduled) return toLinkFailure(toTodoTakenMessage(draft, error));
   if (error.code === DB_ERROR_CODE.notFound) return toLinkFailure("고른 하고 싶은 것이 그사이 지워졌어요. 다시 골라 주세요.");
   if (toRejectedOutcome(error, mayHaveApplied) === "uncertain") return toLinkFailure("하고 싶은 것과 이었는지 확인하지 못했어요. 다시 저장해도 돼요.", { isTodoLinkUncertain: true });
   return toLinkFailure("하고 싶은 것과 잇지 못했어요. 다시 저장해 주세요.");
@@ -194,9 +204,9 @@ export const saveEvent = async (params: SaveEventParams): Promise<EventSaveFailu
   }
   const failure = toSaveFailure(await saveRow(params), MESSAGES);
   // 일정을 고친 뒤에 연결을 바꾼다. 일정을 고치지 못했으면(상대가 고침 등) 연결도 그대로 둔다
-  const todoId = draft.linkedTodo?.id;
-  if (failure || !eventId || !todoLink || todoId === todoLink.expectedTodoId) return failure;
-  return saveTodoLink(eventId, todoId, todoLink);
+  const todoIds = toTodoIds(draft.linkedTodos);
+  if (failure || !eventId || !todoLink || isSameTodoIds(todoIds, todoLink.expectedTodoIds)) return failure;
+  return saveTodoLink({ eventId, draft, todoIds }, todoLink);
 };
 
 /** 지우지 못한 이유. 오류 문구에 넣는다 */

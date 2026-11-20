@@ -5,7 +5,7 @@ import { toKstDate } from "@/lib/anniversary";
 import { isCalendarMonthUrl, toCalendarHref } from "@/lib/calendar/month";
 import { deletingStore, toEventDayPrefix } from "@/lib/deleting";
 import { getDateAfterSave } from "@/lib/events/edit-scope";
-import type { EventDraft } from "@/lib/events/form";
+import { toTodoIds, type EventDraft } from "@/lib/events/form";
 import { canShowEventBeforeSave, pendingEventStore, toPendingCalendarEvent } from "@/lib/events/pending";
 import { EVENT_NOT_SENT_FAILURE, type EventSaveFailure, saveEvent } from "@/lib/events/save";
 import type { LeavableSave } from "@/lib/navigation/use-leavable-save";
@@ -83,8 +83,8 @@ export const useEventSave = ({
     const savedHref = todoId ? TODOS_PATH : toCalendarHref({ date: dateAfterSave });
     // 하루짜리 일정만 저장을 기다리지 않고 캘린더에 먼저 그린다. 반복·기간·"이 날만 고치기"는 저장이 끝난 뒤 새로 받는다(#345)
     const pendingId = eventId ?? newEventId;
-    // 새 일정은 하고 싶은 것에서 열었거나 폼에서 골랐으면 만들며 잇는다(#471·#472). 고칠 일정은 저장한 뒤 연결을 바꾼다
-    const scheduleTodoId = eventId ? undefined : (todoId ?? draft.linkedTodo?.id);
+    // 새 일정은 하고 싶은 것에서 열었거나 폼에서 골랐으면 만들며 잇는다(#471·#472·#495). 고칠 일정은 저장한 뒤 연결을 바꾼다
+    const scheduleTodoIds = eventId ? [] : todoId ? [todoId] : toTodoIds(draft.linkedTodos);
     const isShownBeforeSave = canShowEventBeforeSave({ draft, initialDraft });
     if (isShownBeforeSave) {
       pendingEventStore.add({
@@ -113,11 +113,12 @@ export const useEventSave = ({
         saveEvent({
           events: supabase.from("events"),
           detachOccurrence: (args) => supabase.rpc("detach_event_occurrence", args),
-          todoSchedule: scheduleTodoId
-            ? { todoId: scheduleTodoId, isPicked: !todoId, scheduleTodo: (args) => supabase.rpc("schedule_todo", args) }
-            : undefined,
+          todoSchedule:
+            scheduleTodoIds.length > 0
+              ? { todoIds: scheduleTodoIds, isPicked: !todoId, scheduleTodos: (args) => supabase.rpc("schedule_todos", args) }
+              : undefined,
           todoLink: eventId
-            ? { expectedTodoId: initialDraft.linkedTodo?.id, setEventTodo: (args) => supabase.rpc("set_event_todo", args) }
+            ? { expectedTodoIds: toTodoIds(initialDraft.linkedTodos), setEventTodos: (args) => supabase.rpc("set_event_todos", args) }
             : undefined,
           draft,
           eventId,

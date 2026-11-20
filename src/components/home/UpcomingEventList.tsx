@@ -13,7 +13,7 @@ interface UpcomingEventListProps {
 /**
  * 홈 일정 칸의 내용: 가장 가까운 일정 2개, 마지막 날에 못 넣은 일정이 있으면 칸 아래에 "외 N개".
  * 둘째 줄에 누구 일정인지와 언제인지 쓴다(함께는 분홍, 한 사람 일정의 작성자 이름은 크림색으로 캘린더 형광펜과 같은 색이다).
- * 칸이 좁아 작성자 이름표는 그리지 않는다(캘린더 탭에서 보인다). 하고 싶은 것에서 잡은 일정은 시간·장소 자리에 그 하고 싶은 것을 분홍으로 써 알아보게 한다(#474, 길면 칸 끝에서 "…").
+ * 칸이 좁아 작성자 이름표는 그리지 않는다(캘린더 탭에서 보인다). 하고 싶은 것에서 잡은 일정은 시간·장소 자리에 그 하고 싶은 것을 분홍으로 써 알아보게 한다(#474, 길면 칸 끝에서 "…"). 여럿이면 첫 번째 + "외 N개"(#495).
  *
  * @example <UpcomingEventList events={events} today={now.date} />
  */
@@ -26,17 +26,23 @@ export const UpcomingEventList = ({ events, today }: UpcomingEventListProps): Re
         {shown.map((event) => (
           <li key={event.id}>
             <p className="truncate text-[14px] leading-5 text-ink">{event.title}</p>
-            <p className="truncate text-[12px] leading-4 text-ink-sub">
-              <span className={event.isTogether ? "text-highlight" : "text-cream"}>{formatEventOwner(event)} · </span>
-              {formatUpcomingDay(event.date, today)}
-              {" · "}
-              {event.todo ? (
-                <span className="text-highlight">
-                  <span className="sr-only">하고 싶은 것 </span>
-                  {event.todo.content}
-                </span>
+            {/* 뒤쪽만 칸 끝에서 줄인다. 하고 싶은 것이 여럿이면 첫 번째가 길어도 "외 N개"는 남긴다(#495) */}
+            <p className="flex overflow-hidden text-[12px] leading-4 text-ink-sub">
+              <span className="shrink-0 whitespace-pre">
+                <span className={event.isTogether ? "text-highlight" : "text-cream"}>{formatEventOwner(event)} · </span>
+                {formatUpcomingDay(event.date, today)}
+                {" · "}
+              </span>
+              {event.todos ? (
+                <>
+                  <span className="min-w-0 truncate text-highlight">
+                    <span className="sr-only">하고 싶은 것 </span>
+                    {event.todos[0]?.content}
+                  </span>
+                  {event.todos.length > 1 && <span className="shrink-0 whitespace-pre text-highlight"> 외 {event.todos.length - 1}개</span>}
+                </>
               ) : (
-                formatEventMeta(event)
+                <span className="min-w-0 truncate">{formatEventMeta(event)}</span>
               )}
             </p>
           </li>

@@ -30,7 +30,10 @@ export const selectCalendarEvents = (supabase: SupabaseClient<Database>, { start
     .lte("date", end)
     // 반복이 아니면 끝나는 날은 늘 비어 있다
     .or(`date.gte.${start},repeat_rule.not.is.null,end_date.gte.${start}`)
-    .or(`repeat_until.is.null,repeat_until.gte.${start}`);
+    .or(`repeat_until.is.null,repeat_until.gte.${start}`)
+    // 이어진 하고 싶은 것은 하고 싶은 것 목록 순서로 받는다(#495). 홈과 상세가 첫 번째를 앞에 쓴다
+    .order("sort_order", { referencedTable: "todos" })
+    .order("id", { referencedTable: "todos" });
 
 /**
  * 달력에 그릴 한 달(앞뒤 주 포함)의 일정과 데이트 기록을 함께 읽는다. 기록은 기간이 이 범위와 겹치면 읽는다.
