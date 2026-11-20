@@ -74,7 +74,7 @@ export const EventTodoField = ({ linkedTodos, options, isDisabled: isBusy, isLoc
           저장을 마친 뒤에 바꿀 수 있어요.
         </p>
       )}
-      <ModalDialog ref={modalRef} title="어느 하고 싶은 것과 이을까요?" description="이으면 하고 싶은 것 목록의 그 줄에 날짜가 붙어요." shouldCloseOnOutsideClick shouldGuardDoubleTap>
+      <ModalDialog ref={modalRef} title="어느 하고 싶은 것과 이을까요?" description="이으면 하고 싶은 것 목록의 그 줄에 날짜가 붙어요." shouldCloseOnOutsideClick shouldGuardDoubleTap isPicker>
         <ul aria-label="이을 하고 싶은 것" className="relative -mx-1 mt-4 flex max-h-[300px] flex-col gap-2 overflow-y-auto px-1">
           {options.map((todo) => (
             <li key={todo.id}>

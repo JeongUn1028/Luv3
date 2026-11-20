@@ -117,6 +117,7 @@ export const LeaveRecordAction = ({ eventId, link, eventTitle, className, onLink
         shouldCloseOnOutsideClick
         // 고르면 바로 이으므로, 버튼을 두 번 눌러 열린 창의 기록이 눌리지 않게 한다
         shouldGuardDoubleTap
+        isPicker
       >
         {records.length > 0 && (
           <ul aria-label="이미 쓴 기록과 잇기" className="relative -mx-1 mt-4 flex max-h-[300px] flex-col gap-2 overflow-y-auto px-1">

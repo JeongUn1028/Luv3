@@ -84,6 +84,7 @@ const LinkEventButton = ({ recordId, events, onLinked }: LinkEventButtonProps): 
         isBusy={isPending}
         shouldCloseOnOutsideClick
         shouldGuardDoubleTap
+        isPicker
       >
         <ul aria-label="이을 일정" className="relative -mx-1 mt-4 flex max-h-[300px] flex-col gap-2 overflow-y-auto px-1">
           {events.map((event) => {
