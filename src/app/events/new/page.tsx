@@ -12,8 +12,8 @@ import { createEmptyEventDraft } from "@/lib/events/form";
 import { isIsoDate } from "@/lib/form";
 import { catchLoadError } from "@/lib/load";
 import { TODOS_PATH } from "@/lib/todos/list";
-import { getTodo, loadLinkableTodos, TodoLoadError } from "@/lib/todos/queries";
-import { toTodoEditHref } from "@/lib/todos/schedule";
+import { getLinkableTodosByIds, getTodo, loadLinkableTodos, TodoLoadError } from "@/lib/todos/queries";
+import { parsePickedTodoIds, pickLinkableTodos, PICKED_TODOS_PARAM, toMissingPicksNotice, toTodoEditHref } from "@/lib/todos/schedule";
 
 export const metadata: Metadata = { title: "일정 추가 · Luv3" };
 
@@ -54,10 +54,50 @@ const ScheduleTodoForm = async ({ todoId }: { todoId: string }): Promise<ReactEl
   );
 };
 
+/**
+ * 하고 싶은 것 목록에서 여러 개를 골라 연 새 일정 폼(#495). 고른 것을 미리 잇고, 제목은 첫 번째 내용, 구분은 "함께"로 채운다.
+ * 이은 것은 폼에서 끊거나 하나 더 이을 수 있어 고르는 창의 하고 싶은 것도 함께 읽는다. 그사이 이을 수 없게 된 것은 빼고 알린다.
+ */
+const PickedTodosForm = async ({ todoIds }: { todoIds: string[] }): Promise<ReactElement> => {
+  // 고른 것은 꼭 있어야 해 못 읽으면 오류 화면을 보이고, 고르는 창의 목록은 못 읽어도 빈 목록으로 칸만 줄인다
+  const [{ nickname }, [linkedTodos, linkableTodos]] = await withCurrentMember(() =>
+    Promise.all([catchLoadError(() => getLinkableTodosByIds(todoIds), TodoLoadError), loadLinkableTodos()]),
+  );
+
+  if (linkedTodos instanceof TodoLoadError) {
+    return <LoadErrorScreen title="하고 싶은 것을 불러오지 못했어요" backHref={TODOS_PATH} backLabel="목록으로" />;
+  }
+
+  const { picked, missingCount } = pickLinkableTodos(linkedTodos, todoIds);
+  const [first] = picked;
+  if (!first) {
+    return (
+      <StatusScreen title="고른 것을 이을 수 없어요" description="그사이 일정이 잡혔거나 완료·삭제됐어요. 목록에서 다시 골라 주세요.">
+        <StatusLink href={TODOS_PATH}>목록으로</StatusLink>
+      </StatusScreen>
+    );
+  }
+
+  // cacheComponents는 다녀온 화면의 상태를 보존해, 다시 열면 예전 입력값이 남는다. 요청마다 새 key로 새 폼을 만든다
+  return (
+    <EventForm
+      key={crypto.randomUUID()}
+      initialDraft={{ ...createEmptyEventDraft(toKstDate(new Date())), title: first.content, isTogether: true, linkedTodos: picked }}
+      ownerNickname={nickname}
+      linkableTodos={linkableTodos}
+      returnsToTodos
+      initialNotice={missingCount > 0 ? toMissingPicksNotice(missingCount) : undefined}
+    />
+  );
+};
+
 const NewEventForm = async ({ searchParams }: Pick<PageProps<"/events/new">, "searchParams">) => {
-  const { date, todo } = await searchParams;
+  const { date, todo, [PICKED_TODOS_PARAM]: pick } = await searchParams;
   // 오늘 날짜는 세션을 읽은 뒤에 계산한다. 그 전에 시각을 읽으면 미리 그리기에서 오류가 난다(cacheComponents)
   if (typeof todo === "string") return <ScheduleTodoForm todoId={todo} />;
+  // 고른 것이 모두 형식이 틀리면 고른 것 없이 연 폼과 같게 보여 준다
+  const pickedTodoIds = parsePickedTodoIds(pick);
+  if (pickedTodoIds.length > 0) return <PickedTodosForm todoIds={pickedTodoIds} />;
 
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다. 고르는 창의 하고 싶은 것(#472)도 함께 읽는다
   const [{ nickname }, linkableTodos] = await withCurrentMember(loadLinkableTodos);

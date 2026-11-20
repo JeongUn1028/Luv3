@@ -113,6 +113,27 @@ export const getLinkableTodos = async (): Promise<LinkedTodo[]> => {
 };
 
 /**
+ * 고른 하고 싶은 것 중 지금 이을 수 있는 것(아직 일정이 없고 완료하지 않은 것)만 목록 순서대로 읽는다(#495).
+ * 고르는 창의 목록(`getLinkableTodos`)은 200개에서 끊기므로, 고른 것은 id로 따로 읽어 뒤쪽 항목이 빠졌다고 잘못 알리지 않게 한다.
+ *
+ * @throws {TodoLoadError} 조회가 실패했을 때
+ * @example const picked = await getLinkableTodosByIds(["a", "b"])
+ */
+export const getLinkableTodosByIds = async (todoIds: string[]): Promise<LinkedTodo[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("todos")
+    .select("id, content")
+    .in("id", todoIds)
+    .is("completed_at", null)
+    .is("event_id", null)
+    .order("sort_order")
+    .order("id");
+  if (error) throw new TodoLoadError({ cause: error });
+  return data;
+};
+
+/**
  * 일정 폼이 쓰는 `getLinkableTodos`. 불러오지 못해도 일정은 고칠 수 있어야 하므로 빈 목록을 돌려줘 칸을 숨긴다(원인은 `catchLoadError`가 서버 로그에 남긴다).
  *
  * @example <EventForm linkableTodos={await loadLinkableTodos()} />

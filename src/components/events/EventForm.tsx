@@ -21,12 +21,14 @@ import {
   type EventDraftErrors,
   type EventEditScope,
   type LinkedTodo,
+  toTodoIds,
   toWrittenFields,
 } from "@/lib/events/form";
 import type { EventRecordLink } from "@/lib/events/record-link";
 import { showInvalidFields } from "@/lib/focus-invalid-field";
 import { clearErrors, clearFieldError, isResolvedFieldNotice, isSameFormValue } from "@/lib/form";
 import { useLeavableSave, type FailedSave } from "@/lib/navigation/use-leavable-save";
+import { TODOS_PATH } from "@/lib/todos/list";
 import { toTodoEditHref } from "@/lib/todos/schedule";
 import { EventKindField, EventScopeField } from "./event-form/EventChoiceFields";
 import { EventFormActions } from "./event-form/EventFormActions";
@@ -56,6 +58,10 @@ interface EventFormProps {
   todo?: { id: string; content: string } | undefined;
   /** 폼에서 고를 수 있는 하고 싶은 것(#472). 아직 일정이 없고 완료하지 않은 것, 목록 순서 */
   linkableTodos?: LinkedTodo[];
+  /** 하고 싶은 것 목록에서 골라 연 새 일정인지(#495). 고른 것은 `initialDraft.linkedTodos`로 미리 잇고, 뒤로 가거나 저장하면 목록으로 돌아간다 */
+  returnsToTodos?: boolean;
+  /** 폼을 열 때부터 저장 버튼 위에 보일 안내(고른 것 중 그사이 뺀 것이 있을 때 등) */
+  initialNotice?: string | undefined;
 }
 
 /** 고르는 창에 보일 하고 싶은 것. 고치기 화면에서 끊은 것은 다시 고를 수 있게 맨 앞에 두고, 지금 이어 둔 것은 뺀다 */
@@ -77,9 +83,12 @@ export const EventForm = ({
   recordLink,
   todo,
   linkableTodos = [],
+  returnsToTodos = false,
+  initialNotice,
 }: EventFormProps): ReactElement => {
-  // 캘린더에서 고른 날마다 다른 폼이다. 다른 날의 실패한 내용이 채워지지 않게 날짜까지 구분한다. 하고 싶은 것에서 연 폼은 그 하고 싶은 것으로 구분한다
-  const formKey = `event:${eventId ? `${eventId}:${occurrence?.date ?? ""}` : todo ? `todo:${todo.id}` : `new:${initialDraft.date}`}`;
+  // 캘린더에서 고른 날마다 다른 폼이다. 다른 날의 실패한 내용이 채워지지 않게 날짜까지 구분한다. 하고 싶은 것에서 연 폼은 그 하고 싶은 것(고른 것 전부)으로 구분한다
+  const newFormKey = returnsToTodos ? `pick:${toTodoIds(initialDraft.linkedTodos).join(",")}` : `new:${initialDraft.date}`;
+  const formKey = `event:${eventId ? `${eventId}:${occurrence?.date ?? ""}` : todo ? `todo:${todo.id}` : newFormKey}`;
   const { failedSave, ...leavableSave } = useLeavableSave({ formKey, subject: "일정을", failedSaves });
   const [draft, setDraft] = useState(failedSave?.draft ?? initialDraft);
   // 쓴 내용이 있는지 견줄 처음 내용. 상대가 고쳐 화면을 새로 받아도 폼은 처음 내용 그대로라 이 값과 견준다
@@ -87,12 +96,12 @@ export const EventForm = ({
   const [errors, setErrors] = useState<EventDraftErrors>({});
   // 범위를 바꿨다 돌아와도 고쳐 둔 날짜·함께 여부를 잃지 않게 범위마다 남긴다(#261)
   const [scopeValues, setScopeValues] = useState<ScopeValues>({});
-  const [notice, setNotice] = useState(failedSave?.message);
+  const [notice, setNotice] = useState(failedSave?.message ?? initialNotice);
   // 칸 오류를 모두 고치면 저장을 다시 누르기 전이라도 안내를 지운다. 효과로 지우면 한 번 더 그려지므로 그리는 중에 맞춘다
   if (isResolvedFieldNotice(notice, errors)) setNotice(undefined);
   // 캘린더로 돌아가면 일정 날짜가 속한 달을 열고 그날을 고른다
   const backDate = viewedDate ?? initialDraft.date;
-  const backHref = todo ? toTodoEditHref(todo.id) : toCalendarHref({ date: backDate });
+  const backHref = todo ? toTodoEditHref(todo.id) : returnsToTodos ? TODOS_PATH : toCalendarHref({ date: backDate });
   const { isSaving, save } = useEventSave({
     initialDraft,
     eventId,
@@ -101,6 +110,7 @@ export const EventForm = ({
     viewedDate,
     backDate,
     todoId: todo?.id,
+    returnsToTodos,
     setDraft,
     setNotice,
     leavableSave,

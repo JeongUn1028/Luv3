@@ -29,6 +29,8 @@ interface UseEventSaveParams {
   backDate: string;
   /** 새 일정을 이 하고 싶은 것에 이어 만든다(#471). 저장하면 하고 싶은 것 목록으로 돌아가 그 줄을 보여 준다 */
   todoId: string | undefined;
+  /** 하고 싶은 것 목록에서 골라 연 새 일정인지(#495). 저장하면 목록으로 돌아가 이은 것 중 첫 줄을 보여 준다 */
+  returnsToTodos: boolean;
   setDraft: Dispatch<SetStateAction<EventDraft>>;
   /** 폼 아래 안내. 저장을 시작하면 지우고 실패하면 이유를 적는다 */
   setNotice: Dispatch<SetStateAction<string | undefined>>;
@@ -62,6 +64,7 @@ export const useEventSave = ({
   viewedDate,
   backDate,
   todoId,
+  returnsToTodos,
   setDraft,
   setNotice,
   leavableSave,
@@ -80,7 +83,8 @@ export const useEventSave = ({
     const dateAfterSave = getDateAfterSave(draft, { occurrenceDate: occurrence?.date, viewedDate });
     // 하고 싶은 것에서 연 폼은 목록으로 돌아가 그 줄을 보여 주고, 저장이 끝나면 그 줄에 날짜 칩이 붙는다.
     // 고치기 화면(폼)으로 돌아가면 쓰던 내용을 지키려고 새로 받지 않아 "일정 잡기"가 그대로 남는다
-    const savedHref = todoId ? TODOS_PATH : toCalendarHref({ date: dateAfterSave });
+    const isFromTodos = todoId !== undefined || returnsToTodos;
+    const savedHref = isFromTodos ? TODOS_PATH : toCalendarHref({ date: dateAfterSave });
     // 하루짜리 일정만 저장을 기다리지 않고 캘린더에 먼저 그린다. 반복·기간·"이 날만 고치기"는 저장이 끝난 뒤 새로 받는다(#345)
     const pendingId = eventId ?? newEventId;
     // 새 일정은 하고 싶은 것에서 열었거나 폼에서 골랐으면 만들며 잇는다(#471·#472·#495). 고칠 일정은 저장한 뒤 연결을 바꾼다
@@ -101,13 +105,16 @@ export const useEventSave = ({
     const hasReturned = beginSave({
       returnTo: savedHref,
       canGoBackTo: (url) =>
-        todoId ? url.pathname === savedHref : dateAfterSave === backDate && isCalendarMonthUrl(url, dateAfterSave.slice(0, 7), toKstDate(new Date())),
+        isFromTodos ? url.pathname === savedHref : dateAfterSave === backDate && isCalendarMonthUrl(url, dateAfterSave.slice(0, 7), toKstDate(new Date())),
     });
     // 인터넷이 끊겨 폼에 남으면 캘린더에 먼저 그릴 일이 없다(저장은 실패한다)
     if (!hasReturned) pendingEventStore.discard(pendingId, revision);
     // 목록으로 돌아갈 때만 그 줄을 남긴다. 폼에 남았는데 남기면 나중에 목록을 열 때 엉뚱하게 그 줄로 간다.
-    // 목록은 다음 그림에서 꺼내므로 옮기기를 시작한 뒤에 남겨도 된다
-    else if (todoId) requestTodoFocus(todoId);
+    // 목록은 다음 그림에서 꺼내므로 옮기기를 시작한 뒤에 남겨도 된다. 여러 개를 이었으면 첫 줄을 보여 준다(#495)
+    else if (isFromTodos) {
+      const focusTodoId = todoId ?? scheduleTodoIds[0];
+      if (focusTodoId) requestTodoFocus(focusTodoId);
+    }
     const failure = await withLoadedClient<EventSaveFailure | undefined>({
       request: (supabase) =>
         saveEvent({

@@ -5,6 +5,7 @@ import { TabScreen } from "@/components/tabs/TabScreen";
 import { TodoAddLink } from "@/components/todos/TodoAddLink";
 import { TodoList } from "@/components/todos/TodoList";
 import { TodoListSkeleton } from "@/components/todos/TodoListSkeleton";
+import { TodoPickToggle } from "@/components/todos/TodoPickToggle";
 import { toKstDate } from "@/lib/anniversary";
 import { withCurrentMember } from "@/lib/auth/with-member";
 import { catchLoadError } from "@/lib/load";
@@ -29,7 +30,12 @@ const TodosPage = () => (
   <TabScreen
     tab="todos"
     title="하고 싶은 것"
-    actions={<TodoAddLink />}
+    actions={
+      <>
+        <TodoPickToggle />
+        <TodoAddLink />
+      </>
+    }
     className="px-4"
   >
     {/* 세션을 읽는 부분만 요청 때 그린다(cacheComponents) */}
