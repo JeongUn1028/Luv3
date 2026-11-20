@@ -4,10 +4,13 @@ import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { getSessionClaims } from "@/lib/supabase/jwks";
 import { LOGIN_PATH, SIGN_OUT_PATH } from "@/lib/auth/paths";
+import { toTodoListView, type TodoListView } from "@/lib/todos/list-view";
 
 export interface Member {
   id: string;
   nickname: string;
+  /** 하고 싶은 것 목록 보기(#497). 사람마다 하나라 이 사람의 모든 기기에서 같다 */
+  todoListView: TodoListView;
 }
 
 /** 허용목록 밖 계정을 로그아웃시키는 경로 */
@@ -30,14 +33,14 @@ export const getCurrentMember = cache(async (): Promise<Member> => {
   // RLS 때문에 허용목록 밖 사용자는 자기 행도 조회되지 않는다
   const { data: member, error } = await supabase
     .from("members")
-    .select("id, nickname")
+    .select("id, nickname, todo_list_view")
     .eq("id", userId)
     .maybeSingle();
 
   if (error) throw new Error(`허용목록을 확인하지 못했습니다: ${error.message}`);
   if (!member) redirect(NOT_MEMBER_SIGNOUT_PATH);
 
-  return member;
+  return { id: member.id, nickname: member.nickname, todoListView: toTodoListView(member.todo_list_view) };
 });
 
 /**

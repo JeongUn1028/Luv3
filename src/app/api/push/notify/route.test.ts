@@ -79,7 +79,7 @@ const pushError = (statusCode: number) => Object.assign(new Error("Received unex
 
 describe("POST /api/push/notify", () => {
   beforeEach(() => {
-    vi.mocked(getCurrentMember).mockResolvedValue({ id: MEMBER_ID, nickname: "진아" });
+    vi.mocked(getCurrentMember).mockResolvedValue({ id: MEMBER_ID, nickname: "진아", todoListView: "sections" });
     vi.mocked(getVapidConfig).mockReturnValue(VAPID);
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });

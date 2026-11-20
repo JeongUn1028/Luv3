@@ -8,6 +8,7 @@ import { ScreenHeader } from "@/components/ScreenHeader";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { NotificationSection } from "@/components/settings/NotificationSection";
 import { PushTypeSwitches } from "@/components/settings/PushTypeSwitches";
+import { TodoListViewSetting } from "@/components/settings/TodoListViewSetting";
 import { SkeletonArea, SkeletonBlock } from "@/components/Skeleton";
 import { getCurrentMember } from "@/lib/auth/member";
 import { APP_VERSION } from "@/lib/app-info/version";
@@ -45,6 +46,20 @@ const MemberSection = async () => {
         <ChevronRightIcon className="size-[18px] text-ink-sub" />
       </Link>
       <LogoutForm />
+    </section>
+  );
+};
+
+/** 하고 싶은 것 목록 보기(#497). 사람마다 설정이 있어 세션을 읽는다. 회원 확인과 같은 조회라 요청이 늘지 않는다 */
+const TodoSettingSection = async () => {
+  const member = await getCurrentMember();
+  return (
+    <section aria-labelledby="settings-todos" className="mt-8 flex flex-col">
+      <h2 id="settings-todos" className="text-[13px] text-ink-sub">
+        하고 싶은 것
+      </h2>
+      {/* 다른 기기에서 바꾼 값이 새로 오면 그 값으로 다시 그린다 */}
+      <TodoListViewSetting key={member.todoListView} initialView={member.todoListView} />
     </section>
   );
 };
@@ -128,6 +143,16 @@ const SettingsPage = () => (
         }
       >
         <MemberSection />
+      </LoadingSuspense>
+      <LoadingSuspense
+        fallback={
+          <SkeletonArea className="mt-8">
+            <SkeletonBlock className="h-5 w-20 rounded-[4px]" />
+            <SkeletonBlock className="mt-2 h-[124px] rounded-[10px]" />
+          </SkeletonArea>
+        }
+      >
+        <TodoSettingSection />
       </LoadingSuspense>
       <PhotoSection />
       <AppSection />

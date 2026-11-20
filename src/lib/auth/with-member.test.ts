@@ -5,7 +5,7 @@ import { withCurrentMember } from "./with-member";
 vi.mock("@/lib/auth/member", () => ({ getCurrentMember: vi.fn() }));
 vi.mock("server-only", () => ({}));
 
-const MEMBER: Member = { id: "member-1", nickname: "하나" };
+const MEMBER: Member = { id: "member-1", nickname: "하나", todoListView: "sections" };
 
 /** 밖에서 끝낼 수 있는 약속. 두 일이 서로를 기다리지 않는지 보려고 쓴다 */
 const deferred = <T>() => {

@@ -19,11 +19,12 @@ export const unstable_dynamicStaleTime = 30;
 const TodosContent = async () => {
   // 허용목록 밖 계정은 여기서 로그아웃 처리 경로로 보낸다. 확인과 조회는 함께 시작한다(#344)
   // 목록을 못 불러와도 머리글과 하단 탭은 쓸 수 있게, 이 에러만 화면 안 문구로 바꾼다
-  const [, todos] = await withCurrentMember(() => catchLoadError(getTodos, TodoLoadError));
+  const [member, todos] = await withCurrentMember(() => catchLoadError(getTodos, TodoLoadError));
 
   if (todos instanceof TodoLoadError) return <LoadErrorMessage message={todos.message} />;
   // 이어진 일정이 지났는지 가르는 오늘. 서버와 브라우저가 같은 값으로 그리게 서버에서 정한다
-  return <TodoList todos={todos} today={toKstDate(new Date())} />;
+  // 목록 보기(#497)는 회원 확인에서 함께 읽은 값이라 조회가 늘지 않는다
+  return <TodoList todos={todos} today={toKstDate(new Date())} view={member.todoListView} />;
 };
 
 const TodosPage = () => (

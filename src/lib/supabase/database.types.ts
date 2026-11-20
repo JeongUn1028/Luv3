@@ -125,14 +125,14 @@ isOneToOne: false
                   ]
                 },"members": {
                   Row: {
-                    "created_at": string,"email": string,"id": string,"nickname": string
+                    "created_at": string,"email": string,"id": string,"nickname": string,"todo_list_view": string
                   }
                   ComputedFields: never
                   Insert: {
-                    "created_at"?: string,"email": string,"id": string,"nickname": string
+                    "created_at"?: string,"email": string,"id": string,"nickname": string,"todo_list_view"?: string
                   }
                   Update: {
-                    "created_at"?: string,"email"?: string,"id"?: string,"nickname"?: string
+                    "created_at"?: string,"email"?: string,"id"?: string,"nickname"?: string,"todo_list_view"?: string
                   }
                   Relationships: [
                     
@@ -371,6 +371,9 @@ isOneToOne: false
                            },
 "set_push_notify":
 { Args: { "p_enabled": boolean,"p_kind": string }; Returns: undefined
+                           },
+"set_todo_list_view":
+{ Args: { "p_view": string }; Returns: undefined
                            },
 "swap_couple_photo_path":
 { Args: { "p_path": string }; Returns: string

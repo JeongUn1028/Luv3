@@ -6,6 +6,7 @@ import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, useS
 import { toCheckboxId, TodoItem, TodoMoveButtons, type TodoAskAnswer } from "@/components/todos/TodoItem";
 import { TodoPickItem } from "@/components/todos/TodoPickItem";
 import { TodoReorderToggle, TodoSection } from "@/components/todos/TodoSection";
+import { toTodoTabId, TodoTabs } from "@/components/todos/TodoTabs";
 import { useJustAddedTodo, useStrikingTodos } from "@/components/todos/use-todo-motion";
 import { DELETING_KEYS, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { isWritingNow, refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
@@ -16,6 +17,7 @@ import { saveTodoAction, TODO_ACTION_FAILED_MESSAGE } from "@/lib/todos/actions"
 import { applyTodoAction, groupTodos, splitScheduledTodos, type Todo, type TodoAction } from "@/lib/todos/list";
 import { findSettledPendingIds, mergePendingTodos, pendingTodoStore, type PendingTodo, type ShownTodo } from "@/lib/todos/pending";
 import { canPickTodos, todoListMode } from "@/lib/todos/list-mode";
+import { findTodoTab, FIRST_TODO_TAB, type TodoListView, type TodoTab } from "@/lib/todos/list-view";
 import { createTodoSaveBatch } from "@/lib/todos/save-batch";
 import { toPickedTodosScheduleHref } from "@/lib/todos/schedule";
 
@@ -27,6 +29,8 @@ interface TodoListProps {
   todos: Todo[];
   /** 오늘(한국 날짜). 이어진 일정이 지났는지 가른다(#471) */
   today: string;
+  /** 목록 보기(#497). 구역으로 나눠 한 목록에 그리거나, 위에 탭 3개를 두고 고른 탭만 그린다 */
+  view: TodoListView;
 }
 
 /** 동작을 DB에 저장한다. 실패하면 화면에 보여 줄 문구를, 성공하면 undefined를 돌려준다 */
@@ -44,11 +48,13 @@ const saveAction = (action: TodoAction): Promise<string | undefined> =>
  * 연달아 누르면 저장은 누른 순서대로 하나씩 하고, 서버 목록은 마지막 저장이 끝났을 때 한 번만 다시 받는다(#347).
  * 완료를 누르면 제자리에서 줄을 긋고 잠깐 머문 뒤 완료 칸으로 옮기고, 폼에서 막 더한 항목은 보이게 스크롤해 잠깐 표시한다(#347).
  * 머리글의 '일정 잡기'를 누르면 '아직' 구역에서 여러 개를 골라 한 번에 일정을 잡는다(#495). 일정 잡힌 것과 완료한 것은 흐리게 두고 고를 수 없다.
+ * 설정에서 '탭으로'를 고른 사람에게는 같은 세 목록을 탭으로 나눠 그린다(#497). 화면을 열거나 편집을 시작하면 '아직' 탭이고,
+ * 새로 더한 항목은 그 탭을 열어 보여 주며, 체크한 항목은 보던 탭을 그대로 두고 옮겨 간다(사용자 결정).
  * 폼에서 저장 중인 항목(#345)은 서버 목록이 따라잡을 때까지 흐리게 먼저 보여 주고, 아직 서버에 없을 수 있어 누를 수 없게 한다.
  *
  * @example <TodoList todos={await getTodos()} />
  */
-export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
+export const TodoList = ({ todos, today, view }: TodoListProps): ReactElement => {
   const router = useRouter();
   const [optimisticTodos, addOptimisticAction] = useOptimistic(todos, applyTodoAction);
   const pendingTodos = useSyncExternalStore(pendingTodoStore.subscribe, pendingTodoStore.getPending, () => NO_PENDING_TODOS);
@@ -71,7 +77,13 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
   // 고른 하고 싶은 것 id(누른 순서). 고르기를 끝내면 비운다
   const [pickedIds, setPickedIds] = useState<readonly string[]>([]);
   if (!isPicking && pickedIds.length > 0) setPickedIds([]);
+  const isTabView = view === "tabs";
+  const [activeTab, setActiveTab] = useState<TodoTab>(FIRST_TODO_TAB);
+  // 편집(순서 바꾸기·일정 잡기)은 '아직'에서만 한다. 다른 탭을 보다 머리글의 '일정 잡기'를 누르면 '아직' 탭으로 옮긴다
+  if (isTabView && mode !== "view" && activeTab !== FIRST_TODO_TAB) setActiveTab(FIRST_TODO_TAB);
   useResetOnHide(() => {
+    // 탭 모양은 화면을 다시 열면 늘 '아직' 탭이다
+    setActiveTab(FIRST_TODO_TAB);
     setNotice(undefined);
     setAnnouncement("");
     // 다른 탭으로 가거나 화면을 떠나면(고른 것으로 일정 폼을 열 때도) 편집과 고르기가 끝난다
@@ -86,6 +98,17 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
     shownTodos.map((todo) => (strikePhases.has(todo.id) && todo.completedAt !== undefined ? { ...todo, completedAt: undefined } : todo)),
   );
   const { scheduled, unscheduled } = splitScheduledTodos(open);
+  // 새로 더했거나 캘린더에서 눌러 온 항목(#471)은 그 항목이 든 탭을 열어 보여 준다. 같은 항목으로 다시 옮기지 않게 연 항목을 기억한다
+  // 표시가 끝나면 잊어, 캘린더에서 같은 항목을 다시 눌러 와도(그사이 탭은 '아직'으로 돌아간다) 그 탭을 다시 연다
+  const [revealedTabTodoId, setRevealedTabTodoId] = useState<string>();
+  if (justAddedId === undefined && revealedTabTodoId !== undefined) setRevealedTabTodoId(undefined);
+  if (isTabView && justAddedId !== undefined && justAddedId !== revealedTabTodoId) {
+    const tab = findTodoTab({ scheduled, unscheduled, done }, justAddedId);
+    if (tab) {
+      setRevealedTabTodoId(justAddedId);
+      if (mode === "view") setActiveTab(tab);
+    }
+  }
   // 아직 서버에 없는 새 항목과 줄긋기 중인 항목은 순서를 바꿀 때 이웃으로 치지 않는다. 고치는 중인 항목은 서버에도 있어 이웃으로 친다.
   // 일정 잡힌 것은 날짜순이라 손으로 바꾸지 않고, DB도 같은 구역 안에서만 이웃을 찾는다
   const movable = unscheduled.filter(({ id, isNew }) => !isNew && !strikePhases.has(id));
@@ -113,7 +136,10 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
   useLayoutEffect(() => {
     const todoId = focusedToggleIdRef.current;
     if (!todoId) return;
-    if (document.activeElement === null || document.activeElement === document.body) document.getElementById(toCheckboxId(todoId))?.focus();
+    if (document.activeElement === null || document.activeElement === document.body) {
+      // 탭 모양에서는 옮겨 간 항목이 보던 탭에 없으므로 그 탭 버튼으로 돌린다
+      (document.getElementById(toCheckboxId(todoId)) ?? (isTabView ? document.getElementById(toTodoTabId(activeTab)) : null))?.focus();
+    }
     // 줄긋기 중이면 아직 옮기기 전이라 옮긴 뒤까지 지켜본다
     if (optimisticTodos === todos && !strikePhases.has(todoId)) focusedToggleIdRef.current = undefined;
   });
@@ -147,6 +173,13 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
     // 버튼 글자만 바뀌어 화면 읽기 프로그램은 무엇이 달라졌는지 알 수 없다(띠는 화면에만 보인다)
     setAnnouncement(isStarting ? "순서를 바꾸는 중이에요. 위·아래 버튼으로 옮기고, 다 하면 '끝'을 눌러 주세요" : "순서 바꾸기를 끝냈어요");
     todoListMode.set(isStarting ? "reorder" : "view");
+  };
+
+  // 다른 탭으로 가면 편집(순서 바꾸기·일정 잡기)이 끝난다
+  const handleSelectTab = (tab: TodoTab) => {
+    if (tab === activeTab) return;
+    if (mode !== "view") todoListMode.set("view");
+    setActiveTab(tab);
   };
 
   const handlePick = (todo: ShownTodo, isPicked: boolean) => {
@@ -200,6 +233,43 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
     </>
   );
 
+  const scheduledItems = scheduled.map((todo) => (
+    <TodoItem
+      key={todo.id}
+      todo={todo}
+      onToggle={handleToggle}
+      isJustAdded={todo.id === justAddedId}
+      strikePhase={strikePhases.get(todo.id)}
+      today={today}
+      onAnswerAsk={handleAnswerAsk}
+    />
+  ));
+  const unscheduledItems = unscheduled.map((todo) => {
+    if (isPicking) {
+      const isPickable = !todo.isPending && !strikePhases.has(todo.id);
+      return <TodoPickItem key={todo.id} todo={todo} isPicked={pickedIdSet.has(todo.id)} isDisabled={!isPickable} onChange={handlePick} />;
+    }
+    const index = todo.isPending ? -1 : (movableIndexById.get(todo.id) ?? -1);
+    return (
+      <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} isJustAdded={todo.id === justAddedId} strikePhase={strikePhases.get(todo.id)} isLocked={isReordering}>
+        {isReordering ? (
+          <TodoMoveButtons
+            content={todo.content}
+            isFirst={index <= 0}
+            isLast={index === -1 || index === movable.length - 1}
+            onMove={(offset) => handleMove(todo, offset)}
+          />
+        ) : undefined}
+      </TodoItem>
+    );
+  });
+  const doneItems = done.map((todo) => (
+    <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} isJustAdded={todo.id === justAddedId} isArriving={arrivingIds.has(todo.id)} />
+  ));
+  // 고르는 동안은 순서 바꾸기 버튼을 숨긴다
+  const reorderToggle =
+    !isPicking && (movable.length > 1 || isReordering) ? <TodoReorderToggle isReordering={isReordering} onToggle={handleToggleReorder} /> : undefined;
+
   if (isListEmpty) {
     return (
       // 빈 목록 문구의 자리가 바뀌지 않게, 위 여백은 안내가 있을 때만 둔다
@@ -227,65 +297,34 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
         </p>
       )}
 
-      {scheduled.length > 0 && (
-        <TodoSection titleId="todos-scheduled" title={`일정 잡힌 것 ${scheduled.length} · 날짜순`} listLabel="일정 잡힌 것" isInert={mode !== "view"}>
-          {scheduled.map((todo) => (
-            <TodoItem
-              key={todo.id}
-              todo={todo}
-              onToggle={handleToggle}
-              isJustAdded={todo.id === justAddedId}
-              strikePhase={strikePhases.get(todo.id)}
-              today={today}
-              onAnswerAsk={handleAnswerAsk}
-            />
-          ))}
-        </TodoSection>
-      )}
-
-      {(unscheduled.length > 0 || isReordering) && (
-        <TodoSection
-          titleId="todos-unscheduled"
-          title={`아직 ${unscheduled.length}`}
-          listLabel="아직"
-          // 고르는 동안은 순서 바꾸기 버튼을 숨긴다
-          action={!isPicking && (movable.length > 1 || isReordering) ? <TodoReorderToggle isReordering={isReordering} onToggle={handleToggleReorder} /> : undefined}
-        >
-          {unscheduled.map((todo) => {
-            if (isPicking) {
-              const isPickable = !todo.isPending && !strikePhases.has(todo.id);
-              return <TodoPickItem key={todo.id} todo={todo} isPicked={pickedIdSet.has(todo.id)} isDisabled={!isPickable} onChange={handlePick} />;
-            }
-            const index = todo.isPending ? -1 : (movableIndexById.get(todo.id) ?? -1);
-            return (
-              <TodoItem
-                key={todo.id}
-                todo={todo}
-                onToggle={handleToggle}
-                isJustAdded={todo.id === justAddedId}
-                strikePhase={strikePhases.get(todo.id)}
-                isLocked={isReordering}
-              >
-                {isReordering ? (
-                  <TodoMoveButtons
-                    content={todo.content}
-                    isFirst={index <= 0}
-                    isLast={index === -1 || index === movable.length - 1}
-                    onMove={(offset) => handleMove(todo, offset)}
-                  />
-                ) : undefined}
-              </TodoItem>
-            );
-          })}
-        </TodoSection>
-      )}
-
-      {done.length > 0 && (
-        <TodoSection titleId="todos-done" title={`완료 ${done.length}`} listLabel="완료" isInert={mode !== "view"}>
-          {done.map((todo) => (
-            <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} isJustAdded={todo.id === justAddedId} isArriving={arrivingIds.has(todo.id)} />
-          ))}
-        </TodoSection>
+      {isTabView ? (
+        <TodoTabs
+          activeTab={activeTab}
+          onSelect={handleSelectTab}
+          panels={{
+            scheduled: { label: "일정 잡힌 것", count: scheduled.length, hint: "날짜순", emptyText: "일정을 잡은 것이 없어요", items: scheduledItems },
+            unscheduled: { label: "아직", count: unscheduled.length, action: reorderToggle, emptyText: "아직 남은 것이 없어요", items: unscheduledItems },
+            done: { label: "완료", count: done.length, emptyText: "완료한 것이 없어요", items: doneItems },
+          }}
+        />
+      ) : (
+        <>
+          {scheduled.length > 0 && (
+            <TodoSection titleId="todos-scheduled" title={`일정 잡힌 것 ${scheduled.length} · 날짜순`} listLabel="일정 잡힌 것" isInert={mode !== "view"}>
+              {scheduledItems}
+            </TodoSection>
+          )}
+          {(unscheduled.length > 0 || isReordering) && (
+            <TodoSection titleId="todos-unscheduled" title={`아직 ${unscheduled.length}`} listLabel="아직" action={reorderToggle}>
+              {unscheduledItems}
+            </TodoSection>
+          )}
+          {done.length > 0 && (
+            <TodoSection titleId="todos-done" title={`완료 ${done.length}`} listLabel="완료" isInert={mode !== "view"}>
+              {doneItems}
+            </TodoSection>
+          )}
+        </>
       )}
 
       {isPicking && <TodoPickBar todoIds={picked.map(({ id }) => id)} />}
