@@ -40,6 +40,8 @@ interface ModalDialogProps {
   isBottomSheet?: boolean;
   /** 아래 창 제목 옆에 붙일 것(이름표 등) */
   titleAccessory?: ReactNode;
+  /** 줄 목록에서 하나를 고르는 가운데 창(하고 싶은 것·일정·기록 잇기, #503). 줄이 좁아 보이지 않게 창을 넓히고 창 안 좌우 여백을 줄인다 */
+  isPicker?: boolean;
   children: ReactNode;
 }
 
@@ -65,6 +67,7 @@ export const ModalDialog = ({
   headerLabel,
   isBottomSheet = false,
   titleAccessory,
+  isPicker = false,
   children,
 }: ModalDialogProps): ReactElement => {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -165,7 +168,9 @@ export const ModalDialog = ({
           : isBottomSheet
             ? // 화면 아래에 붙인다. 열렸을 때만 세로로 쌓아(닫힌 창은 숨긴 채로 둔다) 내용이 길면 머리글 아래만 스크롤한다
               "modal-dialog modal-bottom-sheet m-0 mt-auto max-h-[80%] w-full max-w-none flex-col rounded-t-[16px] border-t border-line bg-surface p-0 text-ink backdrop:bg-background/70 open:flex"
-            : "modal-dialog m-auto w-[calc(100%-32px)] max-w-[360px] rounded-[14px] border border-line bg-surface p-5 text-ink backdrop:bg-background/70"
+            : `modal-dialog m-auto rounded-[14px] border border-line bg-surface text-ink backdrop:bg-background/70 ${
+                isPicker ? "w-[calc(100%-24px)] max-w-[400px] px-4 py-5" : "w-[calc(100%-32px)] max-w-[360px] p-5"
+              }`
       }
     >
       {isBottomSheet ? (
