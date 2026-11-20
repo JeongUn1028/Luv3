@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { startTransition, useRef, useState, useTransition, type MouseEvent, type ReactElement } from "react";
 import { ViewRecordLink } from "@/components/events/ViewRecordLink";
 import { ModalActions, ModalMessage } from "@/components/ModalActions";
-import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
+import { ModalDialog, PICKER_LIST_CLASS_NAME, PICKER_ROW_CLASS_NAME, type ModalDialogHandle } from "@/components/ModalDialog";
 import { formatRecordShortDate } from "@/lib/dates/record-date-format";
 import { fetchLinkableRecords, linkRecordToEvent, toEventLinkMessage, type LinkableRecord } from "@/lib/dates/event-link";
 import { toEventRecordHref, type EventRecordLink } from "@/lib/events/record-link";
@@ -120,7 +120,7 @@ export const LeaveRecordAction = ({ eventId, link, eventTitle, className, onLink
         isPicker
       >
         {records.length > 0 && (
-          <ul aria-label="이미 쓴 기록과 잇기" className="relative -mx-1 mt-4 flex max-h-[300px] flex-col gap-2 overflow-y-auto px-1">
+          <ul aria-label="이미 쓴 기록과 잇기" className={PICKER_LIST_CLASS_NAME}>
             {records.map((record) => (
               <li key={record.id}>
                 <button
@@ -128,7 +128,7 @@ export const LeaveRecordAction = ({ eventId, link, eventTitle, className, onLink
                   disabled={isLinking}
                   aria-label={`${record.title} 기록과 잇기`}
                   onClick={() => handleLink(record.id)}
-                  className="press-card flex min-h-[60px] w-full items-center gap-3 rounded-[10px] border border-line px-3 py-2 text-left disabled:opacity-50"
+                  className={`${PICKER_ROW_CLASS_NAME} min-h-[60px] items-center gap-3`}
                 >
                   <span aria-hidden="true" className="size-11 shrink-0 overflow-hidden rounded-[8px] bg-line">
                     {record.thumbUrl && (
