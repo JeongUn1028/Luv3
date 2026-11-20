@@ -113,10 +113,10 @@ const HomeUpcomingEvents = async () => {
 };
 
 const HomeTodos = async () => {
-  const [, todos] = await withCurrentMember(() => catchLoadError(() => getOpenTodoPreview(TODO_PREVIEW_COUNT), TodoLoadError));
+  const [, preview] = await withCurrentMember(() => catchLoadError(() => getOpenTodoPreview(TODO_PREVIEW_COUNT), TodoLoadError));
 
-  if (todos instanceof TodoLoadError) return <TodoPreview todos={[]} errorMessage={todos.message} />;
-  return <TodoPreview todos={todos} />;
+  if (preview instanceof TodoLoadError) return <TodoPreview todos={[]} errorMessage={preview.message} />;
+  return <TodoPreview todos={preview.todos} isAllScheduled={preview.isAllScheduled} />;
 };
 
 const HomePage = () => (

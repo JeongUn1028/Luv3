@@ -102,6 +102,8 @@ test.describe("쓰는 중에 로그인이 풀리면", () => {
 
   test("목록에서 순서를 바꿀 때도 창이 나온다", async ({ page }) => {
     await openScreen(page, "/todos", page.getByText(TODO.content));
+    // 위·아래 버튼은 순서 바꾸기 편집 중에만 나온다(#497)
+    await page.locator("main").getByRole("button", { name: "순서 바꾸기", exact: true }).click();
     await dropSession(page);
 
     await page.getByRole("button", { name: /아래로/ }).first().click();

@@ -444,7 +444,7 @@ export const createComment = async ({ recordId, content, authorId }: { recordId:
 
 /**
  * 테스트 하나에서만 쓰는 하고 싶은 것을 만든다. `completedAt`을 주면 완료한 항목이 된다. 돌려준 함수는 그 항목을 지운다.
- * `sortOrder`를 주지 않으면 DB가 목록 맨 뒤 순서를 붙인다.
+ * `sortOrder`를 주지 않으면 DB가 목록 맨 뒤 순서를 붙인다. `eventId`를 주면 그 일정을 이은 채로 만든다(#497: 만든 뒤 이으면 그사이 '아직'에 잠깐 보인다).
  *
  * @example const deleteTodo = await createDisposableTodo({ id: randomUUID(), content: "고칠 항목" })
  */
@@ -453,11 +453,13 @@ export const createDisposableTodo = async ({
   content,
   completedAt,
   sortOrder,
+  eventId,
 }: {
   id: string;
   content: string;
   completedAt?: string;
   sortOrder?: number;
+  eventId?: string;
 }): Promise<() => Promise<void>> => {
   const admin = createAdminClient();
   assertNoError(
@@ -467,6 +469,7 @@ export const createDisposableTodo = async ({
       author_id: await getMemberId(admin),
       ...(completedAt && { completed_at: completedAt }),
       ...(sortOrder !== undefined && { sort_order: sortOrder }),
+      ...(eventId && { event_id: eventId }),
     }),
     "하고 싶은 것",
   );

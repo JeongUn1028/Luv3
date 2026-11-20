@@ -59,8 +59,10 @@ interface TodoItemProps {
   today?: string | undefined;
   /** 주면 이어진 일정이 지났을 때 줄 아래에 "다녀오셨나요?"를 묻는다(#471). 일정의 마지막 날을 함께 넘긴다 */
   onAnswerAsk?: ((todo: Todo, answer: TodoAskAnswer) => void) | undefined;
-  /** 오른쪽 끝 버튼(순서 바꾸기). 완료한 항목에는 없다 */
-  children?: ReactElement;
+  /** 순서 바꾸기 편집 중이면 체크와 고치기 화면 열기를 막는다(#497) */
+  isLocked?: boolean;
+  /** 오른쪽 끝 버튼(순서 바꾸기 편집 중의 위·아래). 평소와 완료한 항목에는 없다 */
+  children?: ReactElement | undefined;
 }
 
 const toMotionClassName = ({ isJustAdded, strikePhase, isArriving }: Pick<TodoItemProps, "isJustAdded" | "strikePhase" | "isArriving">): string => {
@@ -103,7 +105,7 @@ const TodoDoneAsk = ({ todo, eventId, lastDay, onAnswer }: TodoDoneAskProps): Re
   );
 };
 
-/** 저장 중인 항목은 고치기 화면을 열지 않는다. 새 항목은 아직 서버에 없어 찾을 수 없다고 나온다 */
+/** 저장 중인 항목은 고치기 화면을 열지 않는다. 새 항목은 아직 서버에 없어 찾을 수 없다고 나온다. 순서 바꾸기 편집 중에도 열지 않는다 */
 const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDefault();
 
 /**
@@ -113,11 +115,12 @@ const preventOpening = (event: MouseEvent<HTMLAnchorElement>) => event.preventDe
  *
  * @example <TodoItem todo={todo} onToggle={handleToggle} />
  */
-export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isArriving = false, today, onAnswerAsk, children }: TodoItemProps): ReactElement => {
+export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isArriving = false, today, onAnswerAsk, isLocked = false, children }: TodoItemProps): ReactElement => {
   const isCompleted = todo.completedAt !== undefined;
   const isStriking = strikePhase !== undefined;
   const eventChip = todo.event && today && !isCompleted ? formatTodoEventChip(todo.event, today) : undefined;
   const { isPending } = todo;
+  const isBlocked = isPending === true || isLocked;
   // 줄을 긋는 중이거나 저장 중인 항목에는 묻지 않는다. 완료로 옮기는 중에 다시 누를 수 없게 한다.
   // 그 일정으로 남긴 기록이 있으면 다녀온 것이 분명하므로 묻지 않는다(완료를 손으로 푼 경우, #473)
   const askEvent = todo.event && today && onAnswerAsk && !isCompleted && !isStriking && !isPending && !todo.event.recordId && shouldAskTodoEventDone(todo.event, today) ? todo.event : undefined;
@@ -135,7 +138,7 @@ export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isA
           id={toCheckboxId(todo.id)}
           type="checkbox"
           checked={isCompleted || isStriking}
-          disabled={isPending}
+          disabled={isBlocked}
           aria-label={`${todo.content} 완료`}
           onChange={(event) => onToggle(todo, event.target.checked)}
           className={`size-5 accent-accent disabled:opacity-35 ${SETTLE_TRANSITION_CLASS_NAME}`}
@@ -144,8 +147,8 @@ export const TodoItem = ({ todo, onToggle, isJustAdded = false, strikePhase, isA
       <Link
         href={toTodoEditHref(todo.id)}
         transitionTypes={FORWARD_TRANSITION}
-        aria-disabled={isPending}
-        onClick={isPending ? preventOpening : undefined}
+        aria-disabled={isBlocked}
+        onClick={isBlocked ? preventOpening : undefined}
         className={`min-w-0 flex-1 py-3 pr-2 text-[15px] leading-[1.5] break-words ${textColorClassName} ${isCompleted ? "line-through" : ""} ${SETTLE_TRANSITION_CLASS_NAME}`}
       >
         {isStriking ? <span className="todo-strike">{todo.content}</span> : todo.content}

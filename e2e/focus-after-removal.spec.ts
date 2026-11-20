@@ -183,7 +183,7 @@ test.describe("하고 싶은 것 목록", () => {
       await page.keyboard.press("Space");
 
       // Assert
-      await expect(page.getByRole("list", { name: "하고 싶은 것" }).getByRole("checkbox", { name: `${content} 완료` })).not.toBeChecked();
+      await expect(page.getByRole("list", { name: "아직", exact: true }).getByRole("checkbox", { name: `${content} 완료` })).not.toBeChecked();
       await expect(checkbox).toBeFocused();
     } finally {
       await deleteTodo();

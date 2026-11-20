@@ -63,7 +63,8 @@ test.describe("새 하고 싶은 것을 저장하면", () => {
       const row = getListRow(page, content);
       await expect(row).toBeVisible();
       await expect(getCheckbox(page, content)).toBeDisabled();
-      await expect(row.getByRole("button", { name: `${content} 위로 옮기기` })).toHaveAttribute("aria-disabled", "true");
+      // 순서 버튼은 편집 모드에서만 나온다(#497)
+      await expect(row.getByRole("button", { name: `${content} 위로 옮기기` })).toHaveCount(0);
       await expect(row.getByRole("link")).toHaveAttribute("aria-disabled", "true");
       await expect(row).toContainText("(저장 중)");
       const pendingElement = await row.elementHandle();

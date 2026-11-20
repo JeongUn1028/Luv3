@@ -118,13 +118,17 @@ test.describe("누름 영역", () => {
     expect(placeName?.height).toBeGreaterThanOrEqual(TAP_TARGET_SIZE);
   });
 
-  test("하고 싶은 것의 위로·아래로 버튼은 44px 영역을 눌러도 눌린다", async ({ page }) => {
-    await openScreen(page, "/todos", page.getByRole("button", { name: /아래로/ }).first());
+  test("하고 싶은 것의 순서 바꾸기·위로·아래로 버튼은 44px 영역을 눌러도 눌린다", async ({ page }) => {
+    const reorder = page.locator("main").locator("visible=true").getByRole("button", { name: "순서 바꾸기", exact: true });
+    await openScreen(page, "/todos", reorder);
+    const missedReorder = await getMissedPoints(reorder);
+    // 위·아래 버튼은 순서 바꾸기 편집 중에만 나온다(#497)
+    await reorder.tap();
 
     const down = page.getByRole("button", { name: /아래로/ }).first();
     const up = page.getByRole("button", { name: /위로/ }).nth(1);
 
-    expect({ 위로: await getMissedPoints(up), 아래로: await getMissedPoints(down) }).toEqual({ 위로: [], 아래로: [] });
+    expect({ 순서바꾸기: missedReorder, 위로: await getMissedPoints(up), 아래로: await getMissedPoints(down) }).toEqual({ 순서바꾸기: [], 위로: [], 아래로: [] });
   });
 
   test("홈의 커플 사진 바꾸기 버튼은 44px 영역을 눌러도 눌린다", async ({ page }) => {
