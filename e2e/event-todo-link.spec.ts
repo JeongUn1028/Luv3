@@ -8,7 +8,8 @@ import { createTestName } from "./support/names";
 import { createDisposableEvent, createDisposableTodo, deleteEventById, getTodoEventId, linkTodoEvent } from "./support/seed";
 import { expect, openScreen, test } from "./support/test";
 
-// 일정 폼에서 하고 싶은 것 잇기(#472): "하고 싶은 것과 잇기" → 고르는 창에서 하나 고르기 → 저장할 때 잇는다. 끊기도 저장할 때 반영한다
+// 일정 폼에서 하고 싶은 것 잇기(#472): "하고 싶은 것과 잇기" → 고르는 창에서 하나 고르기 → 저장할 때 잇는다. 끊기도 저장할 때 반영한다.
+// 일정 하나에 여러 개를 잇는다(#495): 이은 것은 한 줄에 하나씩, 그 아래 "하나 더 잇기"
 
 // 다른 테스트가 쓰지 않는 달. 기기마다 달을 나눠 두 기기가 함께 돌아도 서로의 일정이 섞이지 않는다
 const getMonth = (testInfo: TestInfo): string => (testInfo.project.name === "iphone-17" ? "2041-06" : "2041-05");
@@ -19,8 +20,10 @@ const openEventEdit = async (page: Page, eventId: string): Promise<void> => {
   await openScreen(page, `/events/${eventId}/edit`, page.locator("#event-title").locator("visible=true"));
 };
 
-const pickTodo = async (page: Page, content: string): Promise<void> => {
-  await getMain(page).getByRole("button", { name: "하고 싶은 것과 잇기" }).tap();
+const getLinkedList = (page: Page): Locator => getMain(page).getByRole("list", { name: "하고 싶은 것", exact: true });
+
+const pickTodo = async (page: Page, content: string, buttonName = "하고 싶은 것과 잇기"): Promise<void> => {
+  await getMain(page).getByRole("button", { name: buttonName }).tap();
   const dialog = page.getByRole("dialog", { name: "어느 하고 싶은 것과 이을까요?" });
   await dialog.waitFor();
   await page.waitForTimeout(MODAL_OPEN_GUARD_WAIT_MS);
@@ -42,7 +45,7 @@ test.describe("일정 폼에서 하고 싶은 것 잇기(#472)", () => {
 
       // Act
       await pickTodo(page, content);
-      await expect(getMain(page).getByRole("group", { name: "하고 싶은 것" })).toContainText(content);
+      await expect(getLinkedList(page)).toContainText(content);
       await getSubmitButton(page).tap();
 
       // Assert: 일정 제목은 그대로 두고 잇는다
@@ -93,7 +96,7 @@ test.describe("일정 폼에서 하고 싶은 것 잇기(#472)", () => {
       await linkTodoEvent(todoId, eventId);
       await openEventEdit(page, eventId);
       const main = getMain(page);
-      await expect(main.getByRole("group", { name: "하고 싶은 것" })).toContainText(content);
+      await expect(getLinkedList(page)).toContainText(content);
 
       // Act: 끊고 저장
       await main.getByRole("button", { name: `${content} 연결 끊기` }).tap();
@@ -112,6 +115,68 @@ test.describe("일정 폼에서 하고 싶은 것 잇기(#472)", () => {
     } finally {
       await deleteEvent();
       await deleteTodo();
+    }
+  });
+
+  test("여러 개 이은 일정에서 하나를 끊고 하나 더 이어 저장하면 그대로 바뀌고, 남긴 것은 이어진 채다(#495)", async ({ page }, testInfo) => {
+    // Arrange
+    const [keptId, removedId, addedId, eventId] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()];
+    const kept = createTestName("E2E 남길 것", testInfo);
+    const removed = createTestName("E2E 끊을 것", testInfo);
+    const added = createTestName("E2E 더 이을 것", testInfo);
+    const deleteTodos = await Promise.all([
+      createDisposableTodo({ id: keptId, content: kept }),
+      createDisposableTodo({ id: removedId, content: removed }),
+      createDisposableTodo({ id: addedId, content: added }),
+    ]);
+    const deleteEvent = await createDisposableEvent({ id: eventId, title: kept, date: `${getMonth(testInfo)}-21` });
+    try {
+      await linkTodoEvent(keptId, eventId);
+      await linkTodoEvent(removedId, eventId);
+      await openEventEdit(page, eventId);
+      const main = getMain(page);
+      await expect(getLinkedList(page).getByRole("listitem")).toHaveCount(2);
+
+      // Act
+      await main.getByRole("button", { name: `${removed} 연결 끊기` }).tap();
+      await pickTodo(page, added, "하나 더 잇기");
+      await expect(getLinkedList(page).getByRole("listitem")).toHaveCount(2);
+      await getSubmitButton(page).tap();
+
+      // Assert
+      await expect.poll(() => getTodoEventId(addedId)).toBe(eventId);
+      expect(await getTodoEventId(removedId)).toBeUndefined();
+      expect(await getTodoEventId(keptId)).toBe(eventId);
+    } finally {
+      await deleteEvent();
+      for (const deleteTodo of deleteTodos) await deleteTodo();
+    }
+  });
+
+  test("새 일정 폼에서 하고 싶은 것 둘을 이어 저장하면 둘 다 그 일정에 이어진다(#495)", async ({ page }, testInfo) => {
+    // Arrange
+    const [firstId, secondId] = [randomUUID(), randomUUID()];
+    const first = createTestName("E2E 새 일정 첫째", testInfo);
+    const second = createTestName("E2E 새 일정 둘째", testInfo);
+    const deleteTodos = await Promise.all([createDisposableTodo({ id: firstId, content: first }), createDisposableTodo({ id: secondId, content: second })]);
+    let eventId: string | undefined;
+    try {
+      await openScreen(page, "/events/new", page.locator("#event-title").locator("visible=true"));
+      await page.locator("#event-title").locator("visible=true").fill(createTestName("E2E 둘 이은 일정", testInfo));
+      await pickDate(page, "#event-date", `${getMonth(testInfo)}-22`);
+
+      // Act
+      await pickTodo(page, first);
+      await pickTodo(page, second, "하나 더 잇기");
+      await getSubmitButton(page).tap();
+
+      // Assert
+      await expect.poll(() => getTodoEventId(firstId)).toBeDefined();
+      eventId = await getTodoEventId(firstId);
+      expect(await getTodoEventId(secondId)).toBe(eventId);
+    } finally {
+      if (eventId) await deleteEventById(eventId);
+      for (const deleteTodo of deleteTodos) await deleteTodo();
     }
   });
 });

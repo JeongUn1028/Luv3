@@ -6,31 +6,31 @@ import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
 import type { LinkedTodo } from "@/lib/events/form";
 
 interface EventTodoFieldProps {
-  /** 지금 고른 하고 싶은 것. 없으면 "하고 싶은 것과 잇기"를 보인다 */
-  linkedTodo: LinkedTodo | undefined;
-  /** 고를 수 있는 하고 싶은 것(아직 일정이 없고 완료하지 않은 것, 목록 순서) */
+  /** 지금 이어 둔 하고 싶은 것(고른 순서). 없으면 "하고 싶은 것과 잇기", 있으면 한 줄에 하나씩 보이고 아래에 "하나 더 잇기"를 둔다 */
+  linkedTodos: LinkedTodo[];
+  /** 고를 수 있는 하고 싶은 것(아직 일정이 없고 완료하지 않은 것, 목록 순서). 이어 둔 것은 빠져 있다 */
   options: LinkedTodo[];
   isDisabled: boolean;
   /** 앞선 저장에서 이었는지 모를 때. 다시 저장해 끝낼 때까지 바꾸지 못하게 하고 이유를 보인다 */
   isLocked: boolean;
-  /** 고르거나(하고 싶은 것) 끊으면(undefined) 부른다. 저장할 때 반영한다 */
-  onChange: (todo: LinkedTodo | undefined) => void;
+  /** 하나 더 고르거나 하나를 끊으면 바뀐 목록으로 부른다. 저장할 때 반영한다 */
+  onChange: (todos: LinkedTodo[]) => void;
 }
 
 const BUTTON_CLASS_NAME = "press-card flex h-12 items-center justify-center rounded-[10px] border border-line text-[15px] disabled:opacity-50";
 
 /**
- * 일정 폼의 "하고 싶은 것" 칸(#472). 고르는 창은 기록 상세의 "일정과 잇기" 창과 같은 모양이다.
+ * 일정 폼의 "하고 싶은 것" 칸(#472). 일정 하나에 여러 개를 이을 수 있다(#495). 고르는 창은 기록 상세의 "일정과 잇기" 창과 같은 모양이고, 하나 고르면 닫힌다.
  * 고르거나 끊어도 바로 저장하지 않고, 폼을 저장할 때 반영한다(폼의 다른 칸과 같다).
  *
- * @example <EventTodoField linkedTodo={draft.linkedTodo} options={linkableTodos} isDisabled={isSaving} isLocked={false} onChange={handleTodoChange} />
+ * @example <EventTodoField linkedTodos={draft.linkedTodos ?? []} options={linkableTodos} isDisabled={isSaving} isLocked={false} onChange={handleTodosChange} />
  */
-export const EventTodoField = ({ linkedTodo, options, isDisabled: isBusy, isLocked, onChange }: EventTodoFieldProps): ReactElement => {
+export const EventTodoField = ({ linkedTodos, options, isDisabled: isBusy, isLocked, onChange }: EventTodoFieldProps): ReactElement => {
   const modalRef = useRef<ModalDialogHandle>(null);
   const isDisabled = isBusy || isLocked;
 
   const handlePick = (todo: LinkedTodo) => {
-    onChange(todo);
+    onChange([...linkedTodos, todo]);
     modalRef.current?.close();
   };
 
@@ -39,20 +39,26 @@ export const EventTodoField = ({ linkedTodo, options, isDisabled: isBusy, isLock
       <span id="event-todo-label" className={FIELD_LABEL_CLASS_NAME}>
         하고 싶은 것
       </span>
-      {linkedTodo ? (
-        <div role="group" aria-labelledby="event-todo-label" className="flex min-h-12 items-center gap-2 rounded-[10px] border border-line pl-4">
-          <span className="min-w-0 flex-1 truncate py-3 text-[15px] text-ink">{linkedTodo.content}</span>
-          <button
-            type="button"
-            disabled={isDisabled}
-            aria-label={`${linkedTodo.content} 연결 끊기`}
-            onClick={() => onChange(undefined)}
-            className="press-icon h-12 shrink-0 px-4 text-[13px] text-ink-sub hover:text-ink disabled:opacity-50"
-          >
-            연결 끊기
-          </button>
-        </div>
-      ) : (
+      {linkedTodos.length > 0 && (
+        <ul aria-labelledby="event-todo-label" className="flex flex-col gap-2">
+          {linkedTodos.map((todo) => (
+            <li key={todo.id} className="flex min-h-12 items-center gap-2 rounded-[10px] border border-line pl-4">
+              <span className="min-w-0 flex-1 truncate py-3 text-[15px] text-ink">{todo.content}</span>
+              <button
+                type="button"
+                disabled={isDisabled}
+                aria-label={`${todo.content} 연결 끊기`}
+                onClick={() => onChange(linkedTodos.filter(({ id }) => id !== todo.id))}
+                className="press-icon h-12 shrink-0 px-4 text-[13px] text-ink-sub hover:text-ink disabled:opacity-50"
+              >
+                연결 끊기
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {/* 더 고를 것이 없으면 두지 않는다. 처음 하나는 "잇기", 그다음부터는 "하나 더 잇기"다 */}
+      {options.length > 0 && (
         <button
           type="button"
           disabled={isDisabled}
@@ -60,7 +66,7 @@ export const EventTodoField = ({ linkedTodo, options, isDisabled: isBusy, isLock
           onClick={() => modalRef.current?.open()}
           className={`${BUTTON_CLASS_NAME} text-ink-sub hover:text-ink`}
         >
-          하고 싶은 것과 잇기
+          {linkedTodos.length > 0 ? "하나 더 잇기" : "하고 싶은 것과 잇기"}
         </button>
       )}
       {isLocked && (

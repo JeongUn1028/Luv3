@@ -93,20 +93,25 @@ test.describe("하고 싶은 것에 일정 잡기(#471)", () => {
     }
   });
 
-  test("캘린더 일정 읽기 창에 이어진 하고 싶은 것이 보이고, 누르면 목록의 그 줄로 가서 표시한다", async ({ page }, testInfo) => {
+  test("캘린더 일정 읽기 창에 이어진 하고 싶은 것이 한 줄에 하나씩 보이고, 누르면 목록의 그 줄로 가서 표시한다(#495)", async ({ page }, testInfo) => {
     // Arrange
+    const firstTodoId = randomUUID();
     const todoId = randomUUID();
     const eventId = randomUUID();
+    const firstContent = createTestName("E2E 읽기 창 첫 하고 싶은 것", testInfo);
     const content = createTestName("E2E 읽기 창 하고 싶은 것", testInfo);
     const title = createTestName("E2E 읽기 창 일정", testInfo);
     const date = `${getMonth(testInfo)}-20`;
+    const deleteFirstTodo = await createDisposableTodo({ id: firstTodoId, content: firstContent });
     const deleteTodo = await createDisposableTodo({ id: todoId, content });
     const deleteEvent = await createDisposableEvent({ id: eventId, title, date });
     try {
+      await linkTodoEvent(firstTodoId, eventId);
       await linkTodoEvent(todoId, eventId);
       await openScreen(page, `${CALENDAR_PATH}?month=${date.slice(0, 7)}&date=${date}`, getCalendarEventRow(page, title));
       await getCalendarEventRow(page, title).tap();
       const sheet = page.getByRole("dialog");
+      await expect(sheet.getByRole("listitem")).toHaveText([firstContent, content]);
 
       // Act
       await sheet.getByRole("link", { name: content }).tap();
@@ -120,6 +125,7 @@ test.describe("하고 싶은 것에 일정 잡기(#471)", () => {
     } finally {
       await deleteEvent();
       await deleteTodo();
+      await deleteFirstTodo();
     }
   });
 

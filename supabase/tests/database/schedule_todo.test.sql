@@ -111,7 +111,8 @@ select is(
 
 select throws_ok(
   $$select public.schedule_todo('40000000-0000-0000-0000-000000000002', '50000000-0000-0000-0000-000000000099', gen_random_uuid(), '2026-11-30', '성수 팝업', true, null, null, null, null)$$,
-  '23505', null, '이미 있는 다른 일정의 id로는 잇지 않는다'
+  -- #495부터 schedule_todos를 거쳐, 이어진 하고 싶은 것이 다른 이미 있는 일정은 다시 보내기가 아니라 그사이 바뀐 것으로 거부한다
+  'P0409', null, '이미 있는 다른 일정의 id로는 잇지 않는다'
 );
 
 select lives_ok(

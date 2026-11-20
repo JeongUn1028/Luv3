@@ -34,7 +34,7 @@ const DetailRow = ({ label, children }: { label: string; children: ReactNode }):
 );
 
 /**
- * 캘린더에서 일정을 누르면 아래에서 올라오는 읽기 창(#352). 언제·반복·기간·장소·이어진 하고 싶은 것(#471)·쓴 사람·메모를 보여 주고,
+ * 캘린더에서 일정을 누르면 아래에서 올라오는 읽기 창(#352). 언제·반복·기간·장소·이어진 하고 싶은 것(#471·#495)·쓴 사람·메모를 보여 주고,
  * 고칠 때만 "고치기"로 고치기 화면을 연다. 지난 함께 일정이면 기록 남기기·보기도 둔다.
  *
  * @example <EventDetailSheet ref={sheetRef} event={openedEvent} recordLink={recordLink} onLeave={() => sheetRef.current?.closeImmediately()} />
@@ -56,19 +56,26 @@ export const EventDetailSheet = ({ ref, event, recordLink, onLeave }: EventDetai
           {event.period && <DetailRow label="기간">{formatEventPeriod(event.period)}</DetailRow>}
           {event.repeatRule && <DetailRow label="반복">{formatRepeatRule(event.repeatRule)}</DetailRow>}
           {event.place && <DetailRow label="장소">{event.place}</DetailRow>}
-          {event.todo && (
+          {event.todos && (
             <DetailRow label="하고 싶은 것">
-              <Link
-                href={TODOS_PATH}
-                transitionTypes={FORWARD_TRANSITION}
-                onClick={() => {
-                  if (event.todo) requestTodoFocus(event.todo.id);
-                  onLeave();
-                }}
-                className="text-accent underline underline-offset-[3px]"
-              >
-                {event.todo.content}
-              </Link>
+              {/* 여러 개면 한 줄에 하나씩(#495). 누르면 하고 싶은 것 목록의 그 줄로 간다 */}
+              <ul className="flex flex-col gap-2">
+                {event.todos.map((todo) => (
+                  <li key={todo.id}>
+                    <Link
+                      href={TODOS_PATH}
+                      transitionTypes={FORWARD_TRANSITION}
+                      onClick={() => {
+                        requestTodoFocus(todo.id);
+                        onLeave();
+                      }}
+                      className="text-accent underline underline-offset-[3px]"
+                    >
+                      {todo.content}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </DetailRow>
           )}
         </dl>

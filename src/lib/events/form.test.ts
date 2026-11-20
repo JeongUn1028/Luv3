@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   getMinDateAfterStart,
+  isSameTodoIds,
+  orderLinkedTodos,
   createEmptyEventDraft,
   toEditableEvent,
   toEventDraft,
   toEventValues,
+  toTodoIds,
   validateEventDraft,
   type EventDraft,
 } from "./form";
@@ -184,11 +187,41 @@ describe("toEventDraft", () => {
     expect(toEventDraft(repeatingRow, "2026-11-28")).toMatchObject({ date: "2026-11-28", scope: "occurrence", repeatRule: "weekly" });
   });
 
-  it("이어진 하고 싶은 것이 있으면 그것으로 시작하고, 없으면 두지 않는다(#472)", () => {
+  it("이어진 하고 싶은 것이 있으면 모두 그 순서로 시작하고, 없으면 두지 않는다(#472·#495)", () => {
     const row = { ...repeatingRow, repeat_rule: null, repeat_until: null };
+    const todos = [{ id: "t1", content: "회 먹기" }, { id: "t2", content: "요트 타기" }];
 
-    expect(toEventDraft({ ...row, todos: [{ id: "t1", content: "성수 팝업 같이 가기" }] }).linkedTodo).toEqual({ id: "t1", content: "성수 팝업 같이 가기" });
-    expect(toEventDraft({ ...row, todos: [] })).not.toHaveProperty("linkedTodo");
+    expect(toEventDraft({ ...row, todos }).linkedTodos).toEqual(todos);
+    expect(toEventDraft({ ...row, todos: [] })).not.toHaveProperty("linkedTodos");
+  });
+});
+
+describe("toTodoIds", () => {
+  it("이은 하고 싶은 것의 id를 순서대로 돌려주고, 없으면 빈 배열이다", () => {
+    expect(toTodoIds([{ id: "t1", content: "회 먹기" }, { id: "t2", content: "요트 타기" }])).toEqual(["t1", "t2"]);
+    expect(toTodoIds(undefined)).toEqual([]);
+  });
+});
+
+describe("orderLinkedTodos", () => {
+  const [a, b, c] = [{ id: "a", content: "회 먹기" }, { id: "b", content: "요트 타기" }, { id: "c", content: "야경" }];
+
+  it("끊었다 다시 고른 것은 처음 자리로 돌아가고, 새로 고른 것은 고른 순서대로 뒤에 둔다", () => {
+    expect(orderLinkedTodos([b, c, a], [a, b])).toEqual([a, b, c]);
+    expect(orderLinkedTodos([c, b], undefined)).toEqual([c, b]);
+  });
+});
+
+describe("isSameTodoIds", () => {
+  it("순서가 달라도 같은 하고 싶은 것들이면 같다고 본다", () => {
+    expect(isSameTodoIds(["t1", "t2"], ["t2", "t1"])).toBe(true);
+    expect(isSameTodoIds([], [])).toBe(true);
+  });
+
+  it("하나라도 다르거나 수가 다르면 다르다고 본다", () => {
+    expect(isSameTodoIds(["t1"], ["t1", "t2"])).toBe(false);
+    expect(isSameTodoIds(["t1", "t2"], ["t1", "t3"])).toBe(false);
+    expect(isSameTodoIds(["t1", "t1"], ["t1", "t2"])).toBe(false);
   });
 });
 
