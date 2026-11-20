@@ -4,8 +4,10 @@ import { FORWARD_TRANSITION, TAB_TRANSITION } from "@/lib/navigation/transition"
 import { TODOS_PATH, type Todo } from "@/lib/todos/list";
 
 interface TodoPreviewProps {
-  /** 하지 않은 항목 맨 위 몇 개(`getOpenTodoPreview(3)`) */
+  /** 아직 일정이 없는 하지 않은 항목 맨 위 몇 개(`getOpenTodoPreview(3)`, #497) */
   todos: Todo[];
+  /** '아직'은 비었지만 하지 않은 것이 모두 일정 잡혔는지(#497). 비었다고 하지 않고 그렇다고 알린다 */
+  isAllScheduled?: boolean;
   /** 불러오기 실패 문구. 있으면 `todos` 대신 보여 준다 */
   errorMessage?: string;
 }
@@ -14,11 +16,11 @@ interface TodoPreviewProps {
  * 홈의 하고 싶은 것 한 줄 카드. 항목을 점과 함께 가로로 잇고, 줄이 넘치면 끝을 "…"로 줄인다.
  * 링크가 카드 전체를 덮어 어디를 눌러도 하고 싶은 것 탭(비었으면 추가 화면)으로 간다.
  *
- * @example <TodoPreview todos={await getOpenTodoPreview(3)} />
+ * @example <TodoPreview todos={preview.todos} isAllScheduled={preview.isAllScheduled} />
  */
-export const TodoPreview = ({ todos, errorMessage }: TodoPreviewProps): ReactElement => {
+export const TodoPreview = ({ todos, isAllScheduled = false, errorMessage }: TodoPreviewProps): ReactElement => {
   const titleId = useId();
-  const isEmpty = !errorMessage && todos.length === 0;
+  const isEmpty = !errorMessage && todos.length === 0 && !isAllScheduled;
 
   return (
     <section aria-labelledby={titleId} className="press-card-group relative mt-4 shrink-0 rounded-[16px] bg-surface px-3.5 py-3">
@@ -36,6 +38,8 @@ export const TodoPreview = ({ todos, errorMessage }: TodoPreviewProps): ReactEle
         <p role="alert" className="mt-2 text-[13px] leading-5 text-ink-sub">
           {errorMessage}
         </p>
+      ) : isAllScheduled && todos.length === 0 ? (
+        <p className="mt-2 text-[13px] leading-5 text-ink-sub">모두 일정이 잡혔어요</p>
       ) : isEmpty ? (
         <div className="mt-2 flex items-center justify-between gap-3">
           <p className="min-w-0 text-[13px] leading-5 text-ink-sub">함께 하고 싶은 것을 적어 보세요</p>

@@ -1,15 +1,13 @@
 import type { Metadata } from "next";
-import { PlusIcon } from "@/components/icons";
 import { LoadErrorMessage } from "@/components/LoadErrorMessage";
 import { LoadingSuspense } from "@/components/LoadingSuspense";
-import { ScreenHeaderLink } from "@/components/ScreenHeader";
 import { TabScreen } from "@/components/tabs/TabScreen";
+import { TodoAddLink } from "@/components/todos/TodoAddLink";
 import { TodoList } from "@/components/todos/TodoList";
 import { TodoListSkeleton } from "@/components/todos/TodoListSkeleton";
 import { toKstDate } from "@/lib/anniversary";
 import { withCurrentMember } from "@/lib/auth/with-member";
 import { catchLoadError } from "@/lib/load";
-import { TODOS_PATH } from "@/lib/todos/list";
 import { getTodos, TodoLoadError } from "@/lib/todos/queries";
 
 export const metadata: Metadata = { title: "하고 싶은 것 · Luv3" };
@@ -31,11 +29,7 @@ const TodosPage = () => (
   <TabScreen
     tab="todos"
     title="하고 싶은 것"
-    actions={
-      <ScreenHeaderLink href={`${TODOS_PATH}/new`} label="하고 싶은 것 추가">
-        <PlusIcon className="size-6" />
-      </ScreenHeaderLink>
-    }
+    actions={<TodoAddLink />}
     className="px-4"
   >
     {/* 세션을 읽는 부분만 요청 때 그린다(cacheComponents) */}

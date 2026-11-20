@@ -16,7 +16,7 @@ const pickAdjacentSortOrders = (): [number, number] => {
   return [first, first + 1];
 };
 
-const getOpenList = (page: Page): Locator => page.getByRole("list", { name: "하고 싶은 것" }).locator("visible=true");
+const getOpenList = (page: Page): Locator => page.getByRole("list", { name: "아직", exact: true }).locator("visible=true");
 const getDoneSection = (page: Page): Locator => page.getByRole("region", { name: /^완료 \d+$/ }).locator("visible=true");
 
 /** 하지 않은 항목 목록에서 `below`가 `above`보다 몇 칸 아래인지. 둘 중 하나라도 목록에 없으면 undefined다 */
@@ -89,7 +89,8 @@ test.describe("하고 싶은 것 진행", () => {
       await openScreen(page, TODOS_PATH, page.getByRole("link", { name: lower.content, exact: true }));
       expect(await readOrderGap(page, upper.content, lower.content)).toBe(1);
 
-      // Act
+      // Act: 순서는 편집 모드에서만 바꾼다(#497)
+      await page.locator("main").locator("visible=true").getByRole("button", { name: "순서 바꾸기", exact: true }).tap();
       await waitForSave(page, "POST", () => page.getByRole("button", { name: `${lower.content} 위로 옮기기` }).locator("visible=true").tap());
 
       // Assert

@@ -105,13 +105,30 @@ export const groupTodos = <T extends Todo>(todos: T[]): { open: T[]; done: T[] }
     .toSorted((left, right) => toTime(right) - toTime(left) || compareBySortOrder(left, right)),
 });
 
-/** 하지 않은 항목 중 바로 위·아래 항목과 순서 값을 바꾼다(DB의 move_todo와 같은 규칙) */
+const isScheduled = (todo: Todo): boolean => todo.event !== undefined;
+
+/**
+ * 하지 않은 항목을 일정 잡힌 것(일정 시작일이 가까운 순서, 같은 날이면 정한 순서)과 아직인 것(정한 순서)으로 나눈다(#497).
+ * 지난 일정이 이어진 항목도 일정 잡힌 것에 남는다(그 줄에서 다녀왔는지 묻는다, #471).
+ *
+ * @example const { scheduled, unscheduled } = splitScheduledTodos(groupTodos(todos).open)
+ */
+export const splitScheduledTodos = <T extends Todo>(open: T[]): { scheduled: T[]; unscheduled: T[] } => ({
+  scheduled: open
+    .filter(isScheduled)
+    .toSorted((left, right) => (left.event?.date ?? "").localeCompare(right.event?.date ?? "") || compareBySortOrder(left, right)),
+  unscheduled: open.filter((todo) => !isScheduled(todo)).toSorted(compareBySortOrder),
+});
+
+/** 하지 않은 항목 중 같은 구역(일정이 있는지 없는지)의 바로 위·아래 항목과 순서 값을 바꾼다(DB의 move_todo와 같은 규칙, #497) */
 const moveTodo = (todos: Todo[], id: string, offset: -1 | 1): Todo[] => {
   const { open } = groupTodos(todos);
-  const index = open.findIndex((todo) => todo.id === id);
-  const target = open[index];
-  const neighbor = open[index + offset];
-  if (index === -1 || !target || !neighbor) return todos;
+  const target = open.find((todo) => todo.id === id);
+  if (!target) return todos;
+  const section = open.filter((todo) => isScheduled(todo) === isScheduled(target));
+  const index = section.indexOf(target);
+  const neighbor = section[index + offset];
+  if (!neighbor) return todos;
 
   return todos.map((todo) => {
     if (todo.id === target.id) return { ...todo, sortOrder: neighbor.sortOrder };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyTodoAction, groupTodos, toTodo, type Todo } from "./list";
+import { applyTodoAction, groupTodos, splitScheduledTodos, toTodo, type Todo, type TodoEvent } from "./list";
 
 const createTodo = (overrides: Partial<Todo> & Pick<Todo, "id">): Todo => ({
   content: `할 일 ${overrides.id}`,
@@ -10,6 +10,8 @@ const createTodo = (overrides: Partial<Todo> & Pick<Todo, "id">): Todo => ({
 });
 
 const toIds = (todos: Todo[]): string[] => todos.map(({ id }) => id);
+
+const createEvent = (date: string): TodoEvent => ({ id: `e-${date}`, date, endDate: undefined, isTogether: true, authorNickname: undefined, notYetDate: undefined });
 
 describe("toTodo", () => {
   it("DB 행의 완료 시각 null을 undefined로 바꾼다", () => {
@@ -104,6 +106,32 @@ describe("groupTodos", () => {
   });
 });
 
+describe("splitScheduledTodos", () => {
+  it("일정 잡힌 것은 일정 시작일이 가까운 순서로, 아직인 것은 정한 순서대로 나눈다(#497)", () => {
+    // Arrange
+    const open = [
+      createTodo({ id: "a", sortOrder: 1 }),
+      createTodo({ id: "late", sortOrder: 2, event: createEvent("2026-12-05") }),
+      createTodo({ id: "b", sortOrder: 3 }),
+      createTodo({ id: "soon", sortOrder: 4, event: createEvent("2026-11-21") }),
+      createTodo({ id: "past", sortOrder: 5, event: createEvent("2026-11-10") }),
+    ];
+
+    // Act
+    const { scheduled, unscheduled } = splitScheduledTodos(open);
+
+    // Assert
+    expect(toIds(scheduled)).toEqual(["past", "soon", "late"]);
+    expect(toIds(unscheduled)).toEqual(["a", "b"]);
+  });
+
+  it("같은 날 일정이면 정한 순서대로 둔다", () => {
+    const open = [createTodo({ id: "second", sortOrder: 2, event: createEvent("2026-11-21") }), createTodo({ id: "first", sortOrder: 1, event: createEvent("2026-11-21") })];
+
+    expect(toIds(splitScheduledTodos(open).scheduled)).toEqual(["first", "second"]);
+  });
+});
+
 describe("applyTodoAction", () => {
   const todos = [
     createTodo({ id: "a", sortOrder: 1 }),
@@ -127,6 +155,22 @@ describe("applyTodoAction", () => {
   it("맨 위를 위로, 맨 아래를 아래로 옮기면 그대로 둔다", () => {
     expect(applyTodoAction(todos, { type: "move", id: "a", offset: -1 })).toEqual(todos);
     expect(applyTodoAction(todos, { type: "move", id: "d", offset: 1 })).toEqual(todos);
+  });
+
+  it("옮길 때 일정 잡힌 항목은 건너뛰고 같은 구역의 이웃과 자리를 바꾼다(DB의 move_todo와 같다, #497)", () => {
+    // Arrange
+    const mixed = [
+      createTodo({ id: "a", sortOrder: 1 }),
+      createTodo({ id: "scheduled", sortOrder: 2, event: createEvent("2026-11-21") }),
+      createTodo({ id: "b", sortOrder: 3 }),
+    ];
+
+    // Act
+    const { unscheduled } = splitScheduledTodos(groupTodos(applyTodoAction(mixed, { type: "move", id: "b", offset: -1 })).open);
+
+    // Assert
+    expect(toIds(unscheduled)).toEqual(["b", "a"]);
+    expect(applyTodoAction(mixed, { type: "move", id: "scheduled", offset: -1 })).toEqual(mixed);
   });
 
   it("완료한 항목은 옮기지 않는다", () => {

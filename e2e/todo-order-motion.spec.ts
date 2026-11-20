@@ -18,7 +18,7 @@ const pickAdjacentSortOrders = (count: number): number[] => {
   return Array.from({ length: count }, (_, index) => first + index);
 };
 
-const getOpenList = (page: Page): Locator => page.getByRole("list", { name: "하고 싶은 것" }).locator("visible=true");
+const getOpenList = (page: Page): Locator => page.getByRole("list", { name: "아직", exact: true }).locator("visible=true");
 const getDoneSection = (page: Page): Locator => page.getByRole("region", { name: /^완료 \d+$/ }).locator("visible=true");
 const getListRow = (page: Page, content: string): Locator => page.locator("main li").filter({ hasText: content }).locator("visible=true");
 const getCheckbox = (page: Page, content: string): Locator => page.getByRole("checkbox", { name: `${content} 완료` }).locator("visible=true");
@@ -66,7 +66,8 @@ test.describe("할 일 순서 바꾸기", () => {
         [0, 1, 2].map((index) => page.waitForResponse((response) => isMoveRequest(response.request()) && response.ok(), { timeout: 15_000 * (index + 1) })),
       );
 
-      // Act: 저장을 기다리지 않고 세 번 누른다
+      // Act: 순서는 편집 모드에서만 바꾼다(#497). 저장을 기다리지 않고 세 번 누른다
+      await page.locator("main").locator("visible=true").getByRole("button", { name: "순서 바꾸기", exact: true }).tap();
       const moveDown = page.getByRole("button", { name: `${moving} 아래로 옮기기` }).locator("visible=true");
       await moveDown.tap();
       await expect.poll(() => readOrder(page, contents)).toEqual([contents[1], moving, contents[2], contents[3]]);

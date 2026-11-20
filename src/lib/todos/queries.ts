@@ -23,7 +23,7 @@ const TODO_LIST_COLUMNS = `${TODO_BASE_COLUMNS}, event_not_yet_date, event:event
 
 /**
  * 둘이 함께 쓰는 하고 싶은 것 목록 전체를 정한 순서대로 읽는다. 1000개가 넘어도 잘리지 않게 끝까지 나눠 읽는다(#272).
- * 순서 정하기와 하지 않은 것·완료한 것 나누기는 `groupTodos`가 한다.
+ * 순서 정하기와 하지 않은 것·완료한 것 나누기는 `groupTodos`가, 하지 않은 것을 일정 잡힌 것·아직으로 나누기는 `splitScheduledTodos`가 한다.
  *
  * @throws {TodoLoadError} 조회가 실패했을 때
  * @example const { open, done } = groupTodos(await getTodos())
@@ -40,24 +40,38 @@ export const getTodos = async (): Promise<Todo[]> => {
   return rows.map(toTodo);
 };
 
+/** 홈 하고 싶은 것 칸에 보여 줄 것(#344·#497) */
+export interface OpenTodoPreview {
+  /** '아직' 구역 맨 위 몇 개 */
+  todos: Todo[];
+  /** '아직'은 비었지만 하지 않은 것이 있다(모두 일정이 잡혔다). 빈 목록처럼 "적어 보세요"를 보이지 않게 가른다 */
+  isAllScheduled: boolean;
+}
+
 /**
- * 하지 않은 하고 싶은 것을 정한 순서(`groupTodos`의 open과 같은 순서)대로 맨 위 `limit`개만 읽는다(홈 미리보기, #344).
- * 완료한 항목까지 전부 받지 않고 부분 인덱스(`todos_open_sort_order_idx`)로 앞 몇 개만 읽는다.
+ * 일정이 없는 하지 않은 하고 싶은 것('아직' 구역, `splitScheduledTodos`의 unscheduled와 같은 순서)을 맨 위 `limit`개만 읽는다(홈 미리보기, #344·#497).
+ * 일정 잡힌 것은 홈 '다음 일정' 칸에 이미 나온다(#474). 완료한 항목까지 전부 받지 않고 부분 인덱스(`todos_open_sort_order_idx`)로 앞 몇 개만 읽는다.
+ * '아직'이 비었을 때만 하지 않은 것이 하나라도 있는지 한 번 더 읽는다.
  *
  * @throws {TodoLoadError} 조회가 실패했을 때
- * @example const todos = await getOpenTodoPreview(3)
+ * @example const { todos, isAllScheduled } = await getOpenTodoPreview(3)
  */
-export const getOpenTodoPreview = async (limit: number): Promise<Todo[]> => {
+export const getOpenTodoPreview = async (limit: number): Promise<OpenTodoPreview> => {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("todos")
     .select(TODO_BASE_COLUMNS)
     .is("completed_at", null)
+    .is("event_id", null)
     .order("sort_order")
     .order("id")
     .limit(limit);
   if (error) throw new TodoLoadError({ cause: error });
-  return data.map(toTodo);
+  if (data.length > 0) return { todos: data.map(toTodo), isAllScheduled: false };
+
+  const { data: openRows, error: openError } = await supabase.from("todos").select("id").is("completed_at", null).limit(1);
+  if (openError) throw new TodoLoadError({ cause: openError });
+  return { todos: [], isAllScheduled: openRows.length > 0 };
 };
 
 /**

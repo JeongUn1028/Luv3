@@ -3,14 +3,16 @@
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, useSyncExternalStore, type ReactElement } from "react";
 import { toCheckboxId, TodoItem, TodoMoveButtons, type TodoAskAnswer } from "@/components/todos/TodoItem";
+import { TodoReorderToggle, TodoSection } from "@/components/todos/TodoSection";
 import { useJustAddedTodo, useStrikingTodos } from "@/components/todos/use-todo-motion";
 import { DELETING_KEYS, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { isWritingNow, refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { withLoadedClient } from "@/lib/supabase/load-client";
 import { saveTodoAction, TODO_ACTION_FAILED_MESSAGE } from "@/lib/todos/actions";
-import { applyTodoAction, groupTodos, type Todo, type TodoAction } from "@/lib/todos/list";
+import { applyTodoAction, groupTodos, splitScheduledTodos, type Todo, type TodoAction } from "@/lib/todos/list";
 import { findSettledPendingIds, mergePendingTodos, pendingTodoStore, type PendingTodo, type ShownTodo } from "@/lib/todos/pending";
+import { todoReorderMode } from "@/lib/todos/reorder-mode";
 import { createTodoSaveBatch } from "@/lib/todos/save-batch";
 
 // 서버에서 그릴 때는 저장 중인 항목이 없다. 같은 값을 돌려줘야 다시 그리지 않는다
@@ -31,9 +33,10 @@ const saveAction = (action: TodoAction): Promise<string | undefined> =>
   });
 
 /**
- * 둘이 함께 쓰는 하고 싶은 것 목록. 하지 않은 항목은 정한 순서대로, 완료한 항목은 아래에 따로 그린다.
+ * 둘이 함께 쓰는 하고 싶은 것 목록. '일정 잡힌 것(일정 날짜순) → 아직(정한 순서) → 완료' 구역으로 나눠 그린다(#497).
  * 체크·순서 바꾸기는 저장을 기다리지 않고 화면에 먼저 반영하고, 저장이 끝나면 서버 목록으로 다시 맞춘다.
- * 순서는 위·아래 버튼으로 한 칸씩 바꿔, 화면 읽기 프로그램으로도 같은 방법으로 바꿀 수 있다.
+ * 순서는 '아직' 구역에서 '순서 바꾸기'를 눌러 편집할 때만 위·아래 버튼으로 한 칸씩 바꾼다. 스크롤하다 잘못 눌러 바뀌지 않게 평소에는 버튼을 숨기고,
+ * 편집하는 동안에는 실수로 완료하지 않게 체크·고치기·추가를 막는다. 화면 읽기 프로그램으로도 같은 방법으로 바꿀 수 있다.
  * 연달아 누르면 저장은 누른 순서대로 하나씩 하고, 서버 목록은 마지막 저장이 끝났을 때 한 번만 다시 받는다(#347).
  * 완료를 누르면 제자리에서 줄을 긋고 잠깐 머문 뒤 완료 칸으로 옮기고, 폼에서 막 더한 항목은 보이게 스크롤해 잠깐 표시한다(#347).
  * 폼에서 저장 중인 항목(#345)은 서버 목록이 따라잡을 때까지 흐리게 먼저 보여 주고, 아직 서버에 없을 수 있어 누를 수 없게 한다.
@@ -56,9 +59,13 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
   const [notice, setNotice] = useState<string>();
   // 순서를 바꾼 결과를 화면 읽기 프로그램에 알려 준다(버튼만 눌러서는 바뀐 자리를 알 수 없다)
   const [announcement, setAnnouncement] = useState("");
+  // 서버에서 그린 화면은 편집 중일 수 없다
+  const isReordering = useSyncExternalStore(todoReorderMode.subscribe, todoReorderMode.get, () => false);
   useResetOnHide(() => {
     setNotice(undefined);
     setAnnouncement("");
+    // 다른 탭으로 가거나 화면을 떠나면 편집이 끝난다
+    todoReorderMode.set(false);
     // 저장은 끝났는데 목록에 들어오지 않은 항목(그사이 상대가 지움)이 흐린 채 남지 않게 한다
     pendingTodoStore.removeSaved();
     resetStrikes();
@@ -68,8 +75,16 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
   const { open, done } = groupTodos(
     shownTodos.map((todo) => (strikePhases.has(todo.id) && todo.completedAt !== undefined ? { ...todo, completedAt: undefined } : todo)),
   );
-  // 아직 서버에 없는 새 항목과 줄긋기 중인 항목은 순서를 바꿀 때 이웃으로 치지 않는다. 고치는 중인 항목은 서버에도 있어 이웃으로 친다
-  const movable = open.filter(({ id, isNew }) => !isNew && !strikePhases.has(id));
+  const { scheduled, unscheduled } = splitScheduledTodos(open);
+  // 아직 서버에 없는 새 항목과 줄긋기 중인 항목은 순서를 바꿀 때 이웃으로 치지 않는다. 고치는 중인 항목은 서버에도 있어 이웃으로 친다.
+  // 일정 잡힌 것은 날짜순이라 손으로 바꾸지 않고, DB도 같은 구역 안에서만 이웃을 찾는다
+  const movable = unscheduled.filter(({ id, isNew }) => !isNew && !strikePhases.has(id));
+  // 편집하는 동안 상대가 '아직'을 모두 비워도 '끝' 버튼은 남겨 초점을 지킨다(구역을 그대로 그린다).
+  // 목록 전체가 비면 빈 화면이라 버튼이 사라지므로, + 버튼이 막힌 채 남지 않게 편집을 끝낸다
+  const isListEmpty = shownTodos.length === 0;
+  useLayoutEffect(() => {
+    if (isReordering && isListEmpty) todoReorderMode.set(false);
+  }, [isReordering, isListEmpty]);
   const movableIndexById = new Map(movable.map(({ id }, index) => [id, index]));
   // 완료를 바꾸면 항목이 다른 목록으로 옮겨 그려져 체크가 새로 만들어지고 초점이 문서 처음으로 빠진다.
   // 저장이 실패해 되돌아갈 때도 같으므로, 저장이 끝나 목록이 정해질 때까지 초점이 빠질 때마다 그 항목의 체크로 돌려준다
@@ -104,6 +119,13 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
       // 저장하는 동안 누른 폼 링크는 이 transition과 묶여 기다리므로, 폼으로 옮기는 중이면 다시 불러오지 않는다(#164)
       refreshOutsideForm(() => startTransition(() => router.refresh()));
     });
+  };
+
+  const handleToggleReorder = () => {
+    const isStarting = !isReordering;
+    // 버튼 글자만 바뀌어 화면 읽기 프로그램은 무엇이 달라졌는지 알 수 없다(띠는 화면에만 보인다)
+    setAnnouncement(isStarting ? "순서를 바꾸는 중이에요. 위·아래 버튼으로 옮기고, 다 하면 '끝'을 눌러 주세요" : "순서 바꾸기를 끝냈어요");
+    todoReorderMode.set(isStarting);
   };
 
   const handleMove = (todo: ShownTodo, offset: -1 | 1) => {
@@ -153,7 +175,7 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
     </>
   );
 
-  if (shownTodos.length === 0) {
+  if (isListEmpty) {
     return (
       // 빈 목록 문구의 자리가 바뀌지 않게, 위 여백은 안내가 있을 때만 둔다
       <div className={notice ? "flex flex-1 flex-col pt-2" : "flex flex-1 flex-col"}>
@@ -167,12 +189,38 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
   }
 
   return (
-    <div className="flex flex-col gap-6 pt-2 pb-6">
+    <div className="flex flex-col gap-4 pb-6">
       {messages}
+      {isReordering && (
+        <p aria-hidden="true" className="-mx-4 bg-accent/8 px-4 py-2 text-[12px] text-accent">
+          순서를 바꾸는 중이에요. 다 하면 &apos;끝&apos;을 눌러 주세요.
+        </p>
+      )}
 
-      {open.length > 0 && (
-        <ul aria-label="하고 싶은 것" className="flex flex-col">
-          {open.map((todo) => {
+      {scheduled.length > 0 && (
+        <TodoSection titleId="todos-scheduled" title={`일정 잡힌 것 ${scheduled.length} · 날짜순`} listLabel="일정 잡힌 것" isInert={isReordering}>
+          {scheduled.map((todo) => (
+            <TodoItem
+              key={todo.id}
+              todo={todo}
+              onToggle={handleToggle}
+              isJustAdded={todo.id === justAddedId}
+              strikePhase={strikePhases.get(todo.id)}
+              today={today}
+              onAnswerAsk={handleAnswerAsk}
+            />
+          ))}
+        </TodoSection>
+      )}
+
+      {(unscheduled.length > 0 || isReordering) && (
+        <TodoSection
+          titleId="todos-unscheduled"
+          title={`아직 ${unscheduled.length}`}
+          listLabel="아직"
+          action={movable.length > 1 || isReordering ? <TodoReorderToggle isReordering={isReordering} onToggle={handleToggleReorder} /> : undefined}
+        >
+          {unscheduled.map((todo) => {
             const index = todo.isPending ? -1 : (movableIndexById.get(todo.id) ?? -1);
             return (
               <TodoItem
@@ -181,32 +229,28 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
                 onToggle={handleToggle}
                 isJustAdded={todo.id === justAddedId}
                 strikePhase={strikePhases.get(todo.id)}
-                today={today}
-                onAnswerAsk={handleAnswerAsk}
+                isLocked={isReordering}
               >
-                <TodoMoveButtons
-                  content={todo.content}
-                  isFirst={index <= 0}
-                  isLast={index === -1 || index === movable.length - 1}
-                  onMove={(offset) => handleMove(todo, offset)}
-                />
+                {isReordering ? (
+                  <TodoMoveButtons
+                    content={todo.content}
+                    isFirst={index <= 0}
+                    isLast={index === -1 || index === movable.length - 1}
+                    onMove={(offset) => handleMove(todo, offset)}
+                  />
+                ) : undefined}
               </TodoItem>
             );
           })}
-        </ul>
+        </TodoSection>
       )}
 
       {done.length > 0 && (
-        <section aria-labelledby="todos-done">
-          <h2 id="todos-done" className="text-[13px] text-ink-sub">
-            완료 {done.length}
-          </h2>
-          <ul className="mt-1 flex flex-col">
-            {done.map((todo) => (
-              <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} isJustAdded={todo.id === justAddedId} isArriving={arrivingIds.has(todo.id)} />
-            ))}
-          </ul>
-        </section>
+        <TodoSection titleId="todos-done" title={`완료 ${done.length}`} listLabel="완료" isInert={isReordering}>
+          {done.map((todo) => (
+            <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} isJustAdded={todo.id === justAddedId} isArriving={arrivingIds.has(todo.id)} />
+          ))}
+        </TodoSection>
       )}
     </div>
   );
