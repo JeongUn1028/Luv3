@@ -533,6 +533,26 @@ export const createDisposableMember = async (password: string, nickname = "임�
 };
 
 /**
+ * 멤버의 하고 싶은 것 목록 보기를 바꾼다(#497). 설정 화면을 거치지 않고 탭 모양에서 시작하는 테스트에 쓴다.
+ *
+ * @example await setTodoListView(memberId, "tabs")
+ */
+export const setTodoListView = async (memberId: string, view: "sections" | "tabs"): Promise<void> => {
+  assertNoError(await createAdminClient().from("members").update({ todo_list_view: view }).eq("id", memberId), "목록 보기");
+};
+
+/**
+ * 멤버의 지금 목록 보기(#497).
+ *
+ * @example expect(await getTodoListView(memberId)).toBe("tabs")
+ */
+export const getTodoListView = async (memberId: string): Promise<string | undefined> => {
+  const { data, error } = await createAdminClient().from("members").select("todo_list_view").eq("id", memberId).maybeSingle();
+  if (error) throw new Error(`목록 보기 읽기 실패: ${error.message}`);
+  return data?.todo_list_view;
+};
+
+/**
  * 멤버가 알림을 켠 기기 주소들(#363). 계정을 지우면 구독도 함께 지워진다.
  *
  * @example expect(await getPushSubscriptionEndpoints(memberId)).toHaveLength(1)
