@@ -10,6 +10,23 @@ import { useSheetDrag } from "./use-sheet-drag";
 const DOUBLE_TAP_GUARD_MS = 300;
 const STEP_IN_CLASS_NAME = "modal-step-in";
 
+/**
+ * 고르기 창(`isPicker`)의 줄 목록. 창 안쪽 좌우 여백(16px)만큼 바깥으로 나가 줄이 창 양끝에 닿고, 줄 사이는 구분선으로 나눈다(#506).
+ * 창 여백을 바꾸면 `-mx-4`도 함께 바꾼다. 길면 목록 안에서 스크롤한다.
+ *
+ * @example <ul aria-label="이을 일정" className={PICKER_LIST_CLASS_NAME}>…</ul>
+ */
+export const PICKER_LIST_CLASS_NAME = "relative -mx-4 mt-4 max-h-[300px] divide-y divide-line overflow-y-auto overscroll-contain border-y border-line";
+
+/**
+ * 고르기 창의 줄 버튼(정렬·높이는 쓰는 쪽이 정한다). 줄이 창 끝까지 닿으므로 작아지는 누름 대신 배경으로 누름을 보이고,
+ * 목록이 스크롤 영역이라 바깥에 그린 초점 테두리는 잘리므로 줄 안쪽에 그린다(#506). 글자 크기·색 같은 내용 모양은 쓰는 쪽이 더한다.
+ *
+ * @example <button type="button" className={`${PICKER_ROW_CLASS_NAME} min-h-[52px] items-center text-[15px] text-ink`}>회 먹기</button>
+ */
+export const PICKER_ROW_CLASS_NAME =
+  "flex w-full px-4 py-2 text-left [-webkit-tap-highlight-color:transparent] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent active:enabled:bg-line disabled:opacity-50";
+
 /** 창을 쓰는 쪽이 부르는 기능. 열기·닫기를 한곳에 두어 창 움직임 같은 변경이 이 파일과 `@/lib/modal-close`에서 끝나게 한다 */
 export interface ModalDialogHandle {
   open: () => void;

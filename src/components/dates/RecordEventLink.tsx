@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useRef, useState, useTransition, type ReactElement } from "react";
 import { ModalActions, ModalMessage } from "@/components/ModalActions";
-import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
+import { ModalDialog, PICKER_LIST_CLASS_NAME, PICKER_ROW_CLASS_NAME, type ModalDialogHandle } from "@/components/ModalDialog";
 import { formatEventTime } from "@/lib/calendar/month";
 import type { DateRecordDetail } from "@/lib/dates/detail";
 import { formatRecordShortDate } from "@/lib/dates/record-date-format";
@@ -86,7 +86,7 @@ const LinkEventButton = ({ recordId, events, onLinked }: LinkEventButtonProps): 
         shouldGuardDoubleTap
         isPicker
       >
-        <ul aria-label="이을 일정" className="relative -mx-1 mt-4 flex max-h-[300px] flex-col gap-2 overflow-y-auto px-1">
+        <ul aria-label="이을 일정" className={PICKER_LIST_CLASS_NAME}>
           {events.map((event) => {
             const key = `${event.eventId}/${event.eventDate}`;
             return (
@@ -107,7 +107,7 @@ const LinkEventButton = ({ recordId, events, onLinked }: LinkEventButtonProps): 
                       },
                     );
                   }}
-                  className="press-card flex min-h-[51px] w-full flex-col justify-center rounded-[10px] border border-line px-4 py-2 text-left disabled:opacity-50"
+                  className={`${PICKER_ROW_CLASS_NAME} min-h-[56px] flex-col justify-center`}
                 >
                   <span className="truncate text-[15px] text-ink">{event.title}</span>
                   <span className="text-[12px] text-ink-sub">{isPending && linkingKey === key ? "잇는 중…" : describeEventDay(event)}</span>

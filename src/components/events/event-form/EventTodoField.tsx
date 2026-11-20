@@ -2,7 +2,7 @@
 
 import { useRef, type ReactElement } from "react";
 import { FIELD_LABEL_CLASS_NAME } from "@/components/FormField";
-import { ModalDialog, type ModalDialogHandle } from "@/components/ModalDialog";
+import { ModalDialog, PICKER_LIST_CLASS_NAME, PICKER_ROW_CLASS_NAME, type ModalDialogHandle } from "@/components/ModalDialog";
 import type { LinkedTodo } from "@/lib/events/form";
 
 interface EventTodoFieldProps {
@@ -75,14 +75,10 @@ export const EventTodoField = ({ linkedTodos, options, isDisabled: isBusy, isLoc
         </p>
       )}
       <ModalDialog ref={modalRef} title="어느 하고 싶은 것과 이을까요?" description="이으면 하고 싶은 것 목록의 그 줄에 날짜가 붙어요." shouldCloseOnOutsideClick shouldGuardDoubleTap isPicker>
-        <ul aria-label="이을 하고 싶은 것" className="relative -mx-1 mt-4 flex max-h-[300px] flex-col gap-2 overflow-y-auto px-1">
+        <ul aria-label="이을 하고 싶은 것" className={PICKER_LIST_CLASS_NAME}>
           {options.map((todo) => (
             <li key={todo.id}>
-              <button
-                type="button"
-                onClick={() => handlePick(todo)}
-                className="press-card flex min-h-[51px] w-full items-center rounded-[10px] border border-line px-4 py-2 text-left text-[15px] break-words text-ink"
-              >
+              <button type="button" onClick={() => handlePick(todo)} className={`${PICKER_ROW_CLASS_NAME} min-h-[52px] items-center text-[15px] break-words text-ink`}>
                 {todo.content}
               </button>
             </li>

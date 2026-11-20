@@ -153,6 +153,41 @@ test.describe("일정 폼에서 하고 싶은 것 잇기(#472)", () => {
     }
   });
 
+  test("고르는 창의 줄에 키보드 초점을 두면 초점 테두리가 목록 안에 그려져 창 양끝에서 잘리지 않는다(#506)", async ({ page }, testInfo) => {
+    // Arrange: 줄이 창 양끝까지 닿고 목록은 스크롤 영역이라, 바깥에 그린 초점 테두리는 잘린다
+    const deleteTodos = await Promise.all(
+      [1, 2].map((index) => createDisposableTodo({ id: randomUUID(), content: createTestName(`E2E 초점 줄 ${index}`, testInfo) })),
+    );
+    try {
+      await openScreen(page, "/events/new", page.locator("#event-title").locator("visible=true"));
+      await getMain(page).getByRole("button", { name: "하고 싶은 것과 잇기" }).tap();
+      const list = page.getByRole("dialog", { name: "어느 하고 싶은 것과 이을까요?" }).getByRole("list", { name: "이을 하고 싶은 것" });
+      await list.waitFor();
+
+      // Act: 둘째 줄에서 Shift+Tab으로 첫 줄로 옮겨, 키보드로 둔 초점(초점 테두리가 보이는 상태)으로 만든다
+      await list.getByRole("button").nth(1).focus();
+      await page.keyboard.press("Shift+Tab");
+      await expect(list.getByRole("button").first()).toBeFocused();
+
+      // Assert
+      const room = await list.evaluate((listElement) => {
+        const row = document.activeElement;
+        if (!(row instanceof HTMLElement) || !listElement.contains(row) || !row.matches(":focus-visible")) return undefined;
+        const style = getComputedStyle(row);
+        if (style.outlineStyle === "none") return undefined;
+        const grow = Number.parseFloat(style.outlineOffset) + Number.parseFloat(style.outlineWidth);
+        const rowBox = row.getBoundingClientRect();
+        const listBox = listElement.getBoundingClientRect();
+        return { left: rowBox.left - grow - listBox.left, right: listBox.right - (rowBox.right + grow) };
+      });
+      expect(room).toBeDefined();
+      expect(room?.left).toBeGreaterThanOrEqual(0);
+      expect(room?.right).toBeGreaterThanOrEqual(0);
+    } finally {
+      await Promise.all(deleteTodos.map((deleteTodo) => deleteTodo()));
+    }
+  });
+
   test("새 일정 폼에서 하고 싶은 것 둘을 이어 저장하면 둘 다 그 일정에 이어진다(#495)", async ({ page }, testInfo) => {
     // Arrange
     const [firstId, secondId] = [randomUUID(), randomUUID()];
