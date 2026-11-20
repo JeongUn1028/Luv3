@@ -1,19 +1,23 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { startTransition, useLayoutEffect, useOptimistic, useRef, useState, useSyncExternalStore, type ReactElement } from "react";
 import { toCheckboxId, TodoItem, TodoMoveButtons, type TodoAskAnswer } from "@/components/todos/TodoItem";
+import { TodoPickItem } from "@/components/todos/TodoPickItem";
 import { TodoReorderToggle, TodoSection } from "@/components/todos/TodoSection";
 import { useJustAddedTodo, useStrikingTodos } from "@/components/todos/use-todo-motion";
 import { DELETING_KEYS, omitDeleting, useDeletingKeys } from "@/lib/deleting";
 import { isWritingNow, refreshOutsideForm } from "@/lib/navigation/refresh-outside-form";
+import { FORWARD_TRANSITION } from "@/lib/navigation/transition";
 import { useResetOnHide } from "@/lib/navigation/use-reset-on-hide";
 import { withLoadedClient } from "@/lib/supabase/load-client";
 import { saveTodoAction, TODO_ACTION_FAILED_MESSAGE } from "@/lib/todos/actions";
 import { applyTodoAction, groupTodos, splitScheduledTodos, type Todo, type TodoAction } from "@/lib/todos/list";
 import { findSettledPendingIds, mergePendingTodos, pendingTodoStore, type PendingTodo, type ShownTodo } from "@/lib/todos/pending";
-import { todoReorderMode } from "@/lib/todos/reorder-mode";
+import { canPickTodos, todoListMode } from "@/lib/todos/list-mode";
 import { createTodoSaveBatch } from "@/lib/todos/save-batch";
+import { toPickedTodosScheduleHref } from "@/lib/todos/schedule";
 
 // 서버에서 그릴 때는 저장 중인 항목이 없다. 같은 값을 돌려줘야 다시 그리지 않는다
 const NO_PENDING_TODOS: readonly PendingTodo[] = [];
@@ -39,6 +43,7 @@ const saveAction = (action: TodoAction): Promise<string | undefined> =>
  * 편집하는 동안에는 실수로 완료하지 않게 체크·고치기·추가를 막는다. 화면 읽기 프로그램으로도 같은 방법으로 바꿀 수 있다.
  * 연달아 누르면 저장은 누른 순서대로 하나씩 하고, 서버 목록은 마지막 저장이 끝났을 때 한 번만 다시 받는다(#347).
  * 완료를 누르면 제자리에서 줄을 긋고 잠깐 머문 뒤 완료 칸으로 옮기고, 폼에서 막 더한 항목은 보이게 스크롤해 잠깐 표시한다(#347).
+ * 머리글의 '일정 잡기'를 누르면 '아직' 구역에서 여러 개를 골라 한 번에 일정을 잡는다(#495). 일정 잡힌 것과 완료한 것은 흐리게 두고 고를 수 없다.
  * 폼에서 저장 중인 항목(#345)은 서버 목록이 따라잡을 때까지 흐리게 먼저 보여 주고, 아직 서버에 없을 수 있어 누를 수 없게 한다.
  *
  * @example <TodoList todos={await getTodos()} />
@@ -60,12 +65,17 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
   // 순서를 바꾼 결과를 화면 읽기 프로그램에 알려 준다(버튼만 눌러서는 바뀐 자리를 알 수 없다)
   const [announcement, setAnnouncement] = useState("");
   // 서버에서 그린 화면은 편집 중일 수 없다
-  const isReordering = useSyncExternalStore(todoReorderMode.subscribe, todoReorderMode.get, () => false);
+  const mode = useSyncExternalStore(todoListMode.subscribe, todoListMode.get, () => "view");
+  const isReordering = mode === "reorder";
+  const isPicking = mode === "pick";
+  // 고른 하고 싶은 것 id(누른 순서). 고르기를 끝내면 비운다
+  const [pickedIds, setPickedIds] = useState<readonly string[]>([]);
+  if (!isPicking && pickedIds.length > 0) setPickedIds([]);
   useResetOnHide(() => {
     setNotice(undefined);
     setAnnouncement("");
-    // 다른 탭으로 가거나 화면을 떠나면 편집이 끝난다
-    todoReorderMode.set(false);
+    // 다른 탭으로 가거나 화면을 떠나면(고른 것으로 일정 폼을 열 때도) 편집과 고르기가 끝난다
+    todoListMode.set("view");
     // 저장은 끝났는데 목록에 들어오지 않은 항목(그사이 상대가 지움)이 흐린 채 남지 않게 한다
     pendingTodoStore.removeSaved();
     resetStrikes();
@@ -79,12 +89,23 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
   // 아직 서버에 없는 새 항목과 줄긋기 중인 항목은 순서를 바꿀 때 이웃으로 치지 않는다. 고치는 중인 항목은 서버에도 있어 이웃으로 친다.
   // 일정 잡힌 것은 날짜순이라 손으로 바꾸지 않고, DB도 같은 구역 안에서만 이웃을 찾는다
   const movable = unscheduled.filter(({ id, isNew }) => !isNew && !strikePhases.has(id));
-  // 편집하는 동안 상대가 '아직'을 모두 비워도 '끝' 버튼은 남겨 초점을 지킨다(구역을 그대로 그린다).
+  // 일정을 이을 수 있는 것: 서버에 있는 '아직' 항목(저장 중인 새 항목은 아직 없다). 줄긋기 중인 항목은 곧 완료로 옮겨 가므로 뺀다.
+  // 그사이 상대가 일정을 잡거나 지운 것은 고른 것에서도 빠진다
+  const pickable = unscheduled.filter(({ id, isPending }) => !isPending && !strikePhases.has(id));
+  const pickedIdSet = new Set(pickedIds);
+  const picked = pickable.filter(({ id }) => pickedIdSet.has(id));
+  const hasPickable = pickable.length > 0;
+  // 목록이 사라지면(불러오기 실패 화면 등) 머리글 버튼이 열린 채 남지 않게 되돌린다
+  useLayoutEffect(() => {
+    canPickTodos.set(hasPickable);
+    return () => canPickTodos.set(false);
+  }, [hasPickable]);
+  // 편집하는 동안 상대가 '아직'을 모두 비워도 '끝'·'취소' 버튼은 남겨 초점을 지킨다(구역을 그대로 그린다).
   // 목록 전체가 비면 빈 화면이라 버튼이 사라지므로, + 버튼이 막힌 채 남지 않게 편집을 끝낸다
   const isListEmpty = shownTodos.length === 0;
   useLayoutEffect(() => {
-    if (isReordering && isListEmpty) todoReorderMode.set(false);
-  }, [isReordering, isListEmpty]);
+    if (mode !== "view" && isListEmpty) todoListMode.set("view");
+  }, [mode, isListEmpty]);
   const movableIndexById = new Map(movable.map(({ id }, index) => [id, index]));
   // 완료를 바꾸면 항목이 다른 목록으로 옮겨 그려져 체크가 새로 만들어지고 초점이 문서 처음으로 빠진다.
   // 저장이 실패해 되돌아갈 때도 같으므로, 저장이 끝나 목록이 정해질 때까지 초점이 빠질 때마다 그 항목의 체크로 돌려준다
@@ -125,7 +146,11 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
     const isStarting = !isReordering;
     // 버튼 글자만 바뀌어 화면 읽기 프로그램은 무엇이 달라졌는지 알 수 없다(띠는 화면에만 보인다)
     setAnnouncement(isStarting ? "순서를 바꾸는 중이에요. 위·아래 버튼으로 옮기고, 다 하면 '끝'을 눌러 주세요" : "순서 바꾸기를 끝냈어요");
-    todoReorderMode.set(isStarting);
+    todoListMode.set(isStarting ? "reorder" : "view");
+  };
+
+  const handlePick = (todo: ShownTodo, isPicked: boolean) => {
+    setPickedIds((current) => (isPicked ? [...current, todo.id] : current.filter((id) => id !== todo.id)));
   };
 
   const handleMove = (todo: ShownTodo, offset: -1 | 1) => {
@@ -196,9 +221,14 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
           순서를 바꾸는 중이에요. 다 하면 &apos;끝&apos;을 눌러 주세요.
         </p>
       )}
+      {isPicking && (
+        <p aria-hidden="true" className="-mx-4 bg-accent/8 px-4 py-2 text-[12px] text-accent">
+          함께 일정을 잡을 것을 골라 주세요.
+        </p>
+      )}
 
       {scheduled.length > 0 && (
-        <TodoSection titleId="todos-scheduled" title={`일정 잡힌 것 ${scheduled.length} · 날짜순`} listLabel="일정 잡힌 것" isInert={isReordering}>
+        <TodoSection titleId="todos-scheduled" title={`일정 잡힌 것 ${scheduled.length} · 날짜순`} listLabel="일정 잡힌 것" isInert={mode !== "view"}>
           {scheduled.map((todo) => (
             <TodoItem
               key={todo.id}
@@ -218,9 +248,14 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
           titleId="todos-unscheduled"
           title={`아직 ${unscheduled.length}`}
           listLabel="아직"
-          action={movable.length > 1 || isReordering ? <TodoReorderToggle isReordering={isReordering} onToggle={handleToggleReorder} /> : undefined}
+          // 고르는 동안은 순서 바꾸기 버튼을 숨긴다
+          action={!isPicking && (movable.length > 1 || isReordering) ? <TodoReorderToggle isReordering={isReordering} onToggle={handleToggleReorder} /> : undefined}
         >
           {unscheduled.map((todo) => {
+            if (isPicking) {
+              const isPickable = !todo.isPending && !strikePhases.has(todo.id);
+              return <TodoPickItem key={todo.id} todo={todo} isPicked={pickedIdSet.has(todo.id)} isDisabled={!isPickable} onChange={handlePick} />;
+            }
             const index = todo.isPending ? -1 : (movableIndexById.get(todo.id) ?? -1);
             return (
               <TodoItem
@@ -246,12 +281,34 @@ export const TodoList = ({ todos, today }: TodoListProps): ReactElement => {
       )}
 
       {done.length > 0 && (
-        <TodoSection titleId="todos-done" title={`완료 ${done.length}`} listLabel="완료" isInert={isReordering}>
+        <TodoSection titleId="todos-done" title={`완료 ${done.length}`} listLabel="완료" isInert={mode !== "view"}>
           {done.map((todo) => (
             <TodoItem key={todo.id} todo={todo} onToggle={handleToggle} isJustAdded={todo.id === justAddedId} isArriving={arrivingIds.has(todo.id)} />
           ))}
         </TodoSection>
       )}
+
+      {isPicking && <TodoPickBar todoIds={picked.map(({ id }) => id)} />}
     </div>
   );
 };
+
+const PICK_BAR_CLASS_NAME = "press-wide flex h-12 w-full items-center justify-center rounded-[10px] bg-accent font-display text-[16px] text-background aria-disabled:opacity-40";
+
+/**
+ * 고르는 동안 목록 아래에 붙어 있는 'N개로 일정 잡기'(#495). 고른 것이 미리 이어진 새 일정 폼을 연다.
+ * 하나도 고르지 않았으면 고른 것 없는 폼으로 가는 주소가 생기지 않게 링크 대신 막힌 버튼을 둔다(눌러도 초점을 잃지 않게 aria-disabled).
+ */
+const TodoPickBar = ({ todoIds }: { todoIds: string[] }): ReactElement => (
+  <div className="sticky bottom-0 -mx-4 -mb-6 bg-background px-4 pt-2 pb-3">
+    {todoIds.length === 0 ? (
+      <button type="button" aria-disabled="true" className={PICK_BAR_CLASS_NAME}>
+        잡을 것을 골라 주세요
+      </button>
+    ) : (
+      <Link href={toPickedTodosScheduleHref(todoIds)} transitionTypes={FORWARD_TRANSITION} className={PICK_BAR_CLASS_NAME}>
+        {`${todoIds.length}개로 일정 잡기`}
+      </Link>
+    )}
+  </div>
+);

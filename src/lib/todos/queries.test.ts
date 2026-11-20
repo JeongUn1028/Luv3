@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "@/lib/supabase/server";
-import { getOpenTodoPreview, TodoLoadError } from "./queries";
+import { getLinkableTodosByIds, getOpenTodoPreview, TodoLoadError } from "./queries";
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
@@ -17,6 +17,7 @@ const fakeSupabase = (...results: QueryResult[]) => {
   const query = {
     select: (...args: unknown[]) => (calls.push(["select", ...args]), query),
     is: (...args: unknown[]) => (calls.push(["is", ...args]), query),
+    in: (...args: unknown[]) => (calls.push(["in", ...args]), query),
     order: (...args: unknown[]) => (calls.push(["order", ...args]), query),
     limit: (...args: unknown[]) => (calls.push(["limit", ...args]), query),
     then: (resolve: (value: QueryResult) => unknown) => {
@@ -104,5 +105,40 @@ describe("getOpenTodoPreview", () => {
     // Assert
     expect(failure).toBeInstanceOf(TodoLoadError);
     expect(failure instanceof TodoLoadError && failure.cause).toBe(dbError);
+  });
+});
+
+describe("getLinkableTodosByIds", () => {
+  afterEach(() => {
+    vi.mocked(createClient).mockReset();
+  });
+
+  it("고른 id 중 일정이 없고 완료하지 않은 것만 목록 순서대로 개수 제한 없이 받는다(#495)", async () => {
+    // Arrange
+    const rows = [{ id: "a", content: "회 먹기" }];
+    const calls = fakeSupabase({ data: rows, error: null });
+
+    // Act
+    const todos = await getLinkableTodosByIds(["a", "b"]);
+
+    // Assert
+    expect(todos).toEqual(rows);
+    expect(calls).toEqual([
+      ["from", "todos"],
+      ["select", "id, content"],
+      ["in", "id", ["a", "b"]],
+      ["is", "completed_at", null],
+      ["is", "event_id", null],
+      ["order", "sort_order"],
+      ["order", "id"],
+    ]);
+  });
+
+  it("조회가 실패하면 TodoLoadError를 던진다", async () => {
+    // Arrange
+    fakeSupabase({ data: null, error: { message: "boom" } });
+
+    // Act & Assert
+    await expect(getLinkableTodosByIds(["a"])).rejects.toBeInstanceOf(TodoLoadError);
   });
 });
